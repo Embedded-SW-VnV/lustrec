@@ -10,6 +10,7 @@ true: bin_annot, color(always)
 "plugins/scopes": include
 "plugins/mpfr": include
 "features/machine_types": include
+"tools": include
 "tools/stateflow": include
 "tools/stateflow/common": include
 "tools/stateflow/semantics": include
@@ -23,9 +24,7 @@ true: bin_annot, color(always)
 # packages
 <**/*.native>                   : package(ocamlgraph)
 <**/*.native>                   : use_str
-<**/main_lustre_compiler.native>: use_unix
-<**/main_lustre_testgen.native> : use_unix
-<**/sf_sem.native>              : use_unix
+<**/*.native>                   : use_unix
 <**/*.native>                   : package(num)
 <**/*.ml>                       : package(logs)
 <**/*.native>                   : package(logs)
@@ -44,6 +43,11 @@ true: bin_annot, color(always)
 
 # Plugin dependencies
 @SALSA_TAG@
+
+# Available solvers
+@LUSTREV_SEAL_TAG@
+@LUSTREV_TINY_TAG@
+@LUSTREV_Z3_TAG@
 
 # Local Variables:
 # mode: conf

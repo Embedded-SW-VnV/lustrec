@@ -55,7 +55,7 @@ dnl AC_MSG_RESULT(Hourrah: ocamlfind found!)
 
 # Checks for libraries.
 # OCamlgraph
-AC_MSG_CHECKING(ocaml libraries required)
+AC_MSG_CHECKING(ocaml libraries required (ocamlgraph cmdliner fmt logs num)) 
 AS_IF([ocamlfind query ocamlgraph cmdliner fmt logs num >/dev/null 2>&1],
     [],[AC_MSG_ERROR(A few ocaml library required. opam install ocamlgraph cmdliner fmt logs num should solve the issue)],
 )
@@ -66,6 +66,36 @@ AC_MSG_CHECKING(yojson library (optional))
 AS_IF([ocamlfind query yojson >/dev/null 2>&1],
     [yojson=yes; AC_MSG_RESULT(yes)],[yojson=no; AC_MSG_WARN(Yojson required for lustresf. opam install yojson should solve the issue)],
 )
+
+# Seal
+AC_MSG_CHECKING(seal library (optional))
+AS_IF([ocamlfind query seal >/dev/null 2>&1],
+    [seal=yes; AC_MSG_RESULT(yes)],[seal=no; AC_MSG_RESULT(no)],
+)
+AS_IF([test "x$seal" = "xyes"], [
+   AC_SUBST(LUSTREV_SEAL, "(module Seal_verifier.Verifier : VerifierType.S);")
+   AC_SUBST(LUSTREV_SEAL_TAG, "<**/*>: package(seal)")
+])
+
+# z3
+AC_MSG_CHECKING(z3 library (optional))
+AS_IF([ocamlfind query z3 >/dev/null 2>&1],
+    [z3=yes; AC_MSG_RESULT(yes)],[seal=no; AC_MSG_RESULT(no)],
+)
+AS_IF([test "x$z3" = "xyes"], [
+   AC_SUBST(LUSTREV_ZUSTRE, "(module Zustre_verifier.Verifier : VerifierType.S);")
+   AC_SUBST(LUSTREV_Z3_TAG, "<**/*>: package(z3)")
+])
+
+# Tiny
+AC_MSG_CHECKING(tiny library (optional))
+AS_IF([ocamlfind query tiny >/dev/null 2>&1],
+    [tiny=yes; AC_MSG_RESULT(yes)],[tiny=no; AC_MSG_RESULT(no)],
+)
+AS_IF([test "x$tiny" = "xyes"], [
+   AC_SUBST(LUSTREV_TINY, "(module Tiny_verifier.Verifier : VerifierType.S);")
+   AC_SUBST(LUSTREV_TINY_TAG, "<**/*>: package(tiny)")
+])
 
 # Salsa
 AC_ARG_ENABLE(salsa, [AS_HELP_STRING([--disable-salsa],
@@ -79,7 +109,7 @@ AS_IF([ocamlfind query salsa >/dev/null 2>&1],
 
 AS_IF([test "x$enable_salsa" != "xno"], [
   if (test "x$salsa" = xyes ); then
-   AC_SUBST(SALSA, "(module Salsa_plugin.Plugin : PluginType.PluginType);")
+   AC_SUBST(SALSA, "(module Salsa_plugin.Plugin : PluginType.S);")
    AC_SUBST(SALSA_TAG, "<**/*.native> or <plugins/salsa/*.cm?> : package(salsa)")
   fi
 ])
@@ -156,6 +186,7 @@ AC_CONFIG_FILES([Makefile
 		 src/Makefile
 		 src/version.ml
 		 src/pluginList.ml
+		 src/verifierList.ml
 		 src/_tags
 		 src/ocaml_utils.ml
 		 ])
@@ -189,6 +220,25 @@ AC_MSG_NOTICE(********    Plugins    ********)
       else
         AC_MSG_NOTICE([lustresf not available])
       fi
+  fi
+AC_MSG_NOTICE(********   Verifiers    ********)
+
+  if (test "x$seal" = "xyes"); then
+      AC_MSG_NOTICE([Seal   enabled])
+  else
+      AC_MSG_NOTICE([Seal   disabled. Require Seal library])
+  fi
+
+  if (test "x$z3" = xyes); then
+      AC_MSG_NOTICE([Zustre enabled])
+  else
+      AC_MSG_NOTICE([Zustre disabled. Require Z3 ocaml library])
+  fi
+
+  if (test "x$tiny" = xyes); then
+      AC_MSG_NOTICE([Tiny   enabled])
+  else
+      AC_MSG_NOTICE([Tiny   disabled. Require Tiny library])
   fi
 
 AC_MSG_NOTICE(****** Regression Tests  ******)

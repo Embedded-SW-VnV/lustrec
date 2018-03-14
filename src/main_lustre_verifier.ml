@@ -17,47 +17,31 @@ open Utils
 open LustreSpec
  
 
-let usage = "Usage: lustrec [options] \x1b[4msource file\x1b[0m"
+let usage = "Usage: lustrev [options] \x1b[4msource file\x1b[0m"
 
 let extensions = [".ec"; ".lus"; ".lusi"]
 
-(* print a .lusi header file from a source prog *)
-let print_lusi prog dirname basename extension =
-  let header = Lusic.extract_header dirname basename prog in
-  let header_name = dirname ^ "/" ^ basename ^ extension in
-  let h_out = open_out header_name in
-  let h_fmt = formatter_of_out_channel h_out in
-  begin
-    Typing.uneval_prog_generics header;
-    Clock_calculus.uneval_prog_generics header;
-    Printers.pp_lusi_header h_fmt basename header;
-    close_out h_out
-  end
 
-(* compile a .lusi header file *)
-let compile_header dirname  basename extension =
-  let destname = !Options.dest_dir ^ "/" ^ basename in
-  let header_name = basename ^ extension in
-  let lusic_ext = extension ^ "c" in
-  begin
-    Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v>");
-    let header = parse_header true (dirname ^ "/" ^ header_name) in
-    ignore (Modules.load_header ISet.empty header);
-    ignore (check_top_decls header);
-    create_dest_dir ();
-    Log.report ~level:1
-      (fun fmt -> fprintf fmt ".. generating compiled header file %sc@," (destname ^ extension));
-    Lusic.write_lusic true header destname lusic_ext;
-    generate_lusic_header destname lusic_ext;
-    Log.report ~level:1 (fun fmt -> fprintf fmt ".. done !@ @]@ ")
-  end
+(* verify a .lus source file 
 
+we have multiple "backends"
+- zustre: linked to z3/spacer. Shall preserve the structure and rely on contracts. Produces both a lustre model with new properties, maybe as a lusi with lustre contract, and a JSON summarizing the results and providing tests cases or counter examples if any
 
+- seal: linked to seal. Require global inline and main node
+  focuses only on the selected node (the main)
+  map the machine code into SEAL datastructure and compute invariants
+  - provides the node and its information (typical point of interest for taylor expansion, range for inputs, existing invariants, computation error for the node content)
+  - simplification of program through taylor expansion
+  - scaling when provided with typical ranges (not required to be sound for the moment)
+  - computation of lyapunov invariants
+  - returns an annotated node with invariants and a JSON to explain computation
+  - could also returns plots
 
-
-
-(* compile a .lus source file *)
-let rec compile_source dirname basename extension =
+- tiny: linked to tiny library to perform floating point analyses
+  shall be provided with ranges for inputs or local variables (memories)
+  
+*)
+let rec verify dirname basename extension =
   let source_name = dirname ^ "/" ^ basename ^ extension in
 
   Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 0>");
@@ -65,28 +49,18 @@ let rec compile_source dirname basename extension =
   (* Parsing source *)
   let prog = parse_source source_name in
 
-  let prog =
-    if !Options.mpfr then
-      Mpfr.mpfr_module::prog
-    else
-      prog
-  in
-  let params = Backends.get_normalization_params () in
+  (* Checking which solver is active *)
+  let verifier = Verifiers.get_active () in
+  let module Verifier = (val verifier : VerifierType.S) in
 
+  
+  (* Normalizing it *)
   let prog, dependencies = 
     Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>.. Phase 1 : Normalisation@,");
-    try 
+    try
+      let params = Verifier.get_normalization_params () in
       Compiler_stages.stage1 params prog dirname basename
     with Compiler_stages.StopPhase1 prog -> (
-      if !Options.lusi then
-	begin
-	  let lusi_ext = extension ^ "i" in
-	  Log.report ~level:1 (fun fmt -> fprintf fmt ".. generating interface file %s@ " (basename ^ lusi_ext));
-	  print_lusi prog dirname basename lusi_ext;
-	  Log.report ~level:1 (fun fmt -> fprintf fmt ".. done !@ @]@.");
-	  exit 0
-	end
-      else
         assert false
     )
   in
@@ -114,19 +88,15 @@ let rec compile_source dirname basename extension =
     end;
 
   let machine_code = Plugins.refine_machine_code prog machine_code in
-  
-  Compiler_stages.stage3 prog machine_code dependencies basename;
+
+  assert (dependencies = []); (* Do not handle deps yet *)
+  Verifier.run basename prog machine_code;
   begin
     Log.report ~level:1 (fun fmt -> fprintf fmt ".. done !@ @]@.");
     (* We stop the process here *)
     exit 0
   end
 
-let compile dirname basename extension =
-  match extension with
-  | ".lusi"  -> compile_header dirname basename extension
-  | ".lus"   -> compile_source dirname basename extension
-  | _        -> assert false
 
 let anonymous filename =
   let ok_ext, ext = List.fold_left
@@ -139,7 +109,7 @@ let anonymous filename =
   if ok_ext then
     let dirname = Filename.dirname filename in
     let basename = Filename.chop_suffix (Filename.basename filename) ext in
-    compile dirname basename ext
+    verify dirname basename ext
   else
     raise (Arg.Bad ("Can only compile *.lusi, *.lus or *.ec files"))
 
@@ -149,7 +119,7 @@ let _ =
   try
     Printexc.record_backtrace true;
 
-    let options = Options_management.lustrec_options @ (Plugins.options ()) in
+    let options = Options_management.lustrev_options @ (Verifiers.options ()) in
     
     Arg.parse options anonymous usage
   with

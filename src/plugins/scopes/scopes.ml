@@ -239,7 +239,7 @@ let update_machine machine =
 
 module Plugin : (
   sig
-    include PluginType.PluginType
+    include PluginType.S
     val show_scopes: unit -> bool
     end) =
 struct

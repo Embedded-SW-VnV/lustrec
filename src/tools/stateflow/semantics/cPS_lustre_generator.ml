@@ -321,7 +321,7 @@ struct
     in tr 
     
   let mkcomponent :
-  type c. c call_t -> c -> t -> LustreSpec.program =
+  type c. c call_t -> c -> t -> LustreSpec.program_t =
     fun call args ->
       fun tr ->
 	reset_loc ();

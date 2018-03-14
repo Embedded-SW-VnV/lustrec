@@ -110,9 +110,9 @@ val expr_to_eexpr: expr -> eexpr
 
 val add_internal_funs: unit -> unit
 
-val pp_prog_type : Format.formatter -> program -> unit
+val pp_prog_type : Format.formatter -> program_t -> unit
 
-val pp_prog_clock : Format.formatter -> program -> unit
+val pp_prog_clock : Format.formatter -> program_t -> unit
 
 val const_of_top: top_decl -> const_desc
 val node_of_top: top_decl -> node_desc
@@ -120,12 +120,12 @@ val imported_node_of_top: top_decl -> imported_node_desc
 val typedef_of_top: top_decl -> typedef_desc
 val dependency_of_top: top_decl -> (bool * ident)
 
-val get_nodes : program -> top_decl list
-val get_imported_nodes : program -> top_decl list
-val get_consts : program -> top_decl list
-val get_typedefs: program -> top_decl list
-val get_dependencies : program -> top_decl list
-(* val prog_unfold_consts: program -> program *)
+val get_nodes : program_t -> top_decl list
+val get_imported_nodes : program_t -> top_decl list
+val get_consts : program_t -> top_decl list
+val get_typedefs: program_t -> top_decl list
+val get_dependencies : program_t -> top_decl list
+(* val prog_unfold_consts: program_t -> program_t *)
 
 val rename_static: (ident -> Dimension.dim_expr) -> type_dec_desc -> type_dec_desc
 val rename_carrier: (ident -> ident) -> clock_dec_desc -> clock_dec_desc
@@ -142,7 +142,7 @@ val rename_eq : (ident -> ident) -> (ident -> ident) -> eq -> eq
 (** val rename_aut f_node f_var aut *)
 val rename_aut : (ident -> ident) -> (ident -> ident) -> automata_desc -> automata_desc
 (** rename_prog f_node f_var prog *)
-val rename_prog: (ident -> ident) -> (ident -> ident) -> (ident -> ident) -> program -> program
+val rename_prog: (ident -> ident) -> (ident -> ident) -> (ident -> ident) -> program_t -> program_t
 
 val substitute_expr: var_decl list -> eq list -> expr -> expr
 

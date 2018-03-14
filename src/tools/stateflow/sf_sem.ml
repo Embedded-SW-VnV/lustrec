@@ -80,8 +80,9 @@ let _ =
      let auto_out = open_out auto_file in
      let auto_fmt = Format.formatter_of_out_channel auto_out in
      Format.fprintf auto_fmt "%a@." Printers.pp_prog prog;
-     
-     let prog, deps = Compiler_stages.stage1 prog "" "" in
+
+     let params = Backends.get_normalization_params () in
+     let prog, deps = Compiler_stages.stage1 params prog "" "" in
 
      Format.printf "%a@." Printers.pp_prog prog;
      let noauto_file = "sf_gen_test_noauto.lus" in (* Could be changed *)

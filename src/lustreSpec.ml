@@ -211,7 +211,7 @@ type top_decl =
      top_decl_itf: bool;                (* header or source file ? *)
      top_decl_loc: Location.t}          (* the location where it is defined *)
 
-type program = top_decl list
+type program_t = top_decl list
 
 type dep_t = Dep of
     bool

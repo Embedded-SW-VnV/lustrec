@@ -29,10 +29,19 @@ open Format
       definitions.
 *)
 
-(* Two global variables *)
-let unfold_arrow_active = ref true
-let force_alias_ite = ref false
-let force_alias_internal_fun = ref false
+type param_t =
+  {
+    unfold_arrow_active: bool;
+    force_alias_ite: bool;
+    force_alias_internal_fun: bool;
+  }
+
+let params = ref
+               {
+                 unfold_arrow_active = false;
+                 force_alias_ite = false;
+                 force_alias_internal_fun =false;
+               }
 
   
 let expr_true loc ck =
@@ -230,7 +239,7 @@ let rec normalize_expr ?(alias=true) ?(alias_basic=false) node offsets defvars e
      in
      defvars, mk_norm_expr offsets expr (Expr_appl (id, expr_of_expr_list args.expr_loc norm_args, None))
   | Expr_appl (id, args, None) when Basic_library.is_expr_internal_fun expr
-      && not (!force_alias_internal_fun || alias_basic) ->
+      && not (!params.force_alias_internal_fun || alias_basic) ->
      let defvars, norm_args = normalize_expr ~alias:true node offsets defvars args in
      defvars, mk_norm_expr offsets expr (Expr_appl (id, norm_args, None))
   | Expr_appl (id, args, r) ->
@@ -248,10 +257,10 @@ let rec normalize_expr ?(alias=true) ?(alias_basic=false) node offsets defvars e
        let defvars, norm_expr = normalize_expr node [] defvars norm_expr in
        normalize_expr ~alias:alias node offsets defvars norm_expr
      else
-       mk_expr_alias_opt (alias && (!force_alias_internal_fun || alias_basic
+       mk_expr_alias_opt (alias && (!params.force_alias_internal_fun || alias_basic
 				    || not (Basic_library.is_expr_internal_fun expr)))
 	 node defvars norm_expr
-  | Expr_arrow (e1,e2) when !unfold_arrow_active && not (is_expr_once expr) ->
+  | Expr_arrow (e1,e2) when !params.unfold_arrow_active && not (is_expr_once expr) ->
      (* Here we differ from Colaco paper: arrows are pushed to the top *)
      normalize_expr ~alias:alias node offsets defvars (unfold_arrow expr)
   | Expr_arrow (e1,e2) ->
@@ -328,7 +337,7 @@ and normalize_cond_expr ?(alias=true) node offsets defvars expr =
   | Expr_merge (c, hl) ->
      let defvars, norm_hl = normalize_branches node offsets defvars hl in
      defvars, mk_norm_expr offsets expr (Expr_merge (c, norm_hl))
-  | _ when !force_alias_ite ->
+  | _ when !params.force_alias_ite ->
      (* Forcing alias creation for then/else expressions *)
      let defvars, norm_expr =
        normalize_expr ~alias:alias node offsets defvars expr
@@ -506,34 +515,15 @@ let normalize_decl decl =
     decl'
   | Open _ | ImportedNode _ | Const _ | TypeDef _ -> decl
 
-let normalize_prog ?(backend="C") decls =
-  let old_unfold_arrow_active = !unfold_arrow_active in
-  let old_force_alias_ite = !force_alias_ite in
-  let old_force_alias_internal_fun = !force_alias_internal_fun in
-  
+let normalize_prog p decls =
   (* Backend specific configurations for normalization *)
-  let _ =
-    match backend with
-    | "lustre" ->
-    (* Special treatment of arrows in lustre backend. We want to keep them *)
-       unfold_arrow_active := false;
-    | "emf" -> (
-       (* Forcing ite normalization *)
-      force_alias_ite := true;
-      force_alias_internal_fun := true;
-    )
-    | _ -> () (* No fancy options for other backends *)
-  in
+  params := p;
 
   (* Main algorithm: iterates over nodes *)
-  let res = List.map normalize_decl decls in
-  
-  (* Restoring previous settings *)
-  unfold_arrow_active := old_unfold_arrow_active;
-  force_alias_ite := old_force_alias_ite;
-  force_alias_internal_fun := old_force_alias_internal_fun;
-  res
-  
-  (* Local Variables: *)
-(* compile-command:"make -C .." *)
-(* End: *)
+  List.map normalize_decl decls
+
+    
+           (* Local Variables: *)
+           (* compile-command:"make -C .." *)
+           (* End: *)
+    

@@ -3,7 +3,7 @@ open Utils
 open Compiler_common
 open LustreSpec
 
-exception StopPhase1 of program
+exception StopPhase1 of program_t
 
 let dynamic_checks () =
   match !Options.output, !Options.spec with
@@ -22,7 +22,7 @@ let compile_source_to_header prog computed_types_env computed_clocks_env dirname
       begin
 	Log.report ~level:1 (fun fmt -> fprintf fmt ".. generating compiled header file %s@," header_name);
 	Lusic.write_lusic false (Lusic.extract_header dirname basename prog) destname lusic_ext;
-	Lusic.print_lusic_to_h destname lusic_ext
+	if !Options.output = "C" then Lusic.print_lusic_to_h destname lusic_ext
       end
     else
       let lusic = Lusic.read_lusic destname lusic_ext in
@@ -31,7 +31,7 @@ let compile_source_to_header prog computed_types_env computed_clocks_env dirname
 	  Log.report ~level:1 (fun fmt -> fprintf fmt ".. generating compiled header file %s@," header_name);
        	  Lusic.write_lusic false (Lusic.extract_header dirname basename prog) destname lusic_ext;
 	  (*List.iter (fun top_decl -> Format.eprintf "lusic: %a@." Printers.pp_decl top_decl) lusic.Lusic.contents;*)
-	  Lusic.print_lusic_to_h destname lusic_ext
+	  if !Options.output = "C" then Lusic.print_lusic_to_h destname lusic_ext
 	end
       else
 	begin
@@ -47,7 +47,7 @@ let compile_source_to_header prog computed_types_env computed_clocks_env dirname
 
 
 (* From prog to prog *)
-let stage1 prog dirname basename =
+let stage1 params prog dirname basename =
   (* Updating parent node information for variables *)
   Compiler_common.update_vdecl_parents_prog prog;
 
@@ -175,7 +175,7 @@ let stage1 prog dirname basename =
 
   (* Normalization phase *)
   Log.report ~level:1 (fun fmt -> fprintf fmt ".. normalization@,");
-  let prog = Normalization.normalize_prog ~backend:!Options.output prog in
+  let prog = Normalization.normalize_prog params prog in
   Log.report ~level:2 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog prog);
 
   let prog =
