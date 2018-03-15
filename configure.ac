@@ -79,13 +79,19 @@ AS_IF([test "x$seal" = "xyes"], [
 
 # z3
 AC_MSG_CHECKING(z3 library (optional))
+define([z3path], esyscmd([ocamlfind query z3]))
+
 AS_IF([ocamlfind query z3 >/dev/null 2>&1],
     [z3=yes; AC_MSG_RESULT(yes)],[seal=no; AC_MSG_RESULT(no)],
 )
 AS_IF([test "x$z3" = "xyes"], [
    AC_SUBST(LUSTREV_ZUSTRE, "(module Zustre_verifier.Verifier : VerifierType.S);")
    AC_SUBST(LUSTREV_Z3_TAG, "<**/*>: package(z3)")
+   AC_SUBST(Z3LIBPATH, "z3path")
 ])
+
+
+
 
 # Tiny
 AC_MSG_CHECKING(tiny library (optional))
@@ -189,6 +195,7 @@ AC_CONFIG_FILES([Makefile
 		 src/verifierList.ml
 		 src/_tags
 		 src/ocaml_utils.ml
+		 include/z3librc
 		 ])
 
 AC_OUTPUT
@@ -231,7 +238,11 @@ AC_MSG_NOTICE(********   Verifiers    ********)
 
   if (test "x$z3" = xyes); then
       AC_MSG_NOTICE([Zustre enabled])
-  else
+      AC_MSG_WARN(Z3 shared lib (libz3.so) has to be available in the LD_LIBRARY_PATH.)
+      AC_MSG_WARN(It is currently located in "z3path")
+      AC_MSG_WARN(If not already available run "source ${prefix}/include/lustrec/z3librc")
+      AC_MSG_WARN(or add that line to your ~/.profile or ~/.bashrc)
+else
       AC_MSG_NOTICE([Zustre disabled. Require Z3 ocaml library])
   fi
 
