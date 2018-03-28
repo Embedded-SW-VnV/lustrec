@@ -14,6 +14,9 @@ open LustreSpec
 open Corelang
 open Machine_code
 
+let machine_reset_name id = id ^ "_reset"
+let machine_step_name id = id ^ "_step" 
+let machine_stateless_name id = id ^ "_fun" 
 let pp_machine_reset_name fmt id = fprintf fmt "%s_reset" id
 let pp_machine_step_name fmt id = fprintf fmt "%s_step" id
 let pp_machine_stateless_name fmt id = fprintf fmt "%s_fun" id
