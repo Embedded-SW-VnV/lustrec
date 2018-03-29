@@ -20,6 +20,7 @@ let full_memory_vars = HBC.full_memory_vars
 let active = ref false
 let ctx = ref (Z3.mk_context [])
 let machine_reset_name = HBC.machine_reset_name 
+let machine_stateless_name = HBC.machine_stateless_name 
 
 (** Sorts
 
@@ -415,7 +416,7 @@ let instance_call_to_exprs machines reset_instances m i inputs outputs =
              (get_fdecl (machine_step_name (node_name n)))
              ( (* Arguments are input, output, mid_mems, next_mems *)
                (
-                 List.map (horn_val_to_expr self (pp_horn_var m)) (
+                 List.map (horn_val_to_expr self) (
                      inputs @
 	               (List.map (fun v -> mk_val (LocalVar v) v.var_type) outputs)
                    )
@@ -447,8 +448,8 @@ let instance_call_to_exprs machines reset_instances m i inputs outputs =
     
 
 (* Convert instruction to Z3.Expr and update the set of reset instances *)
-let rec instr_to_expr machines reset_instances (m: machine_t) instr : expr list * ident list =
-  match get_instr_desc instr with
+let rec instr_to_expr machines reset_instances (m: machine_t) instr : Z3.Expr.expr list * ident list =
+  match Corelang.get_instr_desc instr with
   | MComment _ -> [], reset_instances
   | MNoReset i -> (* we assign middle_mem with mem_m. And declare i as reset *)
     no_reset_to_exprs machines m i,
@@ -510,6 +511,53 @@ and instrs_to_expr machines reset_instances m instrs =
     
   | [] -> [], reset_instances
 
+
+let basic_library_to_horn_expr i vl =
+  match i, vl with
+  | "ite", [v1; v2; v3] -> Format.fprintf fmt "(@[<hov 2>ite %a@ %a@ %a@])" pp_val v1 pp_val v2 pp_val v3
+
+  | "uminus", [v] -> Format.fprintf fmt "(- %a)" pp_val v
+  | "not", [v] -> Format.fprintf fmt "(not %a)" pp_val v
+  | "=", [v1; v2] -> Format.fprintf fmt "(= %a %a)" pp_val v1 pp_val v2
+  | "&&", [v1; v2] -> Format.fprintf fmt "(and %a %a)" pp_val v1 pp_val v2
+  | "||", [v1; v2] -> Format.fprintf fmt "(or %a %a)" pp_val v1 pp_val v2
+  | "impl", [v1; v2] -> Format.fprintf fmt "(=> %a %a)" pp_val v1 pp_val v2
+  | "mod", [v1; v2] -> Format.fprintf fmt "(mod %a %a)" pp_val v1 pp_val v2
+  | "equi", [v1; v2] -> Format.fprintf fmt "(%a = %a)" pp_val v1 pp_val v2
+  | "xor", [v1; v2] -> Format.fprintf fmt "(%a xor %a)" pp_val v1 pp_val v2
+  | "!=", [v1; v2] -> Format.fprintf fmt "(not (= %a %a))" pp_val v1 pp_val v2
+  | "/", [v1; v2] -> Format.fprintf fmt "(div %a %a)" pp_val v1 pp_val v2
+  | _, [v1; v2] -> Format.fprintf fmt "(%s %a %a)" i pp_val v1 pp_val v2
+  | _ -> (Format.eprintf "internal error: Basic_library.pp_horn %s@." i; assert false)
+(*  | "mod", [v1; v2] -> Format.fprintf fmt "(%a %% %a)" pp_val v1 pp_val v2
+
+*)
+
+        
+(* Prints a [value] indexed by the suffix list [loop_vars] *)
+let rec value_suffix_to_expr self value =
+ match value.value_desc with
+ | Fun (n, vl)  -> 
+   basic_library_to_horn_expr n (value_suffix_to_expr self vl)
+ |  _            ->
+   horn_val_to_expr self value
+
+        
+(* type_directed assignment: array vs. statically sized type
+   - [var_type]: type of variable to be assigned
+   - [var_name]: name of variable to be assigned
+   - [value]: assigned value
+   - [pp_var]: printer for variables
+*)
+let assign_to_exprs m var_name value =
+  let self = m.mname.node_id in
+  let e =
+    Z3.Boolean.mk_eq
+      !ctx
+      (horn_val_to_expr ~is_lhs:true self var_name)
+      (value_suffix_to_expr self value)
+  in
+  [e]
 
 (*                TODO: empty list means true statement *)
 let decl_machine machines m =
