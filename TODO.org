@@ -1,7 +1,7 @@
 * TODO refactoring + doc
-- separate lustre types from machine types in different files
-- split basic libs into backend specific files
-- define mli for core steps: normalization and machine code
+- DONE separate lustre types from machine types in different files
+- DONE split basic libs into backend specific files
+- DONE define mli for core steps: normalization and machine code
 - define mli for lustre_type and machine_type (Garion)
 
 * TODO

@@ -14,7 +14,7 @@ open Log
 open Compiler_common
 
 open Utils
-open LustreSpec
+open Lustre_types
  
 
 let usage = "Usage: lustrev [options] \x1b[4msource file\x1b[0m"
@@ -74,7 +74,7 @@ let rec verify dirname basename extension =
   in
 
   Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ ");
-  Log.report ~level:3 (fun fmt -> fprintf fmt ".. Generated machines:@ %a@ "Machine_code.pp_machines machine_code);
+  Log.report ~level:3 (fun fmt -> fprintf fmt ".. Generated machines:@ %a@ "Machine_code_common.pp_machines machine_code);
 
   if Scopes.Plugin.show_scopes () then
     begin

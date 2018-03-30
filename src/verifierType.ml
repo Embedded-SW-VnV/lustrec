@@ -5,7 +5,7 @@ sig
   val is_active: unit -> bool
   val options: (string * Arg.spec * string) list
   val get_normalization_params: unit -> Normalization.param_t
-  val run: string -> LustreSpec.program_t -> Machine_code.machine_t list -> unit 
+  val run: string -> Lustre_types.program_t -> Machine_code_types.machine_t list -> unit 
 end
 
 module Default =
