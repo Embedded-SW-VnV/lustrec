@@ -1,5 +1,6 @@
-open LustreSpec
-open Machine_code
+open Lustre_types
+open Machine_code_types
+open Machine_code_common
 open Format
 (* open Horn_backend_common
  * open Horn_backend *)
@@ -16,11 +17,21 @@ let rename_current_list = HBC.rename_current_list
 let rename_mid_list = HBC.rename_mid_list
 let rename_next_list = HBC.rename_next_list
 let full_memory_vars = HBC.full_memory_vars
-   
-let active = ref false
-let ctx = ref (Z3.mk_context [])
+let inout_vars = HBC.inout_vars
+let reset_vars = HBC.reset_vars
+let step_vars = HBC.step_vars
+let local_memory_vars = HBC.local_memory_vars
+  
 let machine_reset_name = HBC.machine_reset_name 
 let machine_stateless_name = HBC.machine_stateless_name 
+
+let rename_mid = HBC.rename_mid
+
+let preprocess = Horn_backend.preprocess
+  
+let active = ref false
+let ctx = ref (Z3.mk_context [])
+let fp = ref (Z3.Fixedpoint.mk_fixedpoint !ctx)
 
 (** Sorts
 
@@ -105,7 +116,7 @@ let decl_rel name args =
   
 
 
-(** conversion functions
+(** Conversion functions
 
 The following is similar to the Horn backend. Each printing function
    is rephrased from pp_xx to xx_to_expr and produces a Z3 value.
@@ -168,7 +179,8 @@ let rec horn_default_val t =
    * | Types.Ttuple(l) -> assert false
    * |_ -> *) assert false
 
-
+(* Conversion of basic library functions *)
+    
 let horn_basic_app i val_to_expr vl =
   match i, vl with
   | "ite", [v1; v2; v3] ->
@@ -445,10 +457,39 @@ let instance_call_to_exprs machines reset_instances m i inputs outputs =
     in
     [expr]
   )
-    
 
+
+    
+(* (\* Prints a [value] indexed by the suffix list [loop_vars] *\) *)
+(* let rec value_suffix_to_expr self value = *)
+(*  match value.value_desc with *)
+(*  | Fun (n, vl)  ->  *)
+(*     horn_basic_app n (horn_val_to_expr self) (value_suffix_to_expr self vl) *)
+    
+(*  |  _            -> *)
+(*    horn_val_to_expr self value *)
+
+
+(* type_directed assignment: array vs. statically sized type
+   - [var_type]: type of variable to be assigned
+   - [var_name]: name of variable to be assigned
+   - [value]: assigned value
+   - [pp_var]: printer for variables
+*)
+let assign_to_exprs m var_name value =
+  let self = m.mname.node_id in
+  let e =
+    Z3.Boolean.mk_eq
+      !ctx
+      (horn_val_to_expr ~is_lhs:true self var_name)
+      (horn_val_to_expr self value)
+  (* was: TODO deal with array accesses       (value_suffix_to_expr self value) *)
+  in
+  [e]
+
+    
 (* Convert instruction to Z3.Expr and update the set of reset instances *)
-let rec instr_to_expr machines reset_instances (m: machine_t) instr : Z3.Expr.expr list * ident list =
+let rec instr_to_exprs machines reset_instances (m: machine_t) instr : Z3.Expr.expr list * ident list =
   match Corelang.get_instr_desc instr with
   | MComment _ -> [], reset_instances
   | MNoReset i -> (* we assign middle_mem with mem_m. And declare i as reset *)
@@ -459,12 +500,12 @@ let rec instr_to_expr machines reset_instances (m: machine_t) instr : Z3.Expr.ex
     i::reset_instances
   | MLocalAssign (i,v) ->
     assign_to_exprs
-      m (horn_var_to_expr) 
+      m  
       (mk_val (LocalVar i) i.var_type) v,
     reset_instances
   | MStateAssign (i,v) ->
     assign_to_exprs
-      m (horn_var_to_expr) 
+      m 
       (mk_val (StateVar i) i.var_type) v,
     reset_instances
   | MStep ([i0], i, vl) when Basic_library.is_internal_fun i (List.map (fun v -> v.value_type) vl) ->
@@ -487,82 +528,99 @@ let rec instr_to_expr machines reset_instances (m: machine_t) instr : Z3.Expr.ex
        statement. *)
     let self = m.mname.node_id in
     let branch_to_expr (tag, instrs) =
-      Z3.Boolean.mk_implies
-        (Z3.Boolean.mk_eq !ctx 
-           (horn_val_to_expr self g)
-	   (horn_tag_to_expr tag))
-        (machine_instrs_to_exprs machines reset_instances m instrs)
+      let branch_def, branch_resets = instrs_to_expr machines reset_instances m instrs in
+      let e =
+	Z3.Boolean.mk_implies !ctx
+          (Z3.Boolean.mk_eq !ctx 
+             (horn_val_to_expr self g)
+	     (horn_tag_to_expr tag))
+          branch_def in
+
+      [e], branch_resets
+	  
     in
-    List.map branch_to_expr hl,
-    reset_instances 
+    List.fold_left (fun (instrs, resets) b ->
+      let b_instrs, b_resets = branch_to_expr b in
+      instrs@b_instrs, resets@b_resets 
+    ) ([], reset_instances) hl 
 
 and instrs_to_expr machines reset_instances m instrs = 
-  let instr_to_expr rs i = instr_to_expr machines rs m i in
-  match instrs with
-  | [x] -> instr_to_expres reset_instances x 
-  | _::_ -> (* TODO: check whether we should compuyte a AND on the exprs (expr list) built here. It was performed in the printer setting but seems to be useless here since the output is a list of exprs *)
-
-      List.fold_left (fun (exprs, rs) i -> 
-          let exprs_i, rs = ppi rs i in
-          expr@exprs_i, rs
-        )
-        ([], reset_instances) instrs 
-    
-    
-  | [] -> [], reset_instances
-
-
-let basic_library_to_horn_expr i vl =
-  match i, vl with
-  | "ite", [v1; v2; v3] -> Format.fprintf fmt "(@[<hov 2>ite %a@ %a@ %a@])" pp_val v1 pp_val v2 pp_val v3
-
-  | "uminus", [v] -> Format.fprintf fmt "(- %a)" pp_val v
-  | "not", [v] -> Format.fprintf fmt "(not %a)" pp_val v
-  | "=", [v1; v2] -> Format.fprintf fmt "(= %a %a)" pp_val v1 pp_val v2
-  | "&&", [v1; v2] -> Format.fprintf fmt "(and %a %a)" pp_val v1 pp_val v2
-  | "||", [v1; v2] -> Format.fprintf fmt "(or %a %a)" pp_val v1 pp_val v2
-  | "impl", [v1; v2] -> Format.fprintf fmt "(=> %a %a)" pp_val v1 pp_val v2
-  | "mod", [v1; v2] -> Format.fprintf fmt "(mod %a %a)" pp_val v1 pp_val v2
-  | "equi", [v1; v2] -> Format.fprintf fmt "(%a = %a)" pp_val v1 pp_val v2
-  | "xor", [v1; v2] -> Format.fprintf fmt "(%a xor %a)" pp_val v1 pp_val v2
-  | "!=", [v1; v2] -> Format.fprintf fmt "(not (= %a %a))" pp_val v1 pp_val v2
-  | "/", [v1; v2] -> Format.fprintf fmt "(div %a %a)" pp_val v1 pp_val v2
-  | _, [v1; v2] -> Format.fprintf fmt "(%s %a %a)" i pp_val v1 pp_val v2
-  | _ -> (Format.eprintf "internal error: Basic_library.pp_horn %s@." i; assert false)
-(*  | "mod", [v1; v2] -> Format.fprintf fmt "(%a %% %a)" pp_val v1 pp_val v2
-
-*)
-
-        
-(* Prints a [value] indexed by the suffix list [loop_vars] *)
-let rec value_suffix_to_expr self value =
- match value.value_desc with
- | Fun (n, vl)  -> 
-   basic_library_to_horn_expr n (value_suffix_to_expr self vl)
- |  _            ->
-   horn_val_to_expr self value
-
-        
-(* type_directed assignment: array vs. statically sized type
-   - [var_type]: type of variable to be assigned
-   - [var_name]: name of variable to be assigned
-   - [value]: assigned value
-   - [pp_var]: printer for variables
-*)
-let assign_to_exprs m var_name value =
-  let self = m.mname.node_id in
-  let e =
-    Z3.Boolean.mk_eq
-      !ctx
-      (horn_val_to_expr ~is_lhs:true self var_name)
-      (value_suffix_to_expr self value)
+  let instr_to_exprs rs i = instr_to_exprs machines rs m i in
+  let e_list, rs = 
+    match instrs with
+    | [x] -> instr_to_exprs reset_instances x 
+    | _::_ -> (* TODO: check whether we should compuyte a AND on the exprs (expr list) built here. It was performed in the printer setting but seems to be useless here since the output is a list of exprs *)
+       
+       List.fold_left (fun (exprs, rs) i -> 
+         let exprs_i, rs_i = instr_to_exprs rs i in
+         exprs@exprs_i, rs@rs_i
+       )
+         ([], reset_instances) instrs 
+	 
+	 
+    | [] -> [], reset_instances
   in
-  [e]
+  let e = 
+    match e_list with
+    | [e] -> e
+    | [] -> Z3.Boolean.mk_true !ctx
+    | _ -> Z3.Boolean.mk_and !ctx e_list
+  in
+  e, rs
 
-(*                TODO: empty list means true statement *)
+        
+let machine_reset machines m =
+  let locals = local_memory_vars machines m in
+  
+  (* print "x_m = x_c" for each local memory *)
+  let mid_mem_def =
+    List.map (fun v ->
+      Z3.Boolean.mk_eq !ctx
+	(horn_var_to_expr (rename_mid v))
+	(horn_var_to_expr (rename_current v))
+    ) locals
+  in
+
+  (* print "child_reset ( associated vars _ {c,m} )" for each subnode.
+     Special treatment for _arrow: _first = true
+  *)
+
+  let reset_instances =
+    
+    List.map (fun (id, (n, _)) ->
+      let name = node_name n in
+      if name = "_arrow" then (
+	Z3.Boolean.mk_eq !ctx
+	  (
+	    let vdecl = get_fdecl ((concat m.mname.node_id id) ^ "._arrow._first_m") in
+	    Z3.Expr.mk_const_f !ctx vdecl
+	  )
+	  (Z3.Boolean.mk_true !ctx)
+	  
+      ) else (
+	let machine_n = get_machine machines name in 
+	
+	Z3.Expr.mk_app
+	  !ctx
+	  (get_fdecl (name ^ "_reset"))
+	  (List.map (horn_var_to_expr)
+	     (rename_machine_list (concat m.mname.node_id id) (reset_vars machines machine_n))
+	  )
+	  
+      )
+    ) m.minstances
+      
+      
+  in
+  
+  Z3.Boolean.mk_and !ctx (mid_mem_def @ reset_instances)
+    
+        
+
+(*  TODO: empty list means true statement *)
 let decl_machine machines m =
-  if m.Machine_code.mname.node_id = Machine_code.arrow_id then
-    (* We don't print arrow function *)
+  if m.mname.node_id = Arrow.arrow_id then
+    (* We don't do arrow function *)
     ()
   else
     begin
@@ -571,42 +629,47 @@ let decl_machine machines m =
       	  (
 	    (inout_vars machines m)@
 	      (rename_current_list (full_memory_vars machines m)) @
-	        (rename_mid_list (full_memory_vars machines m)) @
-	          (rename_next_list (full_memory_vars machines m)) @
-	            (rename_machine_list m.mname.node_id m.mstep.step_locals)
+	      (rename_mid_list (full_memory_vars machines m)) @
+	      (rename_next_list (full_memory_vars machines m)) @
+	      (rename_machine_list m.mname.node_id m.mstep.step_locals)
 	  )
       in
       
       if is_stateless m then
 	begin
 	  (* Declaring single predicate *)
-	  let _ = decl_rel (machine_stateless_name m.mname.node_id) (inout_vars machines m) in          
-          match m.mstep.step_asserts with
+	  let _ = decl_rel (machine_stateless_name m.mname.node_id) (inout_vars machines m) in
+	  let horn_body, _ (* don't care for reset here *) =
+	    instrs_to_expr
+	      machines
+	      ([] (* No reset info for stateless nodes *) )
+	      m
+	      m.mstep.step_instrs
+	  in
+	  let horn_head = 
+	    Z3.Expr.mk_app
+	      !ctx
+	      (get_fdecl (machine_stateless_name m.mname.node_id))
+	      (List.map (horn_var_to_expr) (inout_vars machines m))
+	  in
+	  match m.mstep.step_asserts with
 	  | [] ->
 	     begin
-
-	       (* Rule for single predicate *)
-	       fprintf fmt "; Stateless step rule @.";
-	       fprintf fmt "@[<v 2>(rule (=> @ ";
-	       ignore (pp_machine_instrs machines ([] (* No reset info for stateless nodes *) )  m fmt m.mstep.step_instrs);
-	       fprintf fmt "@ (%a @[<v 0>%a)@]@]@.))@.@."
-		 pp_machine_stateless_name m.mname.node_id
-		 (Utils.fprintf_list ~sep:" " (horn_var_to_expr)) (inout_vars machines m);
+	       (* Rule for single predicate : "; Stateless step rule @." *)
+	       Z3.Fixedpoint.add_rule !fp
+		 (Z3.Boolean.mk_implies !ctx horn_body horn_head)
+		 None
 	     end
 	  | assertsl ->
 	     begin
-	       let pp_val = pp_horn_val ~is_lhs:true m.mname.node_id (horn_var_to_expr) in
-	       
-	       fprintf fmt "; Stateless step rule with Assertions @.";
-	       (*Rule for step*)
-	       fprintf fmt "@[<v 2>(rule (=> @ (and @ ";
-	       ignore (pp_machine_instrs machines [] m fmt m.mstep.step_instrs);
-	       fprintf fmt "@. %a)@ (%a @[<v 0>%a)@]@]@.))@.@." (pp_conj pp_val) assertsl
-		 pp_machine_stateless_name m.mname.node_id
-		 (Utils.fprintf_list ~sep:" " (horn_var_to_expr)) (step_vars machines m);
-	  
+	       (*Rule for step "; Stateless step rule with Assertions @.";*)
+	       let body_with_asserts =
+		 Z3.Boolean.mk_and !ctx (horn_body :: List.map (horn_val_to_expr m.mname.node_id) assertsl)
+	       in
+	       Z3.Fixedpoint.add_rule !fp
+		 (Z3.Boolean.mk_implies !ctx body_with_asserts horn_head)
+		 None
 	     end
-	       
 	end
       else
 	begin
@@ -615,36 +678,54 @@ let decl_machine machines m =
           let _ = decl_rel (machine_step_name m.mname.node_id) (step_vars machines m) in
 
 	  (* Rule for reset *)
-	  fprintf fmt "@[<v 2>(rule (=> @ %a@ (%a @[<v 0>%a)@]@]@.))@.@."
-	    (pp_machine_reset machines) m 
-	    pp_machine_reset_name m.mname.node_id
-	    (Utils.fprintf_list ~sep:"@ " (horn_var_to_expr)) (reset_vars machines m);
 
-          match m.mstep.step_asserts with
+	  let horn_reset_body = machine_reset machines m in	    
+	  let horn_reset_head = 
+	    Z3.Expr.mk_app
+	      !ctx
+	      (get_fdecl (machine_reset_name m.mname.node_id))
+	      (List.map (horn_var_to_expr) (reset_vars machines m))
+	  in
+	  
+	  let _ =
+	    Z3.Fixedpoint.add_rule !fp
+	      (Z3.Boolean.mk_implies !ctx horn_reset_body horn_reset_head)
+	      None
+	  in
+
+	  (* Rule for step*)
+	  let horn_step_body, _ (* don't care for reset here *) =
+	    instrs_to_expr
+	      machines
+	      []
+	      m
+	      m.mstep.step_instrs
+	  in
+	  let horn_step_head = 
+	    Z3.Expr.mk_app
+	      !ctx
+	      (get_fdecl (machine_step_name m.mname.node_id))
+	      (List.map (horn_var_to_expr) (step_vars machines m))
+	  in
+	  match m.mstep.step_asserts with
 	  | [] ->
 	     begin
-	       fprintf fmt "; Step rule @.";
-	       (* Rule for step*)
-	       fprintf fmt "@[<v 2>(rule (=> @ ";
-	       ignore (pp_machine_instrs machines [] m fmt m.mstep.step_instrs);
-	       fprintf fmt "@ (%a @[<v 0>%a)@]@]@.))@.@."
-		 pp_machine_step_name m.mname.node_id
-		 (Utils.fprintf_list ~sep:"@ " (horn_var_to_expr)) (step_vars machines m);
+	       (* Rule for single predicate *)
+	       Z3.Fixedpoint.add_rule !fp
+		 (Z3.Boolean.mk_implies !ctx horn_step_body horn_step_head)
+		 None
 	     end
-	  | assertsl -> 
+	  | assertsl ->
 	     begin
-	       let pp_val = pp_horn_val ~is_lhs:true m.mname.node_id (horn_var_to_expr) in
-	       (* print_string pp_val; *)
-	       fprintf fmt "; Step rule with Assertions @.";
-	       
-	       (*Rule for step*)
-	       fprintf fmt "@[<v 2>(rule (=> @ (and @ ";
-	       ignore (pp_machine_instrs machines [] m fmt m.mstep.step_instrs);
-	       fprintf fmt "@. %a)@ (%a @[<v 0>%a)@]@]@.))@.@." (pp_conj pp_val) assertsl
-		 pp_machine_step_name m.mname.node_id
-		 (Utils.fprintf_list ~sep:" " (horn_var_to_expr)) (step_vars machines m);
+	       (* Rule for step Assertions @.; *)
+	       let body_with_asserts =
+		 Z3.Boolean.mk_and !ctx
+		   (horn_step_body :: List.map (horn_val_to_expr m.mname.node_id) assertsl)
+	       in
+	       Z3.Fixedpoint.add_rule !fp
+		 (Z3.Boolean.mk_implies !ctx body_with_asserts horn_step_head)
+		 None
 	     end
-	       
      	       
 	end
     end
@@ -679,7 +760,7 @@ module Verifier =
       Backends.get_normalization_params ()
 
     let setup_solver () =
-      let fp = Z3.Fixedpoint.mk_fixedpoint !ctx in
+      fp := Z3.Fixedpoint.mk_fixedpoint !ctx;
       (* let help = Z3.Fixedpoint.get_help fp in
        * Format.eprintf "Fp help : %s@." help;
        * 
@@ -744,18 +825,18 @@ module Verifier =
         P.add_bool params (mks "xform.inline_linear") false;
         P.add_bool params (mks "xform.inline_eager") false
       );
-      Z3.Fixedpoint.set_parameters fp params
-        
+      Z3.Fixedpoint.set_parameters !fp params
+              
       
     let run basename prog machines =
-      let machines = Machine_code.arrow_machine::machines in
+      let machines = Machine_code_common.arrow_machine::machines in
       let machines = preprocess machines in
       setup_solver ();
       decl_sorts ();
       List.iter (decl_machine machines) (List.rev machines);
-
-      
       ()
+      
+      
 
   end: VerifierType.S)
     

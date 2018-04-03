@@ -79,7 +79,7 @@ AS_IF([test "x$seal" = "xyes"], [
 
 # z3
 AC_MSG_CHECKING(z3 library (optional))
-define([z3path], esyscmd([ocamlfind query z3]))
+define([z3path], esyscmd([ocamlfind query z3 | tr -d '\n']))
 
 AS_IF([ocamlfind query z3 >/dev/null 2>&1],
     [z3=yes; AC_MSG_RESULT(yes)],[seal=no; AC_MSG_RESULT(no)],

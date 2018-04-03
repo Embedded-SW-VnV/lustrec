@@ -116,6 +116,8 @@ let rec is_const_value v =
 let get_stateless_status m =
  (m.mname.node_dec_stateless, try Utils.desome m.mname.node_stateless with _ -> failwith ("stateless status of machine " ^ m.mname.node_id ^ " not computed"))
 
+let is_stateless m = m.minstances = [] && m.mmemory = []
+
 let is_input m id =
   List.exists (fun o -> o.var_id = id.var_id) m.mstep.step_inputs
 
@@ -223,7 +225,7 @@ let new_instance =
     end
 
 
-let get_machine_opt name machines =
+let get_machine_opt machines name =
   List.fold_left
     (fun res m ->
       match res with
@@ -231,6 +233,15 @@ let get_machine_opt name machines =
       | None -> if m.mname.node_id = name then Some m else None)
     None machines
 
+let get_machine machines node_name =
+ try
+  List.find (fun m  -> m.mname.node_id = node_name) machines
+ with Not_found -> Format.eprintf "Unable to find machine %s in machines %a@.@?"
+   node_name
+   (Utils.fprintf_list ~sep:", " (fun fmt m -> Format.pp_print_string fmt m.mname.node_id)) machines
+   ; assert false
+     
+    
 let get_const_assign m id =
   try
     match get_instr_desc (List.find
