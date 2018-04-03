@@ -69,7 +69,7 @@ let decl_sorts () =
           Hashtbl.add sort_elems new_sort tl;
           List.iter (fun t -> Hashtbl.add const_tags t new_sort) tl
           
-	| _ -> assert false
+	| _ -> Format.eprintf "Unknown type : %a@.@?" Printers.pp_var_type_dec_desc typ; assert false
       )
       | _ -> assert false
       )
@@ -249,6 +249,47 @@ let horn_basic_app i val_to_expr vl =
        (val_to_expr v1)
        (val_to_expr v2)
 
+  | "+", [v1; v2] ->
+     Z3.Arithmetic.mk_add
+       !ctx
+       [val_to_expr v1; val_to_expr v2]
+
+  | "-", [v1; v2] ->
+     Z3.Arithmetic.mk_sub
+       !ctx
+       [val_to_expr v1 ; val_to_expr v2]
+       
+  | "*", [v1; v2] ->
+     Z3.Arithmetic.mk_mul
+       !ctx
+       [val_to_expr v1; val_to_expr v2]
+
+
+  | "<", [v1; v2] ->
+     Z3.Arithmetic.mk_lt
+       !ctx
+       (val_to_expr v1)
+       (val_to_expr v2)
+
+  | "<=", [v1; v2] ->
+     Z3.Arithmetic.mk_le
+       !ctx
+       (val_to_expr v1)
+       (val_to_expr v2)
+
+  | ">", [v1; v2] ->
+     Z3.Arithmetic.mk_gt
+       !ctx
+       (val_to_expr v1)
+       (val_to_expr v2)
+
+  | ">=", [v1; v2] ->
+     Z3.Arithmetic.mk_ge
+       !ctx
+       (val_to_expr v1)
+       (val_to_expr v2)
+
+       
   (* | _, [v1; v2] ->      Z3.Boolean.mk_and
    *      !ctx
    *      (val_to_expr v1)
@@ -834,6 +875,15 @@ module Verifier =
       setup_solver ();
       decl_sorts ();
       List.iter (decl_machine machines) (List.rev machines);
+
+
+      (* Debug instructions *)
+      let rules_expr = Z3.Fixedpoint.get_rules !fp in
+      Format.eprintf "@[<v 2>Registered rules:@ %a@ @]@."
+	(Utils.fprintf_list ~sep:"@ "
+	   (fun fmt e -> Format.pp_print_string fmt (Z3.Expr.to_string e)) )
+	rules_expr;
+      
       ()
       
       
