@@ -108,7 +108,6 @@ let get_fdecl id =
 let decl_var id =
   Format.eprintf "Declaring var %s@." id.var_id;
   let fdecl = Z3.FuncDecl.mk_func_decl_s !ctx id.var_id [] (type_to_sort id.var_type) in
-  Z3.Fixedpoint.register_relation !fp fdecl;
   register_fdecl id.var_id fdecl;
   fdecl
 
