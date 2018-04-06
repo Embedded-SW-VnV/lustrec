@@ -122,7 +122,7 @@ let decl_rel name args =
   
 
 (* Quantifiying universally all occuring variables *)
-let add_rule vars expr =
+let add_rule ?(dont_touch=[]) vars expr =
   (* let fds = Z3.Expr.get_args expr in *)
   (* Format.eprintf "Expr %s: args: [%a]@." *)
   (*   (Z3.Expr.to_string expr) *)
@@ -143,24 +143,24 @@ let add_rule vars expr =
     let nb_args = Z3.Expr.get_num_args e in
     if nb_args <= 0 then (
       let fdecl = Z3.Expr.get_func_decl e in
-      let params = Z3.FuncDecl.get_parameters fdecl in
+      (* let params = Z3.FuncDecl.get_parameters fdecl in *)
       Format.eprintf "Extracting info about %s: [@?" (Z3.Expr.to_string e);
       let dkind = Z3.FuncDecl.get_decl_kind fdecl in
       match dkind with Z3enums.OP_UNINTERPRETED -> (
-	Format.eprintf "kind = %s, " (match dkind with Z3enums.OP_TRUE -> "true" | OP_UNINTERPRETED -> "uninter");
-	let open Z3.FuncDecl.Parameter in
-	List.iter (fun p ->
-	  match p with
-            P_Int i -> Format.eprintf "int %i" i
-	  | P_Dbl f -> Format.eprintf "dbl %f" f
-	  | P_Sym s -> Format.eprintf "symb" 
-	  | P_Srt s -> Format.eprintf "sort" 
-	  | P_Ast _ ->Format.eprintf "ast" 
-	  | P_Fdl f -> Format.eprintf "fundecl" 
-	  | P_Rat s -> Format.eprintf "rat %s" s 
+	(* Format.eprintf "kind = %s, " (match dkind with Z3enums.OP_TRUE -> "true" | Z3enums.OP_UNINTERPRETED -> "uninter"); *)
+	(* let open Z3.FuncDecl.Parameter in *)
+	(* List.iter (fun p -> *)
+	(*   match p with *)
+        (*     P_Int i -> Format.eprintf "int %i" i *)
+	(*   | P_Dbl f -> Format.eprintf "dbl %f" f *)
+	(*   | P_Sym s -> Format.eprintf "symb"  *)
+	(*   | P_Srt s -> Format.eprintf "sort"  *)
+	(*   | P_Ast _ ->Format.eprintf "ast"  *)
+	(*   | P_Fdl f -> Format.eprintf "fundecl"  *)
+	(*   | P_Rat s -> Format.eprintf "rat %s" s  *)
 	     
-	) params;
-	Format.eprintf "]@.";
+	(* ) params; *)
+	(* Format.eprintf "]@."; *)
 	FDSet.singleton fdecl
       )
       | _ -> FDSet.empty
@@ -170,7 +170,7 @@ let add_rule vars expr =
 	(fun accu e ->  FDSet.union accu (get_expr_vars e))
 	FDSet.empty (Z3.Expr.get_args e)
   in
-  let vars = FDSet.elements (get_expr_vars expr) in
+  let vars = FDSet.elements (FDSet.diff (get_expr_vars expr) (FDSet.of_list dont_touch)) in
   let sorts = List.map Z3.FuncDecl.get_range vars in
   let symbols = List.map Z3.FuncDecl.get_name vars in
   

@@ -138,7 +138,7 @@ let check machines node =
       ]
   in
   let _ =
-    add_rule []  (Z3.Boolean.mk_implies !ctx horn_body horn_head)
+    add_rule ~dont_touch:[decl_main] []  (Z3.Boolean.mk_implies !ctx horn_body horn_head)
       
   in
 
@@ -152,7 +152,7 @@ let check machines node =
   let not_prop =
     Z3.Boolean.mk_not !ctx prop
   in
-  add_rule main_memory_next (Z3.Boolean.mk_implies !ctx
+  add_rule ~dont_touch:[decl_main;decl_err] main_memory_next (Z3.Boolean.mk_implies !ctx
 	      (
 		Z3.Boolean.mk_and !ctx
 		  [not_prop;
