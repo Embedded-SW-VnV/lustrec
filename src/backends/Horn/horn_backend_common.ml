@@ -147,6 +147,11 @@ let reset_vars machines m =
   (rename_current_list (full_memory_vars machines m)) 
   @ (rename_mid_list (full_memory_vars machines m))
 
+let step_vars_c_m_x machines m =
+  (inout_vars machines m) 
+  @ (rename_current_list (full_memory_vars machines m)) 
+  @ (rename_mid_list (full_memory_vars machines m)) 
+  @ (rename_next_list (full_memory_vars machines m))
 
 
 (* Local Variables: *)

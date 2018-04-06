@@ -4,35 +4,39 @@ open Machine_code_common
 open Format
 (* open Horn_backend_common
  * open Horn_backend *)
+open Zustre_data
 
 module HBC = Horn_backend_common
-let machine_step_name = HBC.machine_step_name
 let node_name = HBC.node_name
+
 let concat = HBC.concat
+
 let rename_machine = HBC.rename_machine
 let rename_machine_list = HBC.rename_machine_list
+
 let rename_next = HBC.rename_next
+let rename_mid = HBC.rename_mid
 let rename_current = HBC.rename_current
+
 let rename_current_list = HBC.rename_current_list
 let rename_mid_list = HBC.rename_mid_list
 let rename_next_list = HBC.rename_next_list
+
 let full_memory_vars = HBC.full_memory_vars
 let inout_vars = HBC.inout_vars
 let reset_vars = HBC.reset_vars
 let step_vars = HBC.step_vars
 let local_memory_vars = HBC.local_memory_vars
+let step_vars_m_x = HBC.step_vars_m_x
+let step_vars_c_m_x = HBC.step_vars_c_m_x
   
 let machine_reset_name = HBC.machine_reset_name 
+let machine_step_name = HBC.machine_step_name 
 let machine_stateless_name = HBC.machine_stateless_name 
-
-let rename_mid = HBC.rename_mid
 
 let preprocess = Horn_backend.preprocess
   
-let active = ref false
-let ctx = ref (Z3.mk_context [])
-let fp = ref (Z3.Fixedpoint.mk_fixedpoint !ctx)
-
+  
 (** Sorts
 
 A sort is introduced for each basic type and each enumerated type.
@@ -46,9 +50,6 @@ let bool_sort = Z3.Boolean.mk_sort !ctx
 let int_sort = Z3.Arithmetic.Integer.mk_sort !ctx
 let real_sort = Z3.Arithmetic.Real.mk_sort !ctx
 
-let const_sorts = Hashtbl.create 13
-let const_tags = Hashtbl.create 13
-let sort_elems = Hashtbl.create 13
 
 let get_const_sort = Hashtbl.find const_sorts 
 let get_sort_elems = Hashtbl.find sort_elems
@@ -98,12 +99,16 @@ Similarly fun_decls are registerd, by their name, into a hashtbl. The
 
 
  *)
-let decls = Hashtbl.create 13
 let register_fdecl id fd = Hashtbl.add decls id fd
-let get_fdecl id = Hashtbl.find decls id
-                 
+let get_fdecl id =
+  try
+    Hashtbl.find decls id
+  with Not_found -> (Format.eprintf "Unable to find func_decl %s@.@?" id; raise Not_found)
+    
 let decl_var id =
+  Format.eprintf "Declaring var %s@." id.var_id;
   let fdecl = Z3.FuncDecl.mk_func_decl_s !ctx id.var_id [] (type_to_sort id.var_type) in
+  Z3.Fixedpoint.register_relation !fp fdecl;
   register_fdecl id.var_id fdecl;
   fdecl
 
@@ -111,9 +116,78 @@ let decl_rel name args =
   (*verifier ce qui est construit. On veut un declare-rel *)
   let args_sorts = List.map (fun v -> type_to_sort v.var_type) args in
   let fdecl = Z3.FuncDecl.mk_func_decl_s !ctx name args_sorts bool_sort in
+  Z3.Fixedpoint.register_relation !fp fdecl;
   register_fdecl name fdecl;
   fdecl
   
+
+(* Quantifiying universally all occuring variables *)
+let add_rule vars expr =
+  (* let fds = Z3.Expr.get_args expr in *)
+  (* Format.eprintf "Expr %s: args: [%a]@." *)
+  (*   (Z3.Expr.to_string expr) *)
+  (*   (Utils.fprintf_list ~sep:", " (fun fmt e -> Format.pp_print_string fmt (Z3.Expr.to_string e))) fds; *)
+
+  (* Old code relying on provided vars *)
+  let sorts = (List.map (fun id -> type_to_sort id.var_type) vars) in
+  let symbols = (List.map (fun id -> Z3.FuncDecl.get_name (get_fdecl id.var_id)) vars) in
+  
+  (* New code: we extract vars from expr *)
+  let module FDSet = Set.Make (struct type t = Z3.FuncDecl.func_decl
+				      let compare = compare
+				      let hash = Hashtbl.hash
+  end)
+  in
+  let rec get_expr_vars e =
+    let open Utils in
+    let nb_args = Z3.Expr.get_num_args e in
+    if nb_args <= 0 then (
+      let fdecl = Z3.Expr.get_func_decl e in
+      let params = Z3.FuncDecl.get_parameters fdecl in
+      Format.eprintf "Extracting info about %s: [@?" (Z3.Expr.to_string e);
+      let dkind = Z3.FuncDecl.get_decl_kind fdecl in
+      match dkind with Z3enums.OP_UNINTERPRETED -> (
+	Format.eprintf "kind = %s, " (match dkind with Z3enums.OP_TRUE -> "true" | OP_UNINTERPRETED -> "uninter");
+	let open Z3.FuncDecl.Parameter in
+	List.iter (fun p ->
+	  match p with
+            P_Int i -> Format.eprintf "int %i" i
+	  | P_Dbl f -> Format.eprintf "dbl %f" f
+	  | P_Sym s -> Format.eprintf "symb" 
+	  | P_Srt s -> Format.eprintf "sort" 
+	  | P_Ast _ ->Format.eprintf "ast" 
+	  | P_Fdl f -> Format.eprintf "fundecl" 
+	  | P_Rat s -> Format.eprintf "rat %s" s 
+	     
+	) params;
+	Format.eprintf "]@.";
+	FDSet.singleton fdecl
+      )
+      | _ -> FDSet.empty
+    )
+    else (*if nb_args > 0 then*)
+      List.fold_left
+	(fun accu e ->  FDSet.union accu (get_expr_vars e))
+	FDSet.empty (Z3.Expr.get_args e)
+  in
+  let vars = FDSet.elements (get_expr_vars expr) in
+  let sorts = List.map Z3.FuncDecl.get_range vars in
+  let symbols = List.map Z3.FuncDecl.get_name vars in
+  
+  let expr = Z3.Quantifier.mk_forall
+    !ctx  (* context *)
+    sorts           (* sort list*)
+    symbols (* symbol list *)
+    expr (* expression *)
+    None (* quantifier weight, None means 1 *)
+    [] (* pattern list ? *)
+    [] (* ? *)
+    None (* ? *)
+    None (* ? *)
+  in
+  Z3.Fixedpoint.add_rule !fp
+    (Z3.Quantifier.expr_of_quantifier expr)
+    None
 
 
 (** Conversion functions
@@ -665,21 +739,22 @@ let decl_machine machines m =
     ()
   else
     begin
-      let vars =
-        List.map decl_var 
+      let _ =
+        List.map decl_var
       	  (
-	    (inout_vars machines m)@
-	      (rename_current_list (full_memory_vars machines m)) @
-	      (rename_mid_list (full_memory_vars machines m)) @
-	      (rename_next_list (full_memory_vars machines m)) @
-	      (rename_machine_list m.mname.node_id m.mstep.step_locals)
-	  )
+      	    (inout_vars machines m)@
+      	      (rename_current_list (full_memory_vars machines m)) @
+      	      (rename_mid_list (full_memory_vars machines m)) @
+      	      (rename_next_list (full_memory_vars machines m)) @
+      	      (rename_machine_list m.mname.node_id m.mstep.step_locals)
+      	  )
       in
       
       if is_stateless m then
 	begin
 	  (* Declaring single predicate *)
-	  let _ = decl_rel (machine_stateless_name m.mname.node_id) (inout_vars machines m) in
+	  let vars = inout_vars machines m in
+	  let _ = decl_rel (machine_stateless_name m.mname.node_id) vars in
 	  let horn_body, _ (* don't care for reset here *) =
 	    instrs_to_expr
 	      machines
@@ -691,15 +766,15 @@ let decl_machine machines m =
 	    Z3.Expr.mk_app
 	      !ctx
 	      (get_fdecl (machine_stateless_name m.mname.node_id))
-	      (List.map (horn_var_to_expr) (inout_vars machines m))
+	      (List.map (horn_var_to_expr) vars)
 	  in
+	  let vars = vars@(rename_machine_list m.mname.node_id m.mstep.step_locals) in
 	  match m.mstep.step_asserts with
 	  | [] ->
 	     begin
 	       (* Rule for single predicate : "; Stateless step rule @." *)
-	       Z3.Fixedpoint.add_rule !fp
-		 (Z3.Boolean.mk_implies !ctx horn_body horn_head)
-		 None
+	       add_rule vars (Z3.Boolean.mk_implies !ctx horn_body horn_head)
+		 
 	     end
 	  | assertsl ->
 	     begin
@@ -707,34 +782,32 @@ let decl_machine machines m =
 	       let body_with_asserts =
 		 Z3.Boolean.mk_and !ctx (horn_body :: List.map (horn_val_to_expr m.mname.node_id) assertsl)
 	       in
-	       Z3.Fixedpoint.add_rule !fp
-		 (Z3.Boolean.mk_implies !ctx body_with_asserts horn_head)
-		 None
+	       add_rule vars (Z3.Boolean.mk_implies !ctx body_with_asserts horn_head)
 	     end
 	end
       else
 	begin
-	  (* Declaring predicate *)
-	  let _ = decl_rel (machine_reset_name m.mname.node_id) (reset_vars machines m) in
-          let _ = decl_rel (machine_step_name m.mname.node_id) (step_vars machines m) in
 
 	  (* Rule for reset *)
 
+	  let vars = reset_vars machines m in
+	  let _ = decl_rel (machine_reset_name m.mname.node_id) vars in
 	  let horn_reset_body = machine_reset machines m in	    
 	  let horn_reset_head = 
 	    Z3.Expr.mk_app
 	      !ctx
 	      (get_fdecl (machine_reset_name m.mname.node_id))
-	      (List.map (horn_var_to_expr) (reset_vars machines m))
+	      (List.map (horn_var_to_expr) vars)
 	  in
 	  
 	  let _ =
-	    Z3.Fixedpoint.add_rule !fp
-	      (Z3.Boolean.mk_implies !ctx horn_reset_body horn_reset_head)
-	      None
+	    add_rule vars (Z3.Boolean.mk_implies !ctx horn_reset_body horn_reset_head)
+	      
 	  in
 
 	  (* Rule for step*)
+	  let vars = step_vars machines m in
+          let _ = decl_rel (machine_step_name m.mname.node_id) vars in
 	  let horn_step_body, _ (* don't care for reset here *) =
 	    instrs_to_expr
 	      machines
@@ -746,15 +819,15 @@ let decl_machine machines m =
 	    Z3.Expr.mk_app
 	      !ctx
 	      (get_fdecl (machine_step_name m.mname.node_id))
-	      (List.map (horn_var_to_expr) (step_vars machines m))
+	      (List.map (horn_var_to_expr) vars)
 	  in
 	  match m.mstep.step_asserts with
 	  | [] ->
 	     begin
 	       (* Rule for single predicate *)
-	       Z3.Fixedpoint.add_rule !fp
-		 (Z3.Boolean.mk_implies !ctx horn_step_body horn_step_head)
-		 None
+	       let vars = vars @(rename_machine_list m.mname.node_id m.mstep.step_locals) in
+	       add_rule vars (Z3.Boolean.mk_implies !ctx horn_step_body horn_step_head)
+		 
 	     end
 	  | assertsl ->
 	     begin
@@ -763,130 +836,15 @@ let decl_machine machines m =
 		 Z3.Boolean.mk_and !ctx
 		   (horn_step_body :: List.map (horn_val_to_expr m.mname.node_id) assertsl)
 	       in
-	       Z3.Fixedpoint.add_rule !fp
-		 (Z3.Boolean.mk_implies !ctx body_with_asserts horn_step_head)
-		 None
+	       let vars = vars @(rename_machine_list m.mname.node_id m.mstep.step_locals) in
+	       add_rule vars (Z3.Boolean.mk_implies !ctx body_with_asserts horn_step_head)
+		 
 	     end
      	       
 	end
     end
 
-let param_stat = ref false
-let param_eldarica = ref false
-let param_utvpi = ref false
-let param_tosmt = ref false
-let param_pp = ref false
-             
-module Verifier =
-  (struct
-    include VerifierType.Default
-    let name = "zustre"
-    let options = [
-        "-stat", Arg.Set param_stat, "print statistics";
-        "-eldarica", Arg.Set param_eldarica, "deactivate fixedpoint extensions when printing rules";
-        "-no_utvpi", Arg.Set param_utvpi, "Deactivate UTVPI strategy";
-        "-tosmt", Arg.Set param_tosmt, "Print low-level (possibly unreadable) SMT2 statements";
-        "-no-pp", Arg.Set param_pp, "No preprocessing (inlining and slicing)";
-      ]
-                
-    let activate () = (
-        active := true;
-        Options.output := "horn";
-      )
-    let is_active () = !active
 
-    let get_normalization_params () =
-      (* make sure the output is "Horn" *)
-      assert(!Options.output = "horn");
-      Backends.get_normalization_params ()
-
-    let setup_solver () =
-      fp := Z3.Fixedpoint.mk_fixedpoint !ctx;
-      (* let help = Z3.Fixedpoint.get_help fp in
-       * Format.eprintf "Fp help : %s@." help;
-       * 
-       * let solver =Z3.Solver.mk_solver !ctx None in
-       * let help = Z3.Solver.get_help solver in
-       * Format.eprintf "Z3 help : %s@." help; *)
-      
-      let module P = Z3.Params in
-      let module S = Z3.Symbol in
-      let mks = S.mk_string !ctx in
-      let params = P.mk_params !ctx in
-
-      (* self.fp.set (engine='spacer') *)
-      P.add_symbol params (mks "engine") (mks "spacer");
-      
-       (* #z3.set_option(rational_to_decimal=True) *)
-       (* #self.fp.set('precision',30) *)
-      if !param_stat then 
-        (* self.fp.set('print_statistics',True) *)
-        P.add_bool params (mks "print_statistics") true;
-
-      (* Dont know where to find this parameter *)
-      (* if !param_spacer_verbose then
-         *   if self.args.spacer_verbose: 
-         *        z3.set_option (verbose=1) *)
-
-      (* The option is not recogined*)
-      (* self.fp.set('use_heavy_mev',True) *)
-      (* P.add_bool params (mks "use_heavy_mev") true; *)
-      
-      (* self.fp.set('pdr.flexible_trace',True) *)
-      P.add_bool params (mks "pdr.flexible_trace") true;
-
-      (* self.fp.set('reset_obligation_queue',False) *)
-      P.add_bool params (mks "spacer.reset_obligation_queue") false;
-
-      (* self.fp.set('spacer.elim_aux',False) *)
-      P.add_bool params (mks "spacer.elim_aux") false;
-
-      (* if self.args.eldarica:
-        *     self.fp.set('print_fixedpoint_extensions', False) *)
-      if !param_eldarica then
-        P.add_bool params (mks "print_fixedpoint_extensions") false;
-      
-      (* if self.args.utvpi: self.fp.set('pdr.utvpi', False) *)
-      if !param_utvpi then
-        P.add_bool params (mks "pdr.utvpi") false;
-
-      (* if self.args.tosmt:
-       *        self.log.info("Setting low level printing")
-       *        self.fp.set ('print.low_level_smt2',True) *)
-      if !param_tosmt then
-        P.add_bool params (mks "print.low_level_smt2") true;
-
-      (* if not self.args.pp:
-       *        self.log.info("No pre-processing")
-       *        self.fp.set ('xform.slice', False)
-       *        self.fp.set ('xform.inline_linear',False)
-       *        self.fp.set ('xform.inline_eager',False) *\) *)
-      if !param_pp then (
-        P.add_bool params (mks "xform.slice") false;
-        P.add_bool params (mks "xform.inline_linear") false;
-        P.add_bool params (mks "xform.inline_eager") false
-      );
-      Z3.Fixedpoint.set_parameters !fp params
-              
-      
-    let run basename prog machines =
-      let machines = Machine_code_common.arrow_machine::machines in
-      let machines = preprocess machines in
-      setup_solver ();
-      decl_sorts ();
-      List.iter (decl_machine machines) (List.rev machines);
-
-
-      (* Debug instructions *)
-      let rules_expr = Z3.Fixedpoint.get_rules !fp in
-      Format.eprintf "@[<v 2>Registered rules:@ %a@ @]@."
-	(Utils.fprintf_list ~sep:"@ "
-	   (fun fmt e -> Format.pp_print_string fmt (Z3.Expr.to_string e)) )
-	rules_expr;
-      
-      ()
-      
-      
-
-  end: VerifierType.S)
-    
+(* Local Variables: *)
+(* compile-command:"make -C ../.." *)
+(* End: *)
