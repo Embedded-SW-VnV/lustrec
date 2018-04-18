@@ -104,6 +104,11 @@ let get_fdecl id =
   try
     Hashtbl.find decls id
   with Not_found -> (Format.eprintf "Unable to find func_decl %s@.@?" id; raise Not_found)
+
+let pp_fdecls fmt =
+  Format.fprintf fmt "Registered fdecls: @[%a@]@ "
+    (Utils.fprintf_list ~sep:"@ " Format.pp_print_string)  (Hashtbl.fold (fun id _ accu -> id::accu) decls [])
+
     
 let decl_var id =
   Format.eprintf "Declaring var %s@." id.var_id;
@@ -119,75 +124,6 @@ let decl_rel name args =
   register_fdecl name fdecl;
   fdecl
   
-
-(* Quantifiying universally all occuring variables *)
-let add_rule ?(dont_touch=[]) vars expr =
-  (* let fds = Z3.Expr.get_args expr in *)
-  (* Format.eprintf "Expr %s: args: [%a]@." *)
-  (*   (Z3.Expr.to_string expr) *)
-  (*   (Utils.fprintf_list ~sep:", " (fun fmt e -> Format.pp_print_string fmt (Z3.Expr.to_string e))) fds; *)
-
-  (* Old code relying on provided vars *)
-  let sorts = (List.map (fun id -> type_to_sort id.var_type) vars) in
-  let symbols = (List.map (fun id -> Z3.FuncDecl.get_name (get_fdecl id.var_id)) vars) in
-  
-  (* New code: we extract vars from expr *)
-  let module FDSet = Set.Make (struct type t = Z3.FuncDecl.func_decl
-				      let compare = compare
-				      let hash = Hashtbl.hash
-  end)
-  in
-  let rec get_expr_vars e =
-    let open Utils in
-    let nb_args = Z3.Expr.get_num_args e in
-    if nb_args <= 0 then (
-      let fdecl = Z3.Expr.get_func_decl e in
-      (* let params = Z3.FuncDecl.get_parameters fdecl in *)
-      Format.eprintf "Extracting info about %s: [@?" (Z3.Expr.to_string e);
-      let dkind = Z3.FuncDecl.get_decl_kind fdecl in
-      match dkind with Z3enums.OP_UNINTERPRETED -> (
-	(* Format.eprintf "kind = %s, " (match dkind with Z3enums.OP_TRUE -> "true" | Z3enums.OP_UNINTERPRETED -> "uninter"); *)
-	(* let open Z3.FuncDecl.Parameter in *)
-	(* List.iter (fun p -> *)
-	(*   match p with *)
-        (*     P_Int i -> Format.eprintf "int %i" i *)
-	(*   | P_Dbl f -> Format.eprintf "dbl %f" f *)
-	(*   | P_Sym s -> Format.eprintf "symb"  *)
-	(*   | P_Srt s -> Format.eprintf "sort"  *)
-	(*   | P_Ast _ ->Format.eprintf "ast"  *)
-	(*   | P_Fdl f -> Format.eprintf "fundecl"  *)
-	(*   | P_Rat s -> Format.eprintf "rat %s" s  *)
-	     
-	(* ) params; *)
-	(* Format.eprintf "]@."; *)
-	FDSet.singleton fdecl
-      )
-      | _ -> FDSet.empty
-    )
-    else (*if nb_args > 0 then*)
-      List.fold_left
-	(fun accu e ->  FDSet.union accu (get_expr_vars e))
-	FDSet.empty (Z3.Expr.get_args e)
-  in
-  let vars = FDSet.elements (FDSet.diff (get_expr_vars expr) (FDSet.of_list dont_touch)) in
-  let sorts = List.map Z3.FuncDecl.get_range vars in
-  let symbols = List.map Z3.FuncDecl.get_name vars in
-  
-  let expr = Z3.Quantifier.mk_forall
-    !ctx  (* context *)
-    sorts           (* sort list*)
-    symbols (* symbol list *)
-    expr (* expression *)
-    None (* quantifier weight, None means 1 *)
-    [] (* pattern list ? *)
-    [] (* ? *)
-    None (* ? *)
-    None (* ? *)
-  in
-  Z3.Fixedpoint.add_rule !fp
-    (Z3.Quantifier.expr_of_quantifier expr)
-    None
-
 
 (** Conversion functions
 
@@ -682,7 +618,89 @@ and instrs_to_expr machines reset_instances m instrs =
   in
   e, rs
 
-        
+
+(*********************************************************)
+
+(* Quantifiying universally all occuring variables *)
+let add_rule ?(dont_touch=[]) vars  expr =
+  (* let fds = Z3.Expr.get_args expr in *)
+  (* Format.eprintf "Expr %s: args: [%a]@." *)
+  (*   (Z3.Expr.to_string expr) *)
+  (*   (Utils.fprintf_list ~sep:", " (fun fmt e -> Format.pp_print_string fmt (Z3.Expr.to_string e))) fds; *)
+
+  (* (\* Old code relying on provided vars *\) *)
+  (* let sorts = (List.map (fun id -> type_to_sort id.var_type) vars) in *)
+  (* let symbols = (List.map (fun id -> Z3.FuncDecl.get_name (get_fdecl id.var_id)) vars) in *)
+  
+  (* New code: we extract vars from expr *)
+  let module FDSet = Set.Make (struct type t = Z3.FuncDecl.func_decl
+				      let compare = compare
+				      let hash = Hashtbl.hash
+  end)
+  in
+  let rec get_expr_vars e =
+    let open Utils in
+    let nb_args = Z3.Expr.get_num_args e in
+    if nb_args <= 0 then (
+      let fdecl = Z3.Expr.get_func_decl e in
+      (* let params = Z3.FuncDecl.get_parameters fdecl in *)
+      Format.eprintf "Extracting info about %s: @." (Z3.Expr.to_string e);
+      let dkind = Z3.FuncDecl.get_decl_kind fdecl in
+      match dkind with Z3enums.OP_UNINTERPRETED -> (
+	(* Format.eprintf "kind = %s, " (match dkind with Z3enums.OP_TRUE -> "true" | Z3enums.OP_UNINTERPRETED -> "uninter"); *)
+	(* let open Z3.FuncDecl.Parameter in *)
+	(* List.iter (fun p -> *)
+	(*   match p with *)
+        (*     P_Int i -> Format.eprintf "int %i" i *)
+	(*   | P_Dbl f -> Format.eprintf "dbl %f" f *)
+	(*   | P_Sym s -> Format.eprintf "symb"  *)
+	(*   | P_Srt s -> Format.eprintf "sort"  *)
+	(*   | P_Ast _ ->Format.eprintf "ast"  *)
+	(*   | P_Fdl f -> Format.eprintf "fundecl"  *)
+	(*   | P_Rat s -> Format.eprintf "rat %s" s  *)
+	     
+	(* ) params; *)
+	(* Format.eprintf "]@."; *)
+	FDSet.singleton fdecl
+      )
+      | _ -> FDSet.empty
+    )
+    else (*if nb_args > 0 then*)
+      List.fold_left
+	(fun accu e ->  FDSet.union accu (get_expr_vars e))
+	FDSet.empty (Z3.Expr.get_args e)
+  in
+  let extracted_vars = FDSet.elements (FDSet.diff (get_expr_vars expr) (FDSet.of_list dont_touch)) in
+  let extracted_sorts = List.map Z3.FuncDecl.get_range extracted_vars in
+  let extracted_symbols = List.map Z3.FuncDecl.get_name extracted_vars in
+
+  Format.eprintf "Declaring rule: %s with variables %a@."
+    (Z3.Expr.to_string expr)
+    (Utils.fprintf_list ~sep:", " (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))) (List.map horn_var_to_expr vars)
+    ;
+  let expr = Z3.Quantifier.mk_forall_const
+    !ctx  (* context *)
+    (List.map horn_var_to_expr vars) (* TODO provide bounded variables as expr *)
+    (* sorts           (\* sort list*\) *)
+    (* symbols (\* symbol list *\) *)
+    expr (* expression *)
+    None (* quantifier weight, None means 1 *)
+    [] (* pattern list ? *)
+    [] (* ? *)
+    None (* ? *)
+    None (* ? *)
+  in
+  Format.eprintf "OK@.@?";
+
+
+  TODO: bizarre la declaration de INIT tout seul semble poser pb.
+  
+  Z3.Fixedpoint.add_rule !fp
+    (Z3.Quantifier.expr_of_quantifier expr)
+    None
+
+(********************************************************)
+    
 let machine_reset machines m =
   let locals = local_memory_vars machines m in
   
@@ -772,6 +790,7 @@ let decl_machine machines m =
 	  | [] ->
 	     begin
 	       (* Rule for single predicate : "; Stateless step rule @." *)
+	       let vars = rename_machine_list m.mname.node_id m.mstep.step_locals in
 	       add_rule vars (Z3.Boolean.mk_implies !ctx horn_body horn_head)
 		 
 	     end
@@ -781,6 +800,7 @@ let decl_machine machines m =
 	       let body_with_asserts =
 		 Z3.Boolean.mk_and !ctx (horn_body :: List.map (horn_val_to_expr m.mname.node_id) assertsl)
 	       in
+	       let vars = rename_machine_list m.mname.node_id m.mstep.step_locals in
 	       add_rule vars (Z3.Boolean.mk_implies !ctx body_with_asserts horn_head)
 	     end
 	end
@@ -798,6 +818,7 @@ let decl_machine machines m =
 	      (get_fdecl (machine_reset_name m.mname.node_id))
 	      (List.map (horn_var_to_expr) vars)
 	  in
+
 	  
 	  let _ =
 	    add_rule vars (Z3.Boolean.mk_implies !ctx horn_reset_body horn_reset_head)
@@ -843,6 +864,53 @@ let decl_machine machines m =
 	end
     end
 
+
+
+(* Debug functions *)
+
+let rec extract_expr_fds e =
+  Format.eprintf "@[<v 2>Extracting fundecls from expr %s@ "
+    (Z3.Expr.to_string e);
+  
+  (* Removing quantifier is there are some *)
+  let e = (* I didn't found a nicer way to do it than with an exception.  My
+	     bad *)
+    try
+      let eq = Z3.Quantifier.quantifier_of_expr e in
+      let e2 = Z3.Quantifier.get_body eq in
+      Format.eprintf "Extracted quantifier body@ ";
+      e2
+	
+    with _ -> Format.eprintf "No quantifier info@ "; e
+  in
+  let _ =
+    try 
+    (
+      let fd = Z3.Expr.get_func_decl e in
+      let fd_symbol = Z3.FuncDecl.get_name fd in
+      let fd_name = Z3.Symbol.to_string fd_symbol in
+      if not (Hashtbl.mem decls fd_name) then
+	register_fdecl fd_name fd;
+      Format.eprintf "fdecls (%s): %s@ "
+	fd_name
+	(Z3.FuncDecl.to_string fd);
+      try
+	(
+	  let args = Z3.Expr.get_args e in
+	  Format.eprintf "@[<v>@ ";
+	  List.iter extract_expr_fds args;
+	  Format.eprintf "@]@ ";
+	)
+      with _ ->
+	Format.eprintf "Impossible to extract fundecl args for expression %s@ "
+	  (Z3.Expr.to_string e)
+    )
+  with _ ->
+    Format.eprintf "Impossible to extract anything from expression %s@ "
+      (Z3.Expr.to_string e)
+  in
+  Format.eprintf "@]@ "
+      
 
 (* Local Variables: *)
 (* compile-command:"make -C ../.." *)

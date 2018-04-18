@@ -48,7 +48,10 @@ let check machines node =
 			 decl_init
 			 []
   )  in
-  
+
+  (* Re-declaring variables *)
+  let _ = List.map decl_var main_memory_next in
+
   let horn_head = 
     Z3.Expr.mk_app
       !ctx
@@ -65,6 +68,8 @@ let check machines node =
 
 	(* Note that vars here contains main_memory_next *)
 	let vars = step_vars_m_x machines machine in
+	(* Re-declaring variables *)
+	let _ = List.map decl_var vars in
 	
 	let horn_body =
 	  Z3.Boolean.mk_and !ctx
@@ -82,6 +87,13 @@ let check machines node =
     else
       begin
 	(* Initial set: Reset(c,m) + One Step(m,x) @. *)
+
+	(* Re-declaring variables *)
+	let vars_reset = reset_vars machines machine in
+	let vars_step = step_vars_m_x machines machine in
+	let vars_step_all = step_vars_c_m_x machines machine in
+	let _ = List.map decl_var (vars_reset @ vars_step @ vars_step_all ) in
+
 	(* rule => (INIT_STATE and reset(mid) and step(mid, next)) MAIN(next) *)
 	let horn_body =
 	  Z3.Boolean.mk_and !ctx

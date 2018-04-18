@@ -83,8 +83,9 @@ module Verifier =
       let mks = S.mk_string !ctx in
       let params = P.mk_params !ctx in
 
-      (* self.fp.set (engine='spacer') *)
+      (* (\* self.fp.set (engine='spacer') *\) *)
       P.add_symbol params (mks "engine") (mks "spacer");
+      (* P.add_symbol params (mks "engine") (mks "pdr");  *)
       
        (* #z3.set_option(rational_to_decimal=True) *)
        (* #self.fp.set('precision',30) *)
@@ -152,45 +153,87 @@ module Verifier =
 	
 	let queries = Z3.Fixedpoint.parse_file !fp "mini.smt2" in
 
-      (* Debug instructions *)
-      let rules_expr = Z3.Fixedpoint.get_rules !fp in
-      Format.eprintf "@[<v 2>Registered rules:@ %a@ @]@."
-      	(Utils.fprintf_list ~sep:"@ "
-      	   (fun fmt e -> Format.pp_print_string fmt (Z3.Expr.to_string e)) )
-      	rules_expr;
+	(* Debug instructions *)
+	
 
-	let res_status = Z3.Fixedpoint.query !fp (List.hd queries )in
+	
+	let rules_expr = Z3.Fixedpoint.get_rules !fp in
+	Format.eprintf "@[<v 2>Registered rules:@ %a@ @]@."
+      	  (Utils.fprintf_list ~sep:"@ "
+      	     (fun fmt e ->
+	       (* let e2 = Z3.Quantifier.get_body eq in *)
+	       (* let fd = Z3.Expr.get_func_decl e in *)
+	       Format.fprintf fmt "Rule: %s@."
+		 (Z3.Expr.to_string e);
+	     )) rules_expr;
+	
+	let _ = List.map extract_expr_fds rules_expr in
+	Format.eprintf "%t" pp_fdecls;
+	
+      	let res_status = Z3.Fixedpoint.query !fp (List.hd queries )in
 	
 	Format.eprintf "Status: %s@." (Z3.Solver.string_of_status res_status)
+      )
+      else if false then (
+
+	(* No queries here *)
+	let _ = Z3.Fixedpoint.parse_file !fp "mini_decl.smt2" in
+
+	(* Debug instructions *)
+	
+
+	
+	let rules_expr = Z3.Fixedpoint.get_rules !fp in
+	Format.eprintf "@[<v 2>Registered rules:@ %a@ @]@."
+      	  (Utils.fprintf_list ~sep:"@ "
+      	     (fun fmt e ->
+	       (* let e2 = Z3.Quantifier.get_body eq in *)
+	       (* let fd = Z3.Expr.get_func_decl e in *)
+	       Format.fprintf fmt "Rule: %s@."
+		 (Z3.Expr.to_string e);
+	     )) rules_expr;
+	
+	let _ = List.map extract_expr_fds rules_expr in
+	Format.eprintf "%t" pp_fdecls;
+
+	if !Options.main_node <> "" then
+      	  begin
+      	    Zustre_analyze.check machines !Options.main_node
+
+      	  end
+	else
+      	  failwith "Require main node";
+
+	()	
       )
       else (
 	
 	
-      decl_sorts ();
-      
-      List.iter (decl_machine machines) (List.rev machines);
+	decl_sorts ();
+	
+	List.iter (decl_machine machines) (List.rev machines);
 
 
-      (* (\* Debug instructions *\) *)
-      (* let rules_expr = Z3.Fixedpoint.get_rules !fp in *)
-      (* Format.eprintf "@[<v 2>Registered rules:@ %a@ @]@." *)
-      (* 	(Utils.fprintf_list ~sep:"@ " *)
-      (* 	   (fun fmt e -> Format.pp_print_string fmt (Z3.Expr.to_string e)) ) *)
-      (* 	rules_expr; *)
+	(* (\* Debug instructions *\) *)
+	(* let rules_expr = Z3.Fixedpoint.get_rules !fp in *)
+	(* Format.eprintf "@[<v 2>Registered rules:@ %a@ @]@." *)
+	(* 	(Utils.fprintf_list ~sep:"@ " *)
+	(* 	   (fun fmt e -> Format.pp_print_string fmt (Z3.Expr.to_string e)) ) *)
+	(* 	rules_expr; *)
 
-      if !Options.main_node <> "" then
-      	begin
-      	  Zustre_analyze.check machines !Options.main_node
+	if !Options.main_node <> "" then
+      	  begin
+      	    Zustre_analyze.check machines !Options.main_node
 
-      	end
-      else
-      	failwith "Require main node";
-      
-      ()
+      	  end
+	else
+      	  failwith "Require main node";
+	
+	()
       )
 	
 
-  end: VerifierType.S)
+	    end: VerifierType.S)
     
 (* Local Variables: *)
 (* compile-command:"make -C ../.." *)
