@@ -140,7 +140,11 @@ AC_SUBST_FILE(lustresf_src)
 lustresf=/dev/null
 lustresf_src=/dev/null
 
-AS_IF([test "x$enable_lustresf" != "xno" -a "x$yojson" = "xyes"], [
+AS_IF([test "x$enable_lustresf" != "xno"], [
+  AC_MSG_CHECKING(yojson library for lustresf)
+  AS_IF([ocamlfind query yojson >/dev/null 2>&1],
+      [yojson=yes; AC_MSG_RESULT(yes)],[yojson=no; AC_MSG_ERROR(Yojson required for lustresf. opam install yojson should solve the issue)],
+  )
   lustresf=Makefile-lustresf.in
   lustresf_src=src/Makefile-lustresf.in
   AC_SUBST(lustresf_target, "lustresf")

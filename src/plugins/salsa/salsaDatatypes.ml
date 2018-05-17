@@ -2,19 +2,29 @@ module LT = Lustre_types
 module MT = Machine_code_types
 module MC = Machine_code_common
 module ST = Salsa.Types
-module Float = Salsa.Float
 
 let debug = ref false
 
+let _ = Salsa.Prelude.sliceSize := 5 
+  
 let pp_hash ~sep f fmt r = 
   Format.fprintf fmt "[@[<v>";
   Hashtbl.iter (fun k v -> Format.fprintf fmt "%t%s@ " (f k v) sep) r;
   Format.fprintf fmt "]@]";
 
 
+module type VALUE =
+sig
+  type t
+  val union: t -> t -> t
+  val pp: Format.formatter -> t -> unit
+    val leq: t -> t -> bool
+end
+  
 module Ranges = 
-  functor (Value: sig type t val union: t -> t -> t val pp: Format.formatter -> t -> unit end)  ->
+  functor (Value: VALUE)  ->
 struct
+  module Value = Value
   type t = Value.t
   type r_t = (LT.ident, Value.t) Hashtbl.t
 
@@ -29,7 +39,11 @@ struct
   						    pour chaque noeud *)
 
 
-  let pp = pp_hash ~sep:";" (fun k v fmt -> Format.fprintf fmt "%s -> %a" k Value.pp v) 
+  let pp fmt r =
+    if Hashtbl.length r = 0 then
+      Format.fprintf fmt "empty"
+    else
+      pp_hash ~sep:";" (fun k v fmt -> Format.fprintf fmt "%s -> %a" k Value.pp v) fmt r
   let pp_val = Value.pp
 
   let add_def ranges name r = 
@@ -68,13 +82,19 @@ struct
     (* Format.eprintf "Merge result %a@." pp ranges; *)
     ranges
 
+
+  let to_abstract_env ranges =
+    Hashtbl.fold 
+      (fun id value accu -> (id,value)::accu) 
+      ranges
+      [] 
 end
 
 module FloatIntSalsa = 
 struct
   type t = ST.abstractValue
 
-  let pp fmt (f,r) =
+  let pp fmt ((f,r):t) =
     let fs, rs = (Salsa.Float.Domain.print (f,r)) in
     Format.fprintf fmt "%s + %s" fs rs 
 (*    match f, r with
@@ -91,14 +111,15 @@ struct
       ST.(I(min x1 x1', max x2 x2'), J(min y1 y1', max y2 y2'))
     | _ -> Format.eprintf "%a cup %a failed@.@?" pp v1 pp v2; assert false 
 *)
-  let inject cst = match cst with (* ATTENTION ATTENTION !!!!! Remettre les Num !!!! *) 
-    | LT.Const_int(i)  -> Salsa.Builder.mk_cst (ST.R(float_of_int i (*Num.num_of_int i*), []), ST.R(float_of_int i (*Num.num_of_int i*), []))
+  let inject cst = match cst with  
+    | LT.Const_int(i)  -> Salsa.Builder.mk_cst (Salsa.Float.Domain.inject_float (float_of_int i))
     | LT.Const_real (c,e,s) -> (* TODO: this is incorrect. We should rather
 				  compute the error associated to the float *)
+       let f = float_of_string s  in
+       Salsa.Builder.mk_cst (Salsa.Float.Domain.inject_float f)
        
-       let r = float_of_string s  in
-       let r = Salsa.Prelude.r_of_f_aux r in
-       Salsa.Builder.mk_cst (Float.Domain.nnew r r)
+       (* let r = Salsa.Prelude.r_of_f_aux r in *)
+       (* Salsa.Builder.mk_cst (Float.Domain.nnew r r) *)
 	 
       (* let r = float_of_string s  in *)
       (* if r = 0. then *)
@@ -106,6 +127,8 @@ struct
       (* else *)
       (* 	Salsa.Builder.mk_cst (ST.I(r*.(1.-.epsilon_float),r*.(1.+.epsilon_float)),Float.ulp (ST.I(r,r))) *)
     | _ -> assert false
+
+  let leq = Salsa.Float.feSseq
 end
 
 module RangesInt = Ranges (FloatIntSalsa)
@@ -204,7 +227,9 @@ module VarEnv = Map.Make (struct type t = LT.ident let compare = compare end )
 let get_var vars_env v =
 try
   VarEnv.find v vars_env
-  with Not_found -> Format.eprintf "Impossible to find var %s@.@?" v; assert false
+with Not_found -> Format.eprintf "Impossible to find var %s in var env %a@ " v
+  (Utils.fprintf_list ~sep:", " (fun fmt (id, _) -> Format.pp_print_string fmt id)) (VarEnv.bindings vars_env) 
+  ; assert false
 
 let compute_vars_env m =
   let env = VarEnv.empty in
@@ -224,6 +249,7 @@ let compute_vars_env m =
 env
 
 let rec salsa_expr2value_t vars_env cst_env e  = 
+  (* let e =   Float.evalPartExpr e [] [] in *)
   let salsa_expr2value_t = salsa_expr2value_t vars_env cst_env in
   let binop op e1 e2 t = 
     let x = salsa_expr2value_t e1 in
@@ -231,11 +257,12 @@ let rec salsa_expr2value_t vars_env cst_env e  =
     MC.mk_val (MT.Fun (op, [x;y])) t
   in
   match e with
-    ST.Cst((ST.R(c,_),_),_)     -> (* We project ranges into constants. We
+    ST.Cst(abs_val,_)     -> (* We project ranges into constants. We
 					forget about errors and provide the
 					mean/middle value of the interval
-				     *)
-      let  new_float = Salsa.NumMartel.float_of_num c in
+			      *)
+    let new_float = Salsa.Float.Domain.to_float abs_val in
+      (* let  new_float = Salsa.NumMartel.float_of_num c in *)
       (* let new_float =  *)
       (* 	if f1 = f2 then *)
       (* 	  f1 *)
@@ -248,9 +275,10 @@ let rec salsa_expr2value_t vars_env cst_env e  =
 	let s = 
 	  if new_float = 0. then "0." else
 	    (* We have to convert it into our format: int * int * real *)
+	    (* string_of_float new_float *) 
 	    let _ = Format.flush_str_formatter () in
-	    Format.fprintf Format.str_formatter "%.50f" new_float;
-	    Format.flush_str_formatter () 
+	    Format.fprintf Format.str_formatter "%.11f" new_float;
+	    Format.flush_str_formatter ()  
 	in
 	Parser_lustre.signed_const Lexer_lustre.token (Lexing.from_string s) 
       in
@@ -283,6 +311,7 @@ let rec salsa_expr2value_t vars_env cst_env e  =
   | ST.IntOfBool(ST.Lte(x,y,_),_)  -> binop "<=" x y Type_predef.type_bool
   | ST.IntOfBool(ST.Gte(x,y,_),_)  -> binop ">=" x y Type_predef.type_bool
   | _      -> raise (Salsa.Prelude.Error "Entschuldigung, salsaExpr2value_t case not yet implemented")
+
 
 
 let rec get_salsa_free_vars vars_env constEnv absenv e =
@@ -339,7 +368,7 @@ struct
 
   let empty (): fe_t = Hashtbl.create 13
 
-  let pp fmt env = pp_hash ~sep:";" (fun k (_,v) fmt -> Format.fprintf fmt "%s -> %a" k MC.pp_val v) fmt env
+  let pp fmt env = pp_hash ~sep:";@ " (fun k (_,v) fmt -> Format.fprintf fmt "%s -> %a" k MC.pp_val v) fmt env
 
 
   let get_sort_fun env =
