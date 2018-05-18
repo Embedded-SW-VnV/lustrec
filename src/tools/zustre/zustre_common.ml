@@ -92,13 +92,13 @@ let rec type_to_sort t =
 
 (** Func decls
 
-Similarly fun_decls are registerd, by their name, into a hashtbl. The
-   proposed encoding introduces a 0-ary fun_decl to model variables
-   and fun_decl with arguments to declare reset and step predicates.
+    Similarly fun_decls are registerd, by their name, into a hashtbl. The
+    proposed encoding introduces a 0-ary fun_decl to model variables and
+    fun_decl with arguments to declare reset and step predicates.
 
 
 
- *)
+*)
 let register_fdecl id fd = Hashtbl.add decls id fd
 let get_fdecl id =
   try
@@ -127,10 +127,10 @@ let decl_rel name args =
 
 (** Conversion functions
 
-The following is similar to the Horn backend. Each printing function
-   is rephrased from pp_xx to xx_to_expr and produces a Z3 value.
+    The following is similar to the Horn backend. Each printing function is
+    rephrased from pp_xx to xx_to_expr and produces a Z3 value.
 
- *)
+*)
 
 
 (* Returns the f_decl associated to the variable v *)
@@ -311,9 +311,9 @@ let horn_basic_app i val_to_expr vl =
     assert false)
 
            
-(* Convert a value expression [v], with internal function calls only.
-   [pp_var] is a printer for variables (typically [pp_c_var_read]),
-   but an offset suffix may be added for array variables
+(* Convert a value expression [v], with internal function calls only.  [pp_var]
+   is a printer for variables (typically [pp_c_var_read]), but an offset suffix
+   may be added for array variables
 *)
 let rec horn_val_to_expr ?(is_lhs=false) self v =
   match v.value_desc with
@@ -692,13 +692,14 @@ let add_rule ?(dont_touch=[]) vars  expr =
   in
   Format.eprintf "OK@.@?";
 
-
-  TODO: bizarre la declaration de INIT tout seul semble poser pb.
-  
+  (*
+    TODO: bizarre la declaration de INIT tout seul semble poser pb.
+  *) 
   Z3.Fixedpoint.add_rule !fp
     (Z3.Quantifier.expr_of_quantifier expr)
     None
 
+ 
 (********************************************************)
     
 let machine_reset machines m =
