@@ -269,14 +269,17 @@ let optimize_expr nodename m constEnv printed_vars vars_env ranges formalEnv e :
     else (
       
       if !debug then
-	Log.report ~level:3 (fun fmt -> Format.fprintf fmt "@[<v 2>Analyzing expression %a@  with ranges: @[<v>%a@ @]@ @]@ "
-	  (C_backend_common.pp_c_val "" (C_backend_common.pp_c_var_read m)) (salsa_expr2value_t vars_env constEnv e_salsa)
-	  (Utils.fprintf_list ~sep:",@ "(fun fmt (l,r) -> Format.fprintf fmt "%s -> %a" l FloatIntSalsa.pp r)) abstractEnv)
+	  Log.report ~level:3 (fun fmt -> Format.fprintf fmt "@[<v 2>Analyzing expression %a@  with ranges: @[<v>%a@ @]@ @]@ "
+	    (C_backend_common.pp_c_val "" (C_backend_common.pp_c_var_read m)) (salsa_expr2value_t vars_env constEnv e_salsa)
+	    (Utils.fprintf_list ~sep:",@ "(fun fmt (l,r) -> Format.fprintf fmt "%s -> %a" l FloatIntSalsa.pp r)) abstractEnv)
+	
       ;
 
       (* Slicing expression *)
       let e_salsa, seq =
-	Salsa.Rewrite.sliceExpr e_salsa 0 (Salsa.Types.Nop(Salsa.Types.Lab 0))
+	try
+	  Salsa.Rewrite.sliceExpr e_salsa 0 (Salsa.Types.Nop(Salsa.Types.Lab 0))
+	    with _ -> Format.eprintf "Issues rewriting express %s@.@?" (Salsa.Print.printExpression e_salsa); assert false
       in
       let def_tmps = Salsa.Utils.flatten_seq seq [] in
       (* Registering tmp ids in vars_env *)
