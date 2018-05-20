@@ -98,9 +98,11 @@ let opt_num_expr_sliced ranges e_salsa =
     let fresh_id = "toto"  in (* TODO more meaningful name *)
 
     let abstractEnv = RangesInt.to_abstract_env ranges in
+    Format.eprintf "Launching analysis@.@?";
     let new_e_salsa, e_val = 
       Salsa.MainEPEG.transformExpression fresh_id e_salsa abstractEnv
     in
+    Format.eprintf " Analysis done@.@?";
 
 
     (* (\* Debug *\) *)
@@ -109,6 +111,7 @@ let opt_num_expr_sliced ranges e_salsa =
     (*   (Salsa.Print.printExpression new_e_salsa); *)
     (* (\* Debug *\) *)
     
+    Format.eprintf " Computing range progress@.@?";
 
     let old_val = Salsa.Analyzer.evalExpr e_salsa abstractEnv [] in
     let expr, expr_range  =
@@ -119,19 +122,27 @@ let opt_num_expr_sliced ranges e_salsa =
 	);
 	e_salsa, Some old_val
       )
-      | true, false -> (
+      | false, true -> (
 	if !debug then Log.report ~level:2 (fun fmt ->
 	  Format.fprintf fmt "Improved!@ ";
 	);
 	new_e_salsa, Some e_val
       )
-      | false, true -> Format.eprintf "CAREFUL --- new range is worse!. Restoring provided expression@ "; 	e_salsa, Some old_val
+      | true, false -> Format.eprintf "CAREFUL --- new range is worse!. Restoring provided expression@ "; 	e_salsa, Some old_val
 
-      | false, false ->
-	 Format.eprintf
-	   "Error; new range is not comparabe with old end. This should not happen!@.@?";
-	assert false
+      | false, false -> (
+	Format.eprintf
+	  "Error; new range is not comparabe with old end. It may need some investigation!@.@?";
+	Format.eprintf "old: %a@.new: %a@.@?"
+	  RangesInt.pp_val old_val
+	  RangesInt.pp_val e_val;
+	
+	new_e_salsa, Some e_val
+       	(* assert false *)
+      )
     in
+    Format.eprintf " Computing range done@.@?";
+
     if !debug then Log.report ~level:2 (fun fmt ->
       Format.fprintf fmt
 	"  @[<v>old_expr: @[<v 0>%s@ range: %a@]@ new_expr: @[<v 0>%s@ range: %a@]@ @]@ "

@@ -516,13 +516,16 @@ let sort_handlers hl =
  List.sort (fun (t, _) (t', _) -> compare t t') hl
 
 let num_10 = Num.num_of_int 10
-  
+
+let cst_real_to_num n i =
+  Num.(n // (num_10 **/ (num_of_int i)))
+
 let rec is_eq_const c1 c2 =
   match c1, c2 with
   | Const_real (n1, i1, _), Const_real (n2, i2, _)
-    -> Num.(let n1 = n1 // (num_10 **/ (num_of_int i1)) in
-	    let n2 = n2 // (num_10 **/ (num_of_int i2)) in
-	    eq_num n1 n2)
+    -> let n1 = cst_real_to_num n1 i1 in
+       let n2 = cst_real_to_num n2 i2 in
+	    Num.eq_num n1 n2
   | Const_struct lcl1, Const_struct lcl2
     -> List.length lcl1 = List.length lcl2
     && List.for_all2 (fun (l1, c1) (l2, c2) -> l1 = l2 && is_eq_const c1 c2) lcl1 lcl2

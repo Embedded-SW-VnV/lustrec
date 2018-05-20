@@ -165,6 +165,10 @@ val expr_contains_expr: tag -> expr -> bool
 
 val reset_cpt_fresh: unit -> unit
 val mk_fresh_var: node_desc -> Location.t -> Types.type_expr ->  Clocks.clock_expr -> var_decl
+
+
+(* Extract a num to describe a real constant *)
+val cst_real_to_num: Num.num -> int -> Num.num
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

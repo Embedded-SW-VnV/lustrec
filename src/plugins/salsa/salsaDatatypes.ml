@@ -112,11 +112,12 @@ struct
     | _ -> Format.eprintf "%a cup %a failed@.@?" pp v1 pp v2; assert false 
 *)
   let inject cst = match cst with  
-    | LT.Const_int(i)  -> Salsa.Builder.mk_cst (Salsa.Float.Domain.inject_float (float_of_int i))
+    | LT.Const_int(i)  -> Salsa.Builder.mk_cst (Salsa.Float.Domain.inject_int i)
     | LT.Const_real (c,e,s) -> (* TODO: this is incorrect. We should rather
 				  compute the error associated to the float *)
-       let f = float_of_string s  in
-       Salsa.Builder.mk_cst (Salsa.Float.Domain.inject_float f)
+       (* let f = float_of_string s in *)
+       let n = Corelang.cst_real_to_num c e in
+       Salsa.Builder.mk_cst (Salsa.Float.Domain.inject_num n)
        
        (* let r = Salsa.Prelude.r_of_f_aux r in *)
        (* Salsa.Builder.mk_cst (Float.Domain.nnew r r) *)
@@ -128,7 +129,7 @@ struct
       (* 	Salsa.Builder.mk_cst (ST.I(r*.(1.-.epsilon_float),r*.(1.+.epsilon_float)),Float.ulp (ST.I(r,r))) *)
     | _ -> assert false
 
-  let leq = Salsa.Float.feSseq
+  let leq = (* Salsa.Float.feSseq *) Salsa.Float.Domain.leq
 end
 
 module RangesInt = Ranges (FloatIntSalsa)
