@@ -135,6 +135,35 @@ let _ =
   Z3.Fixedpoint.add_rule !fp expr_forall_main1 None;
 
   (* Rule 2: forall x,y, MAIN(x,y) => MAIN(x+1, y+1) *)
+  let expr_main2_lhs = main_x_y_expr in
+  let plus_one x = Z3.Arithmetic.mk_add !ctx
+    [
+      x;
+      (* Z3.Arithmetic.Integer.mk_const_s !ctx "1" *)
+	Z3.Expr.mk_numeral_int !ctx 1 int_sort
+    ] in
+  let main_x_y_plus_one_expr = Z3.Expr.mk_app !ctx decl_main [plus_one x_expr; plus_one y_expr] in
+  let expr_main2_rhs = main_x_y_plus_one_expr in
+  let expr_main2 = Z3.Boolean.mk_implies !ctx expr_main2_lhs expr_main2_rhs in
+  (* Adding forall as prefix *)
+  let expr_forall_main2 = Z3.Quantifier.mk_forall_const
+    !ctx  (* context *)
+    (*
+    [int_sort; int_sort]           (* sort list*)
+    [Z3.FuncDecl.get_name x; Z3.FuncDecl.get_name y] (* symbol list *)
+    *)
+    (*    [x_expr; y_expr] Second try with expr list "const" *)
+    [Z3.Expr.mk_const_f !ctx x; Z3.Expr.mk_const_f !ctx y]
+    expr_main2 (* expression *)
+    None (* quantifier weight, None means 1 *)
+    [] (* pattern list ? *)
+    [] (* ? *)
+    None (* ? *)
+    None (* ? *)
+  in
+  let expr_forall_main2 = Z3.Quantifier.expr_of_quantifier expr_forall_main2 in
+  Z3.Fixedpoint.add_rule !fp expr_forall_main2 None;
+  
   
   
   (* TODO: not implemented yet since the error is visible without it *)

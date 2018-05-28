@@ -42,12 +42,14 @@ let check machines node =
   (* Init case *)
   let decl_init = decl_rel "INIT_STATE" [] in
 
-  (* rule INIT_STATE *)
-  let _ = add_rule [] (Z3.Expr.mk_app
-			 !ctx
-			 decl_init
-			 []
-  )  in
+  (* (special) rule INIT_STATE *)
+  let init_expr = Z3.Expr.mk_app !ctx decl_init [] in
+  Z3.Fixedpoint.add_rule !fp init_expr None;
+  (* let _ = add_rule [] (Z3.Expr.mk_app *)
+  (* 			 !ctx *)
+  (* 			 decl_init *)
+  (* 			 [] *)
+  (* )  in *)
 
   (* Re-declaring variables *)
   let _ = List.map decl_var main_memory_next in
@@ -149,8 +151,10 @@ let check machines node =
 	Z3.Expr.mk_app !ctx (get_fdecl (step_name node)) (List.map horn_var_to_expr (step_vars machines machine))
       ]
   in
+  (* Vars contains all vars: in_out, current, mid, neXt memories *)
+  let vars = (step_vars_c_m_x machines machine) @ main_output_dummy in
   let _ =
-    add_rule ~dont_touch:[decl_main] []  (Z3.Boolean.mk_implies !ctx horn_body horn_head)
+    add_rule ~dont_touch:[decl_main] vars  (Z3.Boolean.mk_implies !ctx horn_body horn_head)
       
   in
 
@@ -164,7 +168,7 @@ let check machines node =
   let not_prop =
     Z3.Boolean.mk_not !ctx prop
   in
-  add_rule ~dont_touch:[decl_main;decl_err] main_memory_next (Z3.Boolean.mk_implies !ctx
+  add_rule (*~dont_touch:[decl_main;decl_err]*) main_memory_next (Z3.Boolean.mk_implies !ctx
 	      (
 		Z3.Boolean.mk_and !ctx
 		  [not_prop;
@@ -182,16 +186,15 @@ let check machines node =
 
       (* Debug instructions *)
   let rules_expr = Z3.Fixedpoint.get_rules !fp in
-  Format.eprintf "@[<v 2>Registered rules:@ %a@ @]@."
+  if false then
+    Format.eprintf "@[<v 2>Registered rules:@ %a@ @]@."
     (Utils.fprintf_list ~sep:"@ "
        (fun fmt e -> Format.pp_print_string fmt (Z3.Expr.to_string e)) )
     rules_expr;
-
-  
   let res_status = Z3.Fixedpoint.query_r !fp [decl_err] in
 
   Format.eprintf "Status: %s@." (Z3.Solver.string_of_status res_status)
-  
+
 (* Local Variables: *)
 (* compile-command:"make -C ../.." *)
 (* End: *)
