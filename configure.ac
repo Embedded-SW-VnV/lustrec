@@ -79,15 +79,15 @@ AS_IF([test "x$seal" = "xyes"], [
 
 # z3
 AC_MSG_CHECKING(z3 library (optional))
-#define([z3path], esyscmd([ocamlfind query z3 | tr -d '\n']))
-define([z3path], esyscmd([opam config var z3:lib | tr -d '\n']))
+define([z3path], esyscmd([ocamlfind query Z3 | tr -d '\n']))
+#define([z3path], esyscmd([opam config var Z3:lib | tr -d '\n']))
 
-AS_IF([ocamlfind query z3 >/dev/null 2>&1],
+AS_IF([ocamlfind query Z3 >/dev/null 2>&1],
     [z3=yes; AC_MSG_RESULT(yes)],[seal=no; AC_MSG_RESULT(no)],
 )
 AS_IF([test "x$z3" = "xyes"], [
    AC_SUBST(LUSTREV_ZUSTRE, "(module Zustre_verifier.Verifier : VerifierType.S);")
-   AC_SUBST(LUSTREV_Z3_TAG, "<**/*>: package(z3)")
+   AC_SUBST(LUSTREV_Z3_TAG, "<**/*>: package(Z3)")
    AC_SUBST(Z3LIBPATH, "z3path")
 ])
 

@@ -203,10 +203,14 @@ let check machines node =
   match res_status with
   | Z3.Solver.SATISFIABLE -> (
      (*Zustre_cex.build_cex decl_err*)
-     let expr_opt = Z3.Fixedpoint.get_answer !fp in
-       match expr_opt with
-	 None -> Format.eprintf "Sat No feedback@."
-       | Some e -> Format.eprintf "Sat Result: %s@." (Z3.Expr.to_string e)
+    let expr1_opt = Z3.Fixedpoint.get_answer !fp in
+    let expr2_opt = Z3.Fixedpoint.get_ground_sat_answer !fp in 
+       match expr1_opt, expr2_opt with
+	 None, None -> Format.eprintf "Sat No feedback@."
+       | Some e, Some e2 -> Format.eprintf "Sat Result: %s, %s@."
+					   (Z3.Expr.to_string e)
+					   (Z3.Expr.to_string e2)
+       | _ -> assert false
   )
   | Z3.Solver.UNSATISFIABLE -> (*build_inv*) (
        let expr_opt = Z3.Fixedpoint.get_answer !fp in
