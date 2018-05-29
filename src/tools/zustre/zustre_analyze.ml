@@ -23,12 +23,18 @@ let check machines node =
   let main_output_dummy =
     rename_machine_list ("dummy" ^ machine.mname.node_id) machine.mstep.step_outputs
   in
+  let main_input = 
+    rename_machine_list machine.mname.node_id machine.mstep.step_inputs
+  in  
+  let main_input_dummy = 
+    rename_machine_list ("dummy" ^ machine.mname.node_id) machine.mstep.step_inputs
+  in  
   let main_memory_next =
-    (rename_next_list (* machine.mname.node_id *) (full_memory_vars machines machine)) @
+    main_input @ (rename_next_list (* machine.mname.node_id *) (full_memory_vars machines machine)) @
       main_output
   in
   let main_memory_current =
-    (rename_current_list (* machine.mname.node_id *) (full_memory_vars machines machine)) @
+    main_input_dummy @ (rename_current_list (* machine.mname.node_id *) (full_memory_vars machines machine)) @
       main_output_dummy
   in
 
@@ -127,7 +133,7 @@ let check machines node =
   
   (* ; Inductive def@. *)
 
-  List.iter (fun x -> ignore (decl_var x)) main_output_dummy;
+  List.iter (fun x -> ignore (decl_var x)) (main_output_dummy @ main_input_dummy);
   
   (* (Utils.fprintf_list ~sep:" " (fun fmt v -> fprintf fmt "%a@." pp_decl_var v)) fmt main_output_dummy; *)
 
@@ -152,7 +158,7 @@ let check machines node =
       ]
   in
   (* Vars contains all vars: in_out, current, mid, neXt memories *)
-  let vars = (step_vars_c_m_x machines machine) @ main_output_dummy in
+  let vars = (step_vars_c_m_x machines machine) @ main_output_dummy @ main_input_dummy  in
   let _ =
     add_rule ~dont_touch:[decl_main] vars  (Z3.Boolean.mk_implies !ctx horn_body horn_head)
       
@@ -186,15 +192,30 @@ let check machines node =
 
       (* Debug instructions *)
   let rules_expr = Z3.Fixedpoint.get_rules !fp in
-  if false then
+  if true then
     Format.eprintf "@[<v 2>Registered rules:@ %a@ @]@."
     (Utils.fprintf_list ~sep:"@ "
        (fun fmt e -> Format.pp_print_string fmt (Z3.Expr.to_string e)) )
     rules_expr;
   let res_status = Z3.Fixedpoint.query_r !fp [decl_err] in
 
-  Format.eprintf "Status: %s@." (Z3.Solver.string_of_status res_status)
-
+  Format.eprintf "Status: %s@." (Z3.Solver.string_of_status res_status);
+  match res_status with
+  | Z3.Solver.SATISFIABLE -> (
+     (*Zustre_cex.build_cex decl_err*)
+     let expr_opt = Z3.Fixedpoint.get_answer !fp in
+       match expr_opt with
+	 None -> Format.eprintf "Sat No feedback@."
+       | Some e -> Format.eprintf "Sat Result: %s@." (Z3.Expr.to_string e)
+  )
+  | Z3.Solver.UNSATISFIABLE -> (*build_inv*) (
+       let expr_opt = Z3.Fixedpoint.get_answer !fp in
+       match expr_opt with
+	 None -> Format.eprintf "Unsat No feedback@."
+       | Some e -> Format.eprintf "Unsat Result: %s@." (Z3.Expr.to_string e)
+  )
+  | Z3.Solver.UNKNOWN -> ()
+      
 (* Local Variables: *)
 (* compile-command:"make -C ../.." *)
 (* End: *)
