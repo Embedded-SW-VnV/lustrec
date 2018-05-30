@@ -14,20 +14,20 @@ open Zustre_data
 let check machines node =
 
   let machine = get_machine machines node in
-
+  let node_id = machine.mname.node_id in
   (* Declaring collecting semantics *)
   
   let main_output =
-    rename_machine_list machine.mname.node_id machine.mstep.step_outputs
+    rename_machine_list node_id machine.mstep.step_outputs
   in
   let main_output_dummy =
-    rename_machine_list ("dummy" ^ machine.mname.node_id) machine.mstep.step_outputs
+    rename_machine_list ("dummy" ^ node_id) machine.mstep.step_outputs
   in
   let main_input = 
-    rename_machine_list machine.mname.node_id machine.mstep.step_inputs
+    rename_machine_list node_id machine.mstep.step_inputs
   in  
   let main_input_dummy = 
-    rename_machine_list ("dummy" ^ machine.mname.node_id) machine.mstep.step_inputs
+    rename_machine_list ("dummy" ^ node_id) machine.mstep.step_inputs
   in  
   let main_memory_next =
     main_input @ (rename_next_list (* machine.mname.node_id *) (full_memory_vars machines machine)) @
@@ -41,7 +41,10 @@ let check machines node =
   (* TODO: push/pop? donner un nom different par instance pour les garder dans le buffer ?
      Faut-il declarer les "rel" dans la hashtbl ?
   *)
-  let decl_main = decl_rel "MAIN" main_memory_next in
+  let decl_main =
+    decl_rel
+      ("MAIN" ^ "_" ^ node_id)
+      (int_sort::(List.map (fun v -> type_to_sort v.var_type) (main_memory_next))) in
 
   
   
@@ -64,7 +67,7 @@ let check machines node =
     Z3.Expr.mk_app
       !ctx
       decl_main
-      (List.map horn_var_to_expr main_memory_next)
+      ((Z3.Arithmetic.Integer.mk_numeral_i !ctx 0)::(List.map horn_var_to_expr main_memory_next))
   in
   (* Special case when the main node is stateless *)
   let _ =
@@ -142,25 +145,30 @@ let check machines node =
   (*   (Utils.fprintf_list ~sep:" " (pp_horn_var machine)) main_memory_current *)
   (*   step_name node *)
   (*   (Utils.fprintf_list ~sep:" " (pp_horn_var machine)) (step_vars machines machine) *)
-  
+
+  let k = Corelang.dummy_var_decl "k" Type_predef.type_int (*Corelang.mktyp Location.dummy_loc Types.type_int*) in
+  let k_var = decl_var k in
   
   let horn_head = 
     Z3.Expr.mk_app
       !ctx
       decl_main
-      (List.map horn_var_to_expr main_memory_next)
+      ((Z3.Arithmetic.mk_add
+	  !ctx
+	  [Z3.Expr.mk_const_f !ctx k_var; Z3.Arithmetic.Integer.mk_numeral_i !ctx 1]
+       )::(List.map horn_var_to_expr main_memory_next))
   in
   let horn_body =
     Z3.Boolean.mk_and !ctx
       [
-	Z3.Expr.mk_app !ctx decl_main (List.map horn_var_to_expr main_memory_current);
+	Z3.Expr.mk_app !ctx decl_main (Z3.Expr.mk_const_f !ctx k_var::(List.map horn_var_to_expr main_memory_current));
 	Z3.Expr.mk_app !ctx (get_fdecl (step_name node)) (List.map horn_var_to_expr (step_vars machines machine))
       ]
   in
   (* Vars contains all vars: in_out, current, mid, neXt memories *)
   let vars = (step_vars_c_m_x machines machine) @ main_output_dummy @ main_input_dummy  in
   let _ =
-    add_rule ~dont_touch:[decl_main] vars  (Z3.Boolean.mk_implies !ctx horn_body horn_head)
+    add_rule ~dont_touch:[decl_main] (k::vars)  (Z3.Boolean.mk_implies !ctx horn_body horn_head)
       
   in
 
@@ -174,11 +182,11 @@ let check machines node =
   let not_prop =
     Z3.Boolean.mk_not !ctx prop
   in
-  add_rule (*~dont_touch:[decl_main;decl_err]*) main_memory_next (Z3.Boolean.mk_implies !ctx
+  add_rule (*~dont_touch:[decl_main;decl_err]*) (k::main_memory_next) (Z3.Boolean.mk_implies !ctx
 	      (
 		Z3.Boolean.mk_and !ctx
 		  [not_prop;
-		   Z3.Expr.mk_app !ctx decl_main (List.map horn_var_to_expr main_memory_next);
+		   Z3.Expr.mk_app !ctx decl_main (Z3.Expr.mk_const_f !ctx k_var::List.map horn_var_to_expr main_memory_next);
 		  ]
 	      )
 	      (Z3.Expr.mk_app !ctx decl_err []))
@@ -201,17 +209,8 @@ let check machines node =
 
   Format.eprintf "Status: %s@." (Z3.Solver.string_of_status res_status);
   match res_status with
-  | Z3.Solver.SATISFIABLE -> (
-     (*Zustre_cex.build_cex decl_err*)
-    let expr1_opt = Z3.Fixedpoint.get_answer !fp in
-    let expr2_opt = Z3.Fixedpoint.get_ground_sat_answer !fp in 
-       match expr1_opt, expr2_opt with
-	 None, None -> Format.eprintf "Sat No feedback@."
-       | Some e, Some e2 -> Format.eprintf "Sat Result: %s, %s@."
-					   (Z3.Expr.to_string e)
-					   (Z3.Expr.to_string e2)
-       | _ -> assert false
-  )
+  | Z3.Solver.SATISFIABLE -> Zustre_cex.build_cex decl_err
+  
   | Z3.Solver.UNSATISFIABLE -> (*build_inv*) (
        let expr_opt = Z3.Fixedpoint.get_answer !fp in
        match expr_opt with

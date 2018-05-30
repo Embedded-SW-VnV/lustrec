@@ -116,9 +116,10 @@ let decl_var id =
   register_fdecl id.var_id fdecl;
   fdecl
 
-let decl_rel name args =
+let decl_rel name args_sorts =
   (*verifier ce qui est construit. On veut un declare-rel *)
-  let args_sorts = List.map (fun v -> type_to_sort v.var_type) args in
+  
+  (* let args_sorts = List.map (fun v -> type_to_sort v.var_type) args in *)
   let fdecl = Z3.FuncDecl.mk_func_decl_s !ctx name args_sorts bool_sort in
   Z3.Fixedpoint.register_relation !fp fdecl;
   register_fdecl name fdecl;
@@ -772,7 +773,8 @@ let decl_machine machines m =
 	begin
 	  (* Declaring single predicate *)
 	  let vars = inout_vars machines m in
-	  let _ = decl_rel (machine_stateless_name m.mname.node_id) vars in
+	  let vars_types = List.map (fun v -> type_to_sort v.var_type) vars in
+	  let _ = decl_rel (machine_stateless_name m.mname.node_id) vars_types in
 	  let horn_body, _ (* don't care for reset here *) =
 	    instrs_to_expr
 	      machines
@@ -811,7 +813,8 @@ let decl_machine machines m =
 	  (* Rule for reset *)
 
 	  let vars = reset_vars machines m in
-	  let _ = decl_rel (machine_reset_name m.mname.node_id) vars in
+	  let vars_types = List.map (fun v -> type_to_sort v.var_type) vars in
+	  let _ = decl_rel (machine_reset_name m.mname.node_id) vars_types in
 	  let horn_reset_body = machine_reset machines m in	    
 	  let horn_reset_head = 
 	    Z3.Expr.mk_app
@@ -828,7 +831,8 @@ let decl_machine machines m =
 
 	  (* Rule for step*)
 	  let vars = step_vars machines m in
-          let _ = decl_rel (machine_step_name m.mname.node_id) vars in
+  	  let vars_types = List.map (fun v -> type_to_sort v.var_type) vars in
+          let _ = decl_rel (machine_step_name m.mname.node_id) vars_types in
 	  let horn_step_body, _ (* don't care for reset here *) =
 	    instrs_to_expr
 	      machines
