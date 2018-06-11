@@ -55,7 +55,9 @@ module Verifier =
         "-eldarica", Arg.Set param_eldarica, "deactivate fixedpoint extensions when printing rules";
         "-no_utvpi", Arg.Set param_utvpi, "Deactivate UTVPI strategy";
         "-tosmt", Arg.Set param_tosmt, "Print low-level (possibly unreadable) SMT2 statements";
+        "-timeout", Arg.Set_int timeout, "Set timeout in ms (default 10000 = 10 s)";
         "-no-pp", Arg.Set param_pp, "No preprocessing (inlining and slicing)";
+        "-debug", Arg.Set debug, "Debug mode";
       ]
                 
     let activate () = (
@@ -77,21 +79,24 @@ module Verifier =
        * let solver =Z3.Solver.mk_solver !ctx None in
        * let help = Z3.Solver.get_help solver in
        * Format.eprintf "Z3 help : %s@." help; *)
-      
+
       let module P = Z3.Params in
       let module S = Z3.Symbol in
       let mks = S.mk_string !ctx in
-      let params = P.mk_params !ctx in
+      
+      (* Fixpoint Engine parameters *)
+      
+      let fp_params = P.mk_params !ctx in
 
       (* (\* self.fp.set (engine='spacer') *\) *)
-      P.add_symbol params (mks "engine") (mks "spacer");
-      (* P.add_symbol params (mks "engine") (mks "pdr");  *)
+      P.add_symbol fp_params (mks "engine") (mks "spacer");
+      (* P.add_symbol fp_params (mks "engine") (mks "pdr");  *)
       
        (* #z3.set_option(rational_to_decimal=True) *)
        (* #self.fp.set('precision',30) *)
       if !param_stat then 
         (* self.fp.set('print_statistics',True) *)
-        P.add_bool params (mks "print_statistics") true;
+        P.add_bool fp_params (mks "print_statistics") true;
 
       (* Dont know where to find this parameter *)
       (* if !param_spacer_verbose then
@@ -100,31 +105,31 @@ module Verifier =
 
       (* The option is not recogined*)
       (* self.fp.set('use_heavy_mev',True) *)
-      (* P.add_bool params (mks "use_heavy_mev") true; *)
+      (* P.add_bool fp_params (mks "use_heavy_mev") true; *)
       
       (* self.fp.set('pdr.flexible_trace',True) *)
-      P.add_bool params (mks "pdr.flexible_trace") true;
+      P.add_bool fp_params (mks "pdr.flexible_trace") true;
 
       (* self.fp.set('reset_obligation_queue',False) *)
-      P.add_bool params (mks "spacer.reset_obligation_queue") false;
+      P.add_bool fp_params (mks "spacer.reset_obligation_queue") false;
 
       (* self.fp.set('spacer.elim_aux',False) *)
-      P.add_bool params (mks "spacer.elim_aux") false;
+      P.add_bool fp_params (mks "spacer.elim_aux") false;
 
       (* if self.args.eldarica:
         *     self.fp.set('print_fixedpoint_extensions', False) *)
       if !param_eldarica then
-        P.add_bool params (mks "print_fixedpoint_extensions") false;
+        P.add_bool fp_params (mks "print_fixedpoint_extensions") false;
       
       (* if self.args.utvpi: self.fp.set('pdr.utvpi', False) *)
       if !param_utvpi then
-        P.add_bool params (mks "pdr.utvpi") false;
+        P.add_bool fp_params (mks "pdr.utvpi") false;
 
       (* if self.args.tosmt:
        *        self.log.info("Setting low level printing")
        *        self.fp.set ('print.low_level_smt2',True) *)
       if !param_tosmt then
-        P.add_bool params (mks "print.low_level_smt2") true;
+        P.add_bool fp_params (mks "print.low_level_smt2") true;
 
       (* if not self.args.pp:
        *        self.log.info("No pre-processing")
@@ -132,12 +137,21 @@ module Verifier =
        *        self.fp.set ('xform.inline_linear',False)
        *        self.fp.set ('xform.inline_eager',False) *\) *)
       if !param_pp then (
-        P.add_bool params (mks "xform.slice") false;
-        P.add_bool params (mks "xform.inline_linear") false;
-        P.add_bool params (mks "xform.inline_eager") false
+        P.add_bool fp_params (mks "xform.slice") false;
+        P.add_bool fp_params (mks "xform.inline_linear") false;
+        P.add_bool fp_params (mks "xform.inline_eager") false
       );
-      Z3.Fixedpoint.set_parameters !fp params
-              
+
+
+      (* Ploc's options. Do not seem to have any effect yet *)
+      P.add_bool fp_params (mks "print_answer") true;
+      P.add_bool fp_params (mks "print_certificate") true;
+      P.add_bool fp_params (mks "xform.slice") false;
+
+      (* Adding a timeout *)
+      P.add_int fp_params (mks "timeout") !timeout;
+
+      Z3.Fixedpoint.set_parameters !fp fp_params
       
     let run basename prog machines =
       let machines = Machine_code_common.arrow_machine::machines in

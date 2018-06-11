@@ -120,6 +120,13 @@ let decl_rel name args_sorts =
   (*verifier ce qui est construit. On veut un declare-rel *)
   
   (* let args_sorts = List.map (fun v -> type_to_sort v.var_type) args in *)
+  if !debug then
+    Format.eprintf "Registering fdecl %s (%a)@."
+      name
+      (Utils.fprintf_list ~sep:"@ "
+	 (fun fmt sort -> Format.fprintf fmt "%s" (Z3.Sort.to_string sort)))
+      args_sorts
+  ;
   let fdecl = Z3.FuncDecl.mk_func_decl_s !ctx name args_sorts bool_sort in
   Z3.Fixedpoint.register_relation !fp fdecl;
   register_fdecl name fdecl;
@@ -675,10 +682,12 @@ let add_rule ?(dont_touch=[]) vars  expr =
   let extracted_sorts = List.map Z3.FuncDecl.get_range extracted_vars in
   let extracted_symbols = List.map Z3.FuncDecl.get_name extracted_vars in
 
-  (* Format.eprintf "Declaring rule: %s with variables @[<v 0>@ [%a@ ]@]@ @." *)
-  (*   (Z3.Expr.to_string expr) *)
-  (*   (Utils.fprintf_list ~sep:",@ " (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))) (List.map horn_var_to_expr vars) *)
-  (*   ; *)
+  if !debug then (
+    Format.eprintf "Declaring rule: %s with variables @[<v 0>@ [%a@ ]@]@ @."
+      (Z3.Expr.to_string expr)
+      (Utils.fprintf_list ~sep:",@ " (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))) (List.map horn_var_to_expr vars)
+  )
+    ;
   let expr = Z3.Quantifier.mk_forall_const
     !ctx  (* context *)
     (List.map horn_var_to_expr vars) (* TODO provide bounded variables as expr *)
@@ -768,13 +777,16 @@ let decl_machine machines m =
       	      (rename_machine_list m.mname.node_id m.mstep.step_locals)
       	  )
       in
-      
       if is_stateless m then
 	begin
+	  if !debug then 
+	    Format.eprintf "Declaring a stateless machine: %s@." m.mname.node_id;
+
 	  (* Declaring single predicate *)
 	  let vars = inout_vars machines m in
 	  let vars_types = List.map (fun v -> type_to_sort v.var_type) vars in
 	  let _ = decl_rel (machine_stateless_name m.mname.node_id) vars_types in
+	  
 	  let horn_body, _ (* don't care for reset here *) =
 	    instrs_to_expr
 	      machines
@@ -788,12 +800,16 @@ let decl_machine machines m =
 	      (get_fdecl (machine_stateless_name m.mname.node_id))
 	      (List.map (horn_var_to_expr) vars)
 	  in
+	  (* this line seems useless *)
 	  let vars = vars@(rename_machine_list m.mname.node_id m.mstep.step_locals) in
+	  (* Format.eprintf "useless Vars: %a@." (Utils.fprintf_list ~sep:"@ " Printers.pp_var) vars; *)
 	  match m.mstep.step_asserts with
 	  | [] ->
 	     begin
 	       (* Rule for single predicate : "; Stateless step rule @." *)
-	       let vars = rename_machine_list m.mname.node_id m.mstep.step_locals in
+	       (*let vars = rename_machine_list m.mname.node_id m.mstep.step_locals in*)
+	       (* TODO clean code *)
+	       (* Format.eprintf "used Vars: %a@." (Utils.fprintf_list ~sep:"@ " Printers.pp_var) vars; *)
 	       add_rule vars (Z3.Boolean.mk_implies !ctx horn_body horn_head)
 		 
 	     end

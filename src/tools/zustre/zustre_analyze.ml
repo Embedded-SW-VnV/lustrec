@@ -200,25 +200,26 @@ let check machines node =
 
       (* Debug instructions *)
   let rules_expr = Z3.Fixedpoint.get_rules !fp in
-  if true then
+  if !debug then
     Format.eprintf "@[<v 2>Registered rules:@ %a@ @]@."
     (Utils.fprintf_list ~sep:"@ "
        (fun fmt e -> Format.pp_print_string fmt (Z3.Expr.to_string e)) )
-    rules_expr;
-  let res_status = Z3.Fixedpoint.query_r !fp [decl_err] in
-
-  Format.eprintf "Status: %s@." (Z3.Solver.string_of_status res_status);
-  match res_status with
-  | Z3.Solver.SATISFIABLE -> Zustre_cex.build_cex decl_err
-  
-  | Z3.Solver.UNSATISFIABLE -> (*build_inv*) (
-       let expr_opt = Z3.Fixedpoint.get_answer !fp in
-       match expr_opt with
-	 None -> Format.eprintf "Unsat No feedback@."
-       | Some e -> Format.eprintf "Unsat Result: %s@." (Z3.Expr.to_string e)
-  )
-  | Z3.Solver.UNKNOWN -> ()
-      
+      rules_expr;
+  try
+    let res_status = Z3.Fixedpoint.query_r !fp [decl_err] in
+    
+    Format.eprintf "Status: %s@." (Z3.Solver.string_of_status res_status);
+    match res_status with
+    | Z3.Solver.SATISFIABLE -> Zustre_cex.build_cex decl_err
+       
+    | Z3.Solver.UNSATISFIABLE -> (*build_inv*) (
+      let expr_opt = Z3.Fixedpoint.get_answer !fp in
+      match expr_opt with
+	None -> if !debug then Format.eprintf "Unsat No feedback@."
+      | Some e -> if !debug then Format.eprintf "Unsat Result: %s@." (Z3.Expr.to_string e)
+    )
+    | Z3.Solver.UNKNOWN -> ()
+  with Z3.Error msg -> Format.eprintf "Z3 failure: %s@." msg; () 
 (* Local Variables: *)
 (* compile-command:"make -C ../.." *)
 (* End: *)

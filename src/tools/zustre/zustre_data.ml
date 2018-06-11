@@ -9,6 +9,8 @@ let sort_elems : (Z3.Sort.sort, Lustre_types.ident list) Hashtbl.t = Hashtbl.cre
 
 let decls: (Lustre_types.ident, Z3.FuncDecl.func_decl) Hashtbl.t = Hashtbl.create 13
 
+let debug = ref false
+let timeout = ref 10000 (* default : 10 s = 10 000 ms *)
 
 (* Local Variables: *)
 (* compile-command:"make -C ../.." *)
