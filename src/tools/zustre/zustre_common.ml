@@ -90,6 +90,13 @@ let rec type_to_sort t =
   | _                     -> Format.eprintf "internal error: pp_type %a@."
                                Types.print_ty t; assert false
 
+
+(* let idx_var = *)
+(*   Z3.FuncDecl.mk_func_decl_s !ctx "__idx__" [] idx_sort  *)
+    
+(* let uid_var = *)
+(*   Z3.FuncDecl.mk_func_decl_s !ctx "__uid__" [] uid_sort  *)
+
 (** Func decls
 
     Similarly fun_decls are registerd, by their name, into a hashtbl. The
@@ -116,8 +123,34 @@ let decl_var id =
   register_fdecl id.var_id fdecl;
   fdecl
 
-let decl_rel name args_sorts =
-  (*verifier ce qui est construit. On veut un declare-rel *)
+let idx_sort = int_sort
+let uid_sort = Z3.Z3List.mk_sort !ctx (Z3.Symbol.mk_string !ctx "uid_list") int_sort
+let uid_conc = 
+  let fd = Z3.Z3List.get_cons_decl uid_sort in
+  fun head tail -> Z3.FuncDecl.apply fd [head;tail]
+
+let get_instance_uid =
+  let hash : (string, int) Hashtbl.t = Hashtbl.create 13 in
+  let cpt = ref 0 in
+  fun i ->
+    let id =
+      if Hashtbl.mem hash i then
+	Hashtbl.find hash i
+      else (
+	incr cpt;
+	Hashtbl.add hash i !cpt;
+	!cpt
+      )
+    in
+    Z3.Arithmetic.Integer.mk_numeral_i !ctx id
+  
+
+  
+let decl_rel ?(no_additional_vars=false) name args_sorts =
+  (* Enriching arg_sorts with two new variables: a counting index and an
+     uid *)
+  let args_sorts =
+    if no_additional_vars then args_sorts else idx_sort::uid_sort::args_sorts in
   
   (* let args_sorts = List.map (fun v -> type_to_sort v.var_type) args in *)
   if !debug then
@@ -132,6 +165,16 @@ let decl_rel name args_sorts =
   register_fdecl name fdecl;
   fdecl
   
+
+
+(* Shared variables to describe counter and uid *)
+
+let idx = Corelang.dummy_var_decl "__idx__" Type_predef.type_int
+let idx_var = Z3.Expr.mk_const_f !ctx (decl_var idx) 
+let uid = Corelang.dummy_var_decl "__uid__" Type_predef.type_int
+let uid_fd = Z3.FuncDecl.mk_func_decl_s !ctx "__uid__" [] uid_sort 
+let _ = register_fdecl "__uid__"  uid_fd  
+let uid_var = Z3.Expr.mk_const_f !ctx uid_fd 
 
 (** Conversion functions
 
@@ -412,28 +455,35 @@ let instance_reset_to_exprs machines m i =
   let (n,_) = List.assoc i m.minstances in
   let target_machine = List.find (fun m  -> m.mname.node_id = (Corelang.node_name n)) machines in
   let vars =
-    (
-      (rename_machine_list
-	 (concat m.mname.node_id i)
-	 (rename_current_list (full_memory_vars machines target_machine))
-      ) 
-      @
-	(rename_machine_list
-	   (concat m.mname.node_id i)
-	   (rename_mid_list (full_memory_vars machines target_machine))
-	)
+    (rename_machine_list
+       (concat m.mname.node_id i)
+       (rename_current_list (full_memory_vars machines target_machine))@  (rename_mid_list (full_memory_vars machines target_machine))
     )
+    
   in
   let expr =
     Z3.Expr.mk_app
       !ctx
       (get_fdecl (machine_reset_name (Corelang.node_name n)))
-      (List.map (horn_var_to_expr) vars)
+      (List.map (horn_var_to_expr) (idx::uid::vars))
   in
   [expr]
 
 let instance_call_to_exprs machines reset_instances m i inputs outputs =
   let self = m.mname.node_id in
+
+  (* Building call args *)
+  let idx_uid_inout =
+    (* Additional input to register step counters, and uid *)
+    let idx = horn_var_to_expr idx in
+    let uid = uid_conc (get_instance_uid i) (horn_var_to_expr uid) in
+    let inout = 
+      List.map (horn_val_to_expr self)
+	(inputs @ (List.map (fun v -> mk_val (LocalVar v) v.var_type) outputs))
+    in
+    idx::uid::inout
+  in
+    
   try (* stateful node instance *)
     begin
       let (n,_) = List.assoc i m.minstances in
@@ -454,8 +504,8 @@ let instance_call_to_exprs machines reset_instances m i inputs outputs =
       let next_mems = rename_mems rename_next_list in
 
       let call_expr = 
-      match Corelang.node_name n, inputs, outputs, mid_mems, next_mems with
-      | "_arrow", [i1; i2], [o], [mem_m], [mem_x] -> begin
+	match Corelang.node_name n, inputs, outputs, mid_mems, next_mems with
+	| "_arrow", [i1; i2], [o], [mem_m], [mem_x] -> begin
           let stmt1 = (* out = ite mem_m then i1 else i2 *)
             Z3.Boolean.mk_eq !ctx
               ( (* output var *)
@@ -477,25 +527,19 @@ let instance_call_to_exprs machines reset_instances m i inputs outputs =
               (Z3.Boolean.mk_false !ctx)
           in
           [stmt1; stmt2]
-      end
+	end
 
-      | node_name_n ->
-         let expr = 
-           Z3.Expr.mk_app
-             !ctx
-             (get_fdecl (machine_step_name (node_name n)))
-             ( (* Arguments are input, output, mid_mems, next_mems *)
-               (
-                 List.map (horn_val_to_expr self) (
-                     inputs @
-	               (List.map (fun v -> mk_val (LocalVar v) v.var_type) outputs)
-                   )
-               ) @ (
-                 List.map (horn_var_to_expr) (mid_mems@next_mems)
-	       )
-             )
-         in
-         [expr]
+	| node_name_n ->
+           let expr = 
+             Z3.Expr.mk_app
+               !ctx
+               (get_fdecl (machine_step_name (node_name n)))
+               ( (* Arguments are input, output, mid_mems, next_mems *)
+		 idx_uid_inout @ List.map (horn_var_to_expr) (mid_mems@next_mems)
+		    
+               )
+           in
+           [expr]
       in
 
       reset_exprs@call_expr
@@ -506,12 +550,7 @@ let instance_call_to_exprs machines reset_instances m i inputs outputs =
       Z3.Expr.mk_app
         !ctx
         (get_fdecl (machine_stateless_name (node_name n)))
-        ((* Arguments are inputs, outputs *)
-         List.map (horn_val_to_expr self)
-           (
-             inputs @ (List.map (fun v -> mk_val (LocalVar v) v.var_type) outputs)
-           )
-        )
+        idx_uid_inout 	  (* Arguments are inputs, outputs *)
     in
     [expr]
   )
@@ -747,8 +786,9 @@ let machine_reset machines m =
 	  !ctx
 	  (get_fdecl (name ^ "_reset"))
 	  (List.map (horn_var_to_expr)
-	     (rename_machine_list (concat m.mname.node_id id) (reset_vars machines machine_n))
-	  )
+	     (idx::uid:: (* Additional vars: counters, uid *)
+	      	(rename_machine_list (concat m.mname.node_id id) (reset_vars machines machine_n))
+	  ))
 	  
       )
     ) m.minstances
@@ -798,10 +838,10 @@ let decl_machine machines m =
 	    Z3.Expr.mk_app
 	      !ctx
 	      (get_fdecl (machine_stateless_name m.mname.node_id))
-	      (List.map (horn_var_to_expr) vars)
+	      (	List.map (horn_var_to_expr) (idx::uid:: (* Additional vars: counters, uid *) vars))
 	  in
 	  (* this line seems useless *)
-	  let vars = vars@(rename_machine_list m.mname.node_id m.mstep.step_locals) in
+	  let vars = idx::uid::vars@(rename_machine_list m.mname.node_id m.mstep.step_locals) in
 	  (* Format.eprintf "useless Vars: %a@." (Utils.fprintf_list ~sep:"@ " Printers.pp_var) vars; *)
 	  match m.mstep.step_asserts with
 	  | [] ->
@@ -836,12 +876,12 @@ let decl_machine machines m =
 	    Z3.Expr.mk_app
 	      !ctx
 	      (get_fdecl (machine_reset_name m.mname.node_id))
-	      (List.map (horn_var_to_expr) vars)
+	      (	List.map (horn_var_to_expr) (idx::uid:: (* Additional vars: counters, uid *) vars))
 	  in
 
 	  
 	  let _ =
-	    add_rule vars (Z3.Boolean.mk_implies !ctx horn_reset_body horn_reset_head)
+	    add_rule (idx::uid::vars) (Z3.Boolean.mk_implies !ctx horn_reset_body horn_reset_head)
 	      
 	  in
 
@@ -860,14 +900,14 @@ let decl_machine machines m =
 	    Z3.Expr.mk_app
 	      !ctx
 	      (get_fdecl (machine_step_name m.mname.node_id))
-	      (List.map (horn_var_to_expr) vars)
+	      (	List.map (horn_var_to_expr) (idx::uid:: (* Additional vars: counters, uid *) vars))
 	  in
 	  match m.mstep.step_asserts with
 	  | [] ->
 	     begin
 	       (* Rule for single predicate *) 
 	       let vars = (step_vars_c_m_x machines m) @(rename_machine_list m.mname.node_id m.mstep.step_locals) in
-	       add_rule vars (Z3.Boolean.mk_implies !ctx horn_step_body horn_step_head)
+	       add_rule (idx::uid::vars) (Z3.Boolean.mk_implies !ctx horn_step_body horn_step_head)
 		 
 	     end
 	  | assertsl ->
@@ -878,7 +918,7 @@ let decl_machine machines m =
 		   (horn_step_body :: List.map (horn_val_to_expr m.mname.node_id) assertsl)
 	       in
 	       let vars = (step_vars_c_m_x machines m) @(rename_machine_list m.mname.node_id m.mstep.step_locals) in
-	       add_rule vars (Z3.Boolean.mk_implies !ctx body_with_asserts horn_step_head)
+	       add_rule (idx::uid::vars) (Z3.Boolean.mk_implies !ctx body_with_asserts horn_step_head)
 		 
 	     end
      	       

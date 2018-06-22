@@ -46,29 +46,35 @@ let build_cex machine machines decl_err =
   let nb_outputs = List.length inputs in
   let nb_mems = List.length (full_memory_vars machines machine) in
   
-  let main =
-    List.fold_left (fun accu conj ->
+  let main, funs =
+    List.fold_left (fun (main, funs) conj ->
     (* Filtering out non MAIN decls *)
     let func_decl = Z3.Expr.get_func_decl conj in
     let node_name = Z3.Symbol.get_string (Z3.FuncDecl.get_name func_decl) in
     (* Focusing only on MAIN_nodeid predicates *)
     if node_name = "MAIN_" ^ node_id then
       (* Extracting info *)
-      (* Recall that MAIN args are 
-	 main_input @ 
-	 (full_memory_vars machines machine) @
-	 main_output   *)
+      (* Recall that MAIN args are in@mems@out *)
       let args = Z3.Expr.get_args conj in
       if List.length args = 1 + nb_inputs + nb_mems + nb_outputs then
 	let id = Z3.Arithmetic.Integer.get_int (List.hd args) in
 	let input_values = Utils.List.extract args 1 (1 + nb_inputs) in
 	let output_values = Utils.List.extract args (1+nb_inputs+nb_mems) (1 + nb_inputs + nb_mems + nb_outputs) in
-	(id, (input_values, output_values))::accu
+	(id, (input_values, output_values))::main, funs
       else
 	assert false
     else
-      accu 
-  ) [] conjuncts
+      let reg = Str.regexp_string "[a-z]*_step" in
+      if Str.string_match reg node_name 0 then (
+	let actual_name = Str.matched_group 0 node_name in
+	Format.eprintf "Name %s@." actual_name;
+	main, funs
+      )
+      else (
+	Format.eprintf "pas matché %s@." node_name;
+	main, funs
+      )
+    ) ((* main*) [],(* other functions *) []) conjuncts
   in
   let main = List.sort (fun (id1, _) (id2, _) -> compare id1 id2) main in
   List.iter (
@@ -147,10 +153,10 @@ let build_cex machine machines decl_err =
   (*     Format.eprintf "FP help: %s@." (Z3.Fixedpoint.get_help !fp); *)
 
   let stats_entries =   Z3.Statistics.get_entries stats in
-  List.iter (fun e -> Format.eprintf "%s@.@?"
-    (Z3.Statistics.Entry.to_string e)
+  (* List.iter (fun e -> Format.eprintf "%s@.@?" *)
+  (*   (Z3.Statistics.Entry.to_string e) *)
     
-  ) stats_entries;
+  (* ) stats_entries; *)
   let json : Yojson.json =
     `Assoc [
       "Results",

@@ -392,19 +392,20 @@ struct
 end
 
 let get_date () =
-  let tm = Unix.localtime (Unix.time ()) in
+  let tm = Unix.localtime (Unix.time ()) in 
   let fmt = Format.str_formatter in
-  let open Unix in
-  let _ =
-    Format.fprintf fmt
-      "%i/%i/%i %ih%i:%i"
-      tm.tm_year
-      tm.tm_mon
-      tm.tm_mday
-      tm.tm_hour
-      tm.tm_min
-      tm.tm_sec
-  in
+  pp_date fmt tm;
+  (* let open Unix in *)
+  (* let _ = *)
+  (*   Format.fprintf fmt *)
+  (*     "%i/%i/%i %ih%i:%i" *)
+  (*     tm.tm_year *)
+  (*     tm.tm_mon *)
+  (*     tm.tm_mday *)
+  (*     tm.tm_hour *)
+  (*     tm.tm_min *)
+  (*     tm.tm_sec *)
+  (* in *)
   Format.flush_str_formatter ()
 
 (* Local Variables: *)
