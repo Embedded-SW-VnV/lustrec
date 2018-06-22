@@ -64,6 +64,7 @@ module Verifier =
         active := true;
         Options.output := "horn";
       )
+
     let is_active () = !active
 
     let get_normalization_params () =
@@ -136,7 +137,8 @@ module Verifier =
        *        self.fp.set ('xform.slice', False)
        *        self.fp.set ('xform.inline_linear',False)
        *        self.fp.set ('xform.inline_eager',False) *\) *)
-      if !param_pp then (
+      if not !param_pp then (
+	(* Mandatory to print all steps and recover cex *)
         P.add_bool fp_params (mks "xform.slice") false;
         P.add_bool fp_params (mks "xform.inline_linear") false;
         P.add_bool fp_params (mks "xform.inline_eager") false
@@ -145,8 +147,11 @@ module Verifier =
 
       (* Ploc's options. Do not seem to have any effect yet *)
       P.add_bool fp_params (mks "print_answer") true;
-      P.add_bool fp_params (mks "print_certificate") true;
-      P.add_bool fp_params (mks "xform.slice") false;
+      (* P.add_bool fp_params (mks "print_certificate") true; *)
+      P.add_bool fp_params (mks "xform.slice") false ; (* required to preserve signatures *)
+
+      (* P.add_bool fp_params (mks "print_statistics") true; *)
+      (* P.add_bool fp_params (mks "print_certificate") true;  *)
 
       (* Adding a timeout *)
       P.add_int fp_params (mks "timeout") !timeout;
@@ -165,7 +170,7 @@ module Verifier =
       *)
       if false then (
 	
-	let queries = Z3.Fixedpoint.parse_file !fp "mini.smt2" in
+	let queries = Z3.Fixedpoint.parse_file !fp "nstep.smt2" in
 
 	(* Debug instructions *)
 	
@@ -183,10 +188,17 @@ module Verifier =
 	
 	let _ = List.map extract_expr_fds rules_expr in
 	Format.eprintf "%t" pp_fdecls;
+
+	let decl_err = List.hd queries in
+      	let res_status = Z3.Fixedpoint.query !fp decl_err in
 	
-      	let res_status = Z3.Fixedpoint.query !fp (List.hd queries )in
-	
-	Format.eprintf "Status: %s@." (Z3.Solver.string_of_status res_status)
+	Format.eprintf "Status: %s@." (Z3.Solver.string_of_status res_status);
+	(* let _ =  *)
+	(*   match res_status with *)
+	(*   | Z3.Solver.SATISFIABLE -> Zustre_cex.build_cex machine machines decl_err *)
+	(*   | _ -> () *)
+	(* in *)
+	exit 0
       )
       else if false then (
 
@@ -250,5 +262,5 @@ module Verifier =
 	    end: VerifierType.S)
     
 (* Local Variables: *)
-(* compile-command:"make -C ../.." *)
+(* compile-command:"make -C ../.. lustrev" *)
 (* End: *)

@@ -41,6 +41,7 @@ let check machines node =
   (* TODO: push/pop? donner un nom different par instance pour les garder dans le buffer ?
      Faut-il declarer les "rel" dans la hashtbl ?
   *)
+  
   let decl_main =
     decl_rel
       ("MAIN" ^ "_" ^ node_id)
@@ -210,7 +211,7 @@ let check machines node =
     
     Format.eprintf "Status: %s@." (Z3.Solver.string_of_status res_status);
     match res_status with
-    | Z3.Solver.SATISFIABLE -> Zustre_cex.build_cex decl_err
+    | Z3.Solver.SATISFIABLE -> Zustre_cex.build_cex machine machines decl_err
        
     | Z3.Solver.UNSATISFIABLE -> (*build_inv*) (
       let expr_opt = Z3.Fixedpoint.get_answer !fp in
@@ -221,5 +222,5 @@ let check machines node =
     | Z3.Solver.UNKNOWN -> ()
   with Z3.Error msg -> Format.eprintf "Z3 failure: %s@." msg; () 
 (* Local Variables: *)
-(* compile-command:"make -C ../.." *)
+(* compile-command:"make -C ../.. lustrev" *)
 (* End: *)

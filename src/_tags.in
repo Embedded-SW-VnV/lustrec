@@ -28,9 +28,12 @@ true: use_menhir
 <**/*.native>                   : package(ocamlgraph)
 <**/*.native>                   : use_str
 <**/*.native>                   : use_unix
+<utils.*>                       : use_unix
 <**/*.native>                   : package(num)
 <**/*.ml>                       : package(logs)
 <**/*.native>                   : package(logs)
+<**/*.native>                   : package(yojson)
+<tools/zustre/zustre_cex.*>                   : package(yojson)
 <**/json_parser.ml>             : package(yojson)
 <**/main_parse_json_file.*>     : package(cmdliner)
 <**/main_parse_json_file.*>     : package(fmt.tty)

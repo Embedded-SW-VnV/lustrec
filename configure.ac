@@ -77,18 +77,36 @@ AS_IF([test "x$seal" = "xyes"], [
    AC_SUBST(LUSTREV_SEAL_TAG, "<**/*>: package(seal)")
 ])
 
-# z3
-AC_MSG_CHECKING(z3 library (optional))
-define([z3path], esyscmd([ocamlfind query Z3 | tr -d '\n']))
+# z3 (optional)
+
+# option to rely on github version if installed
+AC_ARG_WITH(z3_github, [AS_HELP_STRING([--with-z3-github],
+              [Rely on Z3 as distributed by the official github
+	       repo rather then the opam distribution. Disabled by default.])])
+
+AS_IF([test "x$with_z3_github" != "xyes"],
+      [z3name=z3],
+      [z3name=Z3]
+      )
+	
+AC_MSG_CHECKING(z3 library)
+
+
+#define([z3path], esyscmd([ocamlfind query z3 | tr -d '\n']))
 #define([z3path], esyscmd([opam config var Z3:lib | tr -d '\n']))
 
-AS_IF([ocamlfind query Z3 >/dev/null 2>&1],
-    [z3=yes; AC_MSG_RESULT(yes)],[seal=no; AC_MSG_RESULT(no)],
+AS_IF([ocamlfind query $z3name >/dev/null 2>&1],
+    [z3=yes; AC_MSG_RESULT([yes])],[seal=no; AC_MSG_RESULT(no)],
 )
 AS_IF([test "x$z3" = "xyes"], [
    AC_SUBST(LUSTREV_ZUSTRE, "(module Zustre_verifier.Verifier : VerifierType.S);")
-   AC_SUBST(LUSTREV_Z3_TAG, "<**/*>: package(Z3)")
-   AC_SUBST(Z3LIBPATH, "z3path")
+   AC_SUBST(LUSTREV_Z3_TAG, "<**/*>: package($z3name)")
+   AS_IF([test "x$z3name" = "xZ3"],
+   	       [define([Z3path], esyscmd([ocamlfind query Z3 | tr -d '\n']))
+	        AC_SUBST(Z3LIBPATH, "Z3path")],
+ 	       [define([z3path], esyscmd([ocamlfind query z3 | tr -d '\n']))
+	        AC_SUBST(Z3LIBPATH, "z3path")]
+		)
 ])
 
 
@@ -244,7 +262,7 @@ AC_MSG_NOTICE(********   Verifiers    ********)
   if (test "x$z3" = xyes); then
       AC_MSG_NOTICE([Zustre enabled])
       AC_MSG_WARN(Z3 shared lib (libz3.so) has to be available in the LD_LIBRARY_PATH.)
-      AC_MSG_WARN(It is currently located in "z3path")
+      dnl AC_MSG_WARN(It is currently located in "z3path")
       AC_MSG_WARN(If not already available run "source ${prefix}/include/lustrec/z3librc")
       AC_MSG_WARN(or add that line to your ~/.profile or ~/.bashrc)
 else

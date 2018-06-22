@@ -380,9 +380,33 @@ struct
 	| _ -> assert false
       in
       run 0 l1 l2
+
+  let rec extract l fst last =
+    if last < fst then assert false else
+      match l, fst with
+      | hd::tl, 0 -> if last = 0 then [] else hd::(extract tl 0 (last-1))
+      | _::tl, _ -> extract tl (fst-1) (last-1)
+      | [], 0 -> if last=0 then [] else assert false (* List too short *)
+      | _ -> assert false 
+		 
 end
 
-  
+let get_date () =
+  let tm = Unix.localtime (Unix.time ()) in
+  let fmt = Format.str_formatter in
+  let open Unix in
+  let _ =
+    Format.fprintf fmt
+      "%i/%i/%i %ih%i:%i"
+      tm.tm_year
+      tm.tm_mon
+      tm.tm_mday
+      tm.tm_hour
+      tm.tm_min
+      tm.tm_sec
+  in
+  Format.flush_str_formatter ()
+
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)
