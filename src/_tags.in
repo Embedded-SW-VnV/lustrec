@@ -7,6 +7,7 @@ true: use_menhir
 "backends/C": include
 "backends/Horn": include
 "backends/EMF": include
+"backends/VHDL": include
 "plugins/salsa": include
 "plugins/scopes": include
 "plugins/mpfr": include
@@ -18,6 +19,7 @@ true: use_menhir
 "tools/stateflow/semantics": include
 "tools/stateflow/models": include
 "tools/stateflow/json-parser": include
+"tools/importer": include
 "cocospec": include
 
 # svn
