@@ -168,6 +168,7 @@ let arrow_machine =
     };
     mspec = None;
     mannot = [];
+    msch = None
   }
 
 let empty_desc =
@@ -206,6 +207,7 @@ let empty_machine =
     };
     mspec = None;
     mannot = [];
+    msch = None
   }
 
 let new_instance =

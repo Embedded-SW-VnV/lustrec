@@ -53,4 +53,5 @@ type machine_t = {
   mstep: step_t;
   mspec: node_annot option;
   mannot: expr_annot list;
+  msch: Scheduling_type.schedule_report option; (* Equations scheduling *)
 }

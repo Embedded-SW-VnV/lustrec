@@ -291,8 +291,8 @@ let translate_eqs node args eqs =
 
 let translate_decl nd sch =
   (*Log.report ~level:1 (fun fmt -> Printers.pp_node fmt nd);*)
-
-  let sorted_eqs = sort_equations_from_schedule nd sch in
+  let schedule = sch.Scheduling_type.schedule in
+  let sorted_eqs = sort_equations_from_schedule nd schedule in
   let constant_eqs = constant_equations nd in
 
   (* In case of non functional backend (eg. C), additional local variables have
@@ -366,6 +366,7 @@ let translate_decl nd sch =
     };
     mspec = nd.node_spec;
     mannot = nd.node_annot;
+    msch = Some sch;
   }
 
 (** takes the global declarations and the scheduling associated to each node *)
@@ -374,7 +375,7 @@ let translate_prog decls node_schs =
   List.map
     (fun decl ->
      let node = node_of_top decl in
-      let sch = (Utils.IMap.find node.node_id node_schs).Scheduling.schedule in
+      let sch = Utils.IMap.find node.node_id node_schs in
       translate_decl node sch
     ) nodes
 
