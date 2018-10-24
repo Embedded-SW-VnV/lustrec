@@ -35,7 +35,13 @@ end
 module IMap = Map.Make(IdentModule)
     
 module ISet = Set.Make(IdentModule)
+module IdentDepGraph = Graph.Imperative.Digraph.ConcreteBidirectional (IdentModule)
+module TopologicalDepGraph = Topological.Make(IdentDepGraph)
 
+(*module DotGraph = Graphviz.Dot (IdentDepGraph)*)
+module Bfs = Traverse.Bfs (IdentDepGraph)
+
+            
 exception DeSome
 let desome x = match x with Some x -> x | None -> raise DeSome
 
