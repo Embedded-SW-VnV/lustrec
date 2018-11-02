@@ -35,9 +35,10 @@ end
 module IMap = Map.Make(IdentModule)
     
 module ISet = Set.Make(IdentModule)
-module IdentDepGraph = Graph.Imperative.Digraph.ConcreteBidirectional (IdentModule)
+module IdentDepGraph = Imperative.Digraph.ConcreteBidirectional (IdentModule)
 module TopologicalDepGraph = Topological.Make(IdentDepGraph)
-
+module ComponentsDepGraph = Components.Make(IdentDepGraph) 
+                           
 (*module DotGraph = Graphviz.Dot (IdentDepGraph)*)
 module Bfs = Traverse.Bfs (IdentDepGraph)
 

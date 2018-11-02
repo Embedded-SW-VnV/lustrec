@@ -85,6 +85,15 @@ let add_vertices vtc g =
 let new_graph () =
   IdentDepGraph.create ()
 
+(* keep subgraph of [gr] consisting of nodes accessible from node [v] *)
+let slice_graph gr v =
+  begin
+    let gr' = new_graph () in
+    IdentDepGraph.add_vertex gr' v;
+    Bfs.iter_component (fun v -> IdentDepGraph.iter_succ (fun s -> IdentDepGraph.add_vertex gr' s; IdentDepGraph.add_edge gr' v s) gr v) gr v;
+    gr'
+  end
+
     
 module ExprDep = struct
   let get_node_eqs nd =
@@ -374,15 +383,6 @@ module NodeDep = struct
 	   
       ) prog g in
     g   
-
-  (* keep subgraph of [gr] consisting of nodes accessible from node [v] *)
-  let slice_graph gr v =
-    begin
-      let gr' = new_graph () in
-      IdentDepGraph.add_vertex gr' v;
-      Bfs.iter_component (fun v -> IdentDepGraph.iter_succ (fun s -> IdentDepGraph.add_vertex gr' s; IdentDepGraph.add_edge gr' v s) gr v) gr v;
-      gr'
-    end
       
   let rec filter_static_inputs inputs args =
     match inputs, args with
