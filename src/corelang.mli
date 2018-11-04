@@ -165,6 +165,8 @@ val expr_contains_expr: tag -> expr -> bool
 
 val reset_cpt_fresh: unit -> unit
 val mk_fresh_var: node_desc -> Location.t -> Types.type_expr ->  Clocks.clock_expr -> var_decl
-(* Local Variables: *)
+
+val find_eq: ident list -> eq list -> eq * eq list
+                                                                                        (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

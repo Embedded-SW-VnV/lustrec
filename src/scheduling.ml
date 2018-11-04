@@ -245,6 +245,41 @@ let pp_warning_unused fmt node_schs =
    node_schs
 
 
+   (* Sort eqs according to schedule *)
+(* Sort the set of equations of node [nd] according
+   to the computed schedule [sch]
+*)
+let sort_equations_from_schedule nd sch =
+  (* Format.eprintf "%s schedule: %a@." *)
+  (* 		 nd.node_id *)
+  (* 		 (Utils.fprintf_list ~sep:" ; " Scheduling.pp_eq_schedule) sch; *)
+  let eqs, auts = get_node_eqs nd in
+  assert (auts = []); (* Automata should be expanded by now *)
+  let split_eqs = Splitting.tuple_split_eq_list eqs in
+  let eqs_rev, remainder =
+    List.fold_left
+      (fun (accu, node_eqs_remainder) vl ->
+       if List.exists (fun eq -> List.exists (fun v -> List.mem v eq.eq_lhs) vl) accu
+       then
+	 (accu, node_eqs_remainder)
+       else
+	 let eq_v, remainder = find_eq vl node_eqs_remainder in
+	 eq_v::accu, remainder
+      )
+      ([], split_eqs)
+      sch
+  in
+  begin
+    if List.length remainder > 0 then (
+      let eqs, auts = get_node_eqs nd in
+      assert (auts = []); (* Automata should be expanded by now *)
+      Format.eprintf "Equations not used are@.%a@.Full equation set is:@.%a@.@?"
+		     Printers.pp_node_eqs remainder
+      		     Printers.pp_node_eqs eqs;
+      assert false);
+    List.rev eqs_rev
+  end
+
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

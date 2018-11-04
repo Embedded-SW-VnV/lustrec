@@ -1199,6 +1199,22 @@ let mk_fresh_var node loc ty ck =
   }
   in aux ()
 
+
+let find_eq xl eqs =
+  let rec aux accu eqs =
+    match eqs with
+	| [] ->
+	  begin
+	    Format.eprintf "Looking for variables %a in the following equations@.%a@."
+	      (Utils.fprintf_list ~sep:" , " (fun fmt v -> Format.fprintf fmt "%s" v)) xl
+	      Printers.pp_node_eqs eqs;
+	    assert false
+	  end
+	| hd::tl ->
+	  if List.exists (fun x -> List.mem x hd.eq_lhs) xl then hd, accu@tl else aux (hd::accu) tl
+    in
+    aux [] eqs
+
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)
