@@ -96,7 +96,7 @@ AC_MSG_CHECKING(z3 library)
 #define([z3path], esyscmd([opam config var Z3:lib | tr -d '\n']))
 
 AS_IF([ocamlfind query $z3name >/dev/null 2>&1],
-    [z3=yes; AC_MSG_RESULT([yes])],[seal=no; AC_MSG_RESULT(no)],
+    [z3=yes; AC_MSG_RESULT([yes])],[zustre=no; AC_MSG_RESULT(no)],
 )
 AS_IF([test "x$z3" = "xyes"], [
    AC_SUBST(LUSTREV_ZUSTRE, "(module Zustre_verifier.Verifier : VerifierType.S);")
