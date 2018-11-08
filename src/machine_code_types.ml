@@ -51,7 +51,7 @@ type machine_t = {
   mstatic: var_decl list; (* static inputs only *)
   mconst: instr_t list; (* assignments of node constant locals *)
   mstep: step_t;
-  mspec: node_annot option;
+  mspec: contract_desc option;
   mannot: expr_annot list;
   msch: Scheduling_type.schedule_report option; (* Equations scheduling *)
 }
