@@ -12,14 +12,38 @@ let seal_run basename prog machines =
   in
   let m = Machine_code_common.get_machine machines node_name in
   let nd = m.mname in
-  Format.eprintf "Node %a@." Printers.pp_node nd; 
+  (* Format.eprintf "Node %a@." Printers.pp_node nd; *)
   let mems = m.mmemory in
-  Format.eprintf "Mems: %a@." (Utils.fprintf_list ~sep:"; " Printers.pp_var) mems;
+  (* Format.eprintf "Mems: %a@." (Utils.fprintf_list ~sep:"; " Printers.pp_var) mems; *)
   let msch = Utils.desome m.msch in
-  let deps = msch.Scheduling_type.dep_graph in
-  Format.eprintf "graph: %a@." Causality.pp_dep_graph deps;
-  let sliced_nd = slice_node mems deps nd in
-  Format.eprintf "Node %a@." Printers.pp_node sliced_nd; 
+  (* Format.eprintf "graph: %a@." Causality.pp_dep_graph deps; *)
+  let sliced_nd = slice_node mems msch nd in
+  (* Format.eprintf "Sliced Node %a@." Printers.pp_node sliced_nd; *)
+  let sw_init, sw_sys = node_as_switched_sys mems sliced_nd in
+  let pp_res =
+    (Utils.fprintf_list ~sep:"@ "
+       (fun fmt (gel, up) ->
+         Format.fprintf fmt "@[<v 2>%a:@ %a@]"
+           (Utils.fprintf_list ~sep:"; "
+              (fun fmt (e,b) ->
+                if b then Printers.pp_expr fmt e
+                else Format.fprintf fmt "not(%a)"
+                       Printers.pp_expr e)) gel
+           (Utils.fprintf_list ~sep:"; "
+              (fun fmt (id, e) ->
+                Format.fprintf fmt "%s = %a"
+                  id
+                  Printers.pp_expr e)) up
+    ))
+  in
+  report ~level:1 (fun fmt ->
+      Format.fprintf fmt "@[<v 0>@[<v 3>Init:@ %a@]@ "
+        pp_res sw_init;
+      Format.fprintf fmt "@[<v 3>Step:@ %a@]@]@ "
+        pp_res sw_sys
+    );
+  
+
   ()
   
 module Verifier =

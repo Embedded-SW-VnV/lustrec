@@ -333,17 +333,17 @@ and normalize_guard node defvars expr =
 *)
 let decouple_outputs node defvars eq =
   let rec fold_lhs defvars lhs tys cks =
-   match lhs, tys, cks with
-   | [], [], []          -> defvars, []
-   | v::qv, t::qt, c::qc -> let (defs_q, vars_q), lhs_q = fold_lhs defvars qv qt qc in
-			    if List.exists (fun o -> o.var_id = v) node.node_outputs
-			    then
-			      let newvar = mk_fresh_var node eq.eq_loc t c in
-			      let neweq  = mkeq eq.eq_loc ([v], expr_of_vdecl newvar) in
-			      (neweq :: defs_q, newvar :: vars_q), newvar.var_id :: lhs_q
-			    else
-			      (defs_q, vars_q), v::lhs_q
-   | _                   -> assert false in
+    match lhs, tys, cks with
+    | [], [], []          -> defvars, []
+    | v::qv, t::qt, c::qc -> let (defs_q, vars_q), lhs_q = fold_lhs defvars qv qt qc in
+			     if List.exists (fun o -> o.var_id = v) node.node_outputs
+			     then
+			       let newvar = mk_fresh_var node eq.eq_loc t c in
+			       let neweq  = mkeq eq.eq_loc ([v], expr_of_vdecl newvar) in
+			       (neweq :: defs_q, newvar :: vars_q), newvar.var_id :: lhs_q
+			     else
+			       (defs_q, vars_q), v::lhs_q
+    | _                   -> assert false in
   let defvars', lhs' =
     fold_lhs
       defvars
