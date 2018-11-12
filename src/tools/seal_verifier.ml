@@ -1,3 +1,5 @@
+open Seal_slice
+open Seal_extract
 open Seal_utils
 
 let active = ref false
@@ -7,7 +9,17 @@ let active = ref false
 let seal_run basename prog machines =
   let node_name =
     match !Options.main_node with
-    | "" -> assert false
+    | "" -> (
+      Format.eprintf "SEAL verifier requires a main node.@.";
+      Format.eprintf "@[<v 2>Available ones are:@ %a@]@.@?"
+        (Utils.fprintf_list ~sep:"@ "
+           (fun fmt m ->
+             Format.fprintf fmt "%s" m.Machine_code_types.mname.node_id
+           )
+        )
+        machines; 
+      exit 1
+    )
     | s -> s
   in
   let m = Machine_code_common.get_machine machines node_name in
@@ -19,23 +31,32 @@ let seal_run basename prog machines =
   (* Format.eprintf "graph: %a@." Causality.pp_dep_graph deps; *)
   let sliced_nd = slice_node mems msch nd in
   (* Format.eprintf "Sliced Node %a@." Printers.pp_node sliced_nd; *)
+  report ~level:3 (fun fmt -> Format.fprintf fmt "Node sliced@.");
   let sw_init, sw_sys = node_as_switched_sys mems sliced_nd in
   let pp_res =
     (Utils.fprintf_list ~sep:"@ "
        (fun fmt (gel, up) ->
-         Format.fprintf fmt "@[<v 2>%a:@ %a@]"
+         Format.fprintf fmt "@[<v 2>[%a]:@ %a@]"
            (Utils.fprintf_list ~sep:"; "
               (fun fmt (e,b) ->
                 if b then Printers.pp_expr fmt e
                 else Format.fprintf fmt "not(%a)"
                        Printers.pp_expr e)) gel
-           (Utils.fprintf_list ~sep:"; "
+           (Utils.fprintf_list ~sep:";@ "
               (fun fmt (id, e) ->
-                Format.fprintf fmt "%s = %a"
+                Format.fprintf fmt "%s = @[<hov 0>%a@]"
                   id
                   Printers.pp_expr e)) up
     ))
   in
+  report ~level:1 (
+      fun fmt -> Format.fprintf fmt
+                   "%i memories, %i init, %i step switch cases@."
+                   (List.length mems)
+                   (List.length sw_init)
+                   (List.length sw_sys)
+               
+    );
   report ~level:1 (fun fmt ->
       Format.fprintf fmt "@[<v 0>@[<v 3>Init:@ %a@]@ "
         pp_res sw_init;

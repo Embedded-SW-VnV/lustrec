@@ -45,20 +45,24 @@ let rec verify dirname basename extension =
   let source_name = dirname ^ "/" ^ basename ^ extension in
 
   Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 0>");
+  decr Options.verbose_level;
 
   (* Parsing source *)
   let prog = parse_source source_name in
 
   (* Checking which solver is active *)
+  incr Options.verbose_level;
   let verifier = Verifiers.get_active () in
   let module Verifier = (val verifier : VerifierType.S) in
 
-  
+  decr Options.verbose_level;
   (* Normalizing it *)
   let prog, dependencies = 
     Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>.. Phase 1 : Normalisation@,");
     try
+      incr Options.verbose_level;
       let params = Verifier.get_normalization_params () in
+      decr Options.verbose_level;
       Compiler_stages.stage1 params prog dirname basename
     with Compiler_stages.StopPhase1 prog -> (
         assert false
@@ -75,7 +79,7 @@ let rec verify dirname basename extension =
 
   Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ ");
   Log.report ~level:3 (fun fmt -> fprintf fmt ".. Generated machines:@ %a@ "Machine_code_common.pp_machines machine_code);
-
+  
   if Scopes.Plugin.show_scopes () then
     begin
       let all_scopes = Scopes.compute_scopes prog !Options.main_node in
@@ -90,9 +94,13 @@ let rec verify dirname basename extension =
   let machine_code = Plugins.refine_machine_code prog machine_code in
 
   assert (dependencies = []); (* Do not handle deps yet *)
+  incr Options.verbose_level;
   Verifier.run basename prog machine_code;
   begin
-    Log.report ~level:1 (fun fmt -> fprintf fmt ".. done !@ @]@.");
+    decr Options.verbose_level;
+    Log.report ~level:1 (fun fmt -> fprintf fmt ".. done !@ ");
+    incr Options.verbose_level;
+    Log.report ~level:1 (fun fmt -> fprintf fmt "@]@.");
     (* We stop the process here *)
     exit 0
   end
