@@ -144,9 +144,19 @@ let mk_expr_alias_opt opt node (defs, vars) expr =
   | _                ->
     match get_expr_alias defs expr with
     | Some eq ->
+       (* Format.eprintf "Found a preexisting definition@."; *)
       let aliases = List.map (fun id -> List.find (fun v -> v.var_id = id) vars) eq.eq_lhs in
       (defs, vars), replace_expr aliases expr
     | None    ->
+       (* Format.eprintf "Didnt found a preexisting definition (opt=%b)@." opt;
+        * Format.eprintf "existing defs are: @[[%a@]]@."
+        *   (fprintf_list ~sep:"@ "(fun fmt eq ->
+        *        Format.fprintf fmt "ck:%a isckeq=%b, , iseq=%b, eq=%a"
+        *          Clocks.print_ck eq.eq_rhs.expr_clock
+        *          (Clocks.eq_clock expr.expr_clock eq.eq_rhs.expr_clock)
+        *          (is_eq_expr eq.eq_rhs expr)
+        *          Printers.pp_node_eq eq))
+        *   defs; *)
       if opt
       then
 	let new_aliases =
@@ -497,8 +507,6 @@ let normalize_spec decls node vars s =
 let normalize_node decls node =
   reset_cpt_fresh ();
   let inputs_outputs = node.node_inputs@node.node_outputs in
-  let is_local v =
-    List.for_all ((<>) v) inputs_outputs in
   let orig_vars = inputs_outputs@node.node_locals in
   let not_is_orig_var v =
     List.for_all ((!=) v) orig_vars in
@@ -604,7 +612,6 @@ let normalize_node decls node =
     end;
   
  
- let new_locals = List.filter is_local vars in (* TODO a quoi ca sert ? *)
   let node =
     { node with
       node_locals = all_locals;
