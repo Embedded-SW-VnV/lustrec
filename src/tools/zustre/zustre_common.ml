@@ -366,7 +366,7 @@ let horn_basic_app i val_to_expr vl =
    is a printer for variables (typically [pp_c_var_read]), but an offset suffix
    may be added for array variables
 *)
-let rec horn_val_to_expr ?(is_lhs=false) self v =
+let rec horn_val_to_expr ?(is_lhs=false) m self v =
   match v.value_desc with
   | Cst c       -> horn_const_to_expr c
 
@@ -393,28 +393,30 @@ let rec horn_val_to_expr ?(is_lhs=false) self v =
             !ctx
 	    (build_array (t, (x+1)))
 	    (Z3.Arithmetic.Integer.mk_numeral_i !ctx x)
-	    (horn_val_to_expr ~is_lhs:is_lhs self h)
+	    (horn_val_to_expr ~is_lhs:is_lhs m self h)
      in
      build_array (il, 0)
-       
+     
   | Access(tab,index) ->
      Z3.Z3Array.mk_select !ctx 
-       (horn_val_to_expr ~is_lhs:is_lhs self tab)
-       (horn_val_to_expr ~is_lhs:is_lhs self index)
+       (horn_val_to_expr ~is_lhs:is_lhs m self tab)
+       (horn_val_to_expr ~is_lhs:is_lhs m self index)
 
   (* Code specific for arrays *)
     
   | Power (v, n)  -> assert false
-  | LocalVar v    ->
-     horn_var_to_expr
-       (rename_machine
-          self
-          v)
-  | StateVar v    ->
-     if Types.is_array_type v.var_type
-     then assert false
-     else horn_var_to_expr (rename_machine self ((if is_lhs then rename_next else rename_current) (* self *) v))
-  | Fun (n, vl)   -> horn_basic_app n (horn_val_to_expr self) vl
+  | Var v    ->
+     if is_memory m v then
+       if Types.is_array_type v.var_type
+       then assert false
+       else horn_var_to_expr (rename_machine self ((if is_lhs then rename_next else rename_current) (* self *) v))
+     
+     else 
+       horn_var_to_expr
+         (rename_machine
+            self
+            v)
+  | Fun (n, vl)   -> horn_basic_app n (horn_val_to_expr m self) vl
 
 let no_reset_to_exprs machines m i =
   let (n,_) = List.assoc i m.minstances in
@@ -478,8 +480,8 @@ let instance_call_to_exprs machines reset_instances m i inputs outputs =
     let idx = horn_var_to_expr idx in
     let uid = uid_conc (get_instance_uid i) (horn_var_to_expr uid) in
     let inout = 
-      List.map (horn_val_to_expr self)
-	(inputs @ (List.map (fun v -> mk_val (LocalVar v) v.var_type) outputs))
+      List.map (horn_val_to_expr m self)
+	(inputs @ (List.map (fun v -> mk_val (Var v) v.var_type) outputs))
     in
     idx::uid::inout
   in
@@ -509,16 +511,16 @@ let instance_call_to_exprs machines reset_instances m i inputs outputs =
           let stmt1 = (* out = ite mem_m then i1 else i2 *)
             Z3.Boolean.mk_eq !ctx
               ( (* output var *)
-                horn_val_to_expr
+                horn_val_to_expr 
                   ~is_lhs:true
-                  self
-                  (mk_val (LocalVar o) o.var_type)
+                  m self
+                  (mk_val (Var o) o.var_type)
               )
               (
                 Z3.Boolean.mk_ite !ctx 
 	          (horn_var_to_expr mem_m) 
-	          (horn_val_to_expr self i1)
-	          (horn_val_to_expr self i2)
+	          (horn_val_to_expr m self i1)
+	          (horn_val_to_expr m self i2)
               )
           in
           let stmt2 = (* mem_X = false *)
@@ -578,8 +580,8 @@ let assign_to_exprs m var_name value =
   let e =
     Z3.Boolean.mk_eq
       !ctx
-      (horn_val_to_expr ~is_lhs:true self var_name)
-      (horn_val_to_expr self value)
+      (horn_val_to_expr ~is_lhs:true m self var_name)
+      (horn_val_to_expr m self value)
   (* was: TODO deal with array accesses       (value_suffix_to_expr self value) *)
   in
   [e]
@@ -598,12 +600,12 @@ let rec instr_to_exprs machines reset_instances (m: machine_t) instr : Z3.Expr.e
   | MLocalAssign (i,v) ->
     assign_to_exprs
       m  
-      (mk_val (LocalVar i) i.var_type) v,
+      (mk_val (Var i) i.var_type) v,
     reset_instances
   | MStateAssign (i,v) ->
     assign_to_exprs
       m 
-      (mk_val (StateVar i) i.var_type) v,
+      (mk_val (Var i) i.var_type) v,
     reset_instances
   | MStep ([i0], i, vl) when Basic_library.is_internal_fun i (List.map (fun v -> v.value_type) vl) ->
     assert false (* This should not happen anymore *)
@@ -629,7 +631,7 @@ let rec instr_to_exprs machines reset_instances (m: machine_t) instr : Z3.Expr.e
       let e =
 	Z3.Boolean.mk_implies !ctx
           (Z3.Boolean.mk_eq !ctx 
-             (horn_val_to_expr self g)
+             (horn_val_to_expr m self g)
 	     (horn_tag_to_expr tag))
           branch_def in
 
@@ -857,7 +859,7 @@ let decl_machine machines m =
 	     begin
 	       (*Rule for step "; Stateless step rule with Assertions @.";*)
 	       let body_with_asserts =
-		 Z3.Boolean.mk_and !ctx (horn_body :: List.map (horn_val_to_expr m.mname.node_id) assertsl)
+		 Z3.Boolean.mk_and !ctx (horn_body :: List.map (horn_val_to_expr m m.mname.node_id) assertsl)
 	       in
 	       let vars = rename_machine_list m.mname.node_id m.mstep.step_locals in
 	       add_rule vars (Z3.Boolean.mk_implies !ctx body_with_asserts horn_head)
@@ -915,7 +917,7 @@ let decl_machine machines m =
 	       (* Rule for step Assertions @.; *)
 	       let body_with_asserts =
 		 Z3.Boolean.mk_and !ctx
-		   (horn_step_body :: List.map (horn_val_to_expr m.mname.node_id) assertsl)
+		   (horn_step_body :: List.map (horn_val_to_expr m m.mname.node_id) assertsl)
 	       in
 	       let vars = (step_vars_c_m_x machines m) @(rename_machine_list m.mname.node_id m.mstep.step_locals) in
 	       add_rule (idx::uid::vars) (Z3.Boolean.mk_implies !ctx body_with_asserts horn_step_head)

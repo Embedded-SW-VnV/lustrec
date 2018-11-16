@@ -57,7 +57,8 @@ let build_cex machine machines decl_err =
       (* Recall that MAIN args are in@mems@out *)
       let args = Z3.Expr.get_args conj in
       if List.length args = 1 + nb_inputs + nb_mems + nb_outputs then
-	let id = Z3.Arithmetic.Integer.get_int (List.hd args) in
+        (* Should be done with get_int but that function vanished from the opam Z3 API *)
+	let id = Big_int.int_of_big_int (Z3.Arithmetic.Integer.get_big_int (List.hd args)) in
 	let input_values = Utils.List.extract args 1 (1 + nb_inputs) in
 	let output_values = Utils.List.extract args (1+nb_inputs+nb_mems) (1 + nb_inputs + nb_mems + nb_outputs) in
 	(id, (input_values, output_values))::main, funs
