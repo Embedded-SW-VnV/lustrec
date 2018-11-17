@@ -39,6 +39,6 @@ language is used as an intermediate representation and relies mainly
 on lustrec to produce code or verification artifacts.
 """
 url {
-  src: "https://cavale.enseeiht.fr/redmine/attachments/download/114/lustrec-1.5-Xia-Shao-Kang-src.tgz"
+  src: "https://cavale.enseeiht.fr/redmine/attachments/download/117/lustrec-1.6-Xia-Zhu-src.tgz"
   checksum: "md5=f06e87d5fbb24c91894bdc55bf6cc496"
 }
