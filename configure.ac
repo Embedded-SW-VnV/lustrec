@@ -108,7 +108,7 @@ AS_IF([ocamlfind query $z3name >/dev/null 2>&1],
 )
 AS_IF([test "x$z3" = "xyes"], [
    AC_SUBST(LUSTREV_ZUSTRE, "(module Zustre_verifier.Verifier : VerifierType.S);")
-   AC_SUBST(LUSTREV_Z3_TAG, "<**/*>: package($z3name)")
+   AC_SUBST(LUSTREV_Z3_TAG, "<**/*verifier.native> or <tools/zustre/*.ml> or <tools/zustre/*.mli>: package($z3name)")
    AS_IF([test "x$z3name" = "xZ3"],
    	       [define([Z3path], esyscmd([ocamlfind query Z3 | tr -d '\n']))
 	        AC_SUBST(Z3LIBPATH, "Z3path")],
@@ -116,8 +116,6 @@ AS_IF([test "x$z3" = "xyes"], [
 	        AC_SUBST(Z3LIBPATH, "z3path")]
 		)
 ])
-
-
 
 
 # Tiny
@@ -270,7 +268,7 @@ AC_MSG_NOTICE(********   Verifiers    ********)
 
   if (test "x$z3" = xyes); then
       AC_MSG_NOTICE([Zustre enabled])
-      AC_MSG_WARN(Z3 shared lib (libz3.so) has to be available in the LD_LIBRARY_PATH.)
+      AC_MSG_WARN(Z3 shared lib (libz3.so) has to be available in the LD_LIBRARY_PATH (DYLD_LIBRARY_PATH in OSX).)
       dnl AC_MSG_WARN(It is currently located in "z3path")
       AC_MSG_WARN(If not already available run "source ${prefix}/include/lustrec/z3librc")
       AC_MSG_WARN(or add that line to your ~/.profile or ~/.bashrc)

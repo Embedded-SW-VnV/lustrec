@@ -29,27 +29,29 @@ true: bin_annot, color(always)
 <**/.svn>: not_hygienic
 
 # packages
-<**/*.native>                   : package(ocamlgraph)
+<**/*.native> or <**/*.ml{,i}>         : package(num)
+<**/*.native> or <**/*.ml{,i}>         : package(ocamlgraph)
+<**/*verifier.native> or <**/*.ml{,i}> : package(yojson)
+
 <**/*.native>                   : use_str
 <**/*.native>                   : use_unix
-<utils.*>                       : use_unix
-<**/*.native>                   : package(num)
-<**/*.ml>                       : package(logs)
-<**/*.native>                   : package(logs)
-<**/*.native>                   : package(yojson)
-<tools/zustre/zustre_cex.*>                   : package(yojson)
-<**/json_parser.ml>             : package(yojson)
-<**/main_parse_json_file.*>     : package(cmdliner)
-<**/main_parse_json_file.*>     : package(fmt.tty)
-<**/main_parse_json_file.*>     : package(fmt.cli)
-<**/main_parse_json_file.*>     : package(logs.fmt)
-<**/main_parse_json_file.*>     : package(logs.cli)
-<**/main_parse_json_file.*>     : package(yojson)
-<**/test_*.*>                   : package(oUnit)
-<**/test_json*.*>               : package(yojson)
 
-# Required for ocamldoc. Otherwise failed to build
-<**/*.ml{,i}>: package(ocamlgraph)
+# <**/*.ml>                       : package(logs)
+# <**/*.native>                   : package(logs)
+# <**/*.native>                   : package(yojson)
+# <tools/zustre/zustre_cex.*>                   : package(yojson)
+# <**/json_parser.ml>             : package(yojson)
+# <**/main_parse_json_file.*>     : package(cmdliner)
+# <**/main_parse_json_file.*>     : package(fmt.tty)
+# <**/main_parse_json_file.*>     : package(fmt.cli)
+# <**/main_parse_json_file.*>     : package(logs.fmt)
+# <**/main_parse_json_file.*>     : package(logs.cli)
+# <**/main_parse_json_file.*>     : package(yojson)
+# <**/test_*.*>                   : package(oUnit)
+# <**/test_json*.*>               : package(yojson)
+
+# # Required for ocamldoc. Otherwise failed to build
+# <**/*.ml{,i}>: package(ocamlgraph)
 
 # Plugin dependencies
 @SALSA_TAG@
