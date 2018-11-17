@@ -1,6 +1,6 @@
 opam-version: "2.0"
 name: "lustrec"
-version: "1.6"
+version: "1.7"
 maintainer: "Pierre-Loic Garoche <ploc@garoche.net>"
 authors: ["Pierre-Loic Garoche <ploc@garoche.net>" "Xavier Thirioux <thirioux@enseeiht.fr>"]
 homepage: "https://cavale.enseeiht.fr/redmine/projects/lustrec/"

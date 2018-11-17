@@ -1,8 +1,8 @@
 define([gitversion], esyscmd([sh -c "git log --oneline | wc -l | tr -d ' \n'"]))
 
-AC_INIT([lustrec], 1.6, [ploc@garoche.net])
-AC_SUBST(VERSION_NUMBER, 1.6)
-AC_SUBST(VERSION_CODENAME, "Xia/Zhu")
+AC_INIT([lustrec], 1.7-gitversion, [ploc@garoche.net])
+AC_SUBST(VERSION_NUMBER, 1.7)
+AC_SUBST(VERSION_CODENAME, "Xia/Huai-dev")
 
 
 gitbranch=`git branch | grep \* | sed "s/\*[ ]*//"`
@@ -15,8 +15,8 @@ else
   AC_SUBST(CDASHSUBPROJ, "master")
 fi
 # Next release will be
-#AC_INIT([lustrec], [1.7], [ploc@garoche.net])
-#AC_SUBST(VERSION_CODENAME, "Xia/Huai")
+#AC_INIT([lustrec], [1.8], [ploc@garoche.net])
+#AC_SUBST(VERSION_CODENAME, "Xia/Mang")
 AC_MSG_NOTICE(Git branch: ${GITBRANCH})
 AC_CONFIG_SRCDIR([src/main_lustre_compiler.ml])
 AC_CONFIG_SRCDIR([src/main_lustre_testgen.ml])
