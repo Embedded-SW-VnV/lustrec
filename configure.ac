@@ -5,15 +5,6 @@ AC_SUBST(VERSION_NUMBER, 1.7)
 AC_SUBST(VERSION_CODENAME, "Xia/Huai-dev")
 
 
-gitbranch=`git branch | grep \* | sed "s/\*[ ]*//"`
-#define([gitbranch], esyscmd([sh -c "git branch | grep \* | cut -d ' ' -f2"]))
-
-AC_SUBST(GITBRANCH, "$gitbranch")
-if test x"$GITBRANCH" != "xmaster"; then
-  AC_SUBST(CDASHSUBPROJ, "unstable")
-else
-  AC_SUBST(CDASHSUBPROJ, "master")
-fi
 # Next release will be
 #AC_INIT([lustrec], [1.8], [ploc@garoche.net])
 #AC_SUBST(VERSION_CODENAME, "Xia/Mang")
