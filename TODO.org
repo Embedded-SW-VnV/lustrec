@@ -286,4 +286,54 @@ Some ideas
 ** TODO list
 
 * Salsa
-* 
+* Lusic 
+  Lusic can be generated either from lusi files or from lus files
+  They shall contain at least
+  - the complete definitions of types
+  - the complete definition of constants
+  - the list of nodes and their types/clocks
+  - the complete definition of specification components:
+    - either defined in lusi as 
+      - node spec: attached to a node
+      - contract: expressed as an imported node with a spec
+    - or defined in the lus
+      - node spec
+      - contract defined in a comment
+  - some compilation related information if compiled from a lusi
+    
+
+  What happen when we compile first a lusi and then the lus file?
+  - types of the lus node are checked wrt the ones available in the
+    lusic (coming from the lusi)
+  - do we want to update the lusic for additional specification
+    defined in the lus, or do we assume that the lusi masks the spec
+    artifacts defined in the lus file ?
+  - do we want to embeded the node content in the compiled lusic,
+    updating it?
+
+  When opening another module, one loads the lusic file
+  - if compilation directives are provided then can support the
+    generation of the Makefile, linking proper libs.
+  - if the lusic contains node content one may use these to perform
+    inlining if asked by the users or in certain configurations
+    - decision: lusic do not contain actual code: #include shall allow
+      to include external lustre copde and inline it as if it was
+      defined in the current file
+
+  We would like to know whether a declared node:
+  - is an external function, possibly specified but not associated
+    eventually to some lustre node. Ie type conversion functions,
+    array functions with loops, ...
+  - is a pure specification function/node/contract
+  - is just a signature(+spec) of a regular node
+
+  Contracts in lusi are compiled as imported node with spec. We could
+  keep the info that they will not be associated to some real code.
+  While a regular imported node could.
+
+  Now the question is how to tag a lusi file to explicitely state that
+  no lus file will be associated to it. May be one can provide a link
+  to the backend implemented.  Let say that this lusi file can be used
+  for the C backend then a C file should be provided. Do we want to
+  mention it in the lusi file?
+
