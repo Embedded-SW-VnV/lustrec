@@ -150,48 +150,35 @@ let check_dependency lusic basename =
     raise exc
   )
 
-let rec load_header_rec imported header =
+
+let rec load_rec ~is_header imported program =
   List.fold_left (fun imported decl ->
     match decl.top_decl_desc with
-    | Node nd -> assert false
-    | ImportedNode ind -> (add_imported_node ind.nodei_id decl; imported)
-    | Const c -> (add_const true c.const_id decl; imported)
-    | TypeDef tdef -> (add_type true tdef.tydef_id decl; imported)
+    | Node nd -> if is_header then
+                   raise (Error(decl.top_decl_loc,
+                                LoadError ("node " ^ nd.node_id ^ " declared in a header file")))  
+                 else
+                   (add_node nd.node_id decl; imported)
+    | ImportedNode ind ->
+       if is_header then
+         (add_imported_node ind.nodei_id decl; imported)
+       else
+         raise (Error(decl.top_decl_loc,
+                      LoadError ("imported node " ^ ind.nodei_id ^ " declared in a regular Lustre file")))  
+    | Const c -> (add_const is_header c.const_id decl; imported)
+    | TypeDef tdef -> (add_type is_header tdef.tydef_id decl; imported)
     | Open (local, dep) ->
        let basename = Options_management.name_dependency (local, dep) in
        if ISet.mem basename imported then imported else
 	 let lusic = import_dependency_aux decl.top_decl_loc (local, dep)
-	 in load_header_rec (ISet.add basename imported) lusic.Lusic.contents
-  ) imported header
-
-let load_header imported header =
-  try
-    load_header_rec imported header
-  with
-    Corelang.Error (loc, err) as exc -> (
-      Format.eprintf "Import error: %a%a@."
-	Error.pp_error_msg err
-	Location.pp_loc loc;
-      raise exc
-    );;
-
-let rec load_program_rec imported program =
-  List.fold_left (fun imported decl ->
-    match decl.top_decl_desc with
-    | Node nd -> (add_node nd.node_id decl; imported)
-    | ImportedNode ind -> assert false
-    | Const c -> (add_const false c.const_id decl; imported)
-    | TypeDef tdef -> (add_type false tdef.tydef_id decl; imported)
-    | Open (local, dep) ->
-       let basename = Options_management.name_dependency (local, dep) in
-       if ISet.mem basename imported then imported else
-	 let lusic = import_dependency_aux decl.top_decl_loc (local, dep)
-	 in load_header_rec (ISet.add basename imported) lusic.Lusic.contents
+	 in load_rec ~is_header:true (ISet.add basename imported) lusic.Lusic.contents
   ) imported program
-    
-let load_program imported program =
+
+(* Iterates through lusi definitions and records them in the hashtbl. Open instructions are evaluated and update these hashtbl as well. node_table/type/table/consts_table *)
+  
+let load ~is_header imported program =
   try
-    load_program_rec imported program
+    load_rec ~is_header imported program
   with
     Corelang.Error (loc, err) as exc -> (
       Format.eprintf "Import error: %a%a@."

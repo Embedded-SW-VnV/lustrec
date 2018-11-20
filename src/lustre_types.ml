@@ -131,22 +131,6 @@ type contract_mode =
 type contract_import =
   { import_nodeid: ident; inputs: expr list; outputs: expr list; import_loc: Location.t }
     
-type contract_desc = 
-  {
-(* TODO: 
-   local variables 
-   rename: assume/guarantee
-           in behavior mode (id, requires/ensures)
-   import contract
-*)
-       consts: var_decl list;
-       locals: var_decl list;
-       assume: eexpr list;
-       guarantees: eexpr list;
-       modes: contract_mode list;
-       imports: contract_import list; 
-       spec_loc: Location.t;
-}
 
 
 type offset =
@@ -177,6 +161,18 @@ and handler_desc =
    hand_asserts: assert_t list;
    hand_annots: expr_annot list;
    hand_loc: Location.t}
+
+type contract_desc = 
+  {
+    consts: var_decl list;
+    locals: var_decl list;
+    stmts: statement list;
+    assume: eexpr list;
+    guarantees: eexpr list;
+    modes: contract_mode list;
+    imports: contract_import list; 
+    spec_loc: Location.t;
+  }
 
 type node_desc =
     {node_id: ident;

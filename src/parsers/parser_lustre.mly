@@ -202,6 +202,19 @@ top_decl_header:
 				  nodei_prototype = $13;
 				  nodei_in_lib = $14;})
      in
+     (*add_imported_node $3 nd;*) [nd] } 
+| CONTRACT node_ident LPAR vdecl_list SCOL_opt RPAR RETURNS LPAR vdecl_list SCOL_opt RPAR SCOL_opt LET contract TEL 
+    {let nd = mktop_decl true (ImportedNode
+				 {nodei_id = $2;
+				  nodei_type = Types.new_var ();
+				  nodei_clock = Clocks.new_var true;
+				  nodei_inputs = List.rev $4;
+				  nodei_outputs = List.rev $9;
+				  nodei_stateless = false (* By default we assume contracts as stateful *);
+				  nodei_spec = Some $14;
+				  nodei_prototype = None;
+				  nodei_in_lib = [];})
+     in
      (*add_imported_node $3 nd;*) [nd] }
 
 prototype_opt:
@@ -350,7 +363,6 @@ contract:
 	  mk_contract_mode $2 r e (get_loc())) $7 }	
 | IMPORT IDENT LPAR tuple_expr RPAR RETURNS LPAR tuple_expr RPAR SCOL contract
     { merge_contracts (mk_contract_import $2  $4  $8 (get_loc())) $11 }
-	
 
 mode_content:
 { [], [] }

@@ -175,16 +175,20 @@ let consts_of_enum_type top_decl =
 
 let empty_contract =
   {
-    consts = []; locals = []; assume = []; guarantees = []; modes = []; imports = []; spec_loc = Location.dummy_loc;
+    consts = []; locals = []; stmts = []; assume = []; guarantees = []; modes = []; imports = []; spec_loc = Location.dummy_loc;
   }
-    
+
+(* For const declaration we do as for regular lustre node.
+But for local flows we registered the variable and the lustre flow definition *)
 let mk_contract_var id is_const type_opt expr loc =
   let typ = match type_opt with None -> mktyp loc Tydec_any | Some t -> t in
-  let v = mkvar_decl loc (id, typ, mkclock loc Ckdec_any, is_const, Some expr, None) in
   if is_const then
+  let v = mkvar_decl loc (id, typ, mkclock loc Ckdec_any, is_const, Some expr, None) in
   { empty_contract with consts = [v]; spec_loc = loc; }
   else
-    { empty_contract with locals = [v]; spec_loc = loc; }
+    let v = mkvar_decl loc (id, typ, mkclock loc Ckdec_any, is_const, None, None) in
+    let eq = mkeq loc ([id], expr) in 
+    { empty_contract with locals = [v]; stmts = [Eq eq]; spec_loc = loc; }
 
 let mk_contract_guarantees eexpr =
   { empty_contract with guarantees = [eexpr]; spec_loc = eexpr.eexpr_loc }
@@ -202,6 +206,7 @@ let mk_contract_import id ins outs loc =
 let merge_contracts ann1 ann2 = (* keeping the first item loc *)
   { consts = ann1.consts @ ann2.consts;
     locals = ann1.locals @ ann2.locals;
+    stmts = ann1.stmts @ ann2.stmts;
     assume = ann1.assume @ ann2.assume;
     guarantees = ann1.guarantees @ ann2.guarantees;
     modes = ann1.modes @ ann2.modes;

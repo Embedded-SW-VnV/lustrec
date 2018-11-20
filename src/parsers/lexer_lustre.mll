@@ -61,6 +61,17 @@ let keyword_table =
   "contract", CONTRACT;
   "lib", LIB;
   "prototype", PROTOTYPE;
+  "ensure", ENSURE;
+  "require", REQUIRE;
+  (* "observer", OBSERVER; *)
+  "invariant", INVARIANT;
+  "mode", MODE;
+  "assume", ASSUME;
+  "contract", CONTRACT;
+  "guarantees", GUARANTEES;
+  "exists", EXISTS;
+  "forall", FORALL;
+ 
   "c_code", CCODE; (* not sure how it is used *)
   "matlab", MATLAB; (* same as above *)
 ]

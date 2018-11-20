@@ -42,7 +42,7 @@ let compile_header dirname  basename extension =
   begin
     Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v>");
     let header = parse_header true (dirname ^ "/" ^ header_name) in
-    ignore (Modules.load_header ISet.empty header);
+    ignore (Modules.load ~is_header:true ISet.empty header);
     ignore (check_top_decls header); (* typing/clocking with an empty env *)
     create_dest_dir ();
     Log.report ~level:1

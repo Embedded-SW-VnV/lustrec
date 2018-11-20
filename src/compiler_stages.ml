@@ -56,7 +56,7 @@ let stage1 params prog dirname basename =
   Log.report ~level:4 (fun fmt -> fprintf fmt ".. after automata expansion:@,  @[<v 2>@,%a@]@ " Printers.pp_prog prog);
 
   (* Importing source *)
-  let _ = Modules.load_program ISet.empty prog in
+  let _ = Modules.load ~is_header:false ISet.empty prog in
 
   (* Extracting dependencies (and updating Global.(type_env/clock_env) *)
   let dependencies = import_dependencies prog in
