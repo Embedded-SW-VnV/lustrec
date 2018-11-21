@@ -218,6 +218,8 @@ type top_decl_desc =
 | ImportedNode of imported_node_desc
 | Open of bool * string (* the boolean set to true denotes a local
 			   lusi vs a lusi installed at system level *)
+| Include of string (* the boolean set to true denotes a local
+			   lus vs a lus installed at system level *)
 | TypeDef of typedef_desc
     
 type top_decl =

@@ -57,7 +57,7 @@ let rec fby expr n init =
 
 %token <string> STRING
 %token AUTOMATON STATE UNTIL UNLESS RESTART RESUME 
-%token ASSERT OPEN QUOTE FUNCTION
+%token ASSERT OPEN INCLUDE QUOTE POINT FUNCTION
 %token <string> IDENT
 %token <string> UIDENT
 %token TRUE FALSE
@@ -128,9 +128,20 @@ let rec fby expr n init =
 %type <Lustre_types.var_decl list> vdecl_list
 %%
 
+
 module_ident:
   UIDENT { $1 }
 | IDENT  { $1 }
+
+file_ident:
+module_ident { $1 } 
+| module_ident POINT file_ident { $1 ^ "." ^ $3 } 
+
+path_ident:
+POINT DIV path_ident { "./" ^ $3 }
+| file_ident DIV path_ident { $1 ^ "/" ^ $3 }
+| DIV path_ident { "/" ^ $2 }
+| file_ident { $1 }
 
 tag_ident:
   UIDENT  { $1 }
@@ -172,8 +183,9 @@ open_list:
 | open_lusi open_list { $1 :: $2 }
 
 open_lusi:
-| OPEN QUOTE module_ident QUOTE { mktop_decl false (Open (true, $3))}
-| OPEN LT module_ident GT { mktop_decl false (Open (false, $3)) }
+  | OPEN QUOTE path_ident QUOTE { mktop_decl false (Open (true, $3)) }
+  | INCLUDE QUOTE path_ident QUOTE { mktop_decl false (Include ($3)) }
+  | OPEN LT path_ident GT { mktop_decl false (Open (false, $3))  }
 
 top_decl_list:
    {[]}

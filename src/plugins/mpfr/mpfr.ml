@@ -315,7 +315,7 @@ let inject_decl decl =
   match decl.top_decl_desc with
   | Node nd ->
     {decl with top_decl_desc = Node (inject_node nd)}
-  | Open _ | ImportedNode _ | Const _ | TypeDef _ -> decl
+  | Include _ | Open _ | ImportedNode _ | Const _ | TypeDef _ -> decl
   
 let inject_prog decls = 
   List.map inject_decl decls

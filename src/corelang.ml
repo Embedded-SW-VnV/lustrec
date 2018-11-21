@@ -642,7 +642,7 @@ let get_nodes prog =
     fun nodes decl ->
       match decl.top_decl_desc with
 	| Node _ -> decl::nodes
-	| Const _ | ImportedNode _ | Open _ | TypeDef _ -> nodes  
+	| Const _ | ImportedNode _ | Include _ | Open _ | TypeDef _ -> nodes  
   ) [] prog
 
 let get_imported_nodes prog = 
@@ -650,7 +650,7 @@ let get_imported_nodes prog =
     fun nodes decl ->
       match decl.top_decl_desc with
 	| ImportedNode _ -> decl::nodes
-	| Const _ | Node _ | Open _ | TypeDef _-> nodes  
+	| Const _ | Node _ | Include _ | Open _ | TypeDef _-> nodes  
   ) [] prog
 
 let get_consts prog = 
@@ -658,7 +658,7 @@ let get_consts prog =
     fun decl consts ->
       match decl.top_decl_desc with
 	| Const _ -> decl::consts
-	| Node _ | ImportedNode _ | Open _ | TypeDef _ -> consts  
+	| Node _ | ImportedNode _ | Include _ | Open _ | TypeDef _ -> consts  
   ) prog []
 
 let get_typedefs prog = 
@@ -666,7 +666,7 @@ let get_typedefs prog =
     fun decl types ->
       match decl.top_decl_desc with
 	| TypeDef _ -> decl::types
-	| Node _ | ImportedNode _ | Open _ | Const _ -> types  
+	| Node _ | ImportedNode _ | Include _ | Open _ | Const _ -> types  
   ) prog []
 
 let get_dependencies prog =
@@ -674,7 +674,7 @@ let get_dependencies prog =
     fun decl deps ->
       match decl.top_decl_desc with
 	| Open _ -> decl::deps
-	| Node _ | ImportedNode _ | TypeDef _ | Const _ -> deps  
+	| Node _ | ImportedNode _ | TypeDef _ | Include _ | Const _ -> deps  
   ) prog []
 
 let get_node_interface nd =
@@ -878,7 +878,7 @@ let rename_prog f_node f_var f_const prog =
       | TypeDef tdef ->
 	 { top with top_decl_desc = TypeDef (rename_typedef f_var tdef) }
       | ImportedNode _
-      | Open _       -> top)
+        | Include _ | Open _       -> top)
       ::accu
 ) [] prog
 		   )
@@ -934,7 +934,7 @@ let pp_decl_type fmt tdecl =
     fprintf fmt "%s: " ind.nodei_id;
     Utils.reset_names ();
     fprintf fmt "%a@ " Types.print_ty ind.nodei_type
-  | Const _ | Open _ | TypeDef _ -> ()
+  | Const _ | Include _ | Open _ | TypeDef _ -> ()
 
 let pp_prog_type fmt tdecl_list =
   Utils.fprintf_list ~sep:"" pp_decl_type fmt tdecl_list
@@ -949,7 +949,7 @@ let pp_decl_clock fmt cdecl =
     fprintf fmt "%s: " ind.nodei_id;
     Utils.reset_names ();
     fprintf fmt "%a@ " Clocks.print_ck ind.nodei_clock
-  | Const _ | Open _ | TypeDef _ -> ()
+  | Const _ | Include _ | Open _ | TypeDef _ -> ()
 
 let pp_prog_clock fmt prog =
   Utils.fprintf_list ~sep:"" pp_decl_clock fmt prog

@@ -382,6 +382,7 @@ let pp_decl fmt decl =
      fprintf fmt "imported %a;" pp_imported_node ind
   | Const c -> fprintf fmt "const %a" pp_const_decl c
   | Open (local, s) -> if local then fprintf fmt "#open \"%s\"" s else fprintf fmt "#open <%s>" s
+  | Include s -> fprintf fmt "include \"%s\"" s
   | TypeDef tdef -> fprintf fmt "%a" pp_typedef tdef
   
 let pp_prog fmt prog =
@@ -402,6 +403,7 @@ let pp_short_decl fmt decl =
   | Node nd -> fprintf fmt "node %s@ " nd.node_id
   | ImportedNode ind -> fprintf fmt "imported node %s" ind.nodei_id
   | Const c -> fprintf fmt "const %a@ " pp_const_decl c
+  | Include s -> fprintf fmt "include \"%s\"" s
   | Open (local, s) -> if local then fprintf fmt "#open \"%s\"@ " s else fprintf fmt "#open <%s>@ " s
   | TypeDef tdef -> fprintf fmt "type %s;@ " tdef.tydef_id
   
@@ -409,6 +411,7 @@ let pp_lusi fmt decl =
   match decl.top_decl_desc with
   | ImportedNode ind -> fprintf fmt "%a;@ " pp_imported_node ind
   | Const c -> fprintf fmt "const %a@ " pp_const_decl c
+  | Include s -> fprintf fmt "include \"%s\"" s
   | Open (local, s) -> if local then fprintf fmt "#open \"%s\"@ " s else fprintf fmt "#open <%s>@ " s
   | TypeDef tdef -> fprintf fmt "%a@ " pp_typedef tdef
   | Node _ -> assert false

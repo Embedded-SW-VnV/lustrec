@@ -630,7 +630,7 @@ let normalize_decl (decls: program_t) (decl: top_decl) : top_decl =
     let decl' = {decl with top_decl_desc = Node (normalize_node decls nd)} in
     Hashtbl.replace Corelang.node_table nd.node_id decl';
     decl'
-  | Open _ | ImportedNode _ | Const _ | TypeDef _ -> decl
+    | Include _| Open _ | ImportedNode _ | Const _ | TypeDef _ -> decl
 
 let normalize_prog p decls =
   (* Backend specific configurations for normalization *)

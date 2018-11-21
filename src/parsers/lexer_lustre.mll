@@ -126,6 +126,7 @@ rule token = parse
 | "tel." {TEL}
 | "tel;" {TEL}
 | "#open" { OPEN }
+| "include" { INCLUDE }
 | ['_' 'a'-'z'] [ '_' 'a'-'z' 'A'-'Z' '0'-'9']*
     {let s = Lexing.lexeme lexbuf in
     try
@@ -137,7 +138,7 @@ rule token = parse
     try
       Hashtbl.find keyword_table s
     with Not_found ->
-      UIDENT s}
+      UIDENT s}     
 | "->" {ARROW}
 | "=>" {IMPL}
 | "<=" {LTE}
@@ -161,12 +162,12 @@ rule token = parse
 | ':' {COL}
 | ',' {COMMA}
 | '=' {EQ}
-| '/' {DIV}
 | "&&" {AMPERAMPER}
 | "||" {BARBAR}
 | "::" {COLCOL}
 | "^" {POWER}
 | '"' {QUOTE}
+| '.' {POINT}
 | eof { EOF }
 | _ { raise (Parse.Error (Location.curr lexbuf, Parse.Undefined_token (Lexing.lexeme lexbuf))) }
 

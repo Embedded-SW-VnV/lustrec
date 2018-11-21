@@ -58,8 +58,8 @@ let search_lib_path (local, full_file_name) =
 let core_dependency lib_name =
   search_lib_path (false, lib_name ^ ".h")
     
-let name_dependency (local, dep) =
-  let dir = search_lib_path (false, dep ^ ".lusic") in
+let name_dependency (local, dep) ext =
+  let dir = search_lib_path (false, dep ^ ext) in
   dir ^ "/" ^ dep
   
 let set_mpfr prec =
