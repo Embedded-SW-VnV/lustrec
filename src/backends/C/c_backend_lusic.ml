@@ -10,8 +10,8 @@ let module Header = C_backend_header.Main (HeaderMod) in
   begin
     assert (not lusic.obsolete);
     (*Format.eprintf "lusic to h: %i items.@." (List.length lusic.contents);*)
-    Typing.uneval_prog_generics lusic.contents;
-    Clock_calculus.uneval_prog_generics lusic.contents;
+    (* Typing.uneval_prog_generics lusic.contents;
+     * Clock_calculus.uneval_prog_generics lusic.contents; *)
     Header.print_header_from_header h_fmt (Filename.basename basename) lusic.contents;
     close_out h_out
   end
