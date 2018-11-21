@@ -49,11 +49,12 @@ val mkinstr: ?lustre_expr:expr -> ?lustre_eq: eq -> Machine_code_types.instr_t_d
 val get_instr_desc: Machine_code_types.instr_t -> Machine_code_types.instr_t_desc
 val update_instr_desc: Machine_code_types.instr_t -> Machine_code_types.instr_t_desc -> Machine_code_types.instr_t
   
-val node_table : (ident, top_decl) Hashtbl.t
+(*val node_table : (ident, top_decl) Hashtbl.t*)
 val print_node_table:  Format.formatter -> unit -> unit
 val node_name: top_decl -> ident
 val node_inputs: top_decl -> var_decl list
 val node_from_name: ident -> top_decl
+val update_node: ident -> top_decl -> unit
 val is_generic_node: top_decl -> bool
 val is_imported_node: top_decl -> bool
 
@@ -173,7 +174,9 @@ val update_expr_annot: ident -> expr -> expr_annot -> expr
 val expr_contains_expr: tag -> expr -> bool
 
 val reset_cpt_fresh: unit -> unit
-val mk_fresh_var: node_desc -> Location.t -> Types.type_expr ->  Clocks.clock_expr -> var_decl
+  
+(* mk_fresh_var parentid to be registered as parent_nodeid, vars is the list of existing vars in that context *)
+val mk_fresh_var: (ident * var_decl list) -> Location.t -> Types.type_expr ->  Clocks.clock_expr -> var_decl
 
 val find_eq: ident list -> eq list -> eq * eq list
 val get_expr_calls: top_decl list -> expr -> Utils.ISet.t

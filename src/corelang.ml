@@ -307,10 +307,12 @@ let node_inputs td =
   | _ -> assert false
 
 let node_from_name id =
-  try
-    Hashtbl.find node_table id
-  with Not_found -> (Format.eprintf "Unable to find any node named %s@ @?" id;
-		     assert false)
+      Hashtbl.find node_table id
+  (* with Not_found -> (Format.eprintf "Unable to find any node named %s@ @?" id;
+   *       	     assert false) *)
+
+let update_node id top =
+  Hashtbl.replace node_table id top
 
 let is_imported_node td =
   match td.top_decl_desc with 
@@ -1221,12 +1223,11 @@ let cpt_fresh = ref 0
 let reset_cpt_fresh () =
     cpt_fresh := 0
     
-let mk_fresh_var node loc ty ck =
-  let vars = get_node_vars node in
+let mk_fresh_var (parentid, ctx_env) loc ty ck =
   let rec aux () =
   incr cpt_fresh;
-  let s = Printf.sprintf "__%s_%d" node.node_id !cpt_fresh in
-  if List.exists (fun v -> v.var_id = s) vars then aux () else
+  let s = Printf.sprintf "__%s_%d" parentid !cpt_fresh in
+  if List.exists (fun v -> v.var_id = s) ctx_env then aux () else
   {
     var_id = s;
     var_orig = false;
@@ -1234,7 +1235,7 @@ let mk_fresh_var node loc ty ck =
     var_dec_clock = dummy_clock_dec;
     var_dec_const = false;
     var_dec_value = None;
-    var_parent_nodeid = Some node.node_id;
+    var_parent_nodeid = Some parentid;
     var_type = ty;
     var_clock = ck;
     var_loc = loc

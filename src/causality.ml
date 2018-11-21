@@ -395,7 +395,7 @@ module NodeDep = struct
       (fun td ->
 	match td.top_decl_desc with 
 	| Node nd ->
-	   let prednode n = is_generic_node (Hashtbl.find node_table n) in
+	   let prednode n = is_generic_node (node_from_name n) in
 	   nd.node_gencalls <- get_calls prednode nd
 	| _ -> ()
 	   

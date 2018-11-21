@@ -262,13 +262,14 @@ let rec inject_eq node defvars eq =
 let inject_node node = 
   cpt_fresh := 0;
   let inputs_outputs = node.node_inputs@node.node_outputs in
+  let norm_ctx = (node.node_id, get_node_vars node) in
   let is_local v =
     List.for_all ((!=) v) inputs_outputs in
   let orig_vars = inputs_outputs@node.node_locals in
   let defs, vars =
     let eqs, auts = get_node_eqs node in
     if auts != [] then assert false; (* Automata should be expanded by now. *)
-    List.fold_left (inject_eq node) ([], orig_vars) eqs in
+    List.fold_left (inject_eq norm_ctx) ([], orig_vars) eqs in
   (* Normalize the asserts *)
   let vars, assert_defs, asserts = 
     List.fold_left (
@@ -277,7 +278,7 @@ let inject_node node =
       let (defs, vars'), expr = 
 	inject_expr 
 	  ~alias:false 
-	  node 
+	  norm_ctx 
 	  ([], vars) (* defvar only contains vars *)
 	  assert_expr
       in

@@ -67,7 +67,7 @@ let stage1 params prog dirname basename extension =
 
   (* Importing source *)
   let prog, dependencies, (typ_env, clk_env) = Modules.load ~is_header:(extension = ".lusi") prog in
-  
+
   (* Registering types and clocks for future checks *)
   Global.type_env := Env.overwrite !Global.type_env typ_env;
   Global.clock_env := Env.overwrite !Global.clock_env clk_env;

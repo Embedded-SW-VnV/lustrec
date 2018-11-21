@@ -27,22 +27,22 @@ let check_symbol loc msg hashtbl name =
 let add_imported_node name value =
 (*Format.eprintf "add_imported_node %s %a (owner=%s)@." name Printers.pp_imported_node (imported_node_of_top value) value.top_decl_owner;*)
   try
-    let value' = Hashtbl.find node_table name in
+    let value' = node_from_name name in
     let owner' = value'.top_decl_owner in
     let itf' = value'.top_decl_itf in
     let owner = value.top_decl_owner in
     let itf = value.top_decl_itf in
     match value'.top_decl_desc, value.top_decl_desc with
-    | Node _        , ImportedNode _  when owner = owner' && itf' && (not itf) -> Hashtbl.add node_table name value
+    | Node _        , ImportedNode _  when owner = owner' && itf' && (not itf) -> update_node name value
     | ImportedNode _, ImportedNode _            -> raise (Error (value.top_decl_loc, Error.Already_bound_symbol ("node " ^ name)))
     | _                                         -> assert false
   with
-    Not_found                                   -> Hashtbl.add node_table name value
+    Not_found                                   -> update_node name value
 
 let add_node name value =
 (*Format.eprintf "add_node %s %a (owner=%s)@." name Printers.pp_imported_node (get_node_interface (node_of_top value)) value.top_decl_owner;*)
   try
-    let value' = Hashtbl.find node_table name in
+    let value' = node_from_name name in
     let owner' = value'.top_decl_owner in
     let itf' = value'.top_decl_itf in
     let owner = value.top_decl_owner in
@@ -52,7 +52,7 @@ let add_node name value =
     | Node _        , Node _                    -> raise (Error (value.top_decl_loc, Error.Already_bound_symbol ("node " ^ name)))
     | _                                         -> assert false
   with
-    Not_found                                   -> Hashtbl.add node_table name value
+    Not_found                                   -> update_node name value
 
 
 let add_tag loc name typ =
