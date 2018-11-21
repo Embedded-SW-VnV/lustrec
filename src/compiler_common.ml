@@ -35,55 +35,40 @@ let create_dest_dir () =
       end
   end
 
-(* Loading Lusi file and filling type tables with parsed
+(* Loading Lus/Lusi file and filling type tables with parsed
    functions/nodes *)
-let parse_header own filename =
+let parse filename extension =
   Location.set_input filename;
-  let h_in = open_in filename in
-  let lexbuf = Lexing.from_channel h_in in
+  let f_in = open_in filename in
+  let lexbuf = Lexing.from_channel f_in in
   Location.init lexbuf filename;
   (* Parsing *)
-  Log.report ~level:1 (fun fmt -> fprintf fmt ".. parsing header file %s@ " filename);
+  let prog = 
     try
-      let header = Parse.header Parser_lustre.header Lexer_lustre.token lexbuf in
-      (*ignore (Modules.load_header ISet.empty header);*)
-      close_in h_in;
-      header
+      match extension with
+        ".lusi" ->
+        Log.report ~level:1
+          (fun fmt -> fprintf fmt ".. parsing header file %s@ " filename);
+        Parse.header Parser_lustre.header Lexer_lustre.token lexbuf 
+      | ".lus" ->
+         Log.report ~level:1 
+           (fun fmt -> fprintf fmt ".. parsing source file %s@ " filename);
+         Parse.prog Parser_lustre.prog Lexer_lustre.token lexbuf
+      | _ -> assert false
     with
     | (Parse.Error err) as exc -> 
-      Parse.report_error err;
-      raise exc
+       Parse.report_error err;
+       raise exc
     | Corelang.Error (loc, err) as exc -> (
       eprintf "Parsing error: %a%a@."
-	Error.pp_error_msg err
-	Location.pp_loc loc;
+        Error.pp_error_msg err
+        Location.pp_loc loc;
       raise exc
     )
-
-let parse_source source_name =
-  (* Loading the input file *)
-  Location.set_input source_name;
-  let s_in = open_in source_name in
-  let lexbuf = Lexing.from_channel s_in in
-  Location.init lexbuf source_name;
-
-  (* Parsing *)
-  Log.report ~level:1 
-    (fun fmt -> fprintf fmt ".. parsing source file %s@ " source_name);
-  try
-    let prog = Parse.prog Parser_lustre.prog Lexer_lustre.token lexbuf in
-    (*ignore (Modules.load_program ISet.empty prog);*)
-    close_in s_in;
-    prog
-  with
-  | (Parse.Error err) as exc -> 
-    Parse.report_error err;
-    raise exc
-  | Corelang.Error (loc, err) as exc ->
-    eprintf "Parsing error: %a%a@."
-      Error.pp_error_msg err
-      Location.pp_loc loc;
-    raise exc
+  in
+  close_in f_in;
+  prog
+    
 
 let expand_automata decls =
   Log.report ~level:1 (fun fmt -> fprintf fmt ".. expanding automata@ ");
@@ -169,10 +154,6 @@ let check_top_decls header =
    (Env.initial, Env.initial)
  *)
 
-let generate_lusic_header destname lusic_ext =	
-  match !Options.output with
-  | "C" -> C_backend_lusic.print_lusic_to_h destname lusic_ext
-  | _ -> ()
 	 
 
     

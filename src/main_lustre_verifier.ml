@@ -48,7 +48,7 @@ let rec verify dirname basename extension =
   decr Options.verbose_level;
 
   (* Parsing source *)
-  let prog = parse_source source_name in
+  let prog = parse source_name extension in
 
   (* Checking which solver is active *)
   incr Options.verbose_level;
@@ -63,7 +63,7 @@ let rec verify dirname basename extension =
       incr Options.verbose_level;
       let params = Verifier.get_normalization_params () in
       decr Options.verbose_level;
-      Compiler_stages.stage1 params prog dirname basename
+      Compiler_stages.stage1 params prog dirname basename extension
     with Compiler_stages.StopPhase1 prog -> (
         assert false
     )

@@ -361,8 +361,6 @@ contract:
     { merge_contracts (mk_contract_var $2 true None $4 (get_loc())) $6 }
 | CONST IDENT COL typeconst EQ expr SCOL contract
     { merge_contracts (mk_contract_var $2 true (Some(mktyp $4)) $6 (get_loc())) $8 }
-| VAR IDENT EQ expr SCOL contract
-    { merge_contracts (mk_contract_var $2 false None $4 (get_loc())) $6 }
 | VAR IDENT COL typeconst EQ expr SCOL contract
     { merge_contracts (mk_contract_var $2 false (Some(mktyp $4)) $6 (get_loc())) $8 }
 | ASSUME qexpr SCOL contract

@@ -44,9 +44,9 @@ let testgen_source dirname basename extension =
   Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v>");
 
   (* Parsing source *)
-  let prog = parse_source source_name in
+  let prog = parse source_name extension in
   let params = Backends.get_normalization_params () in
-  let prog, dependencies = Compiler_stages.stage1 params prog dirname basename in
+  let prog, dependencies = Compiler_stages.stage1 params prog dirname basename extension in
 
   (* Two cases
      - generation of coverage conditions

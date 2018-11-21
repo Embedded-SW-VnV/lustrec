@@ -213,10 +213,12 @@ let rec load_rec ~is_header accu program =
          )
       | Include name ->
          let basename = Options_management.name_dependency (true, name) "" in
-         let include_src = Compiler_common.parse_source basename in
-         load_rec ~is_header:false accu include_src
-                         
-
+         if Filename.check_suffix basename ".lus" then
+           let include_src = Compiler_common.parse basename ".lus" in
+           load_rec ~is_header:false accu include_src
+         else
+           raise (Error (decl.top_decl_loc, LoadError("include requires a lustre file")))
+   
       | Node nd ->
          if is_header then
            raise (Error(decl.top_decl_loc,

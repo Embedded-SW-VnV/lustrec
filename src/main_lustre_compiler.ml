@@ -34,43 +34,24 @@ let print_lusi prog dirname basename extension =
     close_out h_out
   end
 
-(* compile a .lusi header file *)
-let compile_header dirname  basename extension =
-  let destname = !Options.dest_dir ^ "/" ^ basename in
-  let header_name = basename ^ extension in
-  let lusic_ext = extension ^ "c" in
-  begin
-    Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v>");
-    let header = parse_header true (dirname ^ "/" ^ header_name) in
-    (* Disbaled today, should be done anyway when following the regular compilation 
-ignore (Modules.load ~is_header:true ISet.empty header); *)
-    ignore (check_top_decls header); (* typing/clocking with an empty env *)
-    create_dest_dir ();
-    Log.report ~level:1
-      (fun fmt -> fprintf fmt ".. generating compiled header file %sc@," (destname ^ extension));
-    Lusic.write_lusic true header destname lusic_ext;
-    generate_lusic_header destname lusic_ext;
-
-
-
-    Log.report ~level:1 (fun fmt -> fprintf fmt ".. done !@ @]@ ")
-  end
 
 
 
 
 
 (* compile a .lus source file *)
-let rec compile_source dirname basename extension =
+let rec compile dirname basename extension =
   let source_name = dirname ^ "/" ^ basename ^ extension in
 
   Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 0>");
 
   (* Parsing source *)
-  let prog = parse_source source_name in
+  let prog = parse source_name extension in
 
   let prog =
-    if !Options.mpfr then
+    if !Options.mpfr &&
+         extension = ".lus" (* trying to avoid the injection of the module for lusi files *) 
+    then
       Mpfr.mpfr_module::prog
     else
       prog
@@ -80,7 +61,7 @@ let rec compile_source dirname basename extension =
   let prog, dependencies = 
     Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>.. Phase 1 : Normalisation@,");
     try 
-      Compiler_stages.stage1 params prog dirname basename
+      Compiler_stages.stage1 params prog dirname basename extension
     with Compiler_stages.StopPhase1 prog -> (
       if !Options.lusi then
 	begin
@@ -118,7 +99,7 @@ let rec compile_source dirname basename extension =
   let machine_code = Plugins.refine_machine_code prog machine_code in
   Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ @ ");
   
-  Compiler_stages.stage3 prog machine_code dependencies basename;
+  Compiler_stages.stage3 prog machine_code dependencies basename extension;
   begin
     Log.report ~level:1 (fun fmt -> fprintf fmt ".. done !@ @]@.");
     (* We stop the process here *)
@@ -127,8 +108,8 @@ let rec compile_source dirname basename extension =
 
 let compile dirname basename extension =
   match extension with
-  | ".lusi"  -> compile_header dirname basename extension
-  | ".lus"   -> compile_source dirname basename extension
+  | ".lusi"  
+  | ".lus"   -> compile dirname basename extension
   | _        -> assert false
 
 let anonymous filename =

@@ -289,33 +289,48 @@ let pp_eexpr fmt e =
     (fun fmt -> match e.eexpr_quantifiers with [] -> () | _ -> fprintf fmt ";")
     pp_expr e.eexpr_qfexpr
 
+    
+let pp_spec_eq fmt eq = 
+  fprintf fmt "var %a : %a = %a;" 
+    pp_eq_lhs eq.eq_lhs
+    Types.print_node_ty eq.eq_rhs.expr_type
+    pp_expr eq.eq_rhs
+  
+let pp_spec_stmt fmt stmt =
+  match stmt with
+  | Eq eq -> pp_spec_eq fmt eq
+  | Aut aut -> assert false (* Not supported yet *)
+             
+  
 let pp_spec fmt spec =
-  fprintf fmt "@[<hov 2>(*@@ ";
   (* const are prefixed with const in pp_var and with nothing for regular
      variables. We adapt the call to produce the appropriate output. *)
-  fprintf_list ~sep:"@,@@ " (fun fmt v ->
-    fprintf fmt "%s%a = %t;"
-      (if v.var_dec_const then "" else "var")
+    fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt v ->
+    fprintf fmt "const %a = %t;"
       pp_var v
-      (fun fmt -> match v.var_dec_value with None -> () | Some e -> pp_expr fmt e)
-  ) fmt (spec.consts @ spec.locals);
-  fprintf_list ~sep:"@,@@ " (fun fmt r -> fprintf fmt "assume %a;" pp_eexpr r) fmt spec.assume;
-  fprintf_list ~sep:"@,@@ " (fun fmt r -> fprintf fmt "guarantees %a;" pp_eexpr r) fmt spec.guarantees;
-  fprintf_list ~sep:"@,@@ " (fun fmt mode ->
+      (fun fmt -> match v.var_dec_value with None -> assert false | Some e -> pp_expr fmt e)
+    ) fmt spec.consts;
+  
+  fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt s -> pp_spec_stmt fmt s) fmt spec.stmts;
+  fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt r -> fprintf fmt "assume %a;" pp_eexpr r) fmt spec.assume;
+  fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt r -> fprintf fmt "guarantees %a;" pp_eexpr r) fmt spec.guarantees;
+  fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt mode ->
     fprintf fmt "mode %s (@[@ %a@ %a@]);" 
       mode.mode_id
-      (fprintf_list ~sep:"@ " (fun fmt r -> fprintf fmt "require %a;" pp_eexpr r)) mode.require
-      (fprintf_list ~sep:"@ " (fun fmt r -> fprintf fmt "ensure %a;" pp_eexpr r)) mode.ensure
+      (fprintf_list ~eol:"@," ~sep:"@ " (fun fmt r -> fprintf fmt "require %a;" pp_eexpr r)) mode.require
+      (fprintf_list ~eol:"@," ~sep:"@ " (fun fmt r -> fprintf fmt "ensure %a;" pp_eexpr r)) mode.ensure
   ) fmt spec.modes;
-  fprintf_list ~sep:"@,@@ " (fun fmt import ->
+  fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt import ->
     fprintf fmt "import %s (%a) returns (%a);" 
       import.import_nodeid
       (fprintf_list ~sep:"@ " pp_expr) import.inputs
       (fprintf_list ~sep:"@ " pp_expr) import.outputs
-  ) fmt spec.imports;
-  fprintf fmt "@]*)";
-  ()
+  ) fmt spec.imports
 
+let pp_spec_as_comment fmt spec =
+  fprintf fmt "@[<hov 2>(*@@ ";
+  pp_spec fmt spec;
+  fprintf fmt "@]*)@ "
     
 let pp_node fmt nd =
   fprintf fmt "@[<v 0>";
@@ -327,7 +342,7 @@ let pp_node fmt nd =
     pp_node_args nd.node_outputs;
   (* Contracts *)
   fprintf fmt "%a%t"
-    (fun fmt s -> match s with Some s -> pp_spec fmt s | _ -> ()) nd.node_spec
+    (fun fmt s -> match s with Some s -> pp_spec_as_comment fmt s | _ -> ()) nd.node_spec
     (fun fmt -> match nd.node_spec with None -> () | Some _ -> fprintf fmt "@ ");
   (* Locals *)
   fprintf fmt "%a" (fun fmt locals ->
@@ -361,11 +376,19 @@ let pp_node fmt nd =
 (*fprintf fmt "@ /* Scheduling: %a */ @ " (fprintf_list ~sep:", " pp_print_string) (Scheduling.schedule_node nd)*)
 
 let pp_imported_node fmt ind = 
-  fprintf fmt "@[<v>%s %s (%a) returns (%a)@]"
+  fprintf fmt "@[<v 0>";
+  (* Prototype *)
+  fprintf fmt  "%s @[<hov 0>%s (@[%a)@]@ returns (@[%a)@]@]@ "
     (if ind.nodei_stateless then "function" else "node")
     ind.nodei_id
     pp_node_args ind.nodei_inputs
-    pp_node_args ind.nodei_outputs
+    pp_node_args ind.nodei_outputs;
+  (* Contracts *)
+  fprintf fmt "%a%t"
+    (fun fmt s -> match s with Some s -> pp_spec_as_comment fmt s | _ -> ()) ind.nodei_spec
+    (fun fmt -> match ind.nodei_spec with None -> () | Some _ -> fprintf fmt "@ ");
+  fprintf fmt "@]@ "
+  
 
 let pp_const_decl fmt cdecl =
   fprintf fmt "%s = %a;" cdecl.const_id pp_const cdecl.const_value

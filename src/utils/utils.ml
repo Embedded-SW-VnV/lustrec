@@ -253,11 +253,19 @@ let pp_final_char_if_non_empty c l =
 let pp_newline_if_non_empty l =
   (fun fmt -> match l with [] -> () | _ -> Format.fprintf fmt "@,")
 
-let rec fprintf_list ~sep:sep f fmt = function
+let fprintf_list ?(eol:('a, formatter, unit) Pervasives.format = "") ~sep:sep f fmt l =
+  let rec aux fmt = function
   | []   -> ()
   | [e]  -> f fmt e
-  | x::r -> Format.fprintf fmt "%a%(%)%a" f x sep (fprintf_list ~sep f) r
-
+  | x::r -> Format.fprintf fmt "%a%(%)%a" f x sep aux r
+  in
+  match l with
+  | [] -> ()
+  | _ -> (
+    aux fmt l;
+    Format.fprintf fmt "%(%)" eol
+  )                 
+   
 let pp_list l pp_fun beg_str end_str sep_str =
   if (beg_str="\n") then
     print_newline ()

@@ -41,7 +41,7 @@ let pp_error fmt err =
   | Node_spec_error s       -> fprintf fmt "Impossible to parse the following node specification:@.%s@.@?" s
 
 let report_error (loc, err) =
-  eprintf "Syntax error: %a%a@."
+  eprintf "Syntax error: %a@.%a@."
     pp_error err
     Location.pp_loc loc
 
