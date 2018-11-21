@@ -228,12 +228,12 @@ type top_decl =
 
 type program_t = top_decl list
 
-type dep_t = Dep of
-    bool
-  * ident
-  * (top_decl list)
-  * bool (* is stateful *)
-
+type dep_t = {
+    local: bool;
+    name: ident;
+    content: program_t;
+    is_stateful: bool
+  }
 
 
 

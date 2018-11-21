@@ -36,9 +36,9 @@ let compile_source_to_header prog computed_types_env computed_clocks_env dirname
       else
 	begin
 	  Log.report ~level:1 (fun fmt -> fprintf fmt ".. loading compiled header file %s@," header_name);
-	  Modules.check_dependency lusic destname;
+	  Lusic.check_obsolete lusic destname;
 	  let header = lusic.Lusic.contents in
-	  let (declared_types_env, declared_clocks_env) = get_envs_from_top_decls header in
+	  let (declared_types_env, declared_clocks_env) = Modules.get_envs_from_top_decls header in
 	  check_compatibility
 	    (prog, computed_types_env, computed_clocks_env)
 	    (header, declared_types_env, declared_clocks_env)
@@ -56,10 +56,14 @@ let stage1 params prog dirname basename =
   Log.report ~level:4 (fun fmt -> fprintf fmt ".. after automata expansion:@,  @[<v 2>@,%a@]@ " Printers.pp_prog prog);
 
   (* Importing source *)
-  let _ = Modules.load ~is_header:false ISet.empty prog in
+  let prog, dependencies, (typ_env, clk_env) = Modules.load ~is_header:false prog in
 
-  (* Extracting dependencies (and updating Global.(type_env/clock_env) *)
-  let dependencies = import_dependencies prog in
+  (* Registering types and clocks for future checks *)
+  Global.type_env := Env.overwrite !Global.type_env typ_env;
+  Global.clock_env := Env.overwrite !Global.clock_env clk_env;
+  
+  (* (\* Extracting dependencies (and updating Global.(type_env/clock_env) *\)
+   * let dependencies = import_dependencies prog in *)
 
   (* Sorting nodes *)
   let prog = SortProg.sort prog in

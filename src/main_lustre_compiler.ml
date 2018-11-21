@@ -42,13 +42,17 @@ let compile_header dirname  basename extension =
   begin
     Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v>");
     let header = parse_header true (dirname ^ "/" ^ header_name) in
-    ignore (Modules.load ~is_header:true ISet.empty header);
+    (* Disbaled today, should be done anyway when following the regular compilation 
+ignore (Modules.load ~is_header:true ISet.empty header); *)
     ignore (check_top_decls header); (* typing/clocking with an empty env *)
     create_dest_dir ();
     Log.report ~level:1
       (fun fmt -> fprintf fmt ".. generating compiled header file %sc@," (destname ^ extension));
     Lusic.write_lusic true header destname lusic_ext;
     generate_lusic_header destname lusic_ext;
+
+
+
     Log.report ~level:1 (fun fmt -> fprintf fmt ".. done !@ @]@ ")
   end
 

@@ -144,7 +144,7 @@ let fast_stages_processing prog =
 
   (* Mini stage 1 *)
   (* Extracting dependencies: fill some table with typing info *)
-  ignore (Compiler_common.import_dependencies prog);
+  ignore (Modules.load ~is_header:false prog);
   (* Local inlining *)
   let prog = Inliner.local_inline prog (* type_env clock_env *) in
   (* Checking stateless/stateful status *)
