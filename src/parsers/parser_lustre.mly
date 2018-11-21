@@ -167,20 +167,21 @@ type_ident:
   IDENT { $1 }
 
 prog:
- open_list typ_def_prog top_decl_list EOF { $1 @ $2 @ (List.rev $3) }
+ prefix_prog top_decl_list EOF { $1 @ (List.rev $2) }
 
-typ_def_prog:
- typ_def_list { $1 false }
+prefix_prog:
+    { [] }
+  | open_lusi prefix_prog { $1 :: $2 }
+  | typ_def prefix_prog   { ($1 false (* not a header *)) :: $2 }
+
+prefix_header:
+    { [] }
+  | open_lusi prefix_header { $1 :: $2 }
+  | typ_def prefix_header   { ($1 true (* is a header *)) :: $2 }
 
 header:
- open_list typ_def_header top_decl_header_list EOF { $1 @ $2 @ (List.rev $3) }
+ prefix_header top_decl_header_list EOF { $1 @ (List.rev $2) }
 
-typ_def_header:
- typ_def_list { $1 true }
-
-open_list:
-  { [] }
-| open_lusi open_list { $1 :: $2 }
 
 open_lusi:
   | OPEN QUOTE path_ident QUOTE { mktop_decl false (Open (true, $3)) }
@@ -268,6 +269,35 @@ top_decl:
      pop_node ();
      (*add_node $3 nd;*) [nd] }
 
+| state_annot IMPORTED node_ident_decl LPAR vdecl_list SCOL_opt RPAR RETURNS LPAR vdecl_list SCOL_opt RPAR SCOL_opt LET contract TEL
+    {let nd = mktop_decl true (ImportedNode
+				 {nodei_id = $3;
+				  nodei_type = Types.new_var ();
+				  nodei_clock = Clocks.new_var true;
+				  nodei_inputs = List.rev $5;
+				  nodei_outputs = List.rev $10;
+				  nodei_stateless = $1;
+				  nodei_spec = Some $15;
+				  nodei_prototype = None;
+				  nodei_in_lib = [];})
+     in
+     pop_node ();
+     (*add_imported_node $3 nd;*) [nd] } 
+| state_annot IMPORTED node_ident_decl LPAR vdecl_list SCOL_opt RPAR RETURNS LPAR vdecl_list SCOL_opt RPAR SCOL
+    {let nd = mktop_decl true (ImportedNode
+				 {nodei_id = $3;
+				  nodei_type = Types.new_var ();
+				  nodei_clock = Clocks.new_var true;
+				  nodei_inputs = List.rev $5;
+				  nodei_outputs = List.rev $10;
+				  nodei_stateless = $1;
+				  nodei_spec = None;
+				  nodei_prototype = None;
+				  nodei_in_lib = [];})
+     in
+     pop_node ();
+     (*add_imported_node $3 nd;*) [nd] } 
+
 nodespec_list:
  { None }
 | NODESPEC nodespec_list { 
@@ -277,10 +307,10 @@ nodespec_list:
 
 typ_def_list:
     /* empty */             { (fun itf -> []) }
-| typ_def SCOL typ_def_list { (fun itf -> let ty1 = ($1 itf) in ty1 :: ($3 itf)) }
+| typ_def typ_def_list { (fun itf -> let ty1 = ($1 itf) in ty1 :: ($2 itf)) }
 
 typ_def:
-  TYPE type_ident EQ typ_def_rhs { (fun itf ->
+  TYPE type_ident EQ typ_def_rhs SCOL { (fun itf ->
 			       let typ = mktop_decl itf (TypeDef { tydef_id = $2;
 								   tydef_desc = $4
 							})
