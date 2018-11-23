@@ -128,7 +128,11 @@ let slice_node vars_to_keep msch nd =
   report ~level:3 (fun fmt -> Format.fprintf fmt "Scheduling node@.");
   
   (* Split tuples while sorting eqs *)
-  let sorted_eqs = Scheduling.sort_equations_from_schedule nd msch.Scheduling_type.schedule in
+  let eqs, auts = Corelang.get_node_eqs nd in
+  assert (auts = []); (* Automata should be expanded by now *)
+  let sorted_eqs = Scheduling.sort_equations_from_schedule
+                     eqs
+                     msch.Scheduling_type.schedule in
 
   report ~level:3 (fun fmt -> Format.fprintf fmt "Scheduled node@.");
 

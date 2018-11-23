@@ -27,12 +27,17 @@ module VMap = Map.Make(VDeclModule)
 
 module VSet: sig
   include Set.S
-  val pp: Format.formatter -> t -> unit 
+  val pp: Format.formatter -> t -> unit
+  val get: ident -> t -> elt
 end with type elt = var_decl =
   struct
     include Set.Make(VDeclModule)
     let pp fmt s =
-      Format.fprintf fmt "{@[%a}@]" (Utils.fprintf_list ~sep:",@ " Printers.pp_var) (elements s)  
+      Format.fprintf fmt "{@[%a}@]" (Utils.fprintf_list ~sep:",@ " Printers.pp_var) (elements s)
+    (* Strangley the find_first function of Set.Make is incorrect (at
+       the current time of writting this comment. Had to switch to
+       lists *)
+    let get id s = List.find (fun v -> v.var_id = id) (elements s)
   end
 let dummy_type_dec = {ty_dec_desc=Tydec_any; ty_dec_loc=Location.dummy_loc}
 
@@ -1027,6 +1032,7 @@ let rec substitute_expr vars_to_replace defs e =
      eexpr_type = expr.expr_type;
      eexpr_clock = expr.expr_clock;
      eexpr_loc = expr.expr_loc;
+     (*eexpr_normalized = None*)
    }
  (* and expr_desc_to_eexpr_desc expr_desc = *)
  (*   let conv = expr_to_eexpr in *)

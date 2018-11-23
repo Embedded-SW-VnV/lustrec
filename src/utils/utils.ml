@@ -32,8 +32,12 @@ struct (* Node module *)
   let equal n1 n2 = n1 = n2
 end
 
-module IMap = Map.Make(IdentModule)
-    
+module IMap =
+  struct
+    include Map.Make(IdentModule)
+    let elements m =  fold (fun i n res -> (i, n)::res) m [] 
+  end
+  
 module ISet = Set.Make(IdentModule)
 module IdentDepGraph = Imperative.Digraph.ConcreteBidirectional (IdentModule)
 module TopologicalDepGraph = Topological.Make(IdentDepGraph)

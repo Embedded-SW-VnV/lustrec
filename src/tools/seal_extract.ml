@@ -298,7 +298,9 @@ let node_as_switched_sys (mems:var_decl list) nd =
      the call to schedule_node *)
   let nd_report = Scheduling.schedule_node nd in
   let schedule = nd_report.Scheduling_type.schedule in
-  let sorted_eqs = Scheduling.sort_equations_from_schedule nd schedule in
+  let eqs, auts = Corelang.get_node_eqs nd in
+  assert (auts = []); (* Automata should be expanded by now *)
+  let sorted_eqs = Scheduling.sort_equations_from_schedule eqs schedule in
   let defs : (ident,  guarded_expr list) Hashtbl.t = Hashtbl.create 13 in
   let add_def = add_def defs in
   (* Registering node equations *)

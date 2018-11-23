@@ -249,12 +249,10 @@ let pp_warning_unused fmt node_schs =
 (* Sort the set of equations of node [nd] according
    to the computed schedule [sch]
 *)
-let sort_equations_from_schedule nd sch =
+let sort_equations_from_schedule eqs sch =
   (* Format.eprintf "%s schedule: %a@." *)
   (* 		 nd.node_id *)
   (* 		 (Utils.fprintf_list ~sep:" ; " Scheduling.pp_eq_schedule) sch; *)
-  let eqs, auts = get_node_eqs nd in
-  assert (auts = []); (* Automata should be expanded by now *)
   let split_eqs = Splitting.tuple_split_eq_list eqs in
   let eqs_rev, remainder =
     List.fold_left
@@ -271,8 +269,6 @@ let sort_equations_from_schedule nd sch =
   in
   begin
     if List.length remainder > 0 then (
-      let eqs, auts = get_node_eqs nd in
-      assert (auts = []); (* Automata should be expanded by now *)
       Format.eprintf "Equations not used are@.%a@.Full equation set is:@.%a@.@?"
 		     Printers.pp_node_eqs remainder
       		     Printers.pp_node_eqs eqs;

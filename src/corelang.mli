@@ -16,6 +16,7 @@ exception Error of Location.t * Error.error_kind
 module VSet: sig
   include Set.S
   val pp: Format.formatter -> t -> unit 
+  val get: ident -> t -> elt
 end with type elt = Lustre_types.var_decl 
   
 val dummy_type_dec: type_dec
