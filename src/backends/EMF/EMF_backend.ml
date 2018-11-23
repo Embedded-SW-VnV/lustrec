@@ -375,14 +375,60 @@ let pp_emf_annot cpt fmt (key, ee) =
       pp_emf_eexpr ee
   in
   incr cpt
+
+let pp_emf_spec_mode fmt m =
+  fprintf fmt "{@[";
+  fprintf fmt "\"mode_id\": \"%s\",@ "
+    m.mode_id;
+  fprintf fmt "\"require\": [%a],@ "
+    pp_emf_eexprs m.ensure;
+  fprintf fmt "\"require\": [%a],@ "
+    pp_emf_eexprs m.require;
+  fprintf fmt "@]}"
+  
+let pp_emf_spec_modes = pp_emf_list pp_emf_spec_mode
+
+let pp_emf_spec_import fmt i =
+  fprintf fmt "{@[";
+  fprintf fmt "\"contract\": \"%s\",@ "
+    i.import_nodeid;
+  fprintf fmt "\"inputs\": [%a],@ "
+    pp_emf_exprs i.inputs;
+  fprintf fmt "\"outputs\": [%a],@ "
+    pp_emf_exprs i.outputs;
+  fprintf fmt "@]}"
+  
+let pp_emf_spec_imports = pp_emf_list pp_emf_spec_import
+
+let pp_emf_spec fmt spec =
+  fprintf fmt "{ @[<hov 0>";
+  fprintf fmt "\"consts\": [%a],@ "
+    pp_emf_consts spec.consts;
+  fprintf fmt "\"locals\": [%a],@ "
+    pp_emf_vars_decl spec.locals;
+  fprintf fmt "\"stmts\": [%a],@ "
+    pp_emf_stmts spec.stmts;
+  fprintf fmt "\"assume\": [%a],@ "
+    pp_emf_eexprs spec.assume;
+  fprintf fmt "\"guarantees\": [%a],@ "
+    pp_emf_eexprs spec.guarantees;
+  fprintf fmt "\"modes\": [%a],@ "
+    pp_emf_spec_modes spec.modes;
+  fprintf fmt "\"imports\": [%a]@ "
+    pp_emf_spec_imports spec.imports;  
+  fprintf fmt "@] }"
   
 let pp_emf_annots cpt fmt annots = fprintf_list ~sep:",@ " (pp_emf_annot cpt) fmt annots.annots
 let pp_emf_annots_list cpt fmt annots_list = fprintf_list ~sep:",@ " (pp_emf_annots cpt) fmt annots_list
+
+  
+                                           
 let pp_machine fmt m =
   let instrs = (*merge_branches*) m.mstep.step_instrs in
   try
     fprintf fmt "@[<v 2>\"%a\": {@ "
-       print_protect (fun fmt -> pp_print_string fmt m.mname.node_id);
+      print_protect (fun fmt -> pp_print_string fmt m.mname.node_id);
+    fprintf fmt "\"imported\": \"false\",@ ";
     fprintf fmt "\"kind\": %t,@ "
       (fun fmt -> if not ( snd (get_stateless_status m) )
 	then fprintf fmt "\"stateful\""
@@ -399,6 +445,7 @@ let pp_machine fmt m =
     fprintf fmt "\"original_name\": \"%s\",@ " m.mname.node_id;
     fprintf fmt "\"instrs\": {@[<v 0> %a@]@ },@ "
       (pp_emf_instrs m) instrs;
+    (match m.mspec with None -> () | Some spec -> fprintf fmt "\"spec\": %a,@ " pp_emf_spec spec);
     fprintf fmt "\"annots\": {@[<v 0> %a@]@ }" (pp_emf_annots_list (ref 0)) m.mannot;
     fprintf fmt "@]@ }"
   with Unhandled msg -> (
@@ -408,6 +455,25 @@ let pp_machine fmt m =
     eprintf "node skipped - no output generated@ @]@."
   )
 
+let pp_emf_imported_node fmt top =
+  let ind = Corelang.imported_node_of_top top in
+   try
+    fprintf fmt "@[<v 2>\"%a\": {@ "
+      print_protect (fun fmt -> pp_print_string fmt ind.nodei_id);
+    fprintf fmt "\"imported\": \"true\",@ ";
+    fprintf fmt "\"inputs\": [%a],@ "
+      pp_emf_vars_decl ind.nodei_inputs;
+    fprintf fmt "\"outputs\": [%a],@ "
+      pp_emf_vars_decl ind.nodei_outputs;
+    fprintf fmt "\"original_name\": \"%s\",@ " ind.nodei_id;
+    (match ind.nodei_spec with None -> () | Some spec -> fprintf fmt "\"spec\": %a" pp_emf_spec spec);
+    fprintf fmt "@]@ }"
+  with Unhandled msg -> (
+    eprintf "[Error] @[<v 0>EMF backend@ Issues while translating node %s@ "
+      ind.nodei_id;
+    eprintf "%s@ " msg;
+    eprintf "node skipped - no output generated@ @]@."
+  )
 (****************************************************)
 (* Main function: iterates over node and print them *)
 (****************************************************)
@@ -425,13 +491,21 @@ let pp_meta fmt basename =
   fprintf fmt "@ @]},@ "
     
 let translate fmt basename prog machines =
-   (* record_types prog; *)
+  (* record_types prog; *)
   fprintf fmt "@[<v 0>{@ ";
   pp_meta fmt basename;
+  (* Typedef *)
+  fprintf fmt "\"typedef\": [@[<v 0>%a@]],@ "
+    (pp_emf_list pp_emf_typedef) (Corelang.get_typedefs prog);
+  fprintf fmt "\"consts\": [@[<v 0>%a@]],@ "
+    (pp_emf_list pp_emf_top_const) (Corelang.get_consts prog);
+  fprintf fmt "\"imported_nodes\": @[<v 0>{@ ";
+  pp_emf_list pp_emf_imported_node fmt (Corelang.get_imported_nodes prog);
+  fprintf fmt "}@],@ ";
   fprintf fmt "\"nodes\": @[<v 0>{@ ";
   (* Previous alternative: mapping normalized lustre to EMF: 
      fprintf_list ~sep:",@ " pp_decl fmt prog; *)
-  fprintf_list ~sep:",@ " pp_machine fmt (List.rev machines);
+  pp_emf_list pp_machine fmt (List.rev machines);
   fprintf fmt "}@]@ }";
   fprintf fmt "@]@ }"
 

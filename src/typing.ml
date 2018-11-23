@@ -27,7 +27,7 @@ open Corelang
 open Format
 
 
-(* TODO general remark: expect in the add_vdelc, it seems to me that
+(* TODO general remark: except in the add_vdecl, it seems to me that
    all the pairs (env, vd_env) should be replace with just env, since
    vd_env is never used and the env element is always extract with a
    fst *)
@@ -686,7 +686,16 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
           undefined_vars_init
           eqs
       in
-      
+      (* Typing each predicate expr *)
+      let type_pred_ee ee : unit=
+        type_subtyping_arg (env, vd_env) (false (* not in main *)) (false (* not a const *)) ee.eexpr_qfexpr type_bool
+      in
+      List.iter type_pred_ee
+        (
+          spec.assume 
+          @ spec.guarantees
+          @ List.flatten (List.map (fun m -> m.ensure @ m.require) spec.modes) 
+        );
       (*TODO 
         enrich env locally with locals and consts
         type each pre/post as a boolean expr

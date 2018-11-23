@@ -216,7 +216,7 @@ let empty_machine =
 
 let new_instance =
   let cpt = ref (-1) in
-  fun caller callee tag ->
+  fun callee tag ->
     begin
       let o =
 	if Stateless.check_node callee then
@@ -225,7 +225,9 @@ let new_instance =
 	  Printf.sprintf "ni_%d" (incr cpt; !cpt) in
       let o =
 	if !Options.ansi && is_generic_node callee
-	then Printf.sprintf "%s_inst_%d" o (Utils.position (fun e -> e.expr_tag = tag) caller.node_gencalls)
+	then Printf.sprintf "%s_inst_%d"
+               o
+               (incr cpt; !cpt)
 	else o in
       o
     end

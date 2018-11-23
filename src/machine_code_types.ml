@@ -41,6 +41,7 @@ and instr_t_desc =
 
 type static_call = top_decl * (Dimension.dim_expr list)
 
+                 
 type machine_t = {
   mname: node_desc;
   mmemory: var_decl list;

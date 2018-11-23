@@ -86,6 +86,7 @@ val const_and: constant -> constant -> constant
 val const_xor: constant -> constant -> constant
 val const_impl: constant -> constant -> constant
 
+val get_var: ident -> var_decl list -> var_decl
 val get_node_vars: node_desc -> var_decl list
 val get_node_var: ident -> node_desc -> var_decl
 val get_node_eqs: node_desc -> eq list * automata_desc list

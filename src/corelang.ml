@@ -220,7 +220,6 @@ let mkeexpr loc expr =
     eexpr_quantifiers = [];
     eexpr_type = Types.new_var ();
     eexpr_clock = Clocks.new_var true;
-    eexpr_normalized = None;
     eexpr_loc = loc }
 
 let extend_eexpr q e = { e with eexpr_quantifiers = q@e.eexpr_quantifiers }
@@ -805,13 +804,6 @@ and rename_eexpr f_node f_var ee =
      eexpr_tag = Utils.new_tag ();
      eexpr_qfexpr = rename_expr f_node f_var ee.eexpr_qfexpr;
      eexpr_quantifiers = List.map (fun (typ,vdecls) -> typ, rename_vars f_node f_var vdecls) ee.eexpr_quantifiers;
-     eexpr_normalized = Utils.option_map 
-       (fun (vdecl, eqs, vdecls) ->
-	 rename_var f_node f_var vdecl,
-	 List.map (rename_eq f_node f_var) eqs,
-	 rename_vars f_node f_var vdecls
-       ) ee.eexpr_normalized;
-     
    }
  
      
@@ -1035,7 +1027,6 @@ let rec substitute_expr vars_to_replace defs e =
      eexpr_type = expr.expr_type;
      eexpr_clock = expr.expr_clock;
      eexpr_loc = expr.expr_loc;
-     eexpr_normalized = None
    }
  (* and expr_desc_to_eexpr_desc expr_desc = *)
  (*   let conv = expr_to_eexpr in *)

@@ -188,11 +188,12 @@ let stage1 params prog dirname basename extension =
   Log.report ~level:1 (fun fmt -> fprintf fmt ".. normalization@,");
   let prog = Normalization.normalize_prog params prog in
   Log.report ~level:2 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog prog);
-
+  
   (* Compatibility with Lusi *)
   (* If compiling a lusi, generate the lusic. If this is a lus file, Check the existence of a lusi (Lustre Interface file) *)
   compile_source_to_header
     prog !Global.type_env !Global.clock_env dirname basename extension;
+
 
   let prog =
     if !Options.mpfr

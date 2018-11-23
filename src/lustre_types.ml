@@ -118,7 +118,7 @@ and  eexpr =
      eexpr_quantifiers: (quantifier_type * var_decl list) list;
      mutable eexpr_type: Types.type_expr;
      mutable eexpr_clock: Clocks.clock_expr;
-     mutable eexpr_normalized: (var_decl * eq list * var_decl list) option;
+     (* mutable eexpr_normalized: (var_decl * eq list * var_decl list) option; *)
      eexpr_loc: Location.t}
 
 and expr_annot =
