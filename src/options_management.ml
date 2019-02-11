@@ -9,7 +9,7 @@
 (*                                                                  *)
 (********************************************************************)
 open Options
-  
+
 let print_version () =
   Format.printf "Lustrec compiler, version %s (%s)@." version codename;
   Format.printf "Standard lib: %s@." Version.include_path;
@@ -21,13 +21,13 @@ let add_include_dir dir =
   let removed_slash_suffix =
     let len = String.length dir in
     if dir.[len-1] = '/' then
-      String.sub dir 0 (len - 1) 
+      String.sub dir 0 (len - 1)
     else
       dir
   in
   include_dirs := removed_slash_suffix :: !include_dirs
 
-    
+
 (** Solving the path of required library:
     If local: look in the folders described in !Options.include_dirs
     If non local: look first as a local, then in Version.include_path:
@@ -41,7 +41,7 @@ let search_lib_path (local, full_file_name) =
     List.fold_right (fun dir res ->
       match res with Some _ -> res
       | None ->
-	 let path_to_lib = dir ^ "/" ^ full_file_name in 
+	 let path_to_lib = dir ^ "/" ^ full_file_name in
 	 if Sys.file_exists path_to_lib then
 	   Some dir
 	 else
@@ -57,11 +57,11 @@ let search_lib_path (local, full_file_name) =
 (* Search for path of core libs (without lusic: arrow and io_frontend *)
 let core_dependency lib_name =
   search_lib_path (false, lib_name ^ ".h")
-    
+
 let name_dependency (local, dep) =
   let dir = search_lib_path (false, dep ^ ".lusic") in
   dir ^ "/" ^ dep
-  
+
 let set_mpfr prec =
   if prec > 0 then (
     mpfr := true;
@@ -79,7 +79,7 @@ let set_real_type s =
       real_type := "mpfr";
     )
   | _ -> real_type := s
-     
+
 let set_backend s =
   output := s;
   Backends.setup ()
@@ -90,15 +90,15 @@ let common_options =
     "-node", Arg.Set_string main_node, "specifies the \x1b[4mmain\x1b[0m node";
     "-print-types", Arg.Set print_types, "prints node types";
     "-print-clocks", Arg.Set print_clocks, "prints node clocks";
-    "-algebraic-loop-solve", Arg.Set solve_al, "try to solve algebraic loops"; 
-    "-algebraic-loop-max", Arg.Set_int al_nb_max, "try to solve \x1b[4mnb\x1b[0m number of algebraic loops  <default: 15>"; 
+    "-algebraic-loop-solve", Arg.Set solve_al, "try to solve algebraic loops";
+    "-algebraic-loop-max", Arg.Set_int al_nb_max, "try to solve \x1b[4mnb\x1b[0m number of algebraic loops  <default: 15>";
     "-verbose", Arg.Set_int verbose_level, "changes verbose \x1b[4mlevel\x1b[0m <default: 1>";
     "-version", Arg.Unit print_version, " displays the version";
   ]
 
 let lustrec_options =
   common_options @
-    [ 
+    [
       "-init", Arg.Set delay_calculus, "performs an initialisation analysis for Lustre nodes <default: no analysis>";
       "-dynamic", Arg.Clear static_mem, "specifies a dynamic allocation scheme for main Lustre node <default: static>";
       "-check-access", Arg.Set check, "checks at runtime that array accesses always lie within bounds <default: no check>";
@@ -108,6 +108,7 @@ let lustrec_options =
       "-acsl-spec", Arg.Unit (fun () -> spec := "acsl"), "generates an ACSL encoding of the specification. Only meaningful for the C backend <default>";
       "-c-spec", Arg.Unit (fun () -> spec := "c"), "generates a C encoding of the specification instead of ACSL contracts and annotations. Only meaningful for the C backend";
       (* "-java", Arg.Unit (fun () -> output := "java"), "generates Java output instead of C"; *)
+      "-ada", Arg.Unit (fun () -> set_backend "Ada"), "generates Ada encoding output instead of C";
       "-horn", Arg.Unit (fun () -> set_backend "horn"), "generates Horn clauses encoding output instead of C";
       "-horn-traces", Arg.Unit (fun () -> set_backend "horn"; traces:=true), "produce traceability file for Horn backend. Enable the horn backend.";
       "-horn-cex", Arg.Unit (fun () -> set_backend "horn"; horn_cex:=true), "generate cex enumeration. Enable the horn backend (work in progress)";
@@ -119,7 +120,7 @@ let lustrec_options =
       "-inline", Arg.Unit (fun () -> global_inline := true; const_unfold := true), "inlines all node calls (require a main node). Implies constant unfolding";
       "-witnesses", Arg.Set witnesses, "enables production of witnesses during compilation";
       "-O", Arg.Set_int optimization, "changes optimization \x1b[4mlevel\x1b[0m <default: 2>";
-      
+
       "-c++" , Arg.Set        cpp      , "c++ backend";
       "-int" , Arg.Set_string int_type , "specifies the integer type (default=\"int\")";
       "-real", Arg.String set_real_type, "specifies the real type (default=\"double\" without mpfr option)";
@@ -140,7 +141,7 @@ let lustret_options =
 let plugin_opt (name, activate, options) =
   ( "-" ^ name , Arg.Unit activate, "activate plugin " ^ name ) ::
     (List.map (fun (opt, act, desc) -> "-" ^ name ^ opt, act, desc) options)
- 
+
 
 let get_witness_dir filename =
   (* Make sure the directory exists *)

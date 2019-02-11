@@ -9,7 +9,7 @@ let dynamic_checks () =
   match !Options.output, !Options.spec with
   | "C", "C" -> true
   | _ -> false
-     
+
 
 (* check whether a source file has a compiled header, if not, generate the
    compiled header *)
@@ -68,7 +68,7 @@ let stage1 prog dirname basename =
   let orig, prog =
     if !Options.global_inline && !Options.main_node <> "" then
       (if !Options.witnesses then prog else []),
-      Inliner.global_inline basename prog 
+      Inliner.global_inline basename prog
     else (* if !Option.has_local_inline *)
       [],
       Inliner.local_inline prog (* type_env clock_env *)
@@ -88,7 +88,7 @@ let stage1 prog dirname basename =
 
   (* Registering and checking machine types *)
   if Machine_types.is_active then Machine_types.load prog;
-  
+
 
   (* Generating a .lusi header file only *)
   if !Options.lusi then
@@ -96,12 +96,12 @@ let stage1 prog dirname basename =
        exported as a lusi *)
     raise (StopPhase1 prog);
 
-  (* Optimization of prog: 
-     - Unfold consts 
+  (* Optimization of prog:
+     - Unfold consts
      - eliminate trivial expressions
   *)
   (*
-    let prog = 
+    let prog =
     if !Options.const_unfold || !Options.optimization >= 5 then
     begin
     Log.report ~level:1 (fun fmt -> fprintf fmt ".. eliminating constants and aliases@,");
@@ -139,7 +139,7 @@ let stage1 prog dirname basename =
   Clock_calculus.uneval_prog_generics prog;
 
 
-(* Disabling witness option. Could but reactivated later 
+(* Disabling witness option. Could but reactivated later
   if !Options.global_inline && !Options.main_node <> "" && !Options.witnesses then
     begin
       let orig = Corelang.copy_prog orig in
@@ -154,7 +154,7 @@ let stage1 prog dirname basename =
 	!Options.main_node
 	orig prog type_env clock_env
     end;
-*)  
+*)
 
   (* Computes and stores generic calls for each node,
      only useful for ANSI C90 compliant generic node compilation *)
@@ -201,19 +201,19 @@ let stage1 prog dirname basename =
       Access.check_prog prog;
     end;
 
-  
+
   let prog = SortProg.sort_nodes_locals prog in
-  
+
   prog, dependencies
 
 
     (* from source to machine code, with optimization *)
-let stage2 prog =    
+let stage2 prog =
   (* Computation of node equation scheduling. It also breaks dependency cycles
      and warns about unused input or memory variables *)
   Log.report ~level:1 (fun fmt -> fprintf fmt ".. @[<v 2>scheduling@ ");
   let prog, node_schs =
-    try 
+    try
       Scheduling.schedule_prog prog
     with Causality.Error _ -> (* Error is not kept. It is recomputed in a more
 				 systemtic way in AlgebraicLoop module *)
@@ -226,7 +226,7 @@ let stage2 prog =
   Log.report ~level:3 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog prog);
   Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ ");
 
-  (* TODO Salsa optimize prog: 
+  (* TODO Salsa optimize prog:
      - emits warning for programs with pre inside expressions
      - make sure each node arguments and memory is bounded by a local annotation
      - introduce fresh local variables for each real pure subexpression
@@ -238,14 +238,14 @@ let stage2 prog =
   Log.report ~level:3 (fun fmt -> fprintf fmt ".. generated machines (unoptimized):@ %a@ " Machine_code_common.pp_machines machine_code);
 
   (* Optimize machine code *)
-  Optimize_machine.optimize prog node_schs machine_code   
+  Optimize_machine.optimize prog node_schs machine_code
 
 
 (* printing code *)
 let stage3 prog machine_code dependencies basename =
   let basename    =  Filename.basename basename in
   match !Options.output with
-    "C" -> 
+    "C" ->
       begin
 	Log.report ~level:1 (fun fmt -> fprintf fmt ".. C code generation@,");
 	C_backend.translate_to_c
@@ -262,6 +262,12 @@ let stage3 prog machine_code dependencies basename =
        Log.report ~level:1 (fun fmt -> fprintf fmt ".. java code generation@,@?");
        Java_backend.translate_to_java source_fmt basename normalized_prog machine_code;*)
      end
+  | "Ada" ->
+    begin
+      Log.report ~level:1 (fun fmt -> fprintf fmt ".. Ada code generation@,");
+      Ada_backend.translate_to_ada
+	basename prog machine_code dependencies
+    end
   | "horn" ->
      begin
        let destname = !Options.dest_dir ^ "/" ^ basename in
