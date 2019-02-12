@@ -32,7 +32,7 @@ let pp_begin_package body fmt machine =
    @param machine the machine
 *)
 let pp_end_package fmt machine =
-  fprintf fmt "end %a;" pp_package_name machine
+  fprintf fmt "end %a" pp_package_name machine
 
 
 (* Type pretty print functions *)
@@ -145,6 +145,18 @@ let pp_record_definition fmt var_list =
 
 (* Prototype pretty print functions *)
 
+(** Print the name of the init procedure **)
+let pp_init_procedure_name fmt = fprintf fmt "init"
+
+(** Print the step of the init procedure **)
+let pp_step_procedure_name fmt = fprintf fmt "step"
+
+(** Print the reset of the init procedure **)
+let pp_reset_procedure_name fmt = fprintf fmt "reset"
+
+(** Print the clear of the init procedure **)
+let pp_clear_procedure_name fmt = fprintf fmt "clear"
+
 (** Print the prototype of a machine procedure. The first parameter is always
 the state, state_modifier specify the modifier applying to it. The next
 parameters are inputs and the last parameters are the outputs.
@@ -154,9 +166,9 @@ parameters are inputs and the last parameters are the outputs.
    @param input list of the input parameter of the procedure
    @param output list of the output parameter of the procedure
 *)
-let pp_simple_prototype fmt (name, state_mode, input, output) =
-  fprintf fmt "procedure %s(@[<v>%a%t@[%a@]%t@[%a@])@]"
-    name
+let pp_simple_prototype fmt (pp_name, state_mode, input, output) =
+  fprintf fmt "procedure %t(@[<v>%a%t@[%a@]%t@[%a@])@]"
+    pp_name
     pp_state_var_decl state_mode
     (Utils.pp_final_char_if_non_empty ",@," input)
     (Utils.fprintf_list ~sep:",@ " (pp_machine_var_decl In)) input
@@ -168,25 +180,25 @@ let pp_simple_prototype fmt (name, state_mode, input, output) =
    @param m the machine
 *)
 let pp_init_prototype fmt m =
-  pp_simple_prototype fmt ("init", Out, m.mstatic, [])
+  pp_simple_prototype fmt (pp_init_procedure_name, Out, m.mstatic, [])
 
 (** Print the prototype of the step procedure of a machine.
    @param fmt the formater to print on
    @param m the machine
 *)
 let pp_step_prototype fmt m =
-  pp_simple_prototype fmt ("step", InOut, m.mstep.step_inputs, m.mstep.step_outputs)
+  pp_simple_prototype fmt (pp_step_procedure_name, InOut, m.mstep.step_inputs, m.mstep.step_outputs)
 
 (** Print the prototype of the reset procedure of a machine.
    @param fmt the formater to print on
    @param m the machine
 *)
 let pp_reset_prototype fmt m =
-  pp_simple_prototype fmt ("reset", InOut, m.mstatic, [])
+  pp_simple_prototype fmt (pp_reset_procedure_name, InOut, m.mstatic, [])
 
 (** Print the prototype of the clear procedure of a machine.
    @param fmt the formater to print on
    @param m the machine
 *)
 let pp_clear_prototype fmt m =
-  pp_simple_prototype fmt ("clear", InOut, m.mstatic, [])
+  pp_simple_prototype fmt (pp_clear_procedure_name, InOut, m.mstatic, [])

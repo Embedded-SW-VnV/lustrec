@@ -22,13 +22,13 @@ open Ada_backend_common
 module Main =
 struct
 
-(** Print the package declaration(ads) of a lustre node.
+(** Print the package declaration(ads) of a machine.
    @param fmt the formater to print on
    @param machine the machine
 *)
 let print fmt machine =
   let pp_record fmt = pp_record_definition fmt machine.mmemory in
-  fprintf fmt "@[<v 2>%a;@,@,%a;@,@,%a;@,@,%a;@,@,%a;@,@,%a;@,@,private@,@,%a;@,@]@,%a@."
+  fprintf fmt "%a@,  @[<v>@,%a;@,@,%a;@,@,%a;@,@,%a;@,@,%a;@,@,private@,@,%a;@,@]@,%a;@."
     (pp_begin_package false) machine (*Begin the package*)
     pp_private_type_decl pp_state_type (*Declare the state type*)
     pp_init_prototype machine (*Declare the init procedure*)
@@ -37,6 +37,5 @@ let print fmt machine =
     pp_clear_prototype machine (*Declare the clear procedure*)
     pp_type_decl (pp_state_type, pp_record) (*Define the state type*)
     pp_end_package machine  (*End the package*)
-    (*(Utils.fprintf_list ~sep:"@," pp_var_decl) machine.mmemory*)
 
 end
