@@ -10,12 +10,30 @@
 (********************************************************************)
 
 open Format
+open Machine_code_types
+
+let gen_ada destname print suffix machine =
+  let path = destname ^ machine.mname.node_id ^ suffix in
+  let out = open_out path in
+  let fmt = formatter_of_out_channel out in
+  print fmt machine;
+  close_out out;
+  Log.report ~level:2 (fun fmt -> fprintf fmt "    .. %s generated @." path)
 
 let translate_to_ada basename prog machines dependencies =
   let module Ads = Ada_backend_ads.Main in
   let module Adb = Ada_backend_adb.Main in
   let module Wrapper = Ada_backend_wrapper.Main in
-  print_endline "Ada code generated!"
+
+  let destname = !Options.dest_dir ^ "/" ^ basename in
+
+  Log.report ~level:2 (fun fmt -> fprintf fmt "  .. Generating ads@,");
+
+  List.iter (gen_ada destname Ads.print ".ads") machines;
+
+  Log.report ~level:2 (fun fmt -> fprintf fmt "  .. Generating adb@,");
+
+  List.iter (gen_ada destname Adb.print ".adb") machines
 
 (* Local Variables: *)
 (* compile-command:"make -C ../../.." *)
