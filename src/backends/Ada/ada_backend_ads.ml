@@ -27,13 +27,16 @@ struct
    @param machine the machine
 *)
 let print fmt machine =
-  fprintf fmt "@[<v 2>%a;@,%a;@,%a;@,%a;@,%a;@]@,%a@."
-    (pp_begin_package false) machine
-    pp_init_prototype machine
-    pp_step_prototype machine
-    pp_reset_prototype machine
-    pp_clear_prototype machine
-    pp_end_package machine
+  let pp_record fmt = pp_record_definition fmt machine.mmemory in
+  fprintf fmt "@[<v 2>%a;@,@,%a;@,@,%a;@,@,%a;@,@,%a;@,@,%a;@,@,private@,@,%a;@,@]@,%a@."
+    (pp_begin_package false) machine (*Begin the package*)
+    pp_private_type_decl pp_state_type (*Declare the state type*)
+    pp_init_prototype machine (*Declare the init procedure*)
+    pp_step_prototype machine (*Declare the step procedure*)
+    pp_reset_prototype machine (*Declare the reset procedure*)
+    pp_clear_prototype machine (*Declare the clear procedure*)
+    pp_type_decl (pp_state_type, pp_record) (*Define the state type*)
+    pp_end_package machine  (*End the package*)
     (*(Utils.fprintf_list ~sep:"@," pp_var_decl) machine.mmemory*)
 
 end
