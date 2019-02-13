@@ -57,7 +57,7 @@ let pp_private_type_decl fmt pp_name =
    @param fmt the formater to print on
 *)
 let pp_state_type fmt =
-  fprintf fmt "State"
+  fprintf fmt "TState"
 
 (** Print the type of a variable.
    @param fmt the formater to print on
@@ -99,7 +99,22 @@ let pp_state_name fmt =
    @param id the variable
 *)
 let pp_var_name fmt id =
-  fprintf fmt "%s" id.var_id
+  let base_size = String.length id.var_id in
+  assert(base_size > 0);
+  let rec remove_double_underscore s = function
+    | i when i == String.length s - 1 -> s
+    | i when String.get s i == '_' && String.get s (i+1) == '_' ->
+        remove_double_underscore (sprintf "%s%s" (String.sub s 0 i) (String.sub s (i+1) (String.length s-i-1))) i
+    | i -> remove_double_underscore s (i+1)
+  in
+  let name = remove_double_underscore id.var_id 0 in
+  let prefix = if String.length name == base_size
+                  || String.get id.var_id 0 == '_' then
+                  "ada"
+               else
+                  ""
+  in
+  fprintf fmt "%s%s" prefix name
 
 (** Print a variable declaration
    @param mode input/output mode of the parameter
@@ -133,15 +148,6 @@ let pp_state_var_decl fmt mode =
   let pp_type = pp_state_type in
   pp_var_decl fmt (mode, pp_name, pp_type)
 
-(** Print a record definition.
-   @param fmt the formater to print on
-   @param var_list list of machine variable
-*)
-let pp_record_definition fmt var_list =
-  fprintf fmt "@,  @[<v>record@,  @[<v>%a%t@]@,end record@]"
-    (Utils.fprintf_list ~sep:";@;" (pp_machine_var_decl NoMode)) var_list
-    (Utils.pp_final_char_if_non_empty "," var_list)
-
 
 (* Prototype pretty print functions *)
 
@@ -170,10 +176,10 @@ let pp_simple_prototype fmt (pp_name, state_mode, input, output) =
   fprintf fmt "procedure %t(@[<v>%a%t@[%a@]%t@[%a@])@]"
     pp_name
     pp_state_var_decl state_mode
-    (Utils.pp_final_char_if_non_empty ",@," input)
-    (Utils.fprintf_list ~sep:",@ " (pp_machine_var_decl In)) input
-    (Utils.pp_final_char_if_non_empty ",@," output)
-    (Utils.fprintf_list ~sep:",@ " (pp_machine_var_decl Out)) output
+    (Utils.pp_final_char_if_non_empty ";@," input)
+    (Utils.fprintf_list ~sep:";@ " (pp_machine_var_decl In)) input
+    (Utils.pp_final_char_if_non_empty ";@," output)
+    (Utils.fprintf_list ~sep:";@ " (pp_machine_var_decl Out)) output
 
 (** Print the prototype of the init procedure of a machine.
    @param fmt the formater to print on

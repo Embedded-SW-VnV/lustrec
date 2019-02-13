@@ -264,7 +264,7 @@ let stage3 prog machine_code dependencies basename =
      end
   | "Ada" ->
     begin
-      Log.report ~level:1 (fun fmt -> fprintf fmt ".. Ada code generation@,");
+      Log.report ~level:1 (fun fmt -> fprintf fmt ".. Ada code generation@.");
       Ada_backend.translate_to_ada
 	basename prog machine_code dependencies
     end

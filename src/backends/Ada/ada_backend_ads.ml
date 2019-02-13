@@ -22,6 +22,15 @@ open Ada_backend_common
 module Main =
 struct
 
+(** Print a record definition.
+   @param fmt the formater to print on
+   @param var_list list of machine variable
+*)
+let pp_record_definition fmt var_list =
+  fprintf fmt "@,  @[<v>record@,  @[<v>%a%t@]@,end record@]"
+    (Utils.fprintf_list ~sep:";@;" (pp_machine_var_decl NoMode)) var_list
+    (Utils.pp_final_char_if_non_empty ";" var_list)
+
 (** Print the package declaration(ads) of a machine.
    @param fmt the formater to print on
    @param machine the machine

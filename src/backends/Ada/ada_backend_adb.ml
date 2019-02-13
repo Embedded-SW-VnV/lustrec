@@ -41,9 +41,10 @@ let filter_reset instr_list = List.map
 **)
 let pp_procedure_definition fmt (m, pp_procedure_name, pp_prototype, instrs) =
   let pp_instr = pp_machine_instr m in
-  fprintf fmt "%a is@,begin@,  @[<v>%a@]@,end %t"
+  fprintf fmt "%a is@,begin@,  @[<v>%a%t@]@,end %t"
     pp_prototype m
     (Utils.fprintf_list ~sep:";@," pp_instr) instrs
+    (Utils.pp_final_char_if_non_empty ";" instrs)
     pp_procedure_name
 
 (** Print the definition of the init procedure from a machine.
