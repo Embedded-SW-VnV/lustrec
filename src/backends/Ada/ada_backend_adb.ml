@@ -82,7 +82,7 @@ let pp_clear_definition fmt m =
 (** Print the package definition(adb) of a machine.
    @param fmt the formater to print on
    @param machine the machine
-*)
+**)
 let print fmt machine =
   fprintf fmt "%a@,  @[<v>@,%a;@,@,%a;@,@,%a;@,@,%a;@,@]@,%a;@."
     (pp_begin_package true) machine (*Begin the package*)

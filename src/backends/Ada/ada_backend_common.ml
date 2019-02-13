@@ -7,33 +7,63 @@ open Machine_code_common
 
 (** All the pretty print functions common to the ada backend **)
 
+
+(** Print a cleaned an identifier for ada exportation : Ada names must not start by an
+    underscore and must not contain a double underscore 
+   @param var name to be cleaned*)
+let print_clean_ada_identifier fmt name =
+  let base_size = String.length name in
+  assert(base_size > 0);
+  let rec remove_double_underscore s = function
+    | i when i == String.length s - 1 -> s
+    | i when String.get s i == '_' && String.get s (i+1) == '_' ->
+        remove_double_underscore (sprintf "%s%s" (String.sub s 0 i) (String.sub s (i+1) (String.length s-i-1))) i
+    | i -> remove_double_underscore s (i+1)
+  in
+  let name = remove_double_underscore name 0 in
+  let prefix = if String.length name != base_size
+                  || String.get name 0 == '_' then
+                  "ada"
+               else
+                  ""
+  in
+  fprintf fmt "%s%s" prefix name
+
+
 (* Package pretty print functions *)
 
 (** Print the name of a package associated to a machine.
    @param fmt the formater to print on
    @param machine the machine
-*)
-let pp_package_name fmt machine =
-  fprintf fmt "%s" machine.mname.node_id
+**)
+let pp_package_name fmt node =
+    fprintf fmt "%a" print_clean_ada_identifier node.node_id
 
 (** Print the ada package introduction sentence it can be used for body and
 declaration. Boolean parameter body should be true if it is a body delcaration.
    @param fmt the formater to print on
    @param fmt the formater to print on
    @param machine the machine
-*)
+**)
 let pp_begin_package body fmt machine =
-  fprintf fmt "package %s %a is"
-    (if body then "body" else "")
-    pp_package_name machine
+  fprintf fmt "package %s%a is"
+    (if body then "body " else "")
+    pp_package_name machine.mname
 
 (** Print the ada package conclusion sentence.
    @param fmt the formater to print on
    @param machine the machine
-*)
+**)
 let pp_end_package fmt machine =
-  fprintf fmt "end %a" pp_package_name machine
+  fprintf fmt "end %a" pp_package_name machine.mname
 
+(** Print the access of an item from an other package.
+   @param fmt the formater to print on
+   @param package the package to use
+   @param item the item which is accessed
+**)
+let pp_package_access fmt (package, item) =
+  fprintf fmt "%t.%t" package item
 
 (* Type pretty print functions *)
 
@@ -41,33 +71,51 @@ let pp_end_package fmt machine =
    @param fmt the formater to print on
    @param pp_name a format printer which print the type name
    @param pp_value a format printer which print the type definition
-*)
+**)
 let pp_type_decl fmt (pp_name, pp_definition) =
   fprintf fmt "type %t is %t" pp_name pp_definition
 
 (** Print a private type declaration
    @param fmt the formater to print on
    @param pp_name a format printer which print the type name
-*)
+**)
 let pp_private_type_decl fmt pp_name =
   let pp_definition fmt = fprintf fmt "private" in
   pp_type_decl fmt (pp_name, pp_definition)
 
 (** Print the type of the state variable.
    @param fmt the formater to print on
-*)
+**)
 let pp_state_type fmt =
+  (* Type and variable names live in the same environement in Ada so name of
+     this type and of the associated parameter : pp_state_name must be
+     different *)
   fprintf fmt "TState"
+
+(** Print the integer type name.
+   @param fmt the formater to print on
+**)
+let pp_integer_type fmt = fprintf fmt "Integer"
+
+(** Print the float type name.
+   @param fmt the formater to print on
+**)
+let pp_float_type fmt = fprintf fmt "Float"
+
+(** Print the boolean type name.
+   @param fmt the formater to print on
+**)
+let pp_boolean_type fmt = fprintf fmt "Boolean"
 
 (** Print the type of a variable.
    @param fmt the formater to print on
    @param id the variable
-*)
-let pp_var_type fmt id = fprintf fmt
+**)
+let pp_var_type fmt id = 
   (match (Types.repr id.var_type).Types.tdesc with
-    | Types.Tbasic Types.Basic.Tint -> "Integer"
-    | Types.Tbasic Types.Basic.Treal -> "Float"
-    | Types.Tbasic Types.Basic.Tbool -> "Boolean"
+    | Types.Tbasic Types.Basic.Tint -> pp_integer_type fmt
+    | Types.Tbasic Types.Basic.Treal -> pp_float_type fmt
+    | Types.Tbasic Types.Basic.Tbool -> pp_boolean_type fmt
     | _ -> eprintf "Type error : %a@." Types.print_ty id.var_type; assert false (*TODO*)
   )
   
@@ -80,7 +128,7 @@ type parameter_mode = NoMode | In | Out | InOut
 (** Print a parameter_mode.
    @param fmt the formater to print on
    @param mode the modifier
-*)
+**)
 let pp_parameter_mode fmt mode =
   fprintf fmt "%s" (match mode with
                      | NoMode -> ""
@@ -90,31 +138,17 @@ let pp_parameter_mode fmt mode =
 
 (** Print the name of the state variable.
    @param fmt the formater to print on
-*)
+**)
 let pp_state_name fmt =
   fprintf fmt "state"
+
 
 (** Print the name of a variable.
    @param fmt the formater to print on
    @param id the variable
-*)
+**)
 let pp_var_name fmt id =
-  let base_size = String.length id.var_id in
-  assert(base_size > 0);
-  let rec remove_double_underscore s = function
-    | i when i == String.length s - 1 -> s
-    | i when String.get s i == '_' && String.get s (i+1) == '_' ->
-        remove_double_underscore (sprintf "%s%s" (String.sub s 0 i) (String.sub s (i+1) (String.length s-i-1))) i
-    | i -> remove_double_underscore s (i+1)
-  in
-  let name = remove_double_underscore id.var_id 0 in
-  let prefix = if String.length name == base_size
-                  || String.get id.var_id 0 == '_' then
-                  "ada"
-               else
-                  ""
-  in
-  fprintf fmt "%s%s" prefix name
+  fprintf fmt "%a" print_clean_ada_identifier id.var_id
 
 (** Print a variable declaration
    @param mode input/output mode of the parameter
@@ -122,18 +156,19 @@ let pp_var_name fmt id =
    @param pp_type a format printer wich print the variable type
    @param fmt the formater to print on
    @param id the variable
-*)
+**)
 let pp_var_decl fmt (mode, pp_name, pp_type) =
-  fprintf fmt "%t: %a %t"
+  fprintf fmt "%t: %a%s%t"
     pp_name
     pp_parameter_mode mode
+    (if mode = NoMode then "" else " ")
     pp_type
 
 (** Print variable declaration for machine variable
    @param mode input/output mode of the parameter
    @param fmt the formater to print on
    @param id the variable
-*)
+**)
 let pp_machine_var_decl mode fmt id =
   let pp_name = function fmt -> pp_var_name fmt id in
   let pp_type = function fmt -> pp_var_type fmt id in
@@ -142,7 +177,7 @@ let pp_machine_var_decl mode fmt id =
 (** Print variable declaration for state variable
    @param fmt the formater to print on
    @param mode input/output mode of the parameter
-*)
+**)
 let pp_state_var_decl fmt mode =
   let pp_name = pp_state_name in
   let pp_type = pp_state_type in
@@ -171,7 +206,7 @@ parameters are inputs and the last parameters are the outputs.
    @param state_mode the input/output mode for the state parameter
    @param input list of the input parameter of the procedure
    @param output list of the output parameter of the procedure
-*)
+**)
 let pp_simple_prototype fmt (pp_name, state_mode, input, output) =
   fprintf fmt "procedure %t(@[<v>%a%t@[%a@]%t@[%a@])@]"
     pp_name
@@ -184,27 +219,27 @@ let pp_simple_prototype fmt (pp_name, state_mode, input, output) =
 (** Print the prototype of the init procedure of a machine.
    @param fmt the formater to print on
    @param m the machine
-*)
+**)
 let pp_init_prototype fmt m =
   pp_simple_prototype fmt (pp_init_procedure_name, Out, m.mstatic, [])
 
 (** Print the prototype of the step procedure of a machine.
    @param fmt the formater to print on
    @param m the machine
-*)
+**)
 let pp_step_prototype fmt m =
   pp_simple_prototype fmt (pp_step_procedure_name, InOut, m.mstep.step_inputs, m.mstep.step_outputs)
 
 (** Print the prototype of the reset procedure of a machine.
    @param fmt the formater to print on
    @param m the machine
-*)
+**)
 let pp_reset_prototype fmt m =
   pp_simple_prototype fmt (pp_reset_procedure_name, InOut, m.mstatic, [])
 
 (** Print the prototype of the clear procedure of a machine.
    @param fmt the formater to print on
    @param m the machine
-*)
+**)
 let pp_clear_prototype fmt m =
   pp_simple_prototype fmt (pp_clear_procedure_name, InOut, m.mstatic, [])

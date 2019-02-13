@@ -13,7 +13,11 @@ open Format
 open Machine_code_types
 
 let gen_ada destname print suffix machine =
-  let path = destname ^ machine.mname.node_id ^ suffix in
+  (* Next line permit to get the final package name mostly to clean the
+    identifier for Ada *)
+  let name = asprintf "%a" Ada_backend_common.pp_package_name machine.mname in
+  let name = String.lowercase_ascii name in
+  let path = destname ^ name ^ suffix in
   let out = open_out path in
   let fmt = formatter_of_out_channel out in
   print fmt machine;
