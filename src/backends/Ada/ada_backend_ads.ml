@@ -22,27 +22,19 @@ open Ada_backend_common
 module Main =
 struct
 
-(** Print name of a node associated to an instance.
+(** Print a with statement to include an instance.
    @param fmt the formater to print on
    @param instance the instance
 **)
-let pp_instance_node_name fmt instance =
-  let (_, (node, _)) = instance in
-  let node = match node.top_decl_desc with 
-              | Node nd         -> nd
-              | _ -> assert false (*TODO*) in
-  pp_package_name fmt node
+let pp_with_subinstance fmt instance =
+  pp_with_node fmt (extract_node instance)
 
 (** Print the declaration of a state element of a subinstance of a machine.
    @param fmt the formater to print on
    @param instance the instance
 **)
 let pp_machine_subinstance_state_decl fmt instance =
-  let (name, (node, static)) = instance in
-  let pp_package fmt = pp_instance_node_name fmt instance in
-  let pp_type fmt = pp_package_access fmt (pp_package, pp_state_type) in
-  let pp_name fmt = print_clean_ada_identifier fmt name in
-  pp_var_decl fmt (NoMode, pp_name, pp_type)
+  pp_node_state_decl (fst instance) fmt (extract_node instance)
 
 (** Print the state record for a machine.
    @param fmt the formater to print on
@@ -55,18 +47,11 @@ let pp_state_record_definition fmt (var_list, instances) =
     (Utils.fprintf_list ~sep:";@;" (pp_machine_var_decl NoMode)) var_list
     (Utils.pp_final_char_if_non_empty ";" var_list)
 
-(** Print a with statement to include an instance.
-   @param fmt the formater to print on
-   @param instance the instance
-**)
-let pp_with_subinstance fmt instance =
-  fprintf fmt "private with %a" pp_instance_node_name instance
-
 (** Print the package declaration(ads) of a machine.
    @param fmt the formater to print on
-   @param machine the machine
+   @param m the machine
 **)
-let print fmt machine =
+let pp_file fmt m =
   (* Take apart the arrow instance from the instance list and transform them
      into simple boolean variable *)
   let extract (instances, arrows) instance =
@@ -75,20 +60,38 @@ let print fmt machine =
       (instances, (dummy_var_decl name Type_predef.type_bool)::arrows)
     else
       (instance::instances, arrows) in
-  let instances, arrows = List.fold_left extract ([], []) machine.minstances in
+  let instances, arrows = List.fold_left extract ([], []) m.minstances in
   (* Add the boolean variable reated for arrow instance to the list of all variable *)
-  let var_list = arrows@machine.mmemory in
+  let var_list = arrows@m.mmemory in
   let pp_record fmt = pp_state_record_definition fmt (var_list, instances) in
   fprintf fmt "@[<v>%a%t@,%a@,  @[<v>@,%a;@,@,%a;@,@,%a;@,@,%a;@,@,%a;@,@,private@,@,%a;@,@]@,%a;@.@]"
-    (Utils.fprintf_list ~sep:";@," pp_with_subinstance) instances (* Include all the subinstance*)
+    
+    (* Include all the subinstance*)
+    (Utils.fprintf_list ~sep:";@," pp_with_subinstance) instances
     (Utils.pp_final_char_if_non_empty ";@," instances)
-    (pp_begin_package false) machine (*Begin the package*)
-    pp_private_type_decl pp_state_type (*Declare the state type*)
-    pp_init_prototype machine (*Declare the init procedure*)
-    pp_step_prototype machine (*Declare the step procedure*)
-    pp_reset_prototype machine (*Declare the reset procedure*)
-    pp_clear_prototype machine (*Declare the clear procedure*)
-    pp_type_decl (pp_state_type, pp_record) (*Define the state type*)
-    pp_end_package machine  (*End the package*)
+    
+    (*Begin the package*)
+    (pp_begin_package false) m
+    
+    (*Declare the state type*)
+    pp_private_type_decl pp_state_type
+    
+    (*Declare the init procedure*)
+    (pp_init_prototype m) pp_init_procedure_name
+    
+    (*Declare the step procedure*)
+    (pp_step_prototype m) pp_step_procedure_name
+    
+    (*Declare the reset procedure*)
+    (pp_reset_prototype m) pp_reset_procedure_name
+    
+    (*Declare the clear procedure*)
+    (pp_clear_prototype m) pp_clear_procedure_name
+    
+    (*Define the state type*)
+    pp_type_decl (pp_state_type, pp_record)
+    
+    (*End the package*)
+    pp_end_package m
 
 end
