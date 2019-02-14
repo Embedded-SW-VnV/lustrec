@@ -77,7 +77,7 @@ let pp_clear_definition fmt m = pp_procedure_definition
       (pp_machine_var_decl NoMode)
       (pp_machine_instr m)
       fmt
-      ([], filter_reset m.minit)
+      ([], m.minit)
 
 (** Print the package definition(adb) of a machine.
    @param fmt the formater to print on
