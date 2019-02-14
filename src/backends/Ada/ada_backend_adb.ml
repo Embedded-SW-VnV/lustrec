@@ -38,7 +38,7 @@ let filter_reset instr_list = List.map
 let pp_init_definition fmt m = pp_procedure_definition
       pp_init_procedure_name
       (pp_init_prototype m)
-      pp_var_decl
+      (pp_machine_var_decl NoMode)
       (pp_machine_instr m)
       fmt
       ([], m.minit)
@@ -50,10 +50,10 @@ let pp_init_definition fmt m = pp_procedure_definition
 let pp_step_definition fmt m = pp_procedure_definition
       pp_step_procedure_name
       (pp_step_prototype m)
-      pp_var_decl
+      (pp_machine_var_decl NoMode)
       (pp_machine_instr m)
       fmt
-      ([], m.mstep.step_instrs)
+      (m.mstep.step_locals, m.mstep.step_instrs)
 
 (** Print the definition of the reset procedure from a machine.
    @param fmt the formater to print on
@@ -62,7 +62,7 @@ let pp_step_definition fmt m = pp_procedure_definition
 let pp_reset_definition fmt m = pp_procedure_definition
       pp_reset_procedure_name
       (pp_reset_prototype m)
-      pp_var_decl
+      (pp_machine_var_decl NoMode)
       (pp_machine_instr m)
       fmt
       ([], m.minit)
@@ -74,7 +74,7 @@ let pp_reset_definition fmt m = pp_procedure_definition
 let pp_clear_definition fmt m = pp_procedure_definition
       pp_clear_procedure_name
       (pp_clear_prototype m)
-      pp_var_decl
+      (pp_machine_var_decl NoMode)
       (pp_machine_instr m)
       fmt
       ([], filter_reset m.minit)
