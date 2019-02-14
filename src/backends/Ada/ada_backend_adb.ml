@@ -53,7 +53,7 @@ let pp_step_definition fmt m = pp_procedure_definition
       pp_var_decl
       (pp_machine_instr m)
       fmt
-      ([], m.minit)
+      ([], m.mstep)
 
 (** Print the definition of the reset procedure from a machine.
    @param fmt the formater to print on
