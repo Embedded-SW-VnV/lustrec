@@ -7,6 +7,7 @@ open Machine_code_common
 
 (** All the pretty print functions common to the ada backend **)
 
+
 (* Misc pretty print functions *)
 
 (** Print a cleaned an identifier for ada exportation : Ada names must not start by an
@@ -29,6 +30,7 @@ let pp_clean_ada_identifier fmt name =
                   ""
   in
   fprintf fmt "%s%s" prefix name
+
 
 (* Package pretty print functions *)
 
@@ -110,8 +112,8 @@ let pp_type_decl fmt (pp_name, pp_definition) =
    @param fmt the formater to print on
    @param pp_name a format printer which print the type name
 **)
-let pp_private_type_decl fmt pp_name =
-  let pp_definition fmt = fprintf fmt "private" in
+let pp_private_limited_type_decl fmt pp_name =
+  let pp_definition fmt = fprintf fmt "limited private" in
   pp_type_decl fmt (pp_name, pp_definition)
 
 (** Print the type of the state variable.
@@ -149,7 +151,7 @@ let pp_var_type fmt id =
     | Types.Tbasic Types.Basic.Tbool -> pp_boolean_type fmt
     | _ -> eprintf "Type error : %a@." Types.print_ty id.var_type; assert false (*TODO*)
   )
-  
+
 
 (* Variable pretty print functions *)
 
@@ -224,6 +226,7 @@ let pp_node_state_decl name fmt node =
   let pp_type fmt = pp_package_access fmt (pp_package, pp_state_type) in
   let pp_name fmt = pp_clean_ada_identifier fmt name in
   pp_var_decl fmt (NoMode, pp_name, pp_type)
+
 
 (* Prototype pretty print functions *)
 

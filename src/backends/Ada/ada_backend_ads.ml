@@ -74,7 +74,7 @@ let pp_file fmt m =
     (pp_begin_package false) m
     
     (*Declare the state type*)
-    pp_private_type_decl pp_state_type
+    pp_private_limited_type_decl pp_state_type
     
     (*Declare the init procedure*)
     (pp_init_prototype m) pp_init_procedure_name

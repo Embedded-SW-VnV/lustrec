@@ -69,7 +69,6 @@ let pp_main_file fmt machine =
     pp_with_node machine.mname
     (pp_main_procedure_definition machine) (locals, instrs)
 
-
 (** Print the gpr project file.
    @param fmt the formater to print on
    @param machine the main machine
