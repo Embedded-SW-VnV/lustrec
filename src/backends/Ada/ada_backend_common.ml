@@ -230,7 +230,7 @@ let pp_node_state_decl name fmt node =
 
 (* Prototype pretty print functions *)
 
-(** Print the reset of the init procedure **)
+(** Print the name of the reset procedure **)
 let pp_reset_procedure_name fmt = fprintf fmt "reset"
 
 (** Print the name of the step procedure **)
