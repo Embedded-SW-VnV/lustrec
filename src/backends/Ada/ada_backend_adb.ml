@@ -101,6 +101,7 @@ struct
       @param var_name the name of the variable
       @param value the value to be assigned
    **)
+  (* TODO remove pp_var *)
   let pp_basic_assign pp_var fmt var_name value =
     fprintf fmt "%a := %a;"
       pp_var var_name
@@ -116,6 +117,32 @@ struct
    **)
   let pp_assign pp_var fmt var_name value = pp_basic_assign
 
+  (* Printing function for reset function *)
+  (* TODO: clean the call to extract_node *)
+  (** Printing function for reset function name.
+
+      @param fmt the formater to use
+      @param encapsulated_node the node encapsulated in a pair
+             [(instance, (node, static))]
+   **)
+  let pp_machine_reset_name fmt encapsulated_node =
+    fprintf fmt "%a.reset" pp_package_name (extract_node encapsulated_node)
+
+  (** Printing function for reset function.
+
+      @param machine the considered machine
+      @param fmt the formater to use
+      @param instance the considered instance
+   **)
+  let pp_machine_reset (machine: machine_t) fmt instance =
+    let (node, static) =
+      try
+        List.assoc instance machine.minstances
+      with Not_found -> (Format.eprintf "internal error: pp_machine_reset %s %s:@." machine.mname.node_id instance; raise Not_found) in
+    fprintf fmt "%a(state.%s);"
+      pp_machine_reset_name (instance, (node, static))
+      instance
+
   (** Printing function for instruction. See
       {!type:Machine_code_types.instr_t} for more details on
       machine types.
@@ -130,10 +157,10 @@ struct
     | MNoReset _ -> ()
     (* reset  *)
     | MReset i ->
-      (* pp_machine_reset m self fmt i *)
-      fprintf fmt "MReset %s@ " i
+      pp_machine_reset machine fmt i
     | MLocalAssign (i,v) ->
-      fprintf fmt "MLocalAssign";
+      fprintf fmt "MLocalAssign @"
+      (* pp_basic_assign pp_var_name fmt i v *)
       (* pp_assign
        *   machine self (pp_c_var_read m) fmt
        *   i.var_type (mk_val (Var i) i.var_type) v *)
