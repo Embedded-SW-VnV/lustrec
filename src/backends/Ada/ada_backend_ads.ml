@@ -64,7 +64,7 @@ let pp_file fmt m =
   (* Add the boolean variable reated for arrow instance to the list of all variable *)
   let var_list = arrows@m.mmemory in
   let pp_record fmt = pp_state_record_definition fmt (var_list, instances) in
-  fprintf fmt "@[<v>%a%t@,%a@,  @[<v>@,%a;@,@,%a;@,@,%a;@,@,%a;@,@,%a;@,@,private@,@,%a;@,@]@,%a;@.@]"
+  fprintf fmt "@[<v>%a%t@,%a@,  @[<v>@,%a;@,@,%t;@,@,%t;@,@,private@,@,%a;@,@]@,%a;@.@]"
     
     (* Include all the subinstance*)
     (Utils.fprintf_list ~sep:";@," pp_with_subinstance) instances
@@ -76,17 +76,11 @@ let pp_file fmt m =
     (*Declare the state type*)
     pp_private_limited_type_decl pp_state_type
     
-    (*Declare the init procedure*)
-    (pp_init_prototype m) pp_init_procedure_name
+    (*Declare the reset procedure*)
+    (pp_reset_prototype m)
     
     (*Declare the step procedure*)
-    (pp_step_prototype m) pp_step_procedure_name
-    
-    (*Declare the reset procedure*)
-    (pp_reset_prototype m) pp_reset_procedure_name
-    
-    (*Declare the clear procedure*)
-    (pp_clear_prototype m) pp_clear_procedure_name
+    (pp_step_prototype m)
     
     (*Define the state type*)
     pp_type_decl (pp_state_type, pp_record)
