@@ -230,14 +230,14 @@ let pp_node_state_decl name fmt node =
 
 (* Prototype pretty print functions *)
 
-(** Print the name of the init procedure **)
-let pp_init_procedure_name fmt = fprintf fmt "init"
+(** Print the reset of the init procedure **)
+let pp_reset_procedure_name fmt = fprintf fmt "reset"
 
 (** Print the name of the step procedure **)
 let pp_step_procedure_name fmt = fprintf fmt "step"
 
-(** Print the name of the reset procedure **)
-let pp_reset_procedure_name fmt = fprintf fmt "reset"
+(** Print the name of the init procedure **)
+let pp_init_procedure_name fmt = fprintf fmt "init"
 
 (** Print the name of the clear procedure **)
 let pp_clear_procedure_name fmt = fprintf fmt "clear"
@@ -246,7 +246,7 @@ let pp_clear_procedure_name fmt = fprintf fmt "clear"
    @param fmt the formater to print on
    @param name the name of the procedure
 **)
-let pp_simple_prototype fmt pp_name =
+let pp_simple_prototype pp_name fmt =
   fprintf fmt "procedure %t" pp_name
 
 (** Print the prototype of a machine procedure. The first parameter is always
@@ -267,37 +267,37 @@ let pp_base_prototype state_mode input output fmt pp_name =
     (Utils.pp_final_char_if_non_empty ";@," output)
     (Utils.fprintf_list ~sep:";@ " (pp_machine_var_decl Out)) output
 
-(** Print the prototype of the init procedure of a machine.
-   @param m the machine
-   @param fmt the formater to print on
-   @param pp_name name function printer
-**)
-let pp_init_prototype m fmt pp_name =
-  pp_base_prototype Out m.mstatic [] fmt pp_name
-
 (** Print the prototype of the step procedure of a machine.
    @param m the machine
    @param fmt the formater to print on
    @param pp_name name function printer
 **)
-let pp_step_prototype m fmt pp_name =
-  pp_base_prototype InOut m.mstep.step_inputs m.mstep.step_outputs fmt pp_name
+let pp_step_prototype m fmt =
+  pp_base_prototype InOut m.mstep.step_inputs m.mstep.step_outputs fmt pp_step_procedure_name
 
 (** Print the prototype of the reset procedure of a machine.
    @param m the machine
    @param fmt the formater to print on
    @param pp_name name function printer
 **)
-let pp_reset_prototype m fmt pp_name =
-  pp_base_prototype InOut m.mstatic [] fmt pp_name
+let pp_reset_prototype m fmt =
+  pp_base_prototype InOut m.mstatic [] fmt pp_reset_procedure_name
+
+(** Print the prototype of the init procedure of a machine.
+   @param m the machine
+   @param fmt the formater to print on
+   @param pp_name name function printer
+**)
+let pp_init_prototype m fmt =
+  pp_base_prototype Out m.mstatic [] fmt pp_init_procedure_name
 
 (** Print the prototype of the clear procedure of a machine.
    @param m the machine
    @param fmt the formater to print on
    @param pp_name name function printer
 **)
-let pp_clear_prototype m fmt pp_name =
-  pp_base_prototype InOut m.mstatic [] fmt pp_name
+let pp_clear_prototype m fmt =
+  pp_base_prototype InOut m.mstatic [] fmt pp_clear_procedure_name
 
 
 (* Procedure pretty print functions *)
@@ -312,8 +312,8 @@ let pp_clear_prototype m fmt pp_name =
    @param instrs instructions list
 **)
 let pp_procedure_definition pp_name pp_prototype pp_local pp_instr fmt (locals, instrs) =
-  fprintf fmt "@[<v>%a is%t@[<v>%a%t@]@,begin@,  @[<v>%a%t@]@,end %t@]"
-    pp_prototype pp_name
+  fprintf fmt "@[<v>%t is%t@[<v>%a%t@]@,begin@,  @[<v>%a%t@]@,end %t@]"
+    pp_prototype
     (Utils.pp_final_char_if_non_empty "@,  " locals)
     (Utils.fprintf_list ~sep:";@," pp_local) locals
     (Utils.pp_final_char_if_non_empty ";" locals)

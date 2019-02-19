@@ -24,9 +24,10 @@ struct
    @param instrs list of instructions printer
 **)
 let pp_main_procedure_definition machine fmt (locals, instrs) =
+    let pp_name = pp_main_procedure_name machine in
     pp_procedure_definition
-      (pp_main_procedure_name machine)
-      pp_simple_prototype
+      pp_name
+      (pp_simple_prototype pp_name)
       (fun fmt local -> fprintf fmt "%t" local)
       (fun fmt instr -> fprintf fmt "%t" instr)
       fmt
@@ -37,7 +38,7 @@ let pp_main_procedure_definition machine fmt (locals, instrs) =
    @param fmt the formater to print on
    @param instance node
 **)
-let pp_node_init_call name fmt node =
+let pp_node_reset_call name fmt node =
   let pp_package fmt = pp_package_name fmt node in
   let pp_type fmt = pp_package_access fmt (pp_package, pp_state_type) in
   let pp_name fmt = pp_clean_ada_identifier fmt name in
@@ -54,8 +55,8 @@ let pp_main_file fmt machine =
   let apply_pp_var_decl var fmt = pp_machine_var_decl NoMode fmt var in
   let locals = List.map apply_pp_var_decl step_parameters in
   let locals = pp_local_state_var_decl::locals in
-  let pp_init fmt =
-    fprintf fmt "%a.init(%s)"
+  let pp_reset fmt =
+    fprintf fmt "%a.reset(%s)"
       pp_package_name machine.mname
       stateVar in
   let pp_loop fmt =
@@ -64,7 +65,7 @@ let pp_main_file fmt machine =
       stateVar
       (Utils.fprintf_list ~sep:",@ " pp_var_name) step_parameters
       in
-  let instrs = [pp_init; pp_loop] in
+  let instrs = [pp_reset; pp_loop] in
   fprintf fmt "@[<v>%a;@,@,%a;@]"
     pp_with_node machine.mname
     (pp_main_procedure_definition machine) (locals, instrs)
