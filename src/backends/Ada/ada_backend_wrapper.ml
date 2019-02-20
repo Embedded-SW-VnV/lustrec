@@ -24,10 +24,9 @@ struct
    @param instrs list of instructions printer
 **)
 let pp_main_procedure_definition machine fmt (locals, instrs) =
-    let pp_name = pp_main_procedure_name machine in
     pp_procedure_definition
-      pp_name
-      (pp_simple_prototype pp_name)
+      pp_main_procedure_name
+      (pp_simple_prototype pp_main_procedure_name)
       (fun fmt local -> fprintf fmt "%t" local)
       (fun fmt instr -> fprintf fmt "%t" instr)
       fmt
@@ -48,27 +47,40 @@ let pp_node_reset_call name fmt node =
    @param fmt the formater to print on
    @param machine the main machine
 **)
-let pp_main_file fmt machine =
+let pp_main_adb fmt machine =
   let stateVar = "state" in
   let step_parameters = machine.mstep.step_inputs@machine.mstep.step_outputs in
-  let pp_local_state_var_decl fmt = pp_node_state_decl stateVar fmt machine.mname in
+  let pp_local_state_var_decl fmt = pp_node_state_decl [] stateVar fmt machine in
   let apply_pp_var_decl var fmt = pp_machine_var_decl NoMode fmt var in
   let locals = List.map apply_pp_var_decl step_parameters in
   let locals = pp_local_state_var_decl::locals in
   let pp_reset fmt =
     fprintf fmt "%a.reset(%s)"
-      pp_package_name machine.mname
+      pp_package_name machine
       stateVar in
   let pp_loop fmt =
     fprintf fmt "while true loop@,  %a.step(@[%s,@ %a@]);@,end loop"
-      pp_package_name machine.mname
+      pp_package_name machine
       stateVar
       (Utils.fprintf_list ~sep:",@ " pp_var_name) step_parameters
       in
   let instrs = [pp_reset; pp_loop] in
   fprintf fmt "@[<v>%a;@,@,%a;@]"
-    pp_with_node machine.mname
+    pp_with_machine machine
     (pp_main_procedure_definition machine) (locals, instrs)
+
+
+(** Print the arrow ads file.
+   @param fmt the formater to print on
+**)
+let pp_arrow_ads fmt =
+  fprintf fmt "COUCOU"
+
+(** Print the arrow adb file.
+   @param fmt the formater to print on
+**)
+let pp_arrow_adb fmt =
+  fprintf fmt "COUCOU"
 
 (** Print the gpr project file.
    @param fmt the formater to print on
@@ -76,8 +88,8 @@ let pp_main_file fmt machine =
 **)
 let pp_project_file fmt machine =
     fprintf fmt "project %a is@.  for Main use (\"%a\");@.end %a;"
-      pp_package_name machine.mname
-      pp_main_filename machine
-      pp_package_name machine.mname
+      pp_package_name machine
+      (pp_filename "adb") pp_main_procedure_name
+      pp_package_name machine
 
 end

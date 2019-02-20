@@ -31,15 +31,42 @@ let pp_clean_ada_identifier fmt name =
   in
   fprintf fmt "%s%s" prefix name
 
+(** Encapsulate a pretty print function to lower case its result when applied
+   @param pp the pretty print function
+   @param fmt the formatter
+   @param arg the argument of the pp function
+**)
+let pp_lowercase pp fmt =
+  let str = asprintf "%t" pp in
+  fprintf fmt "%s" (String. lowercase_ascii str)
+
+(** Print a filename by lowercasing the base and appending an extension.
+   @param extension the extension to append to the package name
+   @param fmt the formatter
+   @param pp_name the file base name printer
+**)
+let pp_filename extension fmt pp_name =
+  fprintf fmt "%t.%s"
+    (pp_lowercase pp_name)
+    extension
+
 
 (* Package pretty print functions *)
 
-(** Print the name of a package associated to a machine.
+(** Print the name of the arrow package.
+   @param fmt the formater to print on
+**)
+let pp_arrow_package_name fmt = fprintf fmt "Arrow"
+
+(** Print the name of a package associated to a node.
    @param fmt the formater to print on
    @param machine the machine
 **)
-let pp_package_name fmt node =
-    fprintf fmt "%a" pp_clean_ada_identifier node.node_id
+let pp_package_name fmt machine =
+  if String.equal Arrow.arrow_id machine.mname.node_id then
+      fprintf fmt "%t" pp_arrow_package_name
+  else
+      fprintf fmt "%a" pp_clean_ada_identifier machine.mname.node_id
 
 (** Print the ada package introduction sentence it can be used for body and
 declaration. Boolean parameter body should be true if it is a body delcaration.
@@ -50,14 +77,14 @@ declaration. Boolean parameter body should be true if it is a body delcaration.
 let pp_begin_package body fmt machine =
   fprintf fmt "package %s%a is"
     (if body then "body " else "")
-    pp_package_name machine.mname
+    pp_package_name machine
 
 (** Print the ada package conclusion sentence.
    @param fmt the formater to print on
    @param machine the machine
 **)
 let pp_end_package fmt machine =
-  fprintf fmt "end %a" pp_package_name machine.mname
+  fprintf fmt "end %a" pp_package_name machine
 
 (** Print the access of an item from an other package.
    @param fmt the formater to print on
@@ -69,17 +96,9 @@ let pp_package_access fmt (package, item) =
 
 (** Print the name of the main procedure.
    @param fmt the formater to print on
-   @param main_machine the machine associated to the main node
 **)
-let pp_main_procedure_name main_machine fmt =
+let pp_main_procedure_name fmt =
   fprintf fmt "main"
-
-(** Print the name of the main ada file.
-   @param fmt the formater to print on
-   @param main_machine the machine associated to the main node
-**)
-let pp_main_filename fmt main_machine =
-  fprintf fmt "%t.adb" (pp_main_procedure_name main_machine)
 
 (** Extract a node from an instance.
    @param instance the instance
@@ -90,12 +109,12 @@ let extract_node instance =
     | Node nd         -> nd
     | _ -> assert false (*TODO*)
 
-(** Print a with statement to include a node.
+(** Print a with statement to include a machine.
    @param fmt the formater to print on
-   @param node the node
+   @param machine the machine
 **)
-let pp_with_node fmt node =
-  fprintf fmt "private with %a" pp_package_name node
+let pp_with_machine fmt machine =
+  fprintf fmt "private with %a" pp_package_name machine
 
 
 (* Type pretty print functions *)
@@ -108,7 +127,7 @@ let pp_with_node fmt node =
 let pp_type_decl fmt (pp_name, pp_definition) =
   fprintf fmt "type %t is %t" pp_name pp_definition
 
-(** Print a private type declaration
+(** Print a limited private type declaration
    @param fmt the formater to print on
    @param pp_name a format printer which print the type name
 **)
@@ -140,17 +159,73 @@ let pp_float_type fmt = fprintf fmt "Float"
 **)
 let pp_boolean_type fmt = fprintf fmt "Boolean"
 
+(** Print the type of a polymorphic type.
+   @param fmt the formater to print on
+   @param id the id of the polymorphic type
+**)
+let pp_polymorphic_type fmt id =
+  fprintf fmt "T_%i" id
+
+(** Print a type.
+   @param fmt the formater to print on
+   @param type the type
+**)
+let pp_type fmt typ = 
+  (match (Types.repr typ).Types.tdesc with
+    | Types.Tbasic Types.Basic.Tint  -> pp_integer_type fmt
+    | Types.Tbasic Types.Basic.Treal -> pp_float_type fmt
+    | Types.Tbasic Types.Basic.Tbool -> pp_boolean_type fmt
+    | Types.Tunivar                  -> pp_polymorphic_type fmt typ.tid
+    | _ -> eprintf "Type error : %a@." Types.print_ty typ; assert false (*TODO*)
+  )
+
 (** Print the type of a variable.
    @param fmt the formater to print on
    @param id the variable
 **)
 let pp_var_type fmt id = 
-  (match (Types.repr id.var_type).Types.tdesc with
-    | Types.Tbasic Types.Basic.Tint -> pp_integer_type fmt
-    | Types.Tbasic Types.Basic.Treal -> pp_float_type fmt
-    | Types.Tbasic Types.Basic.Tbool -> pp_boolean_type fmt
-    | _ -> eprintf "Type error : %a@." Types.print_ty id.var_type; assert false (*TODO*)
-  )
+  pp_type fmt id.var_type
+
+(** Extract all the inputs and outputs.
+   @param machine the machine
+   @return a list of all the var_decl of a macine
+**)
+let get_all_vars_machine m =
+  m.mmemory@m.mstep.step_inputs@m.mstep.step_outputs@m.mstatic
+
+(** Check if a type is polymorphic.
+   @param typ the type
+   @return true if its polymorphic
+**)
+let is_Tunivar typ = (Types.repr typ).tdesc == Types.Tunivar
+
+(** Find all polymorphic type : Types.Tunivar in a machine.
+   @param machine the machine
+   @return a list of id corresponding to polymorphic type
+**)
+let find_all_polymorphic_type m =
+  let vars = get_all_vars_machine m in
+  let extract id = id.var_type.tid in
+  let polymorphic_type_vars =
+    List.filter (function x-> is_Tunivar x.var_type) vars in
+  List.sort_uniq (-) (List.map extract polymorphic_type_vars)
+
+(** Print a package name with polymorphic types specified.
+   @param substitution correspondance between polymorphic type id and their instantiation
+   @param fmt the formater to print on
+   @param machine the machine
+**)
+let pp_package_name_with_polymorphic substitution fmt machine =
+  let polymorphic_types = find_all_polymorphic_type machine in
+  assert(List.length polymorphic_types = List.length substitution);
+  let substituion = List.sort_uniq (fun x y -> fst x - fst y) substitution in
+  assert(List.for_all2 (fun poly1 (poly2, _) -> poly1 = poly2)
+            polymorphic_types substituion);
+  let instantiated_types = snd (List.split substitution) in
+  fprintf fmt "%a%t%a"
+    pp_package_name machine
+    (Utils.pp_final_char_if_non_empty "_" instantiated_types)
+    (Utils.fprintf_list ~sep:"_" pp_type) instantiated_types
 
 
 (* Variable pretty print functions *)
@@ -207,7 +282,7 @@ let pp_machine_var_decl mode fmt id =
   let pp_type = function fmt -> pp_var_type fmt id in
   pp_var_decl fmt (mode, pp_name, pp_type)
 
-(** Print variable declaration for state variable
+(** Print variable declaration for a local state variable
    @param fmt the formater to print on
    @param mode input/output mode of the parameter
 **)
@@ -216,13 +291,14 @@ let pp_state_var_decl fmt mode =
   let pp_type = pp_state_type in
   pp_var_decl fmt (mode, pp_name, pp_type)
 
-(** Print the declaration of a state element of node.
-   @param instance name of the variable
+(** Print the declaration of a state element of a machine.
+   @param substitution correspondance between polymorphic type id and their instantiation
+   @param name name of the variable
    @param fmt the formater to print on
-   @param instance node
+   @param machine the machine
 **)
-let pp_node_state_decl name fmt node =
-  let pp_package fmt = pp_package_name fmt node in
+let pp_node_state_decl substitution name fmt machine =
+  let pp_package fmt = pp_package_name_with_polymorphic substitution fmt machine in
   let pp_type fmt = pp_package_access fmt (pp_package, pp_state_type) in
   let pp_name fmt = pp_clean_ada_identifier fmt name in
   pp_var_decl fmt (NoMode, pp_name, pp_type)
