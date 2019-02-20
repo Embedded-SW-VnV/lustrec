@@ -11,7 +11,7 @@ open Machine_code_common
 (* Misc pretty print functions *)
 
 (** Print a cleaned an identifier for ada exportation : Ada names must not start by an
-    underscore and must not contain a double underscore 
+    underscore and must not contain a double underscore
    @param var name to be cleaned*)
 let pp_clean_ada_identifier fmt name =
   let base_size = String.length name in
@@ -105,7 +105,7 @@ let pp_main_procedure_name fmt =
 **)
 let extract_node instance =
   let (_, (node, _)) = instance in
-  match node.top_decl_desc with 
+  match node.top_decl_desc with
     | Node nd         -> nd
     | _ -> assert false (*TODO*)
 
@@ -306,16 +306,16 @@ let pp_node_state_decl substitution name fmt machine =
 
 (* Prototype pretty print functions *)
 
-(** Print the reset of the init procedure **)
+(** Print the name of the reset procedure **)
 let pp_reset_procedure_name fmt = fprintf fmt "reset"
 
-(** Print the step of the init procedure **)
+(** Print the name of the step procedure **)
 let pp_step_procedure_name fmt = fprintf fmt "step"
 
 (** Print the name of the init procedure **)
 let pp_init_procedure_name fmt = fprintf fmt "init"
 
-(** Print the clear of the init procedure **)
+(** Print the name of the clear procedure **)
 let pp_clear_procedure_name fmt = fprintf fmt "clear"
 
 (** Print the prototype of a procedure with non input/outputs
@@ -396,4 +396,3 @@ let pp_procedure_definition pp_name pp_prototype pp_local pp_instr fmt (locals, 
     (Utils.fprintf_list ~sep:";@," pp_instr) instrs
     (Utils.pp_final_char_if_non_empty ";" instrs)
     pp_name
-
