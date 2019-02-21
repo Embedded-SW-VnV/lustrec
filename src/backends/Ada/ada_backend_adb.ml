@@ -259,10 +259,8 @@ let pp_clear_definition fmt m = pp_procedure_definition
 let pp_file fmt machine =
   fprintf fmt "%a@,  @[<v>@,%a;@,@,%a;@,@,%a;@,@,%a;@,@]@,%a;@."
     (pp_begin_package true) machine (*Begin the package*)
-    pp_init_definition machine (*Define the init procedure*)
-    pp_step_definition machine (*Define the step procedure*)
     pp_reset_definition machine (*Define the reset procedure*)
-    pp_clear_definition machine (*Define the clear procedure*)
+    pp_step_definition machine (*Define the step procedure*)
     pp_end_package machine  (*End the package*)
 
 end
