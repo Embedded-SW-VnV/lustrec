@@ -126,7 +126,7 @@ struct
              [(instance, (node, static))]
    **)
   let pp_machine_reset_name fmt encapsulated_node =
-    fprintf fmt "%a.reset" pp_package_name (extract_node encapsulated_node)
+    fprintf fmt "%a.reset" pp_package_name_from_node (extract_node encapsulated_node)
 
   (** Printing function for reset function.
 

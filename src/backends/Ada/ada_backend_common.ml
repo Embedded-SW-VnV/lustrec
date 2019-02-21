@@ -62,11 +62,18 @@ let pp_arrow_package_name fmt = fprintf fmt "Arrow"
    @param fmt the formater to print on
    @param machine the machine
 **)
-let pp_package_name fmt machine =
-  if String.equal Arrow.arrow_id machine.mname.node_id then
+let pp_package_name_from_node fmt node =
+  if String.equal Arrow.arrow_id node.node_id then
       fprintf fmt "%t" pp_arrow_package_name
   else
-      fprintf fmt "%a" pp_clean_ada_identifier machine.mname.node_id
+      fprintf fmt "%a" pp_clean_ada_identifier node.node_id
+
+(** Print the name of a package associated to a machine.
+   @param fmt the formater to print on
+   @param machine the machine
+**)
+let pp_package_name fmt machine =
+  pp_package_name_from_node fmt machine.mname
 
 (** Print the ada package introduction sentence it can be used for body and
 declaration. Boolean parameter body should be true if it is a body delcaration.
