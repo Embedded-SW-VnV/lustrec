@@ -16,6 +16,7 @@ exception Error of Location.t * Error.error_kind
 module VSet: sig
   include Set.S
   val pp: Format.formatter -> t -> unit 
+  val get: ident -> t -> elt
 end with type elt = Lustre_types.var_decl 
   
 val dummy_type_dec: type_dec
@@ -49,11 +50,12 @@ val mkinstr: ?lustre_expr:expr -> ?lustre_eq: eq -> Machine_code_types.instr_t_d
 val get_instr_desc: Machine_code_types.instr_t -> Machine_code_types.instr_t_desc
 val update_instr_desc: Machine_code_types.instr_t -> Machine_code_types.instr_t_desc -> Machine_code_types.instr_t
   
-val node_table : (ident, top_decl) Hashtbl.t
+(*val node_table : (ident, top_decl) Hashtbl.t*)
 val print_node_table:  Format.formatter -> unit -> unit
 val node_name: top_decl -> ident
 val node_inputs: top_decl -> var_decl list
 val node_from_name: ident -> top_decl
+val update_node: ident -> top_decl -> unit
 val is_generic_node: top_decl -> bool
 val is_imported_node: top_decl -> bool
 
@@ -85,6 +87,7 @@ val const_and: constant -> constant -> constant
 val const_xor: constant -> constant -> constant
 val const_impl: constant -> constant -> constant
 
+val get_var: ident -> var_decl list -> var_decl
 val get_node_vars: node_desc -> var_decl list
 val get_node_var: ident -> node_desc -> var_decl
 val get_node_eqs: node_desc -> eq list * automata_desc list
@@ -115,9 +118,9 @@ val expr_to_eexpr: expr -> eexpr
 
 val add_internal_funs: unit -> unit
 
-val pp_prog_type : Format.formatter -> program -> unit
+val pp_prog_type : Format.formatter -> program_t -> unit
 
-val pp_prog_clock : Format.formatter -> program -> unit
+val pp_prog_clock : Format.formatter -> program_t -> unit
 
 val const_of_top: top_decl -> const_desc
 val node_of_top: top_decl -> node_desc
@@ -125,12 +128,12 @@ val imported_node_of_top: top_decl -> imported_node_desc
 val typedef_of_top: top_decl -> typedef_desc
 val dependency_of_top: top_decl -> (bool * ident)
 
-val get_nodes : program -> top_decl list
-val get_imported_nodes : program -> top_decl list
-val get_consts : program -> top_decl list
-val get_typedefs: program -> top_decl list
-val get_dependencies : program -> top_decl list
-(* val prog_unfold_consts: program -> program *)
+val get_nodes : program_t -> top_decl list
+val get_imported_nodes : program_t -> top_decl list
+val get_consts : program_t -> top_decl list
+val get_typedefs: program_t -> top_decl list
+val get_dependencies : program_t -> top_decl list
+(* val prog_unfold_consts: program_t -> program_t *)
 
 val rename_static: (ident -> Dimension.dim_expr) -> type_dec_desc -> type_dec_desc
 val rename_carrier: (ident -> ident) -> clock_dec_desc -> clock_dec_desc
@@ -147,7 +150,7 @@ val rename_eq : (ident -> ident) -> (ident -> ident) -> eq -> eq
 (** val rename_aut f_node f_var aut *)
 val rename_aut : (ident -> ident) -> (ident -> ident) -> automata_desc -> automata_desc
 (** rename_prog f_node f_var prog *)
-val rename_prog: (ident -> ident) -> (ident -> ident) -> (ident -> ident) -> program -> program
+val rename_prog: (ident -> ident) -> (ident -> ident) -> (ident -> ident) -> program_t -> program_t
 
 val substitute_expr: var_decl list -> eq list -> expr -> expr
 
@@ -173,9 +176,11 @@ val update_expr_annot: ident -> expr -> expr_annot -> expr
 val expr_contains_expr: tag -> expr -> bool
 
 val reset_cpt_fresh: unit -> unit
-val mk_fresh_var: node_desc -> Location.t -> Types.type_expr ->  Clocks.clock_expr -> var_decl
+  
+(* mk_fresh_var parentid to be registered as parent_nodeid, vars is the list of existing vars in that context *)
+val mk_fresh_var: (ident * var_decl list) -> Location.t -> Types.type_expr ->  Clocks.clock_expr -> var_decl
 
-
+val find_eq: ident list -> eq list -> eq * eq list
 val get_expr_calls: top_decl list -> expr -> Utils.ISet.t
 
 val eq_has_arrows: eq -> bool

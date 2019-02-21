@@ -40,7 +40,7 @@ let extract_header dirname basename prog =
 	| ImportedNode _ -> header
 	| Const _
 	| TypeDef _
-	| Open _         -> decl :: header)
+	| Include _ | Open _         -> decl :: header)
     prog []
 
 let check_obsolete lusic basename =

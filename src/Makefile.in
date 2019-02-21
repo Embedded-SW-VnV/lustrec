@@ -10,7 +10,7 @@ LUSI_LIBS=include/math.lusi include/conv.lusi
 LOCAL_BINDIR=../bin
 LOCAL_DOCDIR=../doc/manual
 
-all: lustrec lustret
+all: lustrec lustret lustrev
 
 lustrec:
 	@echo Compiling binary lustrec
@@ -23,6 +23,18 @@ lustret:
 	@$(OCAMLBUILD) main_lustre_testgen.native
 	@mkdir -p $(LOCAL_BINDIR)
 	@mv _build/main_lustre_testgen.native $(LOCAL_BINDIR)/lustret
+
+lustrev:
+	@echo Compiling binary lustrev
+	@$(OCAMLBUILD) main_lustre_verifier.native
+	@mkdir -p $(LOCAL_BINDIR)
+	@mv _build/main_lustre_verifier.native $(LOCAL_BINDIR)/lustrev
+
+lustrei:
+	@echo Compiling binary lustrei
+	@$(OCAMLBUILD) tools/importer/main_lustre_importer.native
+	@mkdir -p $(LOCAL_BINDIR)
+	@mv _build/tools/importer/main_lustre_importer.native $(LOCAL_BINDIR)/lustrei
 
 @lustresf_src@
 
@@ -47,4 +59,4 @@ dist-clean: clean
 install:
 	make -C .. install
 
-.PHONY: compile-lusi doc dot lustrec lustret lustrec.odocl clean install dist-clean tests
+.PHONY: compile-lusi doc dot lustrec lustret lustrev lustrec.odocl clean install dist-clean tests

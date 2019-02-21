@@ -391,7 +391,7 @@ let print_alloc_header header_fmt basename prog machines dependencies =
     (* Import the header *)
     fprintf header_fmt "/* Import header from %s */@." basename;
     fprintf header_fmt "@[<v>";
-    print_import_prototype header_fmt (Dep (true, basename, [], true (* assuming it is staful *) ));
+    print_import_prototype header_fmt {local=true; name=basename; content=[]; is_stateful=true} (* assuming it is staful *);
     fprintf header_fmt "@]@.";
     fprintf header_fmt "/* Import dependencies */@.";
     fprintf header_fmt "@[<v>";
@@ -434,7 +434,7 @@ let print_header_from_header header_fmt basename header =
     List.iter
       (fun dep -> 
 	let (local, s) = dependency_of_top dep in 
-	print_import_prototype header_fmt (Dep (local, s, [], true (* assuming it is stateful *))))
+	print_import_prototype header_fmt {local=local; name=s; content=[]; is_stateful=true} (* assuming it is stateful *))
       dependencies;
     fprintf header_fmt "@]@.";
     fprintf header_fmt "/* Types definitions */@.";

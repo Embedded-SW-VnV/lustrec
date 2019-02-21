@@ -10,6 +10,7 @@ type error_kind =
   | Unknown_library of ident
   | Wrong_number of ident
   | AlgebraicLoop
+  | LoadError of string
 
 let return_code kind =
   match kind with
@@ -21,7 +22,7 @@ let return_code kind =
   | Unknown_library _ -> 7
   | Wrong_number _ -> 8
   | AlgebraicLoop -> 9
-
+  | LoadError _ -> 10
 
   let pp_error_msg fmt = function
   | Main_not_found ->
@@ -50,6 +51,10 @@ let return_code kind =
       "library %s.lusic has a different version number and may crash compiler.@.Please recompile the corresponding interface or source file.@."
       sym
   | AlgebraicLoop  -> assert false (* should have been handled yet *)
+  | LoadError l -> 
+    fprintf fmt
+      "Load error: %s.@."
+      l
      
 let pp_warning loc pp_msg =
   Format.eprintf "%a@.Warning: %t@."

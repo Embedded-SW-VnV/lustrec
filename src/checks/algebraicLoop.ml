@@ -144,7 +144,7 @@ let fast_stages_processing prog =
 
   (* Mini stage 1 *)
   (* Extracting dependencies: fill some table with typing info *)
-  ignore (Compiler_common.import_dependencies prog);
+  ignore (Modules.load ~is_header:false prog);
   (* Local inlining *)
   let prog = Inliner.local_inline prog (* type_env clock_env *) in
   (* Checking stateless/stateful status *)
@@ -157,7 +157,8 @@ let fast_stages_processing prog =
   (* Clock calculus *)
   let _ (*computed_clocks_env*) = Compiler_common.clock_decls !Global.clock_env prog in
   (* Normalization *)
-  let prog = Normalization.normalize_prog ~backend:!Options.output prog in
+  let params = Backends.get_normalization_params () in
+  let prog = Normalization.normalize_prog params prog in
   (* Mini stage 2 : Scheduling *)
   let res = Scheduling.schedule_prog prog in
   Options.verbose_level := !Options.verbose_level + 2;
@@ -272,7 +273,7 @@ let rec solving_node max_inlines prog nd existing_al partitions =
     Alarms contain the list of inlining performed or advised for each node. 
     This could be provided as a feedback to the user.
 *)
-let clean_al prog : program * bool * report =
+let clean_al prog : program_t * bool * report =
   let max_inlines = !Options.al_nb_max in
 (* We iterate over each node *)
   let _, prog, al_list =

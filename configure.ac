@@ -4,6 +4,13 @@ AC_INIT([lustrec], 1.7-gitversion, [ploc@garoche.net])
 AC_SUBST(VERSION_NUMBER, 1.7)
 AC_SUBST(VERSION_CODENAME, "Xia/Huai-dev")
 
+gitbranch=`git branch | grep \* | sed "s/\*[ ]*//"`
+AC_SUBST(GITBRANCH, "$gitbranch")
+if test x"$GITBRANCH" != "xmaster"; then
+  AC_SUBST(CDASHSUBPROJ, "unstable")
+else
+  AC_SUBST(CDASHSUBPROJ, "master")
+fi
 
 # Next release will be
 #AC_INIT([lustrec], [1.8], [ploc@garoche.net])
@@ -57,11 +64,70 @@ dnl AC_MSG_RESULT(Hourrah: ocamlfind found!)
 
 # Checks for libraries.
 # OCamlgraph
-AC_MSG_CHECKING(ocaml libraries required)
+AC_MSG_CHECKING(ocaml libraries required (ocamlgraph cmdliner fmt logs num)) 
 AS_IF([ocamlfind query ocamlgraph cmdliner fmt logs num >/dev/null 2>&1],
     [],[AC_MSG_ERROR(A few ocaml library required. opam install ocamlgraph cmdliner fmt logs num should solve the issue)],
 )
 AC_MSG_RESULT(yes)
+
+#Yojson
+AC_MSG_CHECKING(yojson library (optional))
+AS_IF([ocamlfind query yojson >/dev/null 2>&1],
+    [yojson=yes; AC_MSG_RESULT(yes)],[yojson=no; AC_MSG_WARN(Yojson required for lustresf. opam install yojson should solve the issue)],
+)
+
+# Seal
+AC_MSG_CHECKING(seal library (optional))
+AS_IF([ocamlfind query seal >/dev/null 2>&1],
+    [seal=yes; AC_MSG_RESULT(yes)],[seal=no; AC_MSG_RESULT(no)],
+)
+AS_IF([test "x$seal" = "xyes"], [
+   AC_SUBST(LUSTREV_SEAL, "(module Seal_verifier.Verifier : VerifierType.S);")
+   AC_SUBST(LUSTREV_SEAL_TAG, "<**/*>: package(seal)")
+])
+
+# z3 (optional)
+
+# option to rely on github version if installed
+AC_ARG_WITH(z3_github, [AS_HELP_STRING([--with-z3-github],
+              [Rely on Z3 as distributed by the official github
+	       repo rather then the opam distribution. Disabled by default.])])
+
+AS_IF([test "x$with_z3_github" != "xyes"],
+      [z3name=z3],
+      [z3name=Z3]
+      )
+	
+AC_MSG_CHECKING(z3 library)
+
+
+#define([z3path], esyscmd([ocamlfind query z3 | tr -d '\n']))
+#define([z3path], esyscmd([opam config var Z3:lib | tr -d '\n']))
+
+AS_IF([ocamlfind query $z3name >/dev/null 2>&1],
+    [z3=yes; AC_MSG_RESULT([yes])],[zustre=no; AC_MSG_RESULT(no)],
+)
+AS_IF([test "x$z3" = "xyes"], [
+   AC_SUBST(LUSTREV_ZUSTRE, "(module Zustre_verifier.Verifier : VerifierType.S);")
+   AC_SUBST(LUSTREV_Z3_TAG, "<**/*verifier.native> or <tools/zustre/*.ml> or <tools/zustre/*.mli>: package($z3name)")
+   AS_IF([test "x$z3name" = "xZ3"],
+   	       [define([Z3path], esyscmd([ocamlfind query Z3 | tr -d '\n']))
+	        AC_SUBST(Z3LIBPATH, "Z3path")],
+ 	       [define([z3path], esyscmd([ocamlfind query z3 | tr -d '\n']))
+	        AC_SUBST(Z3LIBPATH, "z3path")]
+		)
+])
+
+
+# Tiny
+AC_MSG_CHECKING(tiny library (optional))
+AS_IF([ocamlfind query tiny >/dev/null 2>&1],
+    [tiny=yes; AC_MSG_RESULT(yes)],[tiny=no; AC_MSG_RESULT(no)],
+)
+AS_IF([test "x$tiny" = "xyes"], [
+   AC_SUBST(LUSTREV_TINY, "(module Tiny_verifier.Verifier : VerifierType.S);")
+   AC_SUBST(LUSTREV_TINY_TAG, "<**/*>: package(tiny)")
+])
 
 # Salsa
 AC_ARG_ENABLE(salsa, [AS_HELP_STRING([--disable-salsa],
@@ -75,7 +141,7 @@ AS_IF([ocamlfind query salsa >/dev/null 2>&1],
 
 AS_IF([test "x$enable_salsa" != "xno"], [
   if (test "x$salsa" = xyes ); then
-   AC_SUBST(SALSA, "(module Salsa_plugin.Plugin : PluginType.PluginType);")
+   AC_SUBST(SALSA, "(module Salsa_plugin.Plugin : PluginType.S);")
    AC_SUBST(SALSA_TAG, "<**/*.native> or <plugins/salsa/*.cm?> : package(salsa)")
   fi
 ])
@@ -157,8 +223,10 @@ AC_CONFIG_FILES([opam
 		 src/Makefile
 		 src/version.ml
 		 src/pluginList.ml
+		 src/verifierList.ml
 		 src/_tags
 		 src/ocaml_utils.ml
+		 include/z3librc
 		 share/FindLustre.cmake
 		 ])
 
@@ -191,6 +259,29 @@ AC_MSG_NOTICE(********    Plugins    ********)
       else
         AC_MSG_NOTICE([lustresf not available])
       fi
+  fi
+AC_MSG_NOTICE(********   Verifiers    ********)
+
+  if (test "x$seal" = "xyes"); then
+      AC_MSG_NOTICE([Seal   enabled])
+  else
+      AC_MSG_NOTICE([Seal   disabled. Require Seal library])
+  fi
+
+  if (test "x$z3" = xyes); then
+      AC_MSG_NOTICE([Zustre enabled])
+      AC_MSG_WARN(Z3 shared lib (libz3.so) has to be available in the LD_LIBRARY_PATH (DYLD_LIBRARY_PATH in OSX).)
+      dnl AC_MSG_WARN(It is currently located in "z3path")
+      AC_MSG_WARN(If not already available run "source ${prefix}/include/lustrec/z3librc")
+      AC_MSG_WARN(or add that line to your ~/.profile or ~/.bashrc)
+else
+      AC_MSG_NOTICE([Zustre disabled. Require Z3 ocaml library])
+  fi
+
+  if (test "x$tiny" = xyes); then
+      AC_MSG_NOTICE([Tiny   enabled])
+  else
+      AC_MSG_NOTICE([Tiny   disabled. Require Tiny library])
   fi
 
 AC_MSG_NOTICE(****** Regression Tests  ******)

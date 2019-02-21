@@ -118,7 +118,7 @@ and  eexpr =
      eexpr_quantifiers: (quantifier_type * var_decl list) list;
      mutable eexpr_type: Types.type_expr;
      mutable eexpr_clock: Clocks.clock_expr;
-     mutable eexpr_normalized: (var_decl * eq list * var_decl list) option;
+     (* mutable eexpr_normalized: (var_decl * eq list * var_decl list) option; *)
      eexpr_loc: Location.t}
 
 and expr_annot =
@@ -131,22 +131,6 @@ type contract_mode =
 type contract_import =
   { import_nodeid: ident; inputs: expr list; outputs: expr list; import_loc: Location.t }
     
-type contract_desc = 
-  {
-(* TODO: 
-   local variables 
-   rename: assume/guarantee
-           in behavior mode (id, requires/ensures)
-   import contract
-*)
-       consts: var_decl list;
-       locals: var_decl list;
-       assume: eexpr list;
-       guarantees: eexpr list;
-       modes: contract_mode list;
-       imports: contract_import list; 
-       spec_loc: Location.t;
-}
 
 
 type offset =
@@ -177,6 +161,18 @@ and handler_desc =
    hand_asserts: assert_t list;
    hand_annots: expr_annot list;
    hand_loc: Location.t}
+
+type contract_desc = 
+  {
+    consts: var_decl list;
+    locals: var_decl list;
+    stmts: statement list;
+    assume: eexpr list;
+    guarantees: eexpr list;
+    modes: contract_mode list;
+    imports: contract_import list; 
+    spec_loc: Location.t;
+  }
 
 type node_desc =
     {node_id: ident;
@@ -222,6 +218,8 @@ type top_decl_desc =
 | ImportedNode of imported_node_desc
 | Open of bool * string (* the boolean set to true denotes a local
 			   lusi vs a lusi installed at system level *)
+| Include of string (* the boolean set to true denotes a local
+			   lus vs a lus installed at system level *)
 | TypeDef of typedef_desc
     
 type top_decl =
@@ -230,14 +228,14 @@ type top_decl =
      top_decl_itf: bool;                (* header or source file ? *)
      top_decl_loc: Location.t}          (* the location where it is defined *)
 
-type program = top_decl list
+type program_t = top_decl list
 
-type dep_t = Dep of
-    bool
-  * ident
-  * (top_decl list)
-  * bool (* is stateful *)
-
+type dep_t = {
+    local: bool;
+    name: ident;
+    content: program_t;
+    is_stateful: bool
+  }
 
 
 

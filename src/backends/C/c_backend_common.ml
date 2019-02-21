@@ -470,26 +470,26 @@ let print_stateless_C_prototype fmt (name, inputs, outputs) =
     name
     (Utils.fprintf_list ~sep:",@ " pp_c_decl_input_var) inputs
     
-let print_import_init fmt (Dep (local, basename, _, _)) =
-  if local then
-    let baseNAME = file_to_module_name basename in
+let print_import_init fmt dep =
+  if dep.local then
+    let baseNAME = file_to_module_name dep.name in
     fprintf fmt "%a();" pp_global_init_name baseNAME
   else ()
 
-let print_import_clear fmt (Dep (local, basename, _, _)) =
-  if local then
-    let baseNAME = file_to_module_name basename in
+let print_import_clear fmt dep =
+  if dep.local then
+    let baseNAME = file_to_module_name dep.name in
     fprintf fmt "%a();" pp_global_clear_name baseNAME
   else ()
 
-let print_import_prototype fmt (Dep (_, s, _, _)) =
-  fprintf fmt "#include \"%s.h\"@," s
+let print_import_prototype fmt dep =
+  fprintf fmt "#include \"%s.h\"@," dep.name
 
-let print_import_alloc_prototype fmt (Dep (_, s, _, stateful)) =
-  if stateful then
-    fprintf fmt "#include \"%s_alloc.h\"@," s
+let print_import_alloc_prototype fmt dep =
+  if dep.is_stateful then
+    fprintf fmt "#include \"%s_alloc.h\"@," dep.name
 
-let print_extern_alloc_prototypes fmt (Dep (_,_, header,_)) =
+let print_extern_alloc_prototypes fmt dep =
   List.iter (fun decl -> match decl.top_decl_desc with
   | ImportedNode ind when not ind.nodei_stateless ->
     let static = List.filter (fun v -> v.var_dec_const) ind.nodei_inputs in
@@ -498,7 +498,7 @@ let print_extern_alloc_prototypes fmt (Dep (_,_, header,_)) =
       fprintf fmt "extern %a;@.@." print_dealloc_prototype ind.nodei_id;
     end
   | _                -> ()
-  ) header
+  ) dep.content
 
 
 let pp_c_main_var_input fmt id =  

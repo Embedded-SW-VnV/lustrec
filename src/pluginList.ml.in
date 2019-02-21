@@ -1,5 +1,5 @@
 let plugins =
   [
-    (module Scopes.Plugin : PluginType.PluginType);
+    (module Scopes.Plugin : PluginType.S);
     @SALSA@
   ]

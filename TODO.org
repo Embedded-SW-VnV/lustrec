@@ -164,9 +164,9 @@ But also some not-so-nice features (ploc's remarks):
     - for each node called try to slice to the selected vars
   - could be used to analyze counterexamples
 * TODO refactoring + doc
-- separate lustre types from machine types in different files
-- split basic libs into backend specific files
-- define mli for core steps: normalization and machine code
+- DONE separate lustre types from machine types in different files
+- DONE split basic libs into backend specific files
+- DONE define mli for core steps: normalization and machine code
 - define mli for lustre_type and machine_type (Garion)
 
 * TODO
@@ -234,3 +234,106 @@ if c then
 else {}
 
 x = if c then expr else x
+* Seal
+
+The Seal library should be available from LustreV
+
+lustrev -seal -node foo bar.lus 
+
+shall inline completely the node foo in bar.lus and compile it as a
+piecewise system: 
+- Memories have to be identified and one needs to separate the update
+  of the memories and the production of the output.
+- The update block should be normalized so that any ite occuring in
+  the definition of a memory should not define a local flow used in
+  basic operations.  In other words, the definitions should look like
+  mem_x = if g then e1 else e2 where e1 and e2 are either ite
+  expression or expressions without ite. As soon as a not-ite
+  expression is selected it cannot depend on the output of an ite.
+
+In a first step this normalized update shall be printed in
+stdout. Later it will associated to a SEAL datastructure through SEAL
+API.
+
+** Algorithm
+
+*** 1. Computation of update block
+- First we inline the node
+- After normalization the memories are the variables defined by a pre
+- Do we have to deal with arrows and reset?
+- Develop a function to perform slicing. Restrict the node eqs to the ones used in these pre defs.
+- one can also slice the expressions on the output variables
+
+*** 2. Normalization: piecewise system
+ ie. all ite pushed at the beginning
+
+- use the scheduling to obtain the dependencies amongs eqs
+- one can then iterate through eqs from the bottom to the top
+  if the eq looks like x = if g then e1 else e2
+  then tag x as ite(g,e1,e2)
+  if the parent expr y = if g2 then x else ... make 
+** More general use
+Some ideas
+- One could request multiple nodes: how to deal with these? Acting as
+  as many calls to the basic procedure?
+- Shall we keep the flatten update structure to the node? Another
+  property on input could be propagated.
+- The analysis will depend on bounds on input flows. Can we specialize
+  the update blocks based on input values, ie. disabling some branches
+  of the ite-tree?
+- 
+
+** TODO list
+
+* Salsa
+* Lusic 
+  Lusic can be generated either from lusi files or from lus files
+  They shall contain at least
+  - the complete definitions of types
+  - the complete definition of constants
+  - the list of nodes and their types/clocks
+  - the complete definition of specification components:
+    - either defined in lusi as 
+      - node spec: attached to a node
+      - contract: expressed as an imported node with a spec
+    - or defined in the lus
+      - node spec
+      - contract defined in a comment
+  - some compilation related information if compiled from a lusi
+    
+
+  What happen when we compile first a lusi and then the lus file?
+  - types of the lus node are checked wrt the ones available in the
+    lusic (coming from the lusi)
+  - do we want to update the lusic for additional specification
+    defined in the lus, or do we assume that the lusi masks the spec
+    artifacts defined in the lus file ?
+  - do we want to embeded the node content in the compiled lusic,
+    updating it?
+
+  When opening another module, one loads the lusic file
+  - if compilation directives are provided then can support the
+    generation of the Makefile, linking proper libs.
+  - if the lusic contains node content one may use these to perform
+    inlining if asked by the users or in certain configurations
+    - decision: lusic do not contain actual code: #include shall allow
+      to include external lustre copde and inline it as if it was
+      defined in the current file
+
+  We would like to know whether a declared node:
+  - is an external function, possibly specified but not associated
+    eventually to some lustre node. Ie type conversion functions,
+    array functions with loops, ...
+  - is a pure specification function/node/contract
+  - is just a signature(+spec) of a regular node
+
+  Contracts in lusi are compiled as imported node with spec. We could
+  keep the info that they will not be associated to some real code.
+  While a regular imported node could.
+
+  Now the question is how to tag a lusi file to explicitely state that
+  no lus file will be associated to it. May be one can provide a link
+  to the backend implemented.  Let say that this lusi file can be used
+  for the C backend then a C file should be provided. Do we want to
+  mention it in the lusi file?
+

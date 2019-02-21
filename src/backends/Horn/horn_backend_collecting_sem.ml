@@ -49,7 +49,7 @@ let collecting_semantics machines fmt node machine =
   (* Init case *)
   let _ = 
     (* Special case when the main node is stateless *)
-    if is_stateless machine then (
+    if Machine_code_common.is_stateless machine then (
       let step_name = pp_machine_stateless_name in
       fprintf fmt "; Initial set: One Step(m,x)  -- Stateless node! @.";
       fprintf fmt "(declare-rel INIT_STATE ())@.";
@@ -86,7 +86,7 @@ let collecting_semantics machines fmt node machine =
   in
 
   let step_name = 
-    if is_stateless machine then 
+    if Machine_code_common.is_stateless machine then 
       pp_machine_stateless_name
     else
       pp_machine_step_name
@@ -142,7 +142,7 @@ let cex_computation machines fmt node machine =
 
     (* Special case when the cex node is stateless *)
   let reset_name, step_name =
-    if is_stateless machine then
+    if Machine_code_common.is_stateless machine then
       pp_machine_stateless_name, pp_machine_stateless_name
     else
       pp_machine_reset_name, pp_machine_step_name

@@ -44,4 +44,4 @@ module Plugin =
       machine_code
   
   
- end: PluginType.PluginType)
+ end: PluginType.S)

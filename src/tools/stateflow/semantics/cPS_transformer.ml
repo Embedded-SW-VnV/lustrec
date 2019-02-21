@@ -78,8 +78,8 @@ sig
   val eval_act : (module ThetaType with type t = t) -> act_t -> t
   val eval_cond : cond_t -> t -> t -> t
   (* val mktransformer : t -> unit *)
-  val mkprincipal : t -> Lustre_types.program
-  val mkcomponent : 'c call_t -> 'c -> t -> Lustre_types.program
+  val mkprincipal : t -> Lustre_types.program_t
+  val mkcomponent : 'c call_t -> 'c -> t -> Lustre_types.program_t
 end
 
 module type ComparableTransformerType =
@@ -88,3 +88,7 @@ sig
 
   val ( == ) : t -> t -> bool
 end
+
+(* Local Variables: *)
+(* compile-command:"make -C ../../../.." *)
+(* End: *)

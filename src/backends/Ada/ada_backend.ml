@@ -87,7 +87,7 @@ let translate_to_ada basename prog machines dependencies =
   let main_machine = (match !Options.main_node with
   | "" -> None
   | main_node -> (
-    match Machine_code_common.get_machine_opt main_node machines with
+    match Machine_code_common.get_machine_opt machines main_node with
     | None -> begin
       Format.eprintf "Ada Code generation error: %a@." Error.pp_error_msg Error.Main_not_found;
       raise (Corelang.Error (Location.dummy_loc, Error.Main_not_found))

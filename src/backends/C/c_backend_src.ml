@@ -271,26 +271,27 @@ let has_c_prototype funname dependencies =
   let imported_node_opt = (* We select the last imported node with the name funname.
 			       The order of evaluation of dependencies should be
 			       compatible with overloading. (Not checked yet) *) 
-      List.fold_left
-	(fun res (Dep (_, _, decls, _)) -> 
-	  match res with
-	  | Some _ -> res
-	  | None -> 
-	    let matched = fun t -> match t.top_decl_desc with 
-	      | ImportedNode nd -> nd.nodei_id = funname 
-	      | _ -> false
-	    in
-	    if List.exists matched decls then (
-	      match (List.find matched decls).top_decl_desc with
-	      | ImportedNode nd -> Some nd
-	      | _ -> assert false
-	    )
-	    else
-	      None
-	) None dependencies in
-    match imported_node_opt with
-    | None -> false
-    | Some nd -> (match nd.nodei_prototype with Some "C" -> true | _ -> false)
+    List.fold_left
+      (fun res dep -> 
+	match res with
+	| Some _ -> res
+	| None ->
+           let decls = dep.content in
+	   let matched = fun t -> match t.top_decl_desc with 
+	                          | ImportedNode nd -> nd.nodei_id = funname 
+	                          | _ -> false
+	   in
+	   if List.exists matched decls then (
+	     match (List.find matched decls).top_decl_desc with
+	     | ImportedNode nd -> Some nd
+	     | _ -> assert false
+	   )
+	   else
+	     None
+      ) None dependencies in
+  match imported_node_opt with
+  | None -> false
+  | Some nd -> (match nd.nodei_prototype with Some "C" -> true | _ -> false)
 (*
 let pp_instance_call dependencies m self fmt i (inputs: value_t list) (outputs: var_decl list) =
   try (* stateful node instance *)
@@ -687,7 +688,7 @@ let print_import_standard source_fmt =
 
 let print_lib_c source_fmt basename prog machines dependencies =
   print_import_standard source_fmt;
-  print_import_prototype source_fmt (Dep (true, basename, [], true (* assuming it is stateful *)));
+  print_import_prototype source_fmt {local=true; name=basename; content=[]; is_stateful=true} (* assuming it is stateful *);
   pp_print_newline source_fmt ();
   (* Print the svn version number and the supported C standard (C90 or C99) *)
   print_version source_fmt;

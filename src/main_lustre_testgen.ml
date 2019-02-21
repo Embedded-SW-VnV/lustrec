@@ -44,8 +44,9 @@ let testgen_source dirname basename extension =
   Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v>");
 
   (* Parsing source *)
-  let prog = parse_source source_name in
-  let prog, dependencies = Compiler_stages.stage1 prog dirname basename in
+  let prog = parse source_name extension in
+  let params = Backends.get_normalization_params () in
+  let prog, dependencies = Compiler_stages.stage1 params prog dirname basename extension in
 
   (* Two cases
      - generation of coverage conditions
@@ -55,7 +56,7 @@ let testgen_source dirname basename extension =
   if !Options.gen_mcdc then (
     let prog_mcdc = PathConditions.mcdc prog in
     (* We re-type the fresh equations *)
-    let _ = import_dependencies prog_mcdc in
+    let _ = Modules.load ~is_header:false prog_mcdc in
     let _ = type_decls !Global.type_env prog_mcdc in
 
     let destname = !Options.dest_dir ^ "/" ^ basename in
@@ -73,7 +74,8 @@ let testgen_source dirname basename extension =
        (2) produced as EMF
     *)
     Options.output := "emf";
-    let prog_mcdc = Normalization.normalize_prog ~backend:"emf" prog_mcdc in
+    let params = Backends.get_normalization_params () in
+    let prog_mcdc = Normalization.normalize_prog params prog_mcdc in
     let machine_code = Compiler_stages.stage2 prog_mcdc in
     let source_emf = source_file ^ ".emf" in 
     let source_out = open_out source_emf in

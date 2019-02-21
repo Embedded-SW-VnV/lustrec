@@ -28,11 +28,6 @@ type error =
 exception Error of error
 
 
-module IdentDepGraph = Graph.Imperative.Digraph.ConcreteBidirectional (IdentModule)
-module TopologicalDepGraph = Topological.Make(IdentDepGraph)
-
-(*module DotGraph = Graphviz.Dot (IdentDepGraph)*)
-module Bfs = Traverse.Bfs (IdentDepGraph)
   
 (* Dependency of mem variables on mem variables is cut off 
    by duplication of some mem vars into local node vars.
@@ -89,6 +84,15 @@ let add_vertices vtc g =
 
 let new_graph () =
   IdentDepGraph.create ()
+
+(* keep subgraph of [gr] consisting of nodes accessible from node [v] *)
+let slice_graph gr v =
+  begin
+    let gr' = new_graph () in
+    IdentDepGraph.add_vertex gr' v;
+    Bfs.iter_component (fun v -> IdentDepGraph.iter_succ (fun s -> IdentDepGraph.add_vertex gr' s; IdentDepGraph.add_edge gr' v s) gr v) gr v;
+    gr'
+  end
 
     
 module ExprDep = struct
@@ -379,15 +383,6 @@ module NodeDep = struct
 	   
       ) prog g in
     g   
-
-  (* keep subgraph of [gr] consisting of nodes accessible from node [v] *)
-  let slice_graph gr v =
-    begin
-      let gr' = new_graph () in
-      IdentDepGraph.add_vertex gr' v;
-      Bfs.iter_component (fun v -> IdentDepGraph.iter_succ (fun s -> IdentDepGraph.add_vertex gr' s; IdentDepGraph.add_edge gr' v s) gr v) gr v;
-      gr'
-    end
       
   let rec filter_static_inputs inputs args =
     match inputs, args with
@@ -400,7 +395,7 @@ module NodeDep = struct
       (fun td ->
 	match td.top_decl_desc with 
 	| Node nd ->
-	   let prednode n = is_generic_node (Hashtbl.find node_table n) in
+	   let prednode n = is_generic_node (node_from_name n) in
 	   nd.node_gencalls <- get_calls prednode nd
 	| _ -> ()
 	   

@@ -754,7 +754,7 @@ let rec clock_top_decl env decl =
   | Const c ->
     clock_top_const env c
   | TypeDef _ -> List.fold_left clock_top_decl env (consts_of_enum_type decl)
-  | Open _    -> env
+  | Include _ | Open _    -> env
 
 let clock_prog env decls =
   List.fold_left clock_top_decl env decls
@@ -786,7 +786,7 @@ let uneval_top_generics decl =
   | ImportedNode nd ->
       uneval_node_generics (nd.nodei_inputs @ nd.nodei_outputs)
   | Const _
-  | Open _
+  | Include _ | Open _
   | TypeDef _ -> ()
 
 let uneval_prog_generics prog =
