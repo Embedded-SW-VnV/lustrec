@@ -206,6 +206,46 @@ let pp_new_package fmt (substitutions, ident, submachine)=
     pp_package_name submachine
     (Utils.fprintf_list ~sep:",@," pp_generic_instanciation) substitutions
 
+let pp_eexpr fmt eexpr = fprintf fmt "true"
+
+(** Print a precondition in aspect
+   @param fmt the formater to print on
+   @param expr the expession to print as pre
+**)
+let pp_pre fmt expr =
+  fprintf fmt "Pre => %a"
+    pp_eexpr expr
+
+(** Print a postcondition in aspect
+   @param fmt the formater to print on
+   @param expr the expession to print as pre
+**)
+let pp_post fmt expr =
+  fprintf fmt "Post => %a"
+    pp_eexpr expr
+
+(** Print the declaration of a procedure with a contract
+   @param pp_prototype the prototype printer
+   @param fmt the formater to print on
+   @param contract the contract for the function to declare
+**)
+let pp_procedure_prototype_contract pp_prototype fmt opt_contract =
+  match opt_contract with
+    | None -> pp_prototype fmt
+    | Some contract -> 
+        fprintf fmt "@[<v 2>%t with@,%a,@,%a@]"
+          pp_prototype
+          (Utils.fprintf_list ~sep:",@," pp_pre) contract.assume
+          (Utils.fprintf_list ~sep:",@," pp_post) contract.guarantees
+
+(** Print the prototype with a contract of the reset procedure from a machine.
+   @param fmt the formater to print on
+   @param machine the machine
+**)
+let pp_step_prototype_contract fmt m = pp_procedure_prototype_contract
+      (pp_step_prototype m)
+      fmt
+      m.mspec
 
 (** Print the package declaration(ads) of a machine.
    @param fmt the formater to print on
@@ -225,7 +265,7 @@ let pp_file machines fmt m =
   let typed_submachines_filtered =
     List.filter (function (l, _, _) -> l != []) typed_submachines in
   let polymorphic_types = find_all_polymorphic_type m in
-  fprintf fmt "@[<v>%a%t%a%a@,  @[<v>@,%a;@,@,%t;@,@,%t;@,@,private@,@,%a%t%a;@,@]@,%a;@.@]"
+  fprintf fmt "@[<v>%a%t%a%a@,  @[<v>@,%a;@,@,%t;@,@,%a;@,@,private@,@,%a%t%a;@,@]@,%a;@.@]"
     
     (* Include all the subinstance*)
     (Utils.fprintf_list ~sep:";@," pp_with_machine) submachines
@@ -243,7 +283,7 @@ let pp_file machines fmt m =
     (pp_reset_prototype m)
     
     (*Declare the step procedure*)
-    (pp_step_prototype m)
+    pp_step_prototype_contract m
     
     (*Instantiate the polymorphic type that need to be instantiate*)
     (Utils.fprintf_list ~sep:";@," pp_new_package) typed_submachines_filtered

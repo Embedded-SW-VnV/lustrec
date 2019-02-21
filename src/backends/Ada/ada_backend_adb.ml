@@ -22,119 +22,6 @@ open Ada_backend_common
 module Main =
 struct
 
-  (* Printing functions for basic operations and expressions *)
-  (* TODO: refactor code -> use let rec and for basic pretty printing
-     function *)
-  (** Printing function for Ada tags, mainly booleans.
-
-      @param fmt the formater to use
-      @param t the tag to print
-   **)
-  let pp_ada_tag fmt t =
-    pp_print_string fmt
-      (if t = tag_true then "True" else if t = tag_false then "Flase" else t)
-
-  (** Printing function for machine type constants. For the moment,
-      arrays are not supported.
-
-      @param fmt the formater to use
-      @param c the constant to print
-   **)
-  let pp_ada_const fmt c =
-    match c with
-    | Const_int i                     -> pp_print_int fmt i
-    | Const_real (c, e, s)            -> pp_print_string fmt s
-    | Const_tag t                     -> pp_ada_tag fmt t
-    | Const_string _ | Const_modeid _ ->
-      (Format.eprintf
-         "internal error: Ada_backend_adb.pp_ada_const cannot print string or modeid.";
-       assert false)
-    | _                               ->
-      raise (Ada_not_supported "unsupported: Ada_backend_adb.pp_ada_const does not
-      support this constant")
-
-  (** Printing function for expressions [v1 modulo v2]. Depends
-      on option [integer_div_euclidean] to choose between mathematical
-      modulo or remainder ([rem] in Ada).
-
-      @param pp_value pretty printer for values
-      @param v1 the first value in the expression
-      @param v2 the second value in the expression
-      @param fmt the formater to print on
-   **)
-  let pp_mod pp_value v1 v2 fmt =
-    if !Options.integer_div_euclidean then
-      (* (a rem b) + (a rem b < 0 ? abs(b) : 0) *)
-      Format.fprintf fmt
-        "((%a rem %a) + (if (%a rem %a) < 0 then abs(%a) else 0))"
-        pp_value v1 pp_value v2
-        pp_value v1 pp_value v2
-        pp_value v2
-    else (* Ada behavior for rem *)
-      Format.fprintf fmt "(%a rem %a)" pp_value v1 pp_value v2
-
-  (** Printing function for expressions [v1 div v2]. Depends on
-      option [integer_div_euclidean] to choose between mathematic
-      division or Ada division.
-
-      @param pp_value pretty printer for values
-      @param v1 the first value in the expression
-      @param v2 the second value in the expression
-      @param fmt the formater to print in
-   **)
-  let pp_div pp_value v1 v2 fmt =
-    if !Options.integer_div_euclidean then
-      (* (a - ((a rem b) + (if a rem b < 0 then abs (b) else 0))) / b) *)
-      Format.fprintf fmt "(%a - %t) / %a"
-        pp_value v1
-        (pp_mod pp_value v1 v2)
-        pp_value v2
-    else (* Ada behavior for / *)
-      Format.fprintf fmt "(%a / %a)" pp_value v1 pp_value v2
-
-  (** Printing function for basic lib functions.
-
-      @param pp_value pretty printer for values
-      @param i a string representing the function
-      @param fmt the formater to print on
-      @param vl the list of operands
-   **)
-  let pp_basic_lib_fun pp_value ident fmt vl =
-    match ident, vl with
-    | "uminus", [v]    ->
-      Format.fprintf fmt "(- %a)" pp_value v
-    | "not", [v]       ->
-      Format.fprintf fmt "(not %a)" pp_value v
-    | "impl", [v1; v2] ->
-      Format.fprintf fmt "(not %a or else %a)" pp_value v1 pp_value v2
-    | "=", [v1; v2]    ->
-      Format.fprintf fmt "(%a = %a)" pp_value v1 pp_value v2
-    | "mod", [v1; v2]  -> pp_mod pp_value v1 v2 fmt
-    | "equi", [v1; v2] ->
-      Format.fprintf fmt "((not %a) = (not %a))" pp_value v1 pp_value v2
-    | "xor", [v1; v2]  ->
-      Format.fprintf fmt "((not %a) \\= (not %a))" pp_value v1 pp_value v2
-    | "/", [v1; v2]    -> pp_div pp_value v1 v2 fmt
-    | op, [v1; v2]     ->
-      Format.fprintf fmt "(%a %s %a)" pp_value v1 op pp_value v2
-    | fun_name, _      ->
-      (Format.eprintf "internal compilation error: basic function %s@." fun_name; assert false)
-
-  (** Printing function for values.
-
-      @param fmt the formater to use
-      @param value the value to print. Should be a
-             {!type:Machine_code_types.value_t} value
-   **)
-  let rec pp_value fmt value =
-    match value.value_desc with
-    | Cst c             -> pp_ada_const fmt c
-    | Var var_name      -> pp_var_name fmt var_name
-    | Fun (f_ident, vl) -> pp_basic_lib_fun pp_value f_ident fmt vl
-    | _                 ->
-      raise (Ada_not_supported
-               "unsupported: Ada_backend.adb.pp_value does not support this value type")
-
   (** Printing function for basic assignement [var_name := value;].
 
       @param fmt the formater to print on
@@ -292,7 +179,7 @@ let pp_clear_definition fmt m = pp_procedure_definition
    @param machine the machine
 **)
 let pp_file fmt machine =
-  fprintf fmt "%a@,  @[<v>@,%a;@,@,%a;@,@,%a;@,@,%a;@,@]@,%a;@."
+  fprintf fmt "%a@,  @[<v>@,%a;@,@,%a;@,@]@,%a;@."
     (pp_begin_package true) machine (*Begin the package*)
     pp_reset_definition machine (*Define the reset procedure*)
     pp_step_definition machine (*Define the step procedure*)
