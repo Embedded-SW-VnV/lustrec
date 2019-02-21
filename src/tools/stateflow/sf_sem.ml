@@ -81,7 +81,8 @@ let _ =
      let auto_fmt = Format.formatter_of_out_channel auto_out in
      Format.fprintf auto_fmt "%a@." Printers.pp_prog prog;
 
-     let prog, deps = Compiler_stages.stage1 prog "" "" in
+     let params = Backends.get_normalization_params () in
+     let prog, deps = Compiler_stages.stage1 params prog "" "" ".lus" in
 
 
      Options.print_dec_types := false;

@@ -32,10 +32,21 @@ struct (* Node module *)
   let equal n1 n2 = n1 = n2
 end
 
-module IMap = Map.Make(IdentModule)
-    
+module IMap =
+  struct
+    include Map.Make(IdentModule)
+    let elements m =  fold (fun i n res -> (i, n)::res) m [] 
+  end
+  
 module ISet = Set.Make(IdentModule)
+module IdentDepGraph = Imperative.Digraph.ConcreteBidirectional (IdentModule)
+module TopologicalDepGraph = Topological.Make(IdentDepGraph)
+module ComponentsDepGraph = Components.Make(IdentDepGraph) 
+                           
+(*module DotGraph = Graphviz.Dot (IdentDepGraph)*)
+module Bfs = Traverse.Bfs (IdentDepGraph)
 
+            
 exception DeSome
 let desome x = match x with Some x -> x | None -> raise DeSome
 
@@ -246,11 +257,19 @@ let pp_final_char_if_non_empty c l =
 let pp_newline_if_non_empty l =
   (fun fmt -> match l with [] -> () | _ -> Format.fprintf fmt "@,")
 
-let rec fprintf_list ~sep:sep f fmt = function
+let fprintf_list ?(eol:('a, formatter, unit) Pervasives.format = "") ~sep:sep f fmt l =
+  let rec aux fmt = function
   | []   -> ()
   | [e]  -> f fmt e
-  | x::r -> Format.fprintf fmt "%a%(%)%a" f x sep (fprintf_list ~sep f) r
-
+  | x::r -> Format.fprintf fmt "%a%(%)%a" f x sep aux r
+  in
+  match l with
+  | [] -> ()
+  | _ -> (
+    aux fmt l;
+    Format.fprintf fmt "%(%)" eol
+  )                 
+   
 let pp_list l pp_fun beg_str end_str sep_str =
   if (beg_str="\n") then
     print_newline ()
@@ -380,9 +399,34 @@ struct
 	| _ -> assert false
       in
       run 0 l1 l2
+
+  let rec extract l fst last =
+    if last < fst then assert false else
+      match l, fst with
+      | hd::tl, 0 -> if last = 0 then [] else hd::(extract tl 0 (last-1))
+      | _::tl, _ -> extract tl (fst-1) (last-1)
+      | [], 0 -> if last=0 then [] else assert false (* List too short *)
+      | _ -> assert false 
+		 
 end
 
-  
+let get_date () =
+  let tm = Unix.localtime (Unix.time ()) in 
+  let fmt = Format.str_formatter in
+  pp_date fmt tm;
+  (* let open Unix in *)
+  (* let _ = *)
+  (*   Format.fprintf fmt *)
+  (*     "%i/%i/%i %ih%i:%i" *)
+  (*     tm.tm_year *)
+  (*     tm.tm_mon *)
+  (*     tm.tm_mday *)
+  (*     tm.tm_hour *)
+  (*     tm.tm_min *)
+  (*     tm.tm_sec *)
+  (* in *)
+  Format.flush_str_formatter ()
+
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

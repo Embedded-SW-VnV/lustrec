@@ -57,7 +57,7 @@ let rec fby expr n init =
 
 %token <string> STRING
 %token AUTOMATON STATE UNTIL UNLESS RESTART RESUME 
-%token ASSERT OPEN QUOTE FUNCTION
+%token ASSERT OPEN INCLUDE QUOTE POINT FUNCTION
 %token <string> IDENT
 %token <string> UIDENT
 %token TRUE FALSE
@@ -128,9 +128,20 @@ let rec fby expr n init =
 %type <Lustre_types.var_decl list> vdecl_list
 %%
 
+
 module_ident:
   UIDENT { $1 }
 | IDENT  { $1 }
+
+file_ident:
+module_ident { $1 } 
+| module_ident POINT file_ident { $1 ^ "." ^ $3 } 
+
+path_ident:
+POINT DIV path_ident { "./" ^ $3 }
+| file_ident DIV path_ident { $1 ^ "/" ^ $3 }
+| DIV path_ident { "/" ^ $2 }
+| file_ident { $1 }
 
 tag_ident:
   UIDENT  { $1 }
@@ -156,24 +167,26 @@ type_ident:
   IDENT { $1 }
 
 prog:
- open_list typ_def_prog top_decl_list EOF { $1 @ $2 @ (List.rev $3) }
+ prefix_prog top_decl_list EOF { $1 @ (List.rev $2) }
 
-typ_def_prog:
- typ_def_list { $1 false }
+prefix_prog:
+    { [] }
+  | open_lusi prefix_prog { $1 :: $2 }
+  | typ_def prefix_prog   { ($1 false (* not a header *)) :: $2 }
+
+prefix_header:
+    { [] }
+  | open_lusi prefix_header { $1 :: $2 }
+  | typ_def prefix_header   { ($1 true (* is a header *)) :: $2 }
 
 header:
- open_list typ_def_header top_decl_header_list EOF { $1 @ $2 @ (List.rev $3) }
+ prefix_header top_decl_header_list EOF { $1 @ (List.rev $2) }
 
-typ_def_header:
- typ_def_list { $1 true }
-
-open_list:
-  { [] }
-| open_lusi open_list { $1 :: $2 }
 
 open_lusi:
-| OPEN QUOTE module_ident QUOTE { mktop_decl false (Open (true, $3))}
-| OPEN LT module_ident GT { mktop_decl false (Open (false, $3)) }
+  | OPEN QUOTE path_ident QUOTE { mktop_decl false (Open (true, $3)) }
+  | INCLUDE QUOTE path_ident QUOTE { mktop_decl false (Include ($3)) }
+  | OPEN LT path_ident GT { mktop_decl false (Open (false, $3))  }
 
 top_decl_list:
    {[]}
@@ -201,6 +214,19 @@ top_decl_header:
 				  nodei_spec = $1;
 				  nodei_prototype = $13;
 				  nodei_in_lib = $14;})
+     in
+     (*add_imported_node $3 nd;*) [nd] } 
+| CONTRACT node_ident LPAR vdecl_list SCOL_opt RPAR RETURNS LPAR vdecl_list SCOL_opt RPAR SCOL_opt LET contract TEL 
+    {let nd = mktop_decl true (ImportedNode
+				 {nodei_id = $2;
+				  nodei_type = Types.new_var ();
+				  nodei_clock = Clocks.new_var true;
+				  nodei_inputs = List.rev $4;
+				  nodei_outputs = List.rev $9;
+				  nodei_stateless = false (* By default we assume contracts as stateful *);
+				  nodei_spec = Some $14;
+				  nodei_prototype = None;
+				  nodei_in_lib = [];})
      in
      (*add_imported_node $3 nd;*) [nd] }
 
@@ -243,6 +269,35 @@ top_decl:
      pop_node ();
      (*add_node $3 nd;*) [nd] }
 
+| state_annot IMPORTED node_ident_decl LPAR vdecl_list SCOL_opt RPAR RETURNS LPAR vdecl_list SCOL_opt RPAR SCOL_opt LET contract TEL
+    {let nd = mktop_decl true (ImportedNode
+				 {nodei_id = $3;
+				  nodei_type = Types.new_var ();
+				  nodei_clock = Clocks.new_var true;
+				  nodei_inputs = List.rev $5;
+				  nodei_outputs = List.rev $10;
+				  nodei_stateless = $1;
+				  nodei_spec = Some $15;
+				  nodei_prototype = None;
+				  nodei_in_lib = [];})
+     in
+     pop_node ();
+     (*add_imported_node $3 nd;*) [nd] } 
+| state_annot IMPORTED node_ident_decl LPAR vdecl_list SCOL_opt RPAR RETURNS LPAR vdecl_list SCOL_opt RPAR SCOL
+    {let nd = mktop_decl true (ImportedNode
+				 {nodei_id = $3;
+				  nodei_type = Types.new_var ();
+				  nodei_clock = Clocks.new_var true;
+				  nodei_inputs = List.rev $5;
+				  nodei_outputs = List.rev $10;
+				  nodei_stateless = $1;
+				  nodei_spec = None;
+				  nodei_prototype = None;
+				  nodei_in_lib = [];})
+     in
+     pop_node ();
+     (*add_imported_node $3 nd;*) [nd] } 
+
 nodespec_list:
  { None }
 | NODESPEC nodespec_list { 
@@ -252,10 +307,10 @@ nodespec_list:
 
 typ_def_list:
     /* empty */             { (fun itf -> []) }
-| typ_def SCOL typ_def_list { (fun itf -> let ty1 = ($1 itf) in ty1 :: ($3 itf)) }
+| typ_def typ_def_list { (fun itf -> let ty1 = ($1 itf) in ty1 :: ($2 itf)) }
 
 typ_def:
-  TYPE type_ident EQ typ_def_rhs { (fun itf ->
+  TYPE type_ident EQ typ_def_rhs SCOL { (fun itf ->
 			       let typ = mktop_decl itf (TypeDef { tydef_id = $2;
 								   tydef_desc = $4
 							})
@@ -336,8 +391,6 @@ contract:
     { merge_contracts (mk_contract_var $2 true None $4 (get_loc())) $6 }
 | CONST IDENT COL typeconst EQ expr SCOL contract
     { merge_contracts (mk_contract_var $2 true (Some(mktyp $4)) $6 (get_loc())) $8 }
-| VAR IDENT EQ expr SCOL contract
-    { merge_contracts (mk_contract_var $2 false None $4 (get_loc())) $6 }
 | VAR IDENT COL typeconst EQ expr SCOL contract
     { merge_contracts (mk_contract_var $2 false (Some(mktyp $4)) $6 (get_loc())) $8 }
 | ASSUME qexpr SCOL contract
@@ -350,7 +403,6 @@ contract:
 	  mk_contract_mode $2 r e (get_loc())) $7 }	
 | IMPORT IDENT LPAR tuple_expr RPAR RETURNS LPAR tuple_expr RPAR SCOL contract
     { merge_contracts (mk_contract_import $2  $4  $8 (get_loc())) $11 }
-	
 
 mode_content:
 { [], [] }

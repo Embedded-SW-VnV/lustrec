@@ -8,7 +8,7 @@ LUSI_LIBS=include/lustrec_math.lusi include/simulink_math_fcn.lusi include/conv.
 LUSI_MPFR_LIB=include/mpfr_lustre.lusi
 LOCAL_BINDIR=bin
 LOCAL_DOCDIR=doc/manual
-BIN_TARGETS = lustrec lustret @lustresf_target@
+BIN_TARGETS = lustrec lustret lustrev @lustresf_target@
 
 DEFAULT_TEST_TARGET=COMPIL_LUS\|MAKE\|BIN\|DIFF
 DEFAULT_EXCLUDE_TEST=LUSTRET
@@ -22,6 +22,14 @@ lustrec:
 lustret:
 	@echo Compiling binary lustret
 	@make -C src lustret
+
+lustrev:
+	@echo Compiling binary lustrev
+	@make -C src lustrev
+
+lustrei:
+	@echo Compiling binary lustrei
+	@make -C src lustrei
 
 @lustresf@
 

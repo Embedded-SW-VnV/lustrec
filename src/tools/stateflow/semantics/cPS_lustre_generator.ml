@@ -321,7 +321,7 @@ struct
     in tr 
     
   let mkcomponent :
-  type c. c call_t -> c -> t -> Lustre_types.program =
+  type c. c call_t -> c -> t -> Lustre_types.program_t =
     fun call args ->
       fun tr ->
 	reset_loc ();
@@ -410,3 +410,7 @@ Il faut faire les choses suivantes:
     event_type_decl :: mkcomponent Dcall ["principal"] tr @ [mk_main_loop ()]
 
 end
+
+(* Local Variables: *)
+(* compile-command:"make -C ../../../.." *)
+(* End: *)

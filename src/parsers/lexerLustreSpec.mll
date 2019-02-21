@@ -25,6 +25,7 @@ let keyword_table =
   create_hashtable 20 [
   (* "true", TRUE; *)
   (* "false", FALSE; *)
+  "function", FUNCTION;
   "if", IF;
   "then", THEN;
   "else", ELSE;
@@ -55,7 +56,7 @@ let keyword_table =
   "const", CONST;
   (* "include", INCLUDE; *)
   "assert", ASSERT;
-  "ensure", ENSURE;
+   "ensure", ENSURE;
   "require", REQUIRE;
   (* "observer", OBSERVER; *)
   "invariant", INVARIANT;

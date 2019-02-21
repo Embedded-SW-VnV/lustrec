@@ -400,7 +400,6 @@ let pp_machine_reset machines fmt m =
 
 (**************************************************************)
 
-let is_stateless m = m.minstances = [] && m.mmemory = []
 
 (* Print the machine m:
    two functions: m_init and m_step

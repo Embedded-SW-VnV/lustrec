@@ -267,7 +267,7 @@ let instr_of_const top_const =
 
 let machines_unfold consts node_schs machines =
   List.fold_right (fun m (machines, removed) ->
-    let fanin = (IMap.find m.mname.node_id node_schs).Scheduling.fanin_table in
+    let fanin = (IMap.find m.mname.node_id node_schs).Scheduling_type.fanin_table in
     let elim_consts, _ = instrs_unfold m fanin IMap.empty (List.map instr_of_const consts) in
     let (m, removed_m) =  machine_unfold fanin elim_consts m in
     (m::machines, IMap.add m.mname.node_id removed_m removed)

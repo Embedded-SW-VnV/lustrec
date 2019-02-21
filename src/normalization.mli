@@ -1,2 +1,12 @@
-val mk_expr_alias_opt: bool -> Lustre_types.node_desc -> (Lustre_types.eq list * Lustre_types.var_decl list)-> Lustre_types.expr -> (Lustre_types.eq list * Lustre_types.var_decl list) * Lustre_types.expr
-val normalize_prog: ?backend:string -> Lustre_types.program -> Lustre_types.program
+open Lustre_types
+
+type param_t =
+  {
+    unfold_arrow_active: bool;
+    force_alias_ite: bool;
+    force_alias_internal_fun: bool;
+  }
+
+
+val mk_expr_alias_opt: bool -> (ident * var_decl list) -> (eq list * var_decl list)-> expr -> (eq list * var_decl list) * expr
+val normalize_prog: param_t -> program_t -> program_t

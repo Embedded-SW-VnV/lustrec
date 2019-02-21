@@ -33,7 +33,7 @@ let fsm_name   node = node ^ "FSM"
 
 let print_mauve_header fmt mauve_machine basename prog machines _ (*dependencies*) =
   fprintf fmt "#include \"mauve/runtime.hpp\"@.";
-  print_import_alloc_prototype fmt (Dep (true, basename, [], true (* assuming it is stateful*) ));
+  print_import_alloc_prototype fmt {local=true; name=basename; content=[]; is_stateful=true} (* assuming it is stateful*) ;
   pp_print_newline fmt ();
   pp_print_newline fmt ()
 

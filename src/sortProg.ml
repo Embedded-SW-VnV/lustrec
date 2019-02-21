@@ -11,7 +11,8 @@
 
 open Lustre_types
 open Corelang
-
+open Utils
+   
 let get_node nid prog =
   List.find (fun t -> match t.top_decl_desc with Node n -> n.node_id = nid | _ -> false) prog
 
@@ -27,7 +28,7 @@ let sort prog =
       Causality.CycleDetection.check_cycles g;
     
       (
-	Causality.TopologicalDepGraph.fold 
+	TopologicalDepGraph.fold 
 	  (fun x accu -> 
 	    try 
 	      (get_node x nodes)::accu

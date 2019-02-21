@@ -23,25 +23,26 @@ let check_symbol loc msg hashtbl name =
  then raise (Error (loc, Error.Unbound_symbol msg))
  else ()
 
+
 let add_imported_node name value =
 (*Format.eprintf "add_imported_node %s %a (owner=%s)@." name Printers.pp_imported_node (imported_node_of_top value) value.top_decl_owner;*)
   try
-    let value' = Hashtbl.find node_table name in
+    let value' = node_from_name name in
     let owner' = value'.top_decl_owner in
     let itf' = value'.top_decl_itf in
     let owner = value.top_decl_owner in
     let itf = value.top_decl_itf in
     match value'.top_decl_desc, value.top_decl_desc with
-    | Node _        , ImportedNode _  when owner = owner' && itf' && (not itf) -> Hashtbl.add node_table name value
+    | Node _        , ImportedNode _  when owner = owner' && itf' && (not itf) -> update_node name value
     | ImportedNode _, ImportedNode _            -> raise (Error (value.top_decl_loc, Error.Already_bound_symbol ("node " ^ name)))
     | _                                         -> assert false
   with
-    Not_found                                   -> Hashtbl.add node_table name value
+    Not_found                                   -> update_node name value
 
 let add_node name value =
 (*Format.eprintf "add_node %s %a (owner=%s)@." name Printers.pp_imported_node (get_node_interface (node_of_top value)) value.top_decl_owner;*)
   try
-    let value' = Hashtbl.find node_table name in
+    let value' = node_from_name name in
     let owner' = value'.top_decl_owner in
     let itf' = value'.top_decl_itf in
     let owner = value.top_decl_owner in
@@ -51,7 +52,7 @@ let add_node name value =
     | Node _        , Node _                    -> raise (Error (value.top_decl_loc, Error.Already_bound_symbol ("node " ^ name)))
     | _                                         -> assert false
   with
-    Not_found                                   -> Hashtbl.add node_table name value
+    Not_found                                   -> update_node name value
 
 
 let add_tag loc name typ =
@@ -113,89 +114,158 @@ let add_const itf name value =
     | _       -> assert false
   with Not_found -> Hashtbl.add consts_table name value
 
-let import_dependency_aux loc (local, dep) =
-  let basename = Options_management.name_dependency (local, dep) in
-  let extension = ".lusic" in 
-  try
-    let lusic = Lusic.read_lusic basename extension in
-    Lusic.check_obsolete lusic basename;
-    lusic
-  with
-  | Sys_error msg ->
-    begin
-      (*Format.eprintf "Error: %s@." msg;*)
-      raise (Error (loc, Error.Unknown_library basename))
-    end
-  | Corelang.Error (_, msg) -> raise (Corelang.Error (loc, msg))
+(* let import_dependency_aux loc (local, dep) =
+ *   let basename = Options_management.name_dependency (local, dep) in
+ *   let extension = ".lusic" in 
+ *   try
+ *     let lusic = Lusic.read_lusic basename extension in
+ *     Lusic.check_obsolete lusic basename;
+ *     lusic
+ *   with
+ *   | Sys_error msg ->
+ *       raise (Error (loc, Error.Unknown_library basename))
+ *     
+ * let import_dependency loc (local, dep) =
+ *   try
+ *     import_dependency_aux loc (local, dep)
+ *   with
+ *   | Corelang.Error (_, err) as exc -> (
+ *     Format.eprintf "Import error: %a%a@."
+ *       Error.pp_error_msg err
+ *       Location.pp_loc loc;
+ *     raise exc
+ *   ) *)
 
-let import_dependency loc (local, dep) =
+let get_lusic decl =
+  match decl.top_decl_desc with
+  | Open (local, dep) -> (
+    let loc = decl.top_decl_loc in
+    let extension = ".lusic" in 
+    let basename = Options_management.name_dependency (local, dep) extension in
+    try
+      let lusic = Lusic.read_lusic basename extension in
+      Lusic.check_obsolete lusic basename;
+      lusic
+    with
+    | Sys_error msg ->
+       raise (Error (loc, Error.Unknown_library basename))
+  )
+  | _ -> assert false (* should not happen *)
+
+
+let get_envs_from_const const_decl (ty_env, ck_env) =
+  (Env.add_value ty_env const_decl.const_id const_decl.const_type,
+   Env.add_value ck_env const_decl.const_id (Clocks.new_var true))
+
+let get_envs_from_consts const_decls (ty_env, ck_env) =
+  List.fold_right get_envs_from_const const_decls (ty_env, ck_env)
+
+let rec get_envs_from_top_decl (ty_env, ck_env) top_decl =
+  match top_decl.top_decl_desc with
+  | Node nd          -> (Env.add_value ty_env nd.node_id nd.node_type,
+			 Env.add_value ck_env nd.node_id nd.node_clock)
+  | ImportedNode ind -> (Env.add_value ty_env ind.nodei_id ind.nodei_type,
+			 Env.add_value ck_env ind.nodei_id ind.nodei_clock)
+  | Const c          -> get_envs_from_const c (ty_env, ck_env)
+  | TypeDef _        -> List.fold_left get_envs_from_top_decl (ty_env, ck_env) (consts_of_enum_type top_decl)
+  | Include _ | Open _           -> (ty_env, ck_env)
+
+(* get type and clock environments from a header *)
+let get_envs_from_top_decls header =
+  List.fold_left get_envs_from_top_decl (Env.initial, Env.initial) header
+
+  let is_stateful topdecl =
+  match topdecl.top_decl_desc with
+  | Node nd -> (match nd.node_stateless with Some b -> not b | None -> not nd.node_dec_stateless)
+  | ImportedNode nd -> not nd.nodei_stateless 
+  | _ -> false
+
+let rec load_rec ~is_header accu program =
+  List.fold_left (fun ((accu_prog, accu_dep, typ_env, clk_env) as accu) decl ->
+      (* Precompute the updated envs, will not be used in the Open case *)
+      let typ_env', clk_env' = get_envs_from_top_decl (typ_env, clk_env) decl in
+      match decl.top_decl_desc with
+      | Open (local, dep) ->
+         (* loading the dep *)
+         let basename = Options_management.name_dependency (local, dep) ".lusic" in
+         if List.exists
+              (fun dep -> basename = Options_management.name_dependency (dep.local, dep.name) ".lusic")
+              accu_dep
+         then
+           (* Library already imported. Just skip *)
+           accu
+         else (
+           Log.report ~level:1 (fun fmt -> Format.fprintf fmt "@ .. Library %s@ " basename);
+           let lusic = get_lusic decl in
+           (* Recursive call with accumulator on lusic *)
+           let (accu_prog, accu_dep, typ_env, clk_env) =
+             load_rec ~is_header:true accu lusic.Lusic.contents in
+           (* Building the dep *)
+           let is_stateful = List.exists is_stateful lusic.Lusic.contents in
+           let new_dep = { local = local;
+                           name = dep;
+                           content = lusic.Lusic.contents;
+                           is_stateful = is_stateful } in
+           
+           (* Returning the prog without the Open, the deps with the new
+            one and the updated envs *)
+           accu_prog, (new_dep::accu_dep), typ_env, clk_env
+         )
+      | Include name ->
+         let basename = Options_management.name_dependency (true, name) "" in
+         if Filename.check_suffix basename ".lus" then
+           let include_src = Compiler_common.parse basename ".lus" in
+           load_rec ~is_header:false accu include_src
+         else
+           raise (Error (decl.top_decl_loc, LoadError("include requires a lustre file")))
+   
+      | Node nd ->
+         if is_header then
+           raise (Error(decl.top_decl_loc,
+                        LoadError ("node " ^ nd.node_id ^ " declared in a header file")))  
+         else (
+           (* Registering node *)
+           add_node nd.node_id decl;
+           (* Updating the type/clock env *)
+           decl::accu_prog, accu_dep, typ_env', clk_env'                   
+         )
+        
+      | ImportedNode ind ->
+         if is_header then (
+           add_imported_node ind.nodei_id decl;
+           decl::accu_prog, accu_dep, typ_env', clk_env'                   
+         )
+         else
+           raise (Error(decl.top_decl_loc,
+                        LoadError ("imported node " ^ ind.nodei_id ^
+                                     " declared in a regular Lustre file")))  
+      | Const c -> (
+        add_const is_header c.const_id decl;
+        decl::accu_prog, accu_dep, typ_env', clk_env' 
+      )
+      | TypeDef tdef -> (
+        add_type is_header tdef.tydef_id decl;
+        decl::accu_prog, accu_dep, typ_env', clk_env'
+      )
+    ) accu program
+
+(* Iterates through lusi definitions and records them in the hashtbl. Open instructions are evaluated and update these hashtbl as well. node_table/type/table/consts_table *)
+let load ~is_header program =
+  
   try
-    import_dependency_aux loc (local, dep)
+    let prog, deps, typ_env, clk_env =  
+      load_rec ~is_header
+        ([], (* accumulator for program elements *)
+         [], (* accumulator for dependencies *)
+         Env.initial, (* empty type env *)
+         Env.initial  (* empty clock env *)
+        ) program
+    in
+    List.rev prog, List.rev deps, (typ_env, clk_env)
   with
-  | Corelang.Error (_, err) as exc -> (
+    Corelang.Error (loc, err) as exc -> (
     Format.eprintf "Import error: %a%a@."
       Error.pp_error_msg err
       Location.pp_loc loc;
     raise exc
-  )
-
-let check_dependency lusic basename =
-  try
-    Lusic.check_obsolete lusic basename
-  with
-  | Corelang.Error (loc, err) as exc -> (
-    Format.eprintf "Import error: %a%a@."
-      Error.pp_error_msg err
-      Location.pp_loc loc;
-    raise exc
-  )
-
-let rec load_header_rec imported header =
-  List.fold_left (fun imported decl ->
-    match decl.top_decl_desc with
-    | Node nd -> assert false
-    | ImportedNode ind -> (add_imported_node ind.nodei_id decl; imported)
-    | Const c -> (add_const true c.const_id decl; imported)
-    | TypeDef tdef -> (add_type true tdef.tydef_id decl; imported)
-    | Open (local, dep) ->
-       let basename = Options_management.name_dependency (local, dep) in
-       if ISet.mem basename imported then imported else
-	 let lusic = import_dependency_aux decl.top_decl_loc (local, dep)
-	 in load_header_rec (ISet.add basename imported) lusic.Lusic.contents
-  ) imported header
-
-let load_header imported header =
-  try
-    load_header_rec imported header
-  with
-    Corelang.Error (loc, err) as exc -> (
-      Format.eprintf "Import error: %a%a@."
-	Error.pp_error_msg err
-	Location.pp_loc loc;
-      raise exc
-    );;
-
-let rec load_program_rec imported program =
-  List.fold_left (fun imported decl ->
-    match decl.top_decl_desc with
-    | Node nd -> (add_node nd.node_id decl; imported)
-    | ImportedNode ind -> assert false
-    | Const c -> (add_const false c.const_id decl; imported)
-    | TypeDef tdef -> (add_type false tdef.tydef_id decl; imported)
-    | Open (local, dep) ->
-       let basename = Options_management.name_dependency (local, dep) in
-       if ISet.mem basename imported then imported else
-	 let lusic = import_dependency_aux decl.top_decl_loc (local, dep)
-	 in load_header_rec (ISet.add basename imported) lusic.Lusic.contents
-  ) imported program
-    
-let load_program imported program =
-  try
-    load_program_rec imported program
-  with
-    Corelang.Error (loc, err) as exc -> (
-      Format.eprintf "Import error: %a%a@."
-	Error.pp_error_msg err
-	Location.pp_loc loc;
-      raise exc
-    );;
+  );;

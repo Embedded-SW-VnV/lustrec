@@ -13,9 +13,9 @@ open Format
 open Lustre_types
 open Corelang
 
-let pp_dep fmt (Dep(b,id,tops,stateful)) =
+let pp_dep fmt dep =
   Format.fprintf fmt "%b, %s, {%a}, %b"
-    b id Printers.pp_prog tops stateful
+    dep.local dep.name Printers.pp_prog dep.content dep.is_stateful
   
 let pp_deps fmt deps = Format.fprintf fmt "@[<v 0>%a@ @]" (Utils.fprintf_list ~sep:"@ ," pp_dep) deps
 
@@ -37,25 +37,25 @@ let header_libs header =
   ) [] header 
     
 
-let compiled_dependencies dep = 
-  List.filter (fun (Dep (_, _, header, _)) -> header_has_code header) dep
+let compiled_dependencies deps = 
+  List.filter (fun dep -> header_has_code dep.content) deps
 
-let lib_dependencies dep = 
+let lib_dependencies deps = 
   List.fold_left 
-    (fun accu (Dep (_, _, header, _)) -> Utils.list_union (header_libs header) accu) [] dep
+    (fun accu dep -> Utils.list_union (header_libs dep.content) accu) [] deps
     
-let fprintf_dependencies fmt (dep: dep_t list) =
+let fprintf_dependencies fmt (deps: dep_t list) =
   (* Format.eprintf "Deps: %a@." pp_deps dep; *)
-  let compiled_dep = compiled_dependencies dep in
+  let compiled_deps = compiled_dependencies deps in
   (* Format.eprintf "Compiled Deps: %a@." pp_deps compiled_dep; *)
  
   List.iter (fun s -> Log.report ~level:1 (fun fmt -> fprintf fmt "Adding dependency: %s@." s);  
     fprintf fmt "\t${GCC} -I${INC} -c %s@." s)
     (("${INC}/io_frontend.c"):: (* IO functions when a main function is computed *)
 	(List.map 
-	   (fun (Dep (local, s, _, _)) -> 
-	     (if local then s else Version.include_path ^ "/" ^ s) ^ ".c")
-	   compiled_dep))
+	   (fun dep -> 
+	     (if dep.local then dep.name else Version.include_path ^ "/" ^ dep.name) ^ ".c")
+	   compiled_deps))
 
 module type MODIFIERS_MKF =
 sig (* dep was (bool * ident * top_decl list) *)
@@ -108,7 +108,7 @@ To be solved (later) with
     fprintf fmt "\t${GCC} -I${INC} -I. -c %s_main.c@." basename;   
     fprintf_dependencies fmt dependencies;    
     fprintf fmt "\t${GCC} -o ${BINNAME} io_frontend.o %a %s.o %s_main.o %a@." 
-      (Utils.fprintf_list ~sep:" " (fun fmt (Dep (_, s, _, _)) -> Format.fprintf fmt "%s.o" s)) 
+      (Utils.fprintf_list ~sep:" " (fun fmt dep -> Format.fprintf fmt "%s.o" dep.name)) 
       (compiled_dependencies dependencies)
       basename (* library .o *)
       basename (* main function . o *) 

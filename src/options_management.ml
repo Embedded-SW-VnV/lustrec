@@ -58,8 +58,8 @@ let search_lib_path (local, full_file_name) =
 let core_dependency lib_name =
   search_lib_path (false, lib_name ^ ".h")
 
-let name_dependency (local, dep) =
-  let dir = search_lib_path (false, dep ^ ".lusic") in
+let name_dependency (local, dep) ext =
+  let dir = search_lib_path (false, dep ^ ext) in
   dir ^ "/" ^ dep
 
 let set_mpfr prec =
@@ -138,10 +138,21 @@ let lustret_options =
     "-no-mutation-suffix", Arg.Set no_mutation_suffix, "does not rename node with the _mutant suffix"
   ]
 
+let lustrev_options =
+   common_options @
+  [ 
+   "-inline", Arg.Unit (fun () -> global_inline := true; const_unfold := true), "inlines all node calls (require a main node). Implies constant unfolding";
+    "-O", Arg.Set_int optimization, "changes optimization \x1b[4mlevel\x1b[0m <default: 2>";
+]
+
+  
 let plugin_opt (name, activate, options) =
   ( "-" ^ name , Arg.Unit activate, "activate plugin " ^ name ) ::
     (List.map (fun (opt, act, desc) -> "-" ^ name ^ opt, act, desc) options)
-
+ 
+let verifier_opt (name, activate, options) =
+  ( "-" ^ name , Arg.Unit activate, "run verifier " ^ name ) ::
+    (List.map (fun (opt, act, desc) -> "-" ^ name ^ opt, act, desc) options)
 
 let get_witness_dir filename =
   (* Make sure the directory exists *)

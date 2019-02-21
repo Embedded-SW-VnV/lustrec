@@ -27,6 +27,12 @@ open Corelang
 open Format
 
 
+(* TODO general remark: except in the add_vdecl, it seems to me that
+   all the pairs (env, vd_env) should be replace with just env, since
+   vd_env is never used and the env element is always extract with a
+   fst *)
+
+   
 module type EXPR_TYPE_HUB =
 sig
   type type_expr 
@@ -663,7 +669,33 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
     let check_vd_env vd_env =
       ignore (List.fold_left add_vdecl [] vd_env)
 
-    let type_spec env c =
+    let type_spec env spec =
+      let vd_env = spec.consts @ spec.locals in
+      check_vd_env vd_env;
+      let env = type_var_decl_list ((* this argument seems useless to me, cf TODO at top of the file*) vd_env) env vd_env in
+      (* typing stmts *)
+      let eqs = List.map (fun s -> match s with Eq eq -> eq | _ -> assert false) spec.stmts  in
+      let undefined_vars_init =
+        List.fold_left
+          (fun uvs v -> ISet.add v.var_id uvs)
+          ISet.empty spec.locals
+      in
+      let _ =
+        List.fold_left
+          (type_eq (env, vd_env) (false (*is_main*)))
+          undefined_vars_init
+          eqs
+      in
+      (* Typing each predicate expr *)
+      let type_pred_ee ee : unit=
+        type_subtyping_arg (env, vd_env) (false (* not in main *)) (false (* not a const *)) ee.eexpr_qfexpr type_bool
+      in
+      List.iter type_pred_ee
+        (
+          spec.assume 
+          @ spec.guarantees
+          @ List.flatten (List.map (fun m -> m.ensure @ m.require) spec.modes) 
+        );
       (*TODO 
         enrich env locally with locals and consts
         type each pre/post as a boolean expr
@@ -699,7 +731,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
           type_subtyping_arg (new_env, vd_env) is_main false assert_expr (* Type_predef. *)type_bool
         )  nd.node_asserts;
       (* Typing spec/contracts *)
-      (match nd.node_spec with None -> () | Some spec -> ignore (type_spec (new_env, vd_env) spec));
+      (match nd.node_spec with None -> () | Some spec -> ignore (type_spec new_env spec));
       (* Typing annots *)
       List.iter (fun annot ->
           List.iter (fun (_, eexpr) -> ignore (type_eexpr (new_env, vd_env) eexpr)) annot.annots
@@ -719,10 +751,13 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       Env.add_value env nd.node_id ty_node
 
     let type_imported_node env nd loc =
-      let new_env = type_var_decl_list nd.nodei_inputs env nd.nodei_inputs in
       let vd_env = nd.nodei_inputs@nd.nodei_outputs in
       check_vd_env vd_env;
-      ignore(type_var_decl_list vd_env new_env nd.nodei_outputs);
+      let delta_env = type_var_decl_list vd_env env nd.nodei_inputs in
+      let delta_env = type_var_decl_list vd_env delta_env nd.nodei_outputs in
+      let new_env = Env.overwrite env delta_env in
+      (* Typing spec *)
+      (match nd.nodei_spec with None -> () | Some spec -> ignore (type_spec new_env spec)); 
       let ty_ins = type_of_vlist nd.nodei_inputs in
       let ty_outs = type_of_vlist nd.nodei_outputs in
       let ty_node = new_ty (Tarrow (ty_ins,ty_outs)) in
@@ -766,7 +801,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       | Const c ->
          type_top_const env c
       | TypeDef _ -> List.fold_left type_top_decl env (consts_of_enum_type decl)
-      | Open _  -> env
+      | Include _ | Open _  -> env
     
     let get_type_of_call decl =
       match decl.top_decl_desc with
@@ -811,9 +846,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
          uneval_node_generics (nd.node_inputs @ nd.node_outputs)
       | ImportedNode nd ->
          uneval_node_generics (nd.nodei_inputs @ nd.nodei_outputs)
-      | Const _
-        | TypeDef _
-        | Open _
+      | Const _ | TypeDef _ | Open _ | Include _ 
         -> ()
 
     let uneval_prog_generics prog =

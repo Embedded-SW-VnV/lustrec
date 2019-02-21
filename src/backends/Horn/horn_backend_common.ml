@@ -14,6 +14,11 @@ open Lustre_types
 open Machine_code_types
 open Corelang
 
+let get_machine = Machine_code_common.get_machine
+
+let machine_reset_name id = id ^ "_reset"
+let machine_step_name id = id ^ "_step" 
+let machine_stateless_name id = id ^ "_fun" 
 let pp_machine_reset_name fmt id = fprintf fmt "%s_reset" id
 let pp_machine_step_name fmt id = fprintf fmt "%s_step" id
 let pp_machine_stateless_name fmt id = fprintf fmt "%s_fun" id
@@ -75,13 +80,6 @@ let rename_mid_list = List.map rename_mid
 let rename_next = rename (fun n -> n ^ "_x")
 let rename_next_list = List.map rename_next
 
-let get_machine machines node_name =
-(*  try *)
-  List.find (fun m  -> m.mname.node_id = node_name) machines
-(* with Not_found -> Format.eprintf "Unable to find machine %s in machines %a@.@?"  *)
-(*   node_name *)
-(*   (Utils.fprintf_list ~sep:", " (fun fmt m -> pp_print_string fmt m.mname.node_id)) machines *)
-(*   ; assert false *)
 
 let local_memory_vars machines machine =
   rename_machine_list machine.mname.node_id machine.mmemory
@@ -148,6 +146,12 @@ let step_vars_m_x machines m =
 let reset_vars machines m =
   (rename_current_list (full_memory_vars machines m)) 
   @ (rename_mid_list (full_memory_vars machines m))
+
+let step_vars_c_m_x machines m =
+  (inout_vars machines m) 
+  @ (rename_current_list (full_memory_vars machines m)) 
+  @ (rename_mid_list (full_memory_vars machines m)) 
+  @ (rename_next_list (full_memory_vars machines m))
 
 
 (* Local Variables: *)

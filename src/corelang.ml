@@ -27,12 +27,17 @@ module VMap = Map.Make(VDeclModule)
 
 module VSet: sig
   include Set.S
-  val pp: Format.formatter -> t -> unit 
+  val pp: Format.formatter -> t -> unit
+  val get: ident -> t -> elt
 end with type elt = var_decl =
   struct
     include Set.Make(VDeclModule)
     let pp fmt s =
-      Format.fprintf fmt "{@[%a}@]" (Utils.fprintf_list ~sep:",@ " Printers.pp_var) (elements s)  
+      Format.fprintf fmt "{@[%a}@]" (Utils.fprintf_list ~sep:",@ " Printers.pp_var) (elements s)
+    (* Strangley the find_first function of Set.Make is incorrect (at
+       the current time of writting this comment. Had to switch to
+       lists *)
+    let get id s = List.find (fun v -> v.var_id = id) (elements s)
   end
 let dummy_type_dec = {ty_dec_desc=Tydec_any; ty_dec_loc=Location.dummy_loc}
 
@@ -175,16 +180,20 @@ let consts_of_enum_type top_decl =
 
 let empty_contract =
   {
-    consts = []; locals = []; assume = []; guarantees = []; modes = []; imports = []; spec_loc = Location.dummy_loc;
+    consts = []; locals = []; stmts = []; assume = []; guarantees = []; modes = []; imports = []; spec_loc = Location.dummy_loc;
   }
-    
+
+(* For const declaration we do as for regular lustre node.
+But for local flows we registered the variable and the lustre flow definition *)
 let mk_contract_var id is_const type_opt expr loc =
   let typ = match type_opt with None -> mktyp loc Tydec_any | Some t -> t in
-  let v = mkvar_decl loc (id, typ, mkclock loc Ckdec_any, is_const, Some expr, None) in
   if is_const then
+  let v = mkvar_decl loc (id, typ, mkclock loc Ckdec_any, is_const, Some expr, None) in
   { empty_contract with consts = [v]; spec_loc = loc; }
   else
-    { empty_contract with locals = [v]; spec_loc = loc; }
+    let v = mkvar_decl loc (id, typ, mkclock loc Ckdec_any, is_const, None, None) in
+    let eq = mkeq loc ([id], expr) in 
+    { empty_contract with locals = [v]; stmts = [Eq eq]; spec_loc = loc; }
 
 let mk_contract_guarantees eexpr =
   { empty_contract with guarantees = [eexpr]; spec_loc = eexpr.eexpr_loc }
@@ -202,6 +211,7 @@ let mk_contract_import id ins outs loc =
 let merge_contracts ann1 ann2 = (* keeping the first item loc *)
   { consts = ann1.consts @ ann2.consts;
     locals = ann1.locals @ ann2.locals;
+    stmts = ann1.stmts @ ann2.stmts;
     assume = ann1.assume @ ann2.assume;
     guarantees = ann1.guarantees @ ann2.guarantees;
     modes = ann1.modes @ ann2.modes;
@@ -215,7 +225,6 @@ let mkeexpr loc expr =
     eexpr_quantifiers = [];
     eexpr_type = Types.new_var ();
     eexpr_clock = Clocks.new_var true;
-    eexpr_normalized = None;
     eexpr_loc = loc }
 
 let extend_eexpr q e = { e with eexpr_quantifiers = q@e.eexpr_quantifiers }
@@ -302,10 +311,12 @@ let node_inputs td =
   | _ -> assert false
 
 let node_from_name id =
-  try
-    Hashtbl.find node_table id
-  with Not_found -> (Format.eprintf "Unable to find any node named %s@ @?" id;
-		     assert false)
+      Hashtbl.find node_table id
+  (* with Not_found -> (Format.eprintf "Unable to find any node named %s@ @?" id;
+   *       	     assert false) *)
+
+let update_node id top =
+  Hashtbl.replace node_table id top
 
 let is_imported_node td =
   match td.top_decl_desc with 
@@ -637,7 +648,7 @@ let get_nodes prog =
     fun nodes decl ->
       match decl.top_decl_desc with
 	| Node _ -> decl::nodes
-	| Const _ | ImportedNode _ | Open _ | TypeDef _ -> nodes  
+	| Const _ | ImportedNode _ | Include _ | Open _ | TypeDef _ -> nodes  
   ) [] prog
 
 let get_imported_nodes prog = 
@@ -645,7 +656,7 @@ let get_imported_nodes prog =
     fun nodes decl ->
       match decl.top_decl_desc with
 	| ImportedNode _ -> decl::nodes
-	| Const _ | Node _ | Open _ | TypeDef _-> nodes  
+	| Const _ | Node _ | Include _ | Open _ | TypeDef _-> nodes  
   ) [] prog
 
 let get_consts prog = 
@@ -653,7 +664,7 @@ let get_consts prog =
     fun decl consts ->
       match decl.top_decl_desc with
 	| Const _ -> decl::consts
-	| Node _ | ImportedNode _ | Open _ | TypeDef _ -> consts  
+	| Node _ | ImportedNode _ | Include _ | Open _ | TypeDef _ -> consts  
   ) prog []
 
 let get_typedefs prog = 
@@ -661,7 +672,7 @@ let get_typedefs prog =
     fun decl types ->
       match decl.top_decl_desc with
 	| TypeDef _ -> decl::types
-	| Node _ | ImportedNode _ | Open _ | Const _ -> types  
+	| Node _ | ImportedNode _ | Include _ | Open _ | Const _ -> types  
   ) prog []
 
 let get_dependencies prog =
@@ -669,7 +680,7 @@ let get_dependencies prog =
     fun decl deps ->
       match decl.top_decl_desc with
 	| Open _ -> decl::deps
-	| Node _ | ImportedNode _ | TypeDef _ | Const _ -> deps  
+	| Node _ | ImportedNode _ | TypeDef _ | Include _ | Const _ -> deps  
   ) prog []
 
 let get_node_interface nd =
@@ -798,13 +809,6 @@ and rename_eexpr f_node f_var ee =
      eexpr_tag = Utils.new_tag ();
      eexpr_qfexpr = rename_expr f_node f_var ee.eexpr_qfexpr;
      eexpr_quantifiers = List.map (fun (typ,vdecls) -> typ, rename_vars f_node f_var vdecls) ee.eexpr_quantifiers;
-     eexpr_normalized = Utils.option_map 
-       (fun (vdecl, eqs, vdecls) ->
-	 rename_var f_node f_var vdecl,
-	 List.map (rename_eq f_node f_var) eqs,
-	 rename_vars f_node f_var vdecls
-       ) ee.eexpr_normalized;
-     
    }
  
      
@@ -873,7 +877,7 @@ let rename_prog f_node f_var f_const prog =
       | TypeDef tdef ->
 	 { top with top_decl_desc = TypeDef (rename_typedef f_var tdef) }
       | ImportedNode _
-      | Open _       -> top)
+        | Include _ | Open _       -> top)
       ::accu
 ) [] prog
 		   )
@@ -929,7 +933,7 @@ let pp_decl_type fmt tdecl =
     fprintf fmt "%s: " ind.nodei_id;
     Utils.reset_names ();
     fprintf fmt "%a@ " Types.print_ty ind.nodei_type
-  | Const _ | Open _ | TypeDef _ -> ()
+  | Const _ | Include _ | Open _ | TypeDef _ -> ()
 
 let pp_prog_type fmt tdecl_list =
   Utils.fprintf_list ~sep:"" pp_decl_type fmt tdecl_list
@@ -944,7 +948,7 @@ let pp_decl_clock fmt cdecl =
     fprintf fmt "%s: " ind.nodei_id;
     Utils.reset_names ();
     fprintf fmt "%a@ " Clocks.print_ck ind.nodei_clock
-  | Const _ | Open _ | TypeDef _ -> ()
+  | Const _ | Include _ | Open _ | TypeDef _ -> ()
 
 let pp_prog_clock fmt prog =
   Utils.fprintf_list ~sep:"" pp_decl_clock fmt prog
@@ -1028,7 +1032,7 @@ let rec substitute_expr vars_to_replace defs e =
      eexpr_type = expr.expr_type;
      eexpr_clock = expr.expr_clock;
      eexpr_loc = expr.expr_loc;
-     eexpr_normalized = None
+     (*eexpr_normalized = None*)
    }
  (* and expr_desc_to_eexpr_desc expr_desc = *)
  (*   let conv = expr_to_eexpr in *)
@@ -1216,12 +1220,11 @@ let cpt_fresh = ref 0
 let reset_cpt_fresh () =
     cpt_fresh := 0
     
-let mk_fresh_var node loc ty ck =
-  let vars = get_node_vars node in
+let mk_fresh_var (parentid, ctx_env) loc ty ck =
   let rec aux () =
   incr cpt_fresh;
-  let s = Printf.sprintf "__%s_%d" node.node_id !cpt_fresh in
-  if List.exists (fun v -> v.var_id = s) vars then aux () else
+  let s = Printf.sprintf "__%s_%d" parentid !cpt_fresh in
+  if List.exists (fun v -> v.var_id = s) ctx_env then aux () else
   {
     var_id = s;
     var_orig = false;
@@ -1229,12 +1232,28 @@ let mk_fresh_var node loc ty ck =
     var_dec_clock = dummy_clock_dec;
     var_dec_const = false;
     var_dec_value = None;
-    var_parent_nodeid = Some node.node_id;
+    var_parent_nodeid = Some parentid;
     var_type = ty;
     var_clock = ck;
     var_loc = loc
   }
   in aux ()
+
+
+let find_eq xl eqs =
+  let rec aux accu eqs =
+    match eqs with
+	| [] ->
+	  begin
+	    Format.eprintf "Looking for variables %a in the following equations@.%a@."
+	      (Utils.fprintf_list ~sep:" , " (fun fmt v -> Format.fprintf fmt "%s" v)) xl
+	      Printers.pp_node_eqs eqs;
+	    assert false
+	  end
+	| hd::tl ->
+	  if List.exists (fun x -> List.mem x hd.eq_lhs) xl then hd, accu@tl else aux (hd::accu) tl
+    in
+    aux [] eqs
 
 (* Local Variables: *)
 (* compile-command:"make -C .." *)

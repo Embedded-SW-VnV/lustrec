@@ -14,22 +14,7 @@ open Lustre_types
 open Corelang
 open Graph
 open Causality
-
-type schedule_report =
-{
-  (* the scheduled node *)
-  node : node_desc;
-  (* a schedule computed wrt the dependency graph *)
-  schedule : ident list list;
-  (* the set of unused variables (no output or mem depends on them) *)
-  unused_vars : ISet.t;
-  (* the table mapping each local var to its in-degree *)
-  fanin_table : (ident, int) Hashtbl.t;
-  (* the dependency graph *)
-  dep_graph   : IdentDepGraph.t;
-  (* the table mapping each assignment to a reusable variable *)
-  (*reuse_table : (ident, var_decl) Hashtbl.t*)
-}
+open Scheduling_type
 
 (* Topological sort with a priority for variables belonging in the same equation lhs.
    For variables still unrelated, standard compare is used to choose the minimal element.
@@ -259,6 +244,37 @@ let pp_warning_unused fmt node_schs =
    )
    node_schs
 
+
+   (* Sort eqs according to schedule *)
+(* Sort the set of equations of node [nd] according
+   to the computed schedule [sch]
+*)
+let sort_equations_from_schedule eqs sch =
+  (* Format.eprintf "%s schedule: %a@." *)
+  (* 		 nd.node_id *)
+  (* 		 (Utils.fprintf_list ~sep:" ; " Scheduling.pp_eq_schedule) sch; *)
+  let split_eqs = Splitting.tuple_split_eq_list eqs in
+  let eqs_rev, remainder =
+    List.fold_left
+      (fun (accu, node_eqs_remainder) vl ->
+       if List.exists (fun eq -> List.exists (fun v -> List.mem v eq.eq_lhs) vl) accu
+       then
+	 (accu, node_eqs_remainder)
+       else
+	 let eq_v, remainder = find_eq vl node_eqs_remainder in
+	 eq_v::accu, remainder
+      )
+      ([], split_eqs)
+      sch
+  in
+  begin
+    if List.length remainder > 0 then (
+      Format.eprintf "Equations not used are@.%a@.Full equation set is:@.%a@.@?"
+		     Printers.pp_node_eqs remainder
+      		     Printers.pp_node_eqs eqs;
+      assert false);
+    List.rev eqs_rev
+  end
 
 (* Local Variables: *)
 (* compile-command:"make -C .." *)

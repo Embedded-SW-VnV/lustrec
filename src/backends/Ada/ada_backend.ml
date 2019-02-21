@@ -23,16 +23,8 @@ let indent_size = 2
 let log_str_level_two indent info =
   let str_indent = String.make (indent*indent_size) ' ' in
   let pp_message fmt = fprintf fmt "%s.. %s@." str_indent info in
-  Log.report ~level:2 pp_message
-
-(** Encapsulate a pretty print function to lower case its result when applied
-   @param pp the pretty print function
-   @param fmt the formatter
-   @param arg the argument of the pp function
-**)
-let pp_lowercase pp fmt arg =
-  let str = asprintf "%a" pp arg in
-  fprintf fmt "%s" (String. lowercase_ascii str)
+  Log.report ~level:2 pp_message;
+  Format.pp_print_flush Format.err_formatter ()
 
 (** Write a new file with formatter
    @param destname folder where the file shoudl be created
@@ -44,22 +36,19 @@ let write_file destname pp_filename pp_file arg =
   let path = asprintf "%s%a" destname pp_filename arg in
   let out = open_out path in
   let fmt = formatter_of_out_channel out in
+  log_str_level_two 2 ("generating "^path);
   pp_file fmt arg;
   pp_print_flush fmt ();
-  close_out out;
-  log_str_level_two 2 (path^" generated")
+  close_out out
 
 
-(** Print the filename of a package by lowercasing it and appending
-  an extension.
+(** Print the filename of a machine package.
    @param extension the extension to append to the package name
    @param fmt the formatter
-   @param fmt the machine corresponding to the package
+   @param machine the machine corresponding to the package
 **)
 let pp_machine_filename extension fmt machine =
-  fprintf fmt "%a.%s"
-    (pp_lowercase pp_package_name) machine.mname
-    extension
+  pp_filename extension fmt (function fmt -> pp_package_name fmt machine)
 
 (** Exception raised when a machine contains a feature not supported by the
   Ada backend*)
@@ -80,7 +69,7 @@ let check machine =
    @param main_machine the machine associated to the main node
 **)
 let pp_project_name fmt main_machine =
-  fprintf fmt "%a.gpr" pp_package_name main_machine.mname
+  fprintf fmt "%a.gpr" pp_package_name main_machine
 
 (** Main function of the Ada backend. It calls all the subfunction creating all
 the file and fill them with Ada code representing the machines list given.
@@ -98,7 +87,7 @@ let translate_to_ada basename prog machines dependencies =
   let main_machine = (match !Options.main_node with
   | "" -> None
   | main_node -> (
-    match Machine_code_common.get_machine_opt main_node machines with
+    match Machine_code_common.get_machine_opt machines main_node with
     | None -> begin
       Format.eprintf "Ada Code generation error: %a@." Error.pp_error_msg Error.Main_not_found;
       raise (Corelang.Error (Location.dummy_loc, Error.Main_not_found))
@@ -112,7 +101,7 @@ let translate_to_ada basename prog machines dependencies =
   List.iter check machines;
 
   log_str_level_two 1 "Generating ads";
-  List.iter (write_file destname (pp_machine_filename "ads") Ads.pp_file) machines;
+  List.iter (write_file destname (pp_machine_filename "ads") (Ads.pp_file machines) ) machines;
 
   log_str_level_two 1 "Generating adb";
   List.iter (write_file destname (pp_machine_filename "adb") Adb.pp_file) machines;
@@ -121,10 +110,13 @@ let translate_to_ada basename prog machines dependencies =
   log_str_level_two 1 "Generating wrapper files";
   match main_machine with
     | None -> log_str_level_two 2 "File not generated(no -node argument)";
-    | Some machine -> begin
-        write_file destname pp_project_name Wrapper.pp_project_file machine;
-        write_file destname pp_main_filename Wrapper.pp_main_file machine;
-      end
+    | Some machine ->
+begin
+  let pp_main_filename fmt _ =
+    pp_filename "adb" fmt pp_main_procedure_name in
+  write_file destname pp_project_name Wrapper.pp_project_file machine;
+  write_file destname pp_main_filename Wrapper.pp_main_adb machine;
+end
 
 
 (* Local Variables: *)

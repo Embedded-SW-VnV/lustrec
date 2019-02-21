@@ -1,4 +1,4 @@
-module type PluginType =
+module type S =
 sig
   val name: string
   val activate: unit -> unit

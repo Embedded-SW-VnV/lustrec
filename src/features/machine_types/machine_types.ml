@@ -417,10 +417,9 @@ let load prog =
   in
   typing_env := env
 
-let type_expr nd expr =
+let type_expr (parentid, init_vars) expr =
   let init_env = !typing_env in
   (* Format.eprintf "Init env: %a@." (Env.pp_env MTypes.print_ty) init_env; *)
-  let init_vars = nd.node_inputs @ nd.node_outputs @ nd.node_locals in
   (* Rebuilding the variables environment from accumulated knowledge *)
   let env,vars = (* First, we add non specified variables *)
     List.fold_left (fun (env, vars) v ->
@@ -435,7 +434,7 @@ let type_expr nd expr =
   (* Then declared ones *)
   let env, vars =
     Hashtbl.fold (fun vdecl machine_type (env, vds) ->
-      if vdecl.var_parent_nodeid = Some nd.node_id then (
+      if vdecl.var_parent_nodeid = Some parentid then (
 	 (* Format.eprintf "Adding variable %a to the environement@.@?" Printers.pp_var vdecl;  *)
 	let env = Env.add_value env vdecl.var_id machine_type in
 	env, vdecl::vds

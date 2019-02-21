@@ -61,6 +61,17 @@ let keyword_table =
   "contract", CONTRACT;
   "lib", LIB;
   "prototype", PROTOTYPE;
+  "ensure", ENSURE;
+  "require", REQUIRE;
+  (* "observer", OBSERVER; *)
+  "invariant", INVARIANT;
+  "mode", MODE;
+  "assume", ASSUME;
+  "contract", CONTRACT;
+  "guarantees", GUARANTEES;
+  "exists", EXISTS;
+  "forall", FORALL;
+ 
   "c_code", CCODE; (* not sure how it is used *)
   "matlab", MATLAB; (* same as above *)
 ]
@@ -115,6 +126,7 @@ rule token = parse
 | "tel." {TEL}
 | "tel;" {TEL}
 | "#open" { OPEN }
+| "include" { INCLUDE }
 | ['_' 'a'-'z'] [ '_' 'a'-'z' 'A'-'Z' '0'-'9']*
     {let s = Lexing.lexeme lexbuf in
     try
@@ -126,7 +138,7 @@ rule token = parse
     try
       Hashtbl.find keyword_table s
     with Not_found ->
-      UIDENT s}
+      UIDENT s}     
 | "->" {ARROW}
 | "=>" {IMPL}
 | "<=" {LTE}
@@ -150,12 +162,12 @@ rule token = parse
 | ':' {COL}
 | ',' {COMMA}
 | '=' {EQ}
-| '/' {DIV}
 | "&&" {AMPERAMPER}
 | "||" {BARBAR}
 | "::" {COLCOL}
 | "^" {POWER}
 | '"' {QUOTE}
+| '.' {POINT}
 | eof { EOF }
 | _ { raise (Parse.Error (Location.curr lexbuf, Parse.Undefined_token (Lexing.lexeme lexbuf))) }
 

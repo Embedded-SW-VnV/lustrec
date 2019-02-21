@@ -41,6 +41,7 @@ and instr_t_desc =
 
 type static_call = top_decl * (Dimension.dim_expr list)
 
+                 
 type machine_t = {
   mname: node_desc;
   mmemory: var_decl list;
@@ -52,4 +53,5 @@ type machine_t = {
   mstep: step_t;
   mspec: contract_desc option;
   mannot: expr_annot list;
+  msch: Scheduling_type.schedule_report option; (* Equations scheduling *)
 }
