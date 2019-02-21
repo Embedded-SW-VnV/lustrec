@@ -5,8 +5,10 @@ open Lustre_types
 open Corelang
 open Machine_code_common
 
-(** All the pretty print functions common to the ada backend **)
+(** Exception for unsupported features in Ada backend **)
+exception Ada_not_supported of string
 
+(** All the pretty print functions common to the ada backend **)
 
 (* Misc pretty print functions *)
 

@@ -22,90 +22,129 @@ open Ada_backend_common
 module Main =
 struct
 
-  (* Printing functions for basic operations *)
+  (* Printing functions for basic operations and expressions *)
+  (* TODO: refactor code -> use let rec and for basic pretty printing
+     function *)
+  (** Printing function for Ada tags, mainly booleans.
+
+      @param fmt the formater to use
+      @param t the tag to print
+   **)
+  let pp_ada_tag fmt t =
+    pp_print_string fmt
+      (if t = tag_true then "True" else if t = tag_false then "Flase" else t)
+
+  (** Printing function for machine type constants. For the moment,
+      arrays are not supported.
+
+      @param fmt the formater to use
+      @param c the constant to print
+   **)
+  let pp_ada_const fmt c =
+    match c with
+    | Const_int i                     -> pp_print_int fmt i
+    | Const_real (c, e, s)            -> pp_print_string fmt s
+    | Const_tag t                     -> pp_ada_tag fmt t
+    | Const_string _ | Const_modeid _ ->
+      (Format.eprintf
+         "internal error: Ada_backend_adb.pp_ada_const cannot print string or modeid.";
+       assert false)
+    | _                               ->
+      raise (Ada_not_supported "unsupported: Ada_backend_adb.pp_ada_const does not
+      support this constant")
 
   (** Printing function for expressions [v1 modulo v2]. Depends
       on option [integer_div_euclidean] to choose between mathematical
       modulo or remainder ([rem] in Ada).
 
-      @param pp_val pretty printer for values
+      @param pp_value pretty printer for values
       @param v1 the first value in the expression
       @param v2 the second value in the expression
       @param fmt the formater to print on
    **)
-  let pp_mod pp_val v1 v2 fmt =
+  let pp_mod pp_value v1 v2 fmt =
     if !Options.integer_div_euclidean then
       (* (a rem b) + (a rem b < 0 ? abs(b) : 0) *)
       Format.fprintf fmt
         "((%a rem %a) + (if (%a rem %a) < 0 then abs(%a) else 0))"
-        pp_val v1 pp_val v2
-        pp_val v1 pp_val v2
-        pp_val v2
+        pp_value v1 pp_value v2
+        pp_value v1 pp_value v2
+        pp_value v2
     else (* Ada behavior for rem *)
-      Format.fprintf fmt "(%a rem %a)" pp_val v1 pp_val v2
+      Format.fprintf fmt "(%a rem %a)" pp_value v1 pp_value v2
 
   (** Printing function for expressions [v1 div v2]. Depends on
       option [integer_div_euclidean] to choose between mathematic
       division or Ada division.
 
-      @param pp_val pretty printer for values
+      @param pp_value pretty printer for values
       @param v1 the first value in the expression
       @param v2 the second value in the expression
       @param fmt the formater to print in
    **)
-  let pp_div pp_val v1 v2 fmt =
+  let pp_div pp_value v1 v2 fmt =
     if !Options.integer_div_euclidean then
       (* (a - ((a rem b) + (if a rem b < 0 then abs (b) else 0))) / b) *)
       Format.fprintf fmt "(%a - %t) / %a"
-        pp_val v1
-        (pp_mod pp_val v1 v2)
-        pp_val v2
-    else (* Ada behovior for / *)
-      Format.fprintf fmt "(%a / %a)" pp_val v1 pp_val v2
+        pp_value v1
+        (pp_mod pp_value v1 v2)
+        pp_value v2
+    else (* Ada behavior for / *)
+      Format.fprintf fmt "(%a / %a)" pp_value v1 pp_value v2
 
   (** Printing function for basic lib functions.
 
-      @param is_int boolean to choose between integer
-                    division (resp. remainder) or Ada division
-                    (resp. remainder)
+      @param pp_value pretty printer for values
       @param i a string representing the function
-      @param pp_val the pretty printer for values
       @param fmt the formater to print on
       @param vl the list of operands
    **)
-  let pp_basic_lib_fun is_int i pp_val fmt vl =
-    match i, vl with
-    | "uminus", [v] -> Format.fprintf fmt "(- %a)" pp_val v
-    | "not", [v] -> Format.fprintf fmt "(not %a)" pp_val v
-    | "impl", [v1; v2] -> Format.fprintf fmt "(not %a or else %a)" pp_val v1 pp_val v2
-    | "=", [v1; v2] -> Format.fprintf fmt "(%a = %a)" pp_val v1 pp_val v2
-    | "mod", [v1; v2] ->
-      if is_int then
-        pp_mod pp_val v1 v2 fmt
-      else
-        Format.fprintf fmt "(%a rem %a)" pp_val v1 pp_val v2
-    | "equi", [v1; v2] -> Format.fprintf fmt "((not %a) = (not %a))" pp_val v1 pp_val v2
-    | "xor", [v1; v2] -> Format.fprintf fmt "((not %a) \\= (not %a))" pp_val v1 pp_val v2
-    | "/", [v1; v2] ->
-      if is_int then
-        pp_div pp_val v1 v2 fmt
-      else
-        Format.fprintf fmt "(%a / %a)" pp_val v1 pp_val v2
-    | _, [v1; v2] -> Format.fprintf fmt "(%a %s %a)" pp_val v1 i pp_val v2
-    | _ -> (Format.eprintf "internal compilation error: basic function %s@." i; assert false)
+  let pp_basic_lib_fun pp_value ident fmt vl =
+    match ident, vl with
+    | "uminus", [v]    ->
+      Format.fprintf fmt "(- %a)" pp_value v
+    | "not", [v]       ->
+      Format.fprintf fmt "(not %a)" pp_value v
+    | "impl", [v1; v2] ->
+      Format.fprintf fmt "(not %a or else %a)" pp_value v1 pp_value v2
+    | "=", [v1; v2]    ->
+      Format.fprintf fmt "(%a = %a)" pp_value v1 pp_value v2
+    | "mod", [v1; v2]  -> pp_mod pp_value v1 v2 fmt
+    | "equi", [v1; v2] ->
+      Format.fprintf fmt "((not %a) = (not %a))" pp_value v1 pp_value v2
+    | "xor", [v1; v2]  ->
+      Format.fprintf fmt "((not %a) \\= (not %a))" pp_value v1 pp_value v2
+    | "/", [v1; v2]    -> pp_div pp_value v1 v2 fmt
+    | op, [v1; v2]     ->
+      Format.fprintf fmt "(%a %s %a)" pp_value v1 op pp_value v2
+    | fun_name, _      ->
+      (Format.eprintf "internal compilation error: basic function %s@." fun_name; assert false)
+
+  (** Printing function for values.
+
+      @param fmt the formater to use
+      @param value the value to print. Should be a
+             {!type:Machine_code_types.value_t} value
+   **)
+  let rec pp_value fmt value =
+    match value.value_desc with
+    | Cst c             -> pp_ada_const fmt c
+    | Var var_name      -> pp_var_name fmt var_name
+    | Fun (f_ident, vl) -> pp_basic_lib_fun pp_value f_ident fmt vl
+    | _                 ->
+      raise (Ada_not_supported
+               "unsupported: Ada_backend.adb.pp_value does not support this value type")
 
   (** Printing function for basic assignement [var_name := value;].
 
-      @param pp_var pretty printer for variables
       @param fmt the formater to print on
       @param var_name the name of the variable
       @param value the value to be assigned
    **)
-  (* TODO remove pp_var *)
-  let pp_basic_assign pp_var fmt var_name value =
-    fprintf fmt "%a := %a;"
-      pp_var var_name
-      pp_var value
+  let pp_basic_assign fmt var_name value =
+    fprintf fmt "%a := %a"
+      pp_var_name var_name
+      pp_value value
 
   (** Printing function for assignement. For the moment, only use
       [pp_basic_assign] function.
@@ -139,7 +178,7 @@ struct
       try
         List.assoc instance machine.minstances
       with Not_found -> (Format.eprintf "internal error: pp_machine_reset %s %s:@." machine.mname.node_id instance; raise Not_found) in
-    fprintf fmt "%a(state.%s);"
+    fprintf fmt "%a(state.%s)"
       pp_machine_reset_name (instance, (node, static))
       instance
 
@@ -156,14 +195,10 @@ struct
     (* no reset *)
     | MNoReset _ -> ()
     (* reset  *)
-    | MReset i ->
-      pp_machine_reset machine fmt i
-    | MLocalAssign (i,v) ->
-      fprintf fmt "MLocalAssign @"
-      (* pp_basic_assign pp_var_name fmt i v *)
-      (* pp_assign
-       *   machine self (pp_c_var_read m) fmt
-       *   i.var_type (mk_val (Var i) i.var_type) v *)
+    | MReset ident ->
+      pp_machine_reset machine fmt ident
+    | MLocalAssign (ident, value) ->
+      pp_basic_assign fmt ident value
     | MStateAssign (i,v) ->
       fprintf fmt "MStateAssign"
     (* pp_assign
