@@ -182,7 +182,17 @@ let pp_type fmt typ =
     | Types.Tbasic Types.Basic.Tint  -> pp_integer_type fmt
     | Types.Tbasic Types.Basic.Treal -> pp_float_type fmt
     | Types.Tbasic Types.Basic.Tbool -> pp_boolean_type fmt
-    | Types.Tunivar                  -> pp_polymorphic_type fmt typ.tid
+    | Types.Tunivar _                -> pp_polymorphic_type fmt typ.tid
+    | Types.Tconst _                 -> eprintf "Tconst@."; assert false (*TODO*)
+    | Types.Tclock _                 -> eprintf "Tclock@."; assert false (*TODO*)
+    | Types.Tarrow _                 -> eprintf "Tarrow@."; assert false (*TODO*)
+    | Types.Ttuple l                 -> eprintf "Ttuple %a @." (Utils.fprintf_list ~sep:" " Types.print_ty) l; assert false (*TODO*)
+    | Types.Tenum _                  -> eprintf "Tenum@.";  assert false (*TODO*)
+    | Types.Tstruct _                -> eprintf "Tstruct@.";assert false (*TODO*)
+    | Types.Tarray _                 -> eprintf "Tarray@."; assert false (*TODO*)
+    | Types.Tstatic _                -> eprintf "Tstatic@.";assert false (*TODO*)
+    | Types.Tlink _                  -> eprintf "Tlink@.";  assert false (*TODO*)
+    | Types.Tvar _                   -> eprintf "Tvar@.";   assert false (*TODO*)
     | _ -> eprintf "Type error : %a@." Types.print_ty typ; assert false (*TODO*)
   )
 

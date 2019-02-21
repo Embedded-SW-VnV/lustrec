@@ -31,8 +31,8 @@ let rec find_submachine_step_call ident instr_list =
   let search_instr instruction = 
     match instruction.instr_desc with
       | MStep (il, i, vl) when String.equal i ident -> [
-        (List.map (function x-> x.var_type) il,
-           List.map (function x-> x.value_type) vl)]
+        (List.map (function x-> x.value_type) vl,
+            List.map (function x-> x.var_type) il)]
       | MBranch (_, l) -> List.flatten
           (List.map (function x, y -> find_submachine_step_call ident y) l)
       | _ -> []
@@ -44,11 +44,15 @@ let rec find_submachine_step_call ident instr_list =
    @param t2 an other type
    @param return true if the two types are Tbasic or Tunivar and equal
 **)
-let check_type_equal (t1:Types.type_expr) (t2:Types.type_expr) =
+let rec check_type_equal (t1:Types.type_expr) (t2:Types.type_expr) =
   match (Types.repr t1).Types.tdesc, (Types.repr t2).Types.tdesc with
     | Types.Tbasic x, Types.Tbasic y -> x = y
     | Types.Tunivar,  Types.Tunivar  -> t1.tid = t2.tid
-    | _ -> assert false (* TODO *)
+    | Types.Ttuple l, _ -> assert (List.length l = 1); check_type_equal (List.hd l) t2
+    | _, Types.Ttuple l -> assert (List.length l = 1); check_type_equal t1 (List.hd l)
+    | Types.Tstatic (_, t), _ -> check_type_equal t t2
+    | _, Types.Tstatic (_, t) -> check_type_equal t1 t
+    | _ -> eprintf "ERROR: %a | %a" pp_type t1 pp_type t2; assert false (* TODO *)
 
 (** Extend a substitution to unify the two given types. Only the
   first type can be polymorphic.
@@ -107,6 +111,7 @@ let check_calls call calls =
    @return the correspondance between polymorphic type id and their instantiation
 **)
 let get_substitution machine ident submachine =
+  eprintf "%s %s %s@." machine.mname.node_id ident submachine.mname.node_id;
   (* extract the calls to submachines from the machine *)
   let calls = find_submachine_step_call ident machine.mstep.step_instrs in
   (* extract the first call  *)
@@ -126,13 +131,13 @@ let get_substitution machine ident submachine =
       and the call *)
   assert (List.length machine_types = List.length call_types);
   (* Unify the two lists of types *)
-  let substituion = List.fold_left unification [] (List.combine machine_types call_types) in
+  let substitution = List.fold_left unification [] (List.combine machine_types call_types) in
   (* Assume that our substitution match all the possible
        polymorphic type of the node *)
   let polymorphic_types = find_all_polymorphic_type submachine in
-  assert (List.length polymorphic_types = List.length substituion);
-  assert (List.for_all (function x->List.mem_assoc x substituion) polymorphic_types);
-  substituion
+  assert (List.length polymorphic_types = List.length substitution);
+  assert (List.for_all (function x->List.mem_assoc x substitution) polymorphic_types);
+  substitution
 
 (** Print the declaration of a state element of a subinstance of a machine.
    @param machine the machine
