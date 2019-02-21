@@ -23,7 +23,8 @@ let indent_size = 2
 let log_str_level_two indent info =
   let str_indent = String.make (indent*indent_size) ' ' in
   let pp_message fmt = fprintf fmt "%s.. %s@." str_indent info in
-  Log.report ~level:2 pp_message
+  Log.report ~level:2 pp_message;
+  Format.pp_print_flush Format.err_formatter ()
 
 (** Write a new file with formatter
    @param destname folder where the file shoudl be created
@@ -35,10 +36,10 @@ let write_file destname pp_filename pp_file arg =
   let path = asprintf "%s%a" destname pp_filename arg in
   let out = open_out path in
   let fmt = formatter_of_out_channel out in
+  log_str_level_two 2 ("generating "^path);
   pp_file fmt arg;
   pp_print_flush fmt ();
-  close_out out;
-  log_str_level_two 2 (path^" generated")
+  close_out out
 
 
 (** Print the filename of a machine package.
