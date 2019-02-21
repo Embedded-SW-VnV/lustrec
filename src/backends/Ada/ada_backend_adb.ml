@@ -86,11 +86,8 @@ struct
       pp_machine_reset machine fmt ident
     | MLocalAssign (ident, value) ->
       pp_basic_assign fmt ident value
-    | MStateAssign (i,v) ->
-      fprintf fmt "MStateAssign"
-    (* pp_assign
-       *   m self (pp_c_var_read m) fmt
-       *   i.var_type (mk_val (Var i) i.var_type) v *)
+    | MStateAssign (ident, value) ->
+      pp_basic_assign fmt ident value
     | MStep ([i0], i, vl) when Basic_library.is_value_internal_fun
           (mk_val (Fun (i, vl)) i0.var_type)  ->
       fprintf fmt "MStep basic"
