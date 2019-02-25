@@ -69,19 +69,6 @@ let pp_main_adb fmt machine =
     pp_with_machine machine
     (pp_main_procedure_definition machine) (locals, instrs)
 
-
-(** Print the arrow ads file.
-   @param fmt the formater to print on
-**)
-let pp_arrow_ads fmt =
-  fprintf fmt "COUCOU"
-
-(** Print the arrow adb file.
-   @param fmt the formater to print on
-**)
-let pp_arrow_adb fmt =
-  fprintf fmt "COUCOU"
-
 (** Print the gpr project file.
    @param fmt the formater to print on
    @param machine the main machine
