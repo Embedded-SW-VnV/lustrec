@@ -47,43 +47,50 @@ struct
   (* TODO: clean the call to extract_node *)
   (** Printing function for reset function name.
 
+      @param machines list of all machines
+      @param machine the current machine
       @param fmt the formater to use
       @param encapsulated_node the node encapsulated in a pair
              [(instance, (node, static))]
    **)
-  let pp_machine_reset_name fmt encapsulated_node =
-    fprintf fmt "%a.reset" pp_package_name_from_node (extract_node encapsulated_node)
+  let pp_machine_reset_name machines m fmt encapsulated_node =
+    let submachine = get_machine machines encapsulated_node in
+    let substitution = get_substitution m (fst encapsulated_node) submachine in
+    fprintf fmt "%a.reset" (pp_package_name_with_polymorphic substitution) submachine
 
   (** Printing function for reset function.
 
-      @param machine the considered machine
+      @param machines list of all machines
+      @param machine the current machine
       @param fmt the formater to use
       @param instance the considered instance
    **)
-  let pp_machine_reset (machine: machine_t) fmt instance =
-    let (node, static) =
+  let pp_machine_reset machines (machine: machine_t) fmt instance =
+    let node =
       try
         List.assoc instance machine.minstances
       with Not_found -> (Format.eprintf "internal error: pp_machine_reset %s %s:@." machine.mname.node_id instance; raise Not_found) in
-    fprintf fmt "%a(state.%s)"
-      pp_machine_reset_name (instance, (node, static))
+    fprintf fmt "%a(%t.%s)"
+      (pp_machine_reset_name machines machine) (instance, node)
+      pp_state_name
       instance
 
   (** Printing function for instruction. See
       {!type:Machine_code_types.instr_t} for more details on
       machine types.
 
+      @param machines list of all machines
       @param machine the current machine
       @param fmt the formater to print on
       @param instr the instruction to print
    **)
-  let pp_machine_instr machine fmt instr =
+  let pp_machine_instr machines machine fmt instr =
     match get_instr_desc instr with
     (* no reset *)
     | MNoReset _ -> ()
     (* reset  *)
     | MReset ident ->
-      pp_machine_reset machine fmt ident
+      pp_machine_reset machines machine fmt ident
     | MLocalAssign (ident, value) ->
       pp_basic_assign machine fmt ident value
     | MStateAssign (ident, value) ->
@@ -123,63 +130,45 @@ let filter_reset instr_list = List.map
     (fun i -> match get_instr_desc i with MReset i -> i | _ -> assert false)
   instr_list
 
-(** Print the definition of the init procedure from a machine.
-   @param fmt the formater to print on
-   @param machine the machine
-**)
-let pp_init_definition fmt m = pp_procedure_definition
-      pp_init_procedure_name
-      (pp_init_prototype m)
-      (pp_machine_var_decl NoMode)
-      (pp_machine_instr m)
-      fmt
-      ([], m.minit)
-
 (** Print the definition of the step procedure from a machine.
+
+   @param machines list of all machines
    @param fmt the formater to print on
    @param machine the machine
 **)
-let pp_step_definition fmt m = pp_procedure_definition
+let pp_step_definition machines fmt m = pp_procedure_definition
       pp_step_procedure_name
       (pp_step_prototype m)
       (pp_machine_var_decl NoMode)
-      (pp_machine_instr m)
+      (pp_machine_instr machines m)
       fmt
       (m.mstep.step_locals, m.mstep.step_instrs)
 
 (** Print the definition of the reset procedure from a machine.
+
+   @param machines list of all machines
    @param fmt the formater to print on
    @param machine the machine
 **)
-let pp_reset_definition fmt m = pp_procedure_definition
+let pp_reset_definition machines fmt m = pp_procedure_definition
       pp_reset_procedure_name
       (pp_reset_prototype m)
       (pp_machine_var_decl NoMode)
-      (pp_machine_instr m)
-      fmt
-      ([], m.minit)
-
-(** Print the definition of the clear procedure from a machine.
-   @param fmt the formater to print on
-   @param machine the machine
-**)
-let pp_clear_definition fmt m = pp_procedure_definition
-      pp_clear_procedure_name
-      (pp_clear_prototype m)
-      (pp_machine_var_decl NoMode)
-      (pp_machine_instr m)
+      (pp_machine_instr machines m)
       fmt
       ([], m.minit)
 
 (** Print the package definition(adb) of a machine.
+
+   @param machines list of all machines
    @param fmt the formater to print on
    @param machine the machine
 **)
-let pp_file fmt machine =
+let pp_file machines fmt machine =
   fprintf fmt "%a@,  @[<v>@,%a;@,@,%a;@,@]@,%a;@."
     (pp_begin_package true) machine (*Begin the package*)
-    pp_reset_definition machine (*Define the reset procedure*)
-    pp_step_definition machine (*Define the step procedure*)
+    (pp_reset_definition machines) machine (*Define the reset procedure*)
+    (pp_step_definition machines) machine (*Define the step procedure*)
     pp_end_package machine  (*End the package*)
 
 end

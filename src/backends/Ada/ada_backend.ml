@@ -104,7 +104,7 @@ let translate_to_ada basename prog machines dependencies =
   List.iter (write_file destname (pp_machine_filename "ads") (Ads.pp_file machines) ) machines;
 
   log_str_level_two 1 "Generating adb";
-  List.iter (write_file destname (pp_machine_filename "adb") Adb.pp_file) machines;
+  List.iter (write_file destname (pp_machine_filename "adb") (Adb.pp_file machines)) machines;
 
   (* If a main node is given we generate a main adb file and a project file *)
   log_str_level_two 1 "Generating wrapper files";
