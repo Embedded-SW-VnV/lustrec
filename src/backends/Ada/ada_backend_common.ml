@@ -118,6 +118,13 @@ let extract_node instance =
     | Node nd         -> nd
     | _ -> assert false (*TODO*)
 
+(** Print a with statement to include a package.
+   @param fmt the formater to print on
+   @param pp_pakage_name the package name printer
+**)
+let pp_with fmt pp_pakage_name =
+  fprintf fmt "with %t" pp_pakage_name
+
 (** Print a with statement to include a machine.
    @param fmt the formater to print on
    @param machine the machine
