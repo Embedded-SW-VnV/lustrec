@@ -28,10 +28,10 @@ struct
       @param var_name the name of the variable
       @param value the value to be assigned
    **)
-  let pp_basic_assign fmt var_name value =
+  let pp_basic_assign m fmt var_name value =
     fprintf fmt "%a := %a"
       pp_var_name var_name
-      pp_value value
+      (pp_value m) value
 
   (** Printing function for assignement. For the moment, only use
       [pp_basic_assign] function.
@@ -41,7 +41,7 @@ struct
       @param var_name the name of the variable
       @param value the value to be assigned
    **)
-  let pp_assign pp_var fmt var_name value = pp_basic_assign
+  let pp_assign m pp_var fmt var_name value = pp_basic_assign m
 
   (* Printing function for reset function *)
   (* TODO: clean the call to extract_node *)
@@ -85,21 +85,21 @@ struct
     | MReset ident ->
       pp_machine_reset machine fmt ident
     | MLocalAssign (ident, value) ->
-      pp_basic_assign fmt ident value
+      pp_basic_assign machine fmt ident value
     | MStateAssign (ident, value) ->
-      pp_basic_assign fmt ident value
+      pp_basic_assign machine fmt ident value
     | MStep ([i0], i, vl) when Basic_library.is_value_internal_fun
           (mk_val (Fun (i, vl)) i0.var_type)  ->
-      fprintf fmt "MStep basic"
+      fprintf fmt "Null"
     (* pp_machine_instr dependencies m self fmt
      *   (update_instr_desc instr (MLocalAssign (i0, mk_val (Fun (i, vl)) i0.var_type))) *)
-    | MStep (il, i, vl) -> fprintf fmt "MStep"
+    | MStep (il, i, vl) -> fprintf fmt "Null"
 
     (* pp_basic_instance_call m self fmt i vl il *)
-    | MBranch (_, []) -> fprintf fmt "MBranch []"
+    | MBranch (_, []) -> fprintf fmt "Null"
 
     (* (Format.eprintf "internal error: C_backend_src.pp_machine_instr %a@." (pp_instr m) instr; assert false) *)
-    | MBranch (g, hl) -> fprintf fmt "MBranch gen"
+    | MBranch (g, hl) -> fprintf fmt "Null"
     (* if let t = fst (List.hd hl) in t = tag_true || t = tag_false
      * then (\* boolean case, needs special treatment in C because truth value is not unique *\)
      *   (\* may disappear if we optimize code by replacing last branch test with default *\)

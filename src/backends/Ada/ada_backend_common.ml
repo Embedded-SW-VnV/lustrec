@@ -277,6 +277,13 @@ let pp_state_name fmt =
 let pp_var_name fmt id =
   fprintf fmt "%a" pp_clean_ada_identifier id.var_id
 
+(** Print the complete name of variable state.
+   @param fmt the formater to print on
+   @param var the variable
+**)
+let pp_access_var fmt var =
+  fprintf fmt "%t.%a" pp_state_name pp_var_name var
+
 (** Print a variable declaration
    @param mode input/output mode of the parameter
    @param pp_name a format printer wich print the variable name
@@ -519,15 +526,20 @@ let pp_procedure_definition pp_name pp_prototype pp_local pp_instr fmt (locals, 
 
   (** Printing function for values.
 
+      @param m the machine to know the state variable
       @param fmt the formater to use
       @param value the value to print. Should be a
              {!type:Machine_code_types.value_t} value
    **)
-  let rec pp_value fmt value =
+  let rec pp_value m fmt value =
     match value.value_desc with
     | Cst c             -> pp_ada_const fmt c
-    | Var var_name      -> pp_var_name fmt var_name
-    | Fun (f_ident, vl) -> pp_basic_lib_fun pp_value f_ident fmt vl
+    | Var var      ->
+        if is_memory m var then
+          pp_access_var fmt var
+        else
+          pp_var_name fmt var
+    | Fun (f_ident, vl) -> pp_basic_lib_fun (pp_value m) f_ident fmt vl
     | _                 ->
       raise (Ada_not_supported
                "unsupported: Ada_backend.adb.pp_value does not support this value type")
