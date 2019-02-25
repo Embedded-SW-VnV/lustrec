@@ -107,9 +107,10 @@ let pp_procedure_prototype_contract pp_prototype fmt opt_contract =
   match opt_contract with
     | None -> pp_prototype fmt
     | Some contract -> 
-        fprintf fmt "@[<v 2>%t with@,%a,@,%a@]"
+        fprintf fmt "@[<v 2>%t with@,%a%t%a@]"
           pp_prototype
           (Utils.fprintf_list ~sep:",@," pp_pre) contract.assume
+          (Utils.pp_final_char_if_non_empty ",@," contract.assume)
           (Utils.fprintf_list ~sep:",@," pp_post) contract.guarantees
 
 (** Print the prototype with a contract of the reset procedure from a machine.
