@@ -12,10 +12,12 @@ exception Ada_not_supported of string
 
 (* Misc pretty print functions *)
 
+
 (** Print a cleaned an identifier for ada exportation : Ada names must not start by an
     underscore and must not contain a double underscore
    @param var name to be cleaned*)
 let pp_clean_ada_identifier fmt name =
+  let reserved_words = ["out"] in
   let base_size = String.length name in
   assert(base_size > 0);
   let rec remove_double_underscore s = function
@@ -26,7 +28,8 @@ let pp_clean_ada_identifier fmt name =
   in
   let name = remove_double_underscore name 0 in
   let prefix = if String.length name != base_size
-                  || String.get name 0 == '_' then
+                  || String.get name 0 == '_' 
+                  || List.exists (String.equal name) reserved_words then
                   "ada"
                else
                   ""
@@ -113,8 +116,8 @@ let pp_main_procedure_name fmt =
    @param fmt the formater to print on
    @param pp_pakage_name the package name printer
 **)
-let pp_with fmt pp_pakage_name =
-  fprintf fmt "with %t" pp_pakage_name
+let pp_private_with fmt pp_pakage_name =
+  fprintf fmt "private with %t" pp_pakage_name
 
 (** Print a with statement to include a machine.
    @param fmt the formater to print on
