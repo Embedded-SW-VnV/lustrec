@@ -30,7 +30,7 @@ struct
    **)
   let pp_basic_assign m fmt var_name value =
     fprintf fmt "%a := %a"
-      pp_var_name var_name
+      (pp_access_var m) var_name
       (pp_value m) value
 
   (** Printing function for assignement. For the moment, only use
