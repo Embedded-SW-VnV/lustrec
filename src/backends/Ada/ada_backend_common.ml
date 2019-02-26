@@ -17,7 +17,20 @@ exception Ada_not_supported of string
     underscore and must not contain a double underscore
    @param var name to be cleaned*)
 let pp_clean_ada_identifier fmt name =
-  let reserved_words = ["out"] in
+  let reserved_words = ["abort"; "else"; "new"; "return";
+                        "abs"; "elsif"; "not"; "reverse"; "abstract"; "end";
+                        "null"; "accept"; "entry"; "select"; "access";
+                        "exception"; "of"; "separate"; "aliased"; "exit";
+                        "or"; "some"; "all"; "others"; "subtype"; "and";
+                        "for"; "out"; "synchronized"; "array"; "function";
+                        "overriding"; "at"; "tagged"; "generic"; "package";
+                        "task"; "begin"; "goto"; "pragma"; "terminate";
+                        "body"; "private"; "then"; "if"; "procedure"; "type";
+                        "case"; "in"; "protected"; "constant"; "interface";
+                        "until"; "is"; "raise"; "use"; "declare"; "	range";
+                        "delay"; "limited"; "record"; "when"; "delta"; "loop";
+                        "rem"; "while"; "digits"; "renames"; "with"; "do";
+                        "mod"; "requeue"; "xor"] in
   let base_size = String.length name in
   assert(base_size > 0);
   let rec remove_double_underscore s = function
@@ -26,10 +39,11 @@ let pp_clean_ada_identifier fmt name =
         remove_double_underscore (sprintf "%s%s" (String.sub s 0 i) (String.sub s (i+1) (String.length s-i-1))) i
     | i -> remove_double_underscore s (i+1)
   in
+  let name = if String.get name (base_size-1) == '_' then name^"ada" else name in
   let name = remove_double_underscore name 0 in
   let prefix = if String.length name != base_size
                   || String.get name 0 == '_' 
-                  || List.exists (String.equal name) reserved_words then
+                  || List.exists (String.equal (String.lowercase_ascii name)) reserved_words then
                   "ada"
                else
                   ""
@@ -110,7 +124,7 @@ let pp_package_access fmt (package, item) =
    @param fmt the formater to print on
 **)
 let pp_main_procedure_name fmt =
-  fprintf fmt "main"
+  fprintf fmt "ada_main"
 
 (** Print a with statement to include a package.
    @param fmt the formater to print on
@@ -580,7 +594,7 @@ let pp_procedure_definition pp_name pp_prototype pp_local pp_instr fmt (locals, 
    **)
   let pp_ada_tag fmt t =
     pp_print_string fmt
-      (if t = tag_true then "True" else if t = tag_false then "Flase" else t)
+      (if t = tag_true then "True" else if t = tag_false then "False" else t)
 
   (** Printing function for machine type constants. For the moment,
       arrays are not supported.
@@ -661,8 +675,14 @@ let pp_procedure_definition pp_name pp_prototype pp_local pp_instr fmt (locals, 
     | "equi", [v1; v2] ->
       Format.fprintf fmt "((not %a) = (not %a))" pp_value v1 pp_value v2
     | "xor", [v1; v2]  ->
-      Format.fprintf fmt "((not %a) \\= (not %a))" pp_value v1 pp_value v2
+      Format.fprintf fmt "((not %a) /= (not %a))" pp_value v1 pp_value v2
     | "/", [v1; v2]    -> pp_div pp_value v1 v2 fmt
+    | "&&", [v1; v2]    ->
+      Format.fprintf fmt "(%a %s %a)" pp_value v1 "and then" pp_value v2
+    | "||", [v1; v2]    ->
+      Format.fprintf fmt "(%a %s %a)" pp_value v1 "or else" pp_value v2
+    | "!=", [v1; v2]    ->
+      Format.fprintf fmt "(%a %s %a)" pp_value v1 "/=" pp_value v2
     | op, [v1; v2]     ->
       Format.fprintf fmt "(%a %s %a)" pp_value v1 op pp_value v2
     | fun_name, _      ->

@@ -135,16 +135,24 @@ let pp_file machines fmt m =
       let ident = (fst instance) in
       get_substitution m ident submachine, ident, submachine)
     m.minstances submachines in
+  let extract_identifier (subst, _, submachine) =
+    submachine.mname.node_id^"####"^(String.concat "####" (List.map (function (_, typ) -> (asprintf "%a" pp_type typ)) subst))
+  in
+  let identifiers = List.map extract_identifier typed_submachines in
+  let typed_submachines_identified = List.combine identifiers typed_submachines in
+  let typed_submachines_identified_set = List.fold_left (fun l x -> if List.mem_assoc (fst x) l then l else x::l) [] typed_submachines_identified in
+  let submachines_set = List.map (function (_, (_, _, machine)) -> machine) typed_submachines_identified_set in
+  let typed_submachines_set = snd (List.split typed_submachines_identified_set) in
   let pp_record fmt =
     pp_state_record_definition fmt (var_list, typed_submachines) in
   let typed_submachines_filtered =
-    List.filter (function (l, _, _) -> l != []) typed_submachines in
+    List.filter (function (l, _, _) -> l != []) typed_submachines_set in
   let polymorphic_types = find_all_polymorphic_type m in
   fprintf fmt "@[<v>%a%t%a%a@,  @[<v>@,%a;@,@,%t;@,@,%a;@,@,private@,@,%a%t%a;@,@]@,%a;@.@]"
     
     (* Include all the subinstance*)
-    (Utils.fprintf_list ~sep:";@," pp_with_machine) submachines
-    (Utils.pp_final_char_if_non_empty ";@,@," submachines)
+    (Utils.fprintf_list ~sep:";@," pp_with_machine) submachines_set
+    (Utils.pp_final_char_if_non_empty ";@,@," submachines_set)
     
     pp_generic polymorphic_types
     
