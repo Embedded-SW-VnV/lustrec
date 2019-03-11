@@ -72,13 +72,14 @@ let pp_project_name fmt main_machine =
   fprintf fmt "%a.gpr" pp_package_name main_machine
 
 
-let get_typed_instances machines m =
-  let submachines = List.map (get_machine machines) m.minstances in
+let get_typed_submachines machines m =
+  let instances = List.filter (fun (id, _) -> not (is_builtin_fun id)) m.mcalls in
+  let submachines = List.map (get_machine machines) instances in
   List.map2
     (fun instance submachine ->
       let ident = (fst instance) in
       ident, (get_substitution m ident submachine, submachine))
-    m.minstances submachines
+    instances submachines
 
 (** Main function of the Ada backend. It calls all the subfunction creating all
 the file and fill them with Ada code representing the machines list given.
@@ -92,12 +93,12 @@ let translate_to_ada basename prog machines dependencies =
   let module Adb = Ada_backend_adb.Main in
   let module Wrapper = Ada_backend_wrapper.Main in
 
-  let typed_instances_machines =
-    List.map (get_typed_instances machines) machines in
+  let typed_submachines =
+    List.map (get_typed_submachines machines) machines in
 
-  let _machines = List.combine typed_instances_machines machines in
+  let _machines = List.combine typed_submachines machines in
 
-  let _pp_filename ext fmt (typed_instances, machine) =
+  let _pp_filename ext fmt (typed_submachines, machine) =
     pp_machine_filename ext fmt machine in
 
   (* Extract the main machine if there is one *)

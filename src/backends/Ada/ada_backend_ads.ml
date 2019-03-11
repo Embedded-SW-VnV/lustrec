@@ -38,10 +38,11 @@ let pp_machine_subinstance_state_decl fmt (ident, (substitution, submachine)) =
    @param typed_instances list typed instances
 **)
 let pp_state_record_definition fmt (var_list, typed_instances) =
-  fprintf fmt "@,  @[<v>record@,  @[<v>%a%t%a%t@]@,end record@]"
+  fprintf fmt "@,  @[<v>record@,  @[<v>%a%t%t%a%t@]@,end record@]"
     (Utils.fprintf_list ~sep:";@;" pp_machine_subinstance_state_decl)
     typed_instances
-    (Utils.pp_final_char_if_non_empty ";@," typed_instances)
+    (Utils.pp_final_char_if_non_empty ";" typed_instances)
+    (fun fmt -> if var_list!=[] && typed_instances!= [] then fprintf fmt "@,@," else fprintf fmt "")
     (Utils.fprintf_list ~sep:";@;" (pp_machine_var_decl NoMode))
     var_list
     (Utils.pp_final_char_if_non_empty ";" var_list)
@@ -139,16 +140,17 @@ let eq_typed_machine (subst1, machine1) (subst2, machine2) =
 
 (** Print the package declaration(ads) of a machine.
   It requires the list of all typed instance.
-  A typed submachine instance is (ident, type_machine) with ident
-  the instance name and typed_machine is (substitution, machine) with machine
-  the machine associated to the instance and substitution the instanciation of
-  all its polymorphic types.
+  A typed submachine is a (ident, typed_machine) with
+    - ident: the name 
+    - typed_machine: a (substitution, machine) with
+      - machine: the submachine struct
+      - substitution the instanciation of all its polymorphic types.
    @param fmt the formater to print on
-   @param typed_instances list of all typed machine instances of this machine
+   @param typed_submachines list of all typed submachines of this machine
    @param m the machine
 **)
-let pp_file fmt (typed_instances, m) =
-  let typed_machines = snd (List.split typed_instances) in
+let pp_file fmt (typed_submachines, m) =
+  let typed_machines = snd (List.split typed_submachines) in
   let typed_machines_set = remove_duplicates eq_typed_machine typed_machines in
   
   let machines_to_import = snd (List.split typed_machines_set) in
@@ -157,14 +159,37 @@ let pp_file fmt (typed_instances, m) =
   
   let typed_machines_to_instanciate =
     List.filter (fun (l, _) -> l != []) typed_machines_set in
+
+  let typed_instances = List.filter is_submachine_statefull typed_submachines in
   
   let pp_record fmt =
     pp_state_record_definition fmt (m.mmemory, typed_instances) in
+
+  let pp_state_decl_and_reset fmt = fprintf fmt "%a;@,@,%t;@,@,"
+    (*Declare the state type*)
+    pp_private_limited_type_decl pp_state_type
+    (*Declare the reset procedure*)
+    (pp_reset_prototype m)
+  in
+
+  let pp_private_section fmt = fprintf fmt "@,private@,@,%a%t%a;@,"
+    (*Instantiate the polymorphic type that need to be instantiated*)
+    (Utils.fprintf_list ~sep:";@," pp_new_package) typed_machines_to_instanciate
+    (Utils.pp_final_char_if_non_empty ";@,@," typed_machines_to_instanciate)
+    (*Define the state type*)
+    pp_type_decl (pp_state_type, pp_record)
+  in
   
+  let pp_ifstatefull fmt pp =
+    if is_machine_statefull m then
+      fprintf fmt "%t" pp
+    else
+      fprintf fmt ""
+  in
   
-  fprintf fmt "@[<v>%a%t%a%a@,  @[<v>@,%a;@,@,%t;@,@,%a;@,@,private@,@,%a%t%a;@,@]@,%a;@.@]"
+  fprintf fmt "@[<v>%a%t%a%a@,  @[<v>@,%a%a;@,%a@]@,%a;@.@]"
     
-    (* Include all the subinstance*)
+    (* Include all the subinstance package*)
     (Utils.fprintf_list ~sep:";@," pp_with_machine) machines_to_import
     (Utils.pp_final_char_if_non_empty ";@,@," machines_to_import)
     
@@ -172,22 +197,14 @@ let pp_file fmt (typed_instances, m) =
     
     (*Begin the package*)
     (pp_begin_package false) m
-    
-    (*Declare the state type*)
-    pp_private_limited_type_decl pp_state_type
-    
-    (*Declare the reset procedure*)
-    (pp_reset_prototype m)
+
+    pp_ifstatefull pp_state_decl_and_reset
     
     (*Declare the step procedure*)
     pp_step_prototype_contract m
     
-    (*Instantiate the polymorphic type that need to be instantiated*)
-    (Utils.fprintf_list ~sep:";@," pp_new_package) typed_machines_to_instanciate
-    (Utils.pp_final_char_if_non_empty ";@,@," typed_machines_to_instanciate)
-    
-    (*Define the state type*)
-    pp_type_decl (pp_state_type, pp_record)
+    (*Print the private section*)
+    pp_ifstatefull pp_private_section
     
     (*End the package*)
     pp_end_package m

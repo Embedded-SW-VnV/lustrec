@@ -8,10 +8,20 @@ open Machine_code_common
 (** Exception for unsupported features in Ada backend **)
 exception Ada_not_supported of string
 
-(** All the pretty print functions common to the ada backend **)
+(** All the pretty print and aux functions common to the ada backend **)
 
 (* Misc pretty print functions *)
 
+let is_machine_statefull m = not m.mname.node_dec_stateless
+
+let ada_supported_funs =
+  [("sin", ("Ada.Numerics.Elementary_Functions", "Sin"));
+   ("cos", ("Ada.Numerics.Elementary_Functions", "Cos"));
+   ("tan", ("Ada.Numerics.Elementary_Functions", "Tan"))]
+
+let is_builtin_fun ident =
+  List.mem ident Basic_library.internal_funs ||
+    List.mem_assoc ident ada_supported_funs
 
 (** Print a cleaned an identifier for ada exportation : Ada names must not start by an
     underscore and must not contain a double underscore
@@ -132,6 +142,13 @@ let pp_main_procedure_name fmt =
 **)
 let pp_private_with fmt pp_pakage_name =
   fprintf fmt "private with %t" pp_pakage_name
+
+(** Print a with statement to include a package.
+   @param fmt the formater to print on
+   @param name the package name
+**)
+let pp_with fmt name =
+  fprintf fmt "with %s" name
 
 (** Print a with statement to include a machine.
    @param fmt the formater to print on
@@ -411,19 +428,25 @@ let pp_simple_prototype pp_name fmt =
 (** Print the prototype of a machine procedure. The first parameter is always
 the state, state_modifier specify the modifier applying to it. The next
 parameters are inputs and the last parameters are the outputs.
-   @param state_mode the input/output mode for the state parameter
+   @param state_mode_opt None if no state parameter required and some input/output mode for it else
    @param input list of the input parameter of the procedure
    @param output list of the output parameter of the procedure
    @param fmt the formater to print on
    @param name the name of the procedure
 **)
-let pp_base_prototype state_mode input output fmt pp_name =
-  fprintf fmt "procedure %t(@[<v>%a%t@[%a@]%t@[%a@])@]"
+let pp_base_prototype state_mode_opt input output fmt pp_name =
+  let pp_var_decl_state fmt = match state_mode_opt with
+    | None -> fprintf fmt ""
+    | Some state_mode -> fprintf fmt "%a" pp_state_var_decl state_mode
+  in
+  fprintf fmt "procedure %t(@[<v>%t%t@[%a@]%t@[%a@])@]"
     pp_name
-    pp_state_var_decl state_mode
-    (Utils.pp_final_char_if_non_empty ";@," input)
+    pp_var_decl_state
+    (fun fmt -> if state_mode_opt != None && input!=[] then
+      fprintf fmt ";@," else fprintf fmt "")
     (Utils.fprintf_list ~sep:";@ " (pp_machine_var_decl In)) input
-    (Utils.pp_final_char_if_non_empty ";@," output)
+    (fun fmt -> if (state_mode_opt != None || input!=[]) && output != [] then
+      fprintf fmt ";@," else fprintf fmt "")
     (Utils.fprintf_list ~sep:";@ " (pp_machine_var_decl Out)) output
 
 (** Print the prototype of the step procedure of a machine.
@@ -432,7 +455,8 @@ let pp_base_prototype state_mode input output fmt pp_name =
    @param pp_name name function printer
 **)
 let pp_step_prototype m fmt =
-  pp_base_prototype InOut m.mstep.step_inputs m.mstep.step_outputs fmt pp_step_procedure_name
+  let state_mode = if is_machine_statefull m then Some InOut else None in
+  pp_base_prototype state_mode m.mstep.step_inputs m.mstep.step_outputs fmt pp_step_procedure_name
 
 (** Print the prototype of the reset procedure of a machine.
    @param m the machine
@@ -440,7 +464,8 @@ let pp_step_prototype m fmt =
    @param pp_name name function printer
 **)
 let pp_reset_prototype m fmt =
-  pp_base_prototype InOut m.mstatic [] fmt pp_reset_procedure_name
+  let state_mode = if is_machine_statefull m then Some InOut else None in
+  pp_base_prototype state_mode m.mstatic [] fmt pp_reset_procedure_name
 
 (** Print the prototype of the init procedure of a machine.
    @param m the machine
@@ -448,7 +473,8 @@ let pp_reset_prototype m fmt =
    @param pp_name name function printer
 **)
 let pp_init_prototype m fmt =
-  pp_base_prototype Out m.mstatic [] fmt pp_init_procedure_name
+  let state_mode = if is_machine_statefull m then Some Out else None in
+  pp_base_prototype state_mode m.mstatic [] fmt pp_init_procedure_name
 
 (** Print the prototype of the clear procedure of a machine.
    @param m the machine
@@ -456,7 +482,8 @@ let pp_init_prototype m fmt =
    @param pp_name name function printer
 **)
 let pp_clear_prototype m fmt =
-  pp_base_prototype InOut m.mstatic [] fmt pp_clear_procedure_name
+  let state_mode = if is_machine_statefull m then Some InOut else None in
+  pp_base_prototype state_mode m.mstatic [] fmt pp_clear_procedure_name
 
 (** Print a one line comment with the final new line character to avoid
       commenting anything else.
@@ -468,6 +495,15 @@ let pp_oneline_comment fmt s =
   fprintf fmt "-- %s@," s
 
 (* Functions which computes the substitution for polymorphic type *)
+
+
+(** Check if a submachine is statefull.
+    @param submachine a submachine
+    @return true if the submachine is statefull
+**)
+let is_submachine_statefull submachine =
+    not (snd (snd submachine)).mname.node_dec_stateless
+
 (** Find a submachine step call in a list of instructions.
     @param ident submachine instance ident
     @param instr_list List of instruction sto search
@@ -719,6 +755,11 @@ let pp_procedure_definition pp_name pp_prototype pp_local pp_instr fmt (locals, 
       Format.fprintf fmt "(%a %s %a)" pp_value v1 "/=" pp_value v2
     | op, [v1; v2]     ->
       Format.fprintf fmt "(%a %s %a)" pp_value v1 op pp_value v2
+    | op, [v1] when  List.mem_assoc ident ada_supported_funs ->
+      let pkg, name = try List.assoc ident ada_supported_funs
+        with Not_found -> assert false in
+      let pkg = pkg^(if String.equal pkg "" then "" else ".") in
+        Format.fprintf fmt "%s%s(%a)" pkg name pp_value v1
     | fun_name, _      ->
       (Format.eprintf "internal compilation error: basic function %s@." fun_name; assert false)
 
