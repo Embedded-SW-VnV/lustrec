@@ -150,13 +150,17 @@ let extract_node instance =
     | _ -> assert false (*TODO*)
 
 (** Extract from a machine list the one corresponding to the given instance.
+      assume that the machine is in the list.
    @param machines list of all machines
    @param instance instance of a machine
    @return the machine corresponding to hte given instance
 **)
 let get_machine machines instance =
     let id = (extract_node instance).node_id in
-    List.find  (function m -> m.mname.node_id=id) machines
+    try
+      List.find (function m -> m.mname.node_id=id) machines
+    with
+      Not_found -> assert false
 
 
 (* Type pretty print functions *)
@@ -218,6 +222,7 @@ let pp_type fmt typ =
     | Types.Tbasic Types.Basic.Treal -> pp_float_type fmt
     | Types.Tbasic Types.Basic.Tbool -> pp_boolean_type fmt
     | Types.Tunivar _                -> pp_polymorphic_type fmt typ.tid
+    | Types.Tbasic _                 -> eprintf "Tbasic@."; assert false (*TODO*)
     | Types.Tconst _                 -> eprintf "Tconst@."; assert false (*TODO*)
     | Types.Tclock _                 -> eprintf "Tclock@."; assert false (*TODO*)
     | Types.Tarrow _                 -> eprintf "Tarrow@."; assert false (*TODO*)
@@ -230,6 +235,21 @@ let pp_type fmt typ =
     | Types.Tvar _                   -> eprintf "Tvar@.";   assert false (*TODO*)
     | _ -> eprintf "Type error : %a@." Types.print_ty typ; assert false (*TODO*)
   )
+
+
+(** Test if two types are the same.
+   @param typ1 the first type
+   @param typ2 the second type
+**)
+let pp_eq_type typ1 typ2 = 
+  let get_basic typ = match (Types.repr typ).Types.tdesc with
+    | Types.Tbasic Types.Basic.Tint -> Types.Basic.Tint
+    | Types.Tbasic Types.Basic.Treal -> Types.Basic.Treal
+    | Types.Tbasic Types.Basic.Tbool -> Types.Basic.Tbool
+    | _ -> assert false (*TODO*)
+  in
+  get_basic typ1 = get_basic typ2
+
 
 (** Print the type of a variable.
    @param fmt the formater to print on
@@ -438,6 +458,14 @@ let pp_init_prototype m fmt =
 let pp_clear_prototype m fmt =
   pp_base_prototype InOut m.mstatic [] fmt pp_clear_procedure_name
 
+(** Print a one line comment with the final new line character to avoid
+      commenting anything else.
+   @param fmt the formater to print on
+   @param s the comment without newline character
+**)
+let pp_oneline_comment fmt s =
+  assert (not (String.contains s '\n'));
+  fprintf fmt "-- %s@," s
 
 (* Functions which computes the substitution for polymorphic type *)
 (** Find a submachine step call in a list of instructions.
@@ -487,7 +515,10 @@ let unification (substituion:(int*Types.type_expr) list) ((type_poly:Types.type_
     begin
       (* We check that the type corresponding to type_poly in the subsitution
          match typ *)
-      assert(check_type_equal (List.assoc type_poly.tid substituion) typ);
+      (try
+        assert(check_type_equal (List.assoc type_poly.tid substituion) typ)
+      with
+        Not_found -> assert false);
       (* We return the original substituion, it is already correct *)
       substituion
     end
@@ -556,7 +587,10 @@ let get_substitution machine ident submachine =
        polymorphic type of the node *)
   let polymorphic_types = find_all_polymorphic_type submachine in
   assert (List.length polymorphic_types = List.length substitution);
-  assert (List.for_all (function x->List.mem_assoc x substitution) polymorphic_types);
+  (try
+    assert (List.for_all (fun x -> List.mem_assoc x substitution) polymorphic_types)
+  with
+    Not_found -> assert false);
   substitution
 
 

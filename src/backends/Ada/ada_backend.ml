@@ -71,6 +71,15 @@ let check machine =
 let pp_project_name fmt main_machine =
   fprintf fmt "%a.gpr" pp_package_name main_machine
 
+
+let get_typed_instances machines m =
+  let submachines = List.map (get_machine machines) m.minstances in
+  List.map2
+    (fun instance submachine ->
+      let ident = (fst instance) in
+      ident, (get_substitution m ident submachine, submachine))
+    m.minstances submachines
+
 (** Main function of the Ada backend. It calls all the subfunction creating all
 the file and fill them with Ada code representing the machines list given.
    @param basename useless
@@ -82,6 +91,14 @@ let translate_to_ada basename prog machines dependencies =
   let module Ads = Ada_backend_ads.Main in
   let module Adb = Ada_backend_adb.Main in
   let module Wrapper = Ada_backend_wrapper.Main in
+
+  let typed_instances_machines =
+    List.map (get_typed_instances machines) machines in
+
+  let _machines = List.combine typed_instances_machines machines in
+
+  let _pp_filename ext fmt (typed_instances, machine) =
+    pp_machine_filename ext fmt machine in
 
   (* Extract the main machine if there is one *)
   let main_machine = (match !Options.main_node with
@@ -101,10 +118,10 @@ let translate_to_ada basename prog machines dependencies =
   List.iter check machines;
 
   log_str_level_two 1 "Generating ads";
-  List.iter (write_file destname (pp_machine_filename "ads") (Ads.pp_file machines) ) machines;
+  List.iter (write_file destname (_pp_filename "ads") Ads.pp_file) _machines;
 
   log_str_level_two 1 "Generating adb";
-  List.iter (write_file destname (pp_machine_filename "adb") (Adb.pp_file machines)) machines;
+  List.iter (write_file destname (_pp_filename "adb") Adb.pp_file) _machines;
 
   (* If a main node is given we generate a main adb file and a project file *)
   log_str_level_two 1 "Generating wrapper files";
