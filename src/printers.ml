@@ -75,16 +75,19 @@ and pp_const fmt c =
     | Const_real (c, e, s) -> pp_print_string fmt s (*if e = 0 then pp_print_int fmt c else if e < 0 then Format.fprintf fmt "%ie%i" c (-e) else Format.fprintf fmt "%ie-%i" c e *)
     (* | Const_float r -> pp_print_float fmt r *)
     | Const_tag  t -> pp_print_string fmt t
-    | Const_array ca -> Format.fprintf fmt "[%a]" (Utils.fprintf_list ~sep:"," pp_const) ca
-    | Const_struct fl -> Format.fprintf fmt "{%a }" (Utils.fprintf_list ~sep:" " pp_struct_const_field) fl
+    | Const_array ca -> fprintf fmt "[%a]" (Utils.fprintf_list ~sep:"," pp_const) ca
+    | Const_struct fl -> fprintf fmt "{%a }" (Utils.fprintf_list ~sep:" " pp_struct_const_field) fl
+
+    (* used only for annotations *)
     | Const_string s -> pp_print_string fmt ("\"" ^ s ^ "\"")
+    | Const_modeid s -> pp_print_string fmt ("\"" ^ s ^ "\"")
 
 
 let pp_annot_key fmt kwds =
   match kwds with
   | [] -> assert false
-  | [x] -> Format.pp_print_string fmt x
-  | _ -> Format.fprintf fmt "/%a/" (fprintf_list ~sep:"/" Format.pp_print_string) kwds
+  | [x] -> pp_print_string fmt x
+  | _ -> fprintf fmt "/%a/" (fprintf_list ~sep:"/" pp_print_string) kwds
 
 let rec pp_expr fmt expr =
   (match expr.expr_annot with 
@@ -137,7 +140,7 @@ and pp_call fmt id e =
   | "<=", Expr_tuple([e1;e2]) -> fprintf fmt "(%a <= %a)" pp_expr e1 pp_expr e2
   | ">", Expr_tuple([e1;e2]) -> fprintf fmt "(%a > %a)" pp_expr e1 pp_expr e2
   | ">=", Expr_tuple([e1;e2]) -> fprintf fmt "(%a >= %a)" pp_expr e1 pp_expr e2
-  | "!=", Expr_tuple([e1;e2]) -> fprintf fmt "(%a != %a)" pp_expr e1 pp_expr e2
+  | "!=", Expr_tuple([e1;e2]) -> fprintf fmt "(%a <> %a)" pp_expr e1 pp_expr e2
   | "=", Expr_tuple([e1;e2]) -> fprintf fmt "(%a = %a)" pp_expr e1 pp_expr e2
   | "not", _ -> fprintf fmt "(not %a)" pp_expr e
   | _, Expr_tuple _ -> fprintf fmt "%s %a" id pp_expr e
@@ -159,18 +162,18 @@ and  pp_sf_value fmt e =
 
 and pp_s_function fmt expr_ann =
   let pp_annot fmt (kwds, ee) =
-    Format.fprintf fmt " %t : %a"
+    fprintf fmt " %t : %a"
                    (fun fmt -> match kwds with
                                | [] -> assert false
-                               | [x] -> Format.pp_print_string fmt x
-                               | _ -> Format.fprintf fmt "%a" (fprintf_list ~sep:"/" Format.pp_print_string) kwds)
+                               | [x] -> pp_print_string fmt x
+                               | _ -> fprintf fmt "%a" (fprintf_list ~sep:"/" pp_print_string) kwds)
                    pp_sf_value ee
   in
   fprintf_list ~sep:"@ " pp_annot fmt expr_ann.annots
 
 and pp_expr_annot fmt expr_ann =
   let pp_annot fmt (kwds, ee) =
-    Format.fprintf fmt "(*! %a: %a; *)"
+    fprintf fmt "(*! %a: %a; *)"
       pp_annot_key kwds
       pp_eexpr ee
   in
@@ -211,30 +214,30 @@ let pp_node_eq fmt eq =
     pp_expr eq.eq_rhs
 
 let pp_restart fmt restart =
-  Format.fprintf fmt "%s" (if restart then "restart" else "resume")
+  fprintf fmt "%s" (if restart then "restart" else "resume")
 
 let pp_unless fmt (_, expr, restart, st) =
-  Format.fprintf fmt "unless %a %a %s"
+  fprintf fmt "unless %a %a %s"
     pp_expr expr
     pp_restart restart
     st
 
 let pp_until fmt (_, expr, restart, st) =
-  Format.fprintf fmt "until %a %a %s"
+  fprintf fmt "until %a %a %s"
     pp_expr expr
     pp_restart restart
     st
 
 let rec pp_handler fmt handler =
-  Format.fprintf fmt "state %s:@ @[<v 2>  %a%t%alet@,@[<v 2>  %a@ %a@ %a@]@,tel@ %a@]"
+  fprintf fmt "state %s:@ @[<v 2>  %a%t%alet@,@[<v 2>  %a@ %a@ %a@]@,tel@ %a@]"
     handler.hand_state
     (Utils.fprintf_list ~sep:"@ " pp_unless) handler.hand_unless
     (fun fmt -> if not ([] = handler.hand_unless) then fprintf fmt "@ ")
     (fun fmt locals ->
       match locals with [] -> () | _ ->
-	Format.fprintf fmt "@[<v 4>var %a@]@ " 
+	fprintf fmt "@[<v 4>var %a@]@ " 
 	  (Utils.fprintf_list ~sep:"@ " 
-	     (fun fmt v -> Format.fprintf fmt "%a;" pp_node_var v))
+	     (fun fmt v -> fprintf fmt "%a;" pp_node_var v))
 	  locals)
     handler.hand_locals
     (fprintf_list ~sep:"@ " pp_expr_annot) handler.hand_annots
@@ -250,7 +253,7 @@ and pp_node_stmt fmt stmt =
 and pp_node_stmts fmt stmts = fprintf_list ~sep:"@ " pp_node_stmt fmt stmts
 
 and pp_node_aut fmt aut =
-  Format.fprintf fmt "@[<v 0>automaton %s@,%a@]"
+  fprintf fmt "@[<v 0>automaton %s@,%a@]"
     aut.aut_id
     (Utils.fprintf_list ~sep:"@ " pp_handler) aut.aut_handlers
 
@@ -274,45 +277,87 @@ let pp_typedec fmt ty =
 (*   ) *)
 
 
+
+let pp_quantifiers fmt (q, vars) =
+  match q with
+    | Forall -> fprintf fmt "forall %a" (fprintf_list ~sep:"; " pp_var) vars 
+    | Exists -> fprintf fmt "exists %a" (fprintf_list ~sep:"; " pp_var) vars 
+
+let pp_eexpr fmt e =
+  fprintf fmt "%a%t %a"
+    (Utils.fprintf_list ~sep:"; " pp_quantifiers) e.eexpr_quantifiers
+    (fun fmt -> match e.eexpr_quantifiers with [] -> () | _ -> fprintf fmt ";")
+    pp_expr e.eexpr_qfexpr
+
 let pp_spec fmt spec =
   fprintf fmt "@[<hov 2>(*@@ ";
-  fprintf_list ~sep:"@,@@ " (fun fmt r -> fprintf fmt "requires %a;" pp_eexpr r) fmt spec.requires;
-  fprintf_list ~sep:"@,@@ " (fun fmt r -> fprintf fmt "ensures %a; " pp_eexpr r) fmt spec.ensures;
-  fprintf_list ~sep:"@," (fun fmt (name, assumes, ensures, _) -> 
-    fprintf fmt "behavior %s:@[@ %a@ %a@]" 
-      name
-      (fprintf_list ~sep:"@ " (fun fmt r -> fprintf fmt "assumes %a;" pp_eexpr r)) assumes
-      (fprintf_list ~sep:"@ " (fun fmt r -> fprintf fmt "ensures %a;" pp_eexpr r)) ensures
-  ) fmt spec.behaviors;
+  (* const are prefixed with const in pp_var and with nothing for regular
+     variables. We adapt the call to produce the appropriate output. *)
+  fprintf_list ~sep:"@,@@ " (fun fmt v ->
+    fprintf fmt "%s%a = %t;"
+      (if v.var_dec_const then "" else "var")
+      pp_var v
+      (fun fmt -> match v.var_dec_value with None -> () | Some e -> pp_expr fmt e)
+  ) fmt (spec.consts @ spec.locals);
+  fprintf_list ~sep:"@,@@ " (fun fmt r -> fprintf fmt "assume %a;" pp_eexpr r) fmt spec.assume;
+  fprintf_list ~sep:"@,@@ " (fun fmt r -> fprintf fmt "guarantees %a;" pp_eexpr r) fmt spec.guarantees;
+  fprintf_list ~sep:"@,@@ " (fun fmt mode ->
+    fprintf fmt "mode %s (@[@ %a@ %a@]);" 
+      mode.mode_id
+      (fprintf_list ~sep:"@ " (fun fmt r -> fprintf fmt "require %a;" pp_eexpr r)) mode.require
+      (fprintf_list ~sep:"@ " (fun fmt r -> fprintf fmt "ensure %a;" pp_eexpr r)) mode.ensure
+  ) fmt spec.modes;
+  fprintf_list ~sep:"@,@@ " (fun fmt import ->
+    fprintf fmt "import %s (%a) returns (%a);" 
+      import.import_nodeid
+      (fprintf_list ~sep:"@ " pp_expr) import.inputs
+      (fprintf_list ~sep:"@ " pp_expr) import.outputs
+  ) fmt spec.imports;
   fprintf fmt "@]*)";
   ()
 
     
-let pp_node fmt nd = 
-fprintf fmt "@[<v 0>%a%t%s @[<hov 0>%s (@[%a)@]@ returns (@[%a)@]@]@ %a%alet@[<h 2>   @ @[<v>%a@ %a@ %a@]@]@ tel@]@ "
-  (fun fmt s -> match s with Some s -> pp_spec fmt s | _ -> ()) nd.node_spec
-  (fun fmt -> match nd.node_spec with None -> () | Some _ -> Format.fprintf fmt "@ ")
-  (if nd.node_dec_stateless then "function" else "node")
-  nd.node_id
-  pp_node_args nd.node_inputs
-  pp_node_args nd.node_outputs
-  (fun fmt locals ->
-  match locals with [] -> () | _ ->
-    fprintf fmt "@[<v 4>var %a@]@ " 
-      (fprintf_list ~sep:"@ " 
-	 (fun fmt v -> fprintf fmt "%a;" pp_node_var v))
-      locals
-  ) nd.node_locals
-  (fun fmt checks ->
-  match checks with [] -> () | _ ->
-    fprintf fmt "@[<v 4>check@ %a@]@ " 
-      (fprintf_list ~sep:"@ " 
-	 (fun fmt d -> fprintf fmt "%a" Dimension.pp_dimension d))
-      checks
-  ) nd.node_checks
-  (fprintf_list ~sep:"@ " pp_expr_annot) nd.node_annot
-  pp_node_stmts nd.node_stmts
-  pp_asserts nd.node_asserts
+let pp_node fmt nd =
+  fprintf fmt "@[<v 0>";
+  (* Prototype *)
+  fprintf fmt  "%s @[<hov 0>%s (@[%a)@]@ returns (@[%a)@]@]@ "
+    (if nd.node_dec_stateless then "function" else "node")
+    nd.node_id
+    pp_node_args nd.node_inputs
+    pp_node_args nd.node_outputs;
+  (* Contracts *)
+  fprintf fmt "%a%t"
+    (fun fmt s -> match s with Some s -> pp_spec fmt s | _ -> ()) nd.node_spec
+    (fun fmt -> match nd.node_spec with None -> () | Some _ -> fprintf fmt "@ ");
+  (* Locals *)
+  fprintf fmt "%a" (fun fmt locals ->
+      match locals with [] -> () | _ ->
+                                    fprintf fmt "@[<v 4>var %a@]@ " 
+                                      (fprintf_list ~sep:"@ " 
+	                                 (fun fmt v -> fprintf fmt "%a;" pp_node_var v))
+                                      locals
+    ) nd.node_locals;
+  (* Checks *)
+  fprintf fmt "%a"
+    (fun fmt checks ->
+      match checks with [] -> () | _ ->
+                                    fprintf fmt "@[<v 4>check@ %a@]@ " 
+                                      (fprintf_list ~sep:"@ " 
+	                                 (fun fmt d -> fprintf fmt "%a" Dimension.pp_dimension d))
+                                      checks
+    ) nd.node_checks;
+  (* Body *)
+  fprintf fmt "let@[<h 2>   @ @[<v>";
+  (* Annotations *)
+  fprintf fmt "%a@ " (fprintf_list ~sep:"@ " pp_expr_annot) nd.node_annot;
+  (* Statements *)
+  fprintf fmt "%a@ " pp_node_stmts nd.node_stmts;
+  (* Asserts *)    
+  fprintf fmt "%a" pp_asserts nd.node_asserts;
+  (* closing boxes body (2)  and node (1) *) 
+  fprintf fmt "@]@]@ tel@]@ "
+
+
 (*fprintf fmt "@ /* Scheduling: %a */ @ " (fprintf_list ~sep:", " pp_print_string) (Scheduling.schedule_node nd)*)
 
 let pp_imported_node fmt ind = 
@@ -328,23 +373,30 @@ let pp_const_decl fmt cdecl =
 let pp_const_decl_list fmt clist = 
   fprintf_list ~sep:"@ " pp_const_decl fmt clist
 
+
+  
 let pp_decl fmt decl =
   match decl.top_decl_desc with
   | Node nd -> fprintf fmt "%a" pp_node nd
   | ImportedNode ind ->
-    fprintf fmt "imported %a;" pp_imported_node ind
+     fprintf fmt "imported %a;" pp_imported_node ind
   | Const c -> fprintf fmt "const %a" pp_const_decl c
   | Open (local, s) -> if local then fprintf fmt "#open \"%s\"" s else fprintf fmt "#open <%s>" s
   | TypeDef tdef -> fprintf fmt "%a" pp_typedef tdef
-
+  
 let pp_prog fmt prog =
   (* we first print types: the function SortProg.sort could do the job but ut
      introduces a cyclic dependance *)
-  let type_decl, others =
+
+  let open_decl, prog =
+    List.partition (fun decl -> match decl.top_decl_desc with Open _ -> true | _ -> false) prog
+  in
+  let type_decl, prog =
     List.partition (fun decl -> match decl.top_decl_desc with TypeDef _ -> true | _ -> false) prog
   in
-  fprintf fmt "@[<v 0>%a@]" (fprintf_list ~sep:"@ " pp_decl) (type_decl@others)
+  fprintf fmt "@[<v 0>%a@]" (fprintf_list ~sep:"@ " pp_decl) (open_decl@type_decl@prog)
 
+(* Gives a short overview of model content. Do not print all node content *)
 let pp_short_decl fmt decl =
   match decl.top_decl_desc with
   | Node nd -> fprintf fmt "node %s@ " nd.node_id
@@ -352,7 +404,7 @@ let pp_short_decl fmt decl =
   | Const c -> fprintf fmt "const %a@ " pp_const_decl c
   | Open (local, s) -> if local then fprintf fmt "#open \"%s\"@ " s else fprintf fmt "#open <%s>@ " s
   | TypeDef tdef -> fprintf fmt "type %s;@ " tdef.tydef_id
-
+  
 let pp_lusi fmt decl = 
   match decl.top_decl_desc with
   | ImportedNode ind -> fprintf fmt "%a;@ " pp_imported_node ind
@@ -360,7 +412,7 @@ let pp_lusi fmt decl =
   | Open (local, s) -> if local then fprintf fmt "#open \"%s\"@ " s else fprintf fmt "#open <%s>@ " s
   | TypeDef tdef -> fprintf fmt "%a@ " pp_typedef tdef
   | Node _ -> assert false
-
+                
 let pp_lusi_header fmt basename prog =
   fprintf fmt "@[<v 0>";
   fprintf fmt "(* Generated Lustre Interface file from %s.lus *)@ " basename;

@@ -46,52 +46,6 @@ let rec pp_horn_const fmt c =
     | Const_tag t    -> pp_horn_tag fmt t
     | _              -> assert false
 
-(* PL comment 2017/01/03: Useless code, the function existed before in typing.ml *)
-(* let rec get_type_cst c = *)
-(*   match c with *)
-(*   | Const_int(n) -> new_ty Tint *)
-(*   | Const_real _ -> new_ty Treal *)
-(*   (\* | Const_float _ -> new_ty Treal *\) *)
-(*   | Const_array(l) -> new_ty (Tarray(Dimension.mkdim_int (Location.dummy_loc) (List.length l), *)
-(* 				     get_type_cst (List.hd l))) *)
-(*   | Const_tag(tag) -> new_ty Tbool *)
-(*   | Const_string(str) ->  assert false(\* used only for annotations *\) *)
-(*   | Const_struct(l) -> new_ty (Tstruct(List.map (fun (label, t) -> (label, get_type_cst t)) l)) *)
-
-(* PL comment 2017/01/03: the following function get_type seems useless to me: it looks like computing the type of a machine code expression v while v.value_type should contain this information. The code is kept for the moment in case I missed something *)
-
-(*
-let rec get_type v =
-  match v with
-  | Cst c -> Typing.type_const Location.dummy_loc c (* get_type_cst c*)
-  | Access(tab, index) -> begin
-      let rec remove_link ltype =
-        match (dynamic_type ltype).tdesc with
-        | Tlink t -> t
-        | _ -> ltype
-      in
-      match (dynamic_type (remove_link (get_type tab))).tdesc with
-      | Tarray(size, t) -> remove_link t
-      | Tvar -> Format.eprintf "Type of access is a variable... "; assert false
-      | Tunivar -> Format.eprintf "Type of access is a variable... "; assert false
-      | _ -> Format.eprintf "Type of access is not an array "; assert false
-                          end
-  | Power(v, n) -> assert false
-  | LocalVar v -> v.var_type
-  | StateVar v -> v.var_type
-  | Fun(n, vl) -> begin match n with
-                  | "+"
-                  | "-"
-                  | "*" -> get_type (List.hd vl)
-                  | _ -> Format.eprintf "Function undealt with : %s" n ;assert false
-                  end
-  | Array(l) -> new_ty (Tarray(Dimension.mkdim_int
-                                 (Location.dummy_loc)
-                                 (List.length l),
-                               get_type (List.hd l)))
-  | _ -> assert false
-*)
-
 (* Default value for each type, used when building arrays. Eg integer array
    [2;7] is defined as (store (store (0) 1 7) 0 2) where 0 is this default value
    for the type integer (arrays).
@@ -111,22 +65,46 @@ let rec pp_default_val fmt t =
   | Types.Ttuple(l) -> assert false
   |_ -> assert false
 
+let pp_mod pp_val v1 v2 fmt =
+  if Types.is_int_type v1.value_type &&  not !Options.integer_div_euclidean then
+    (* C semantics: converting it from Euclidean operators
+       (a mod_M b) - ((a mod_M b > 0 && a < 0) ? abs(b) : 0)            
+    *)
+    Format.fprintf fmt "(- (mod %a %a) (ite (and (> (mod %a %a) 0) (< %a 0)) (abs %a) 0))"
+      pp_val v1 pp_val v2
+      pp_val v1 pp_val v2
+      pp_val v1
+      pp_val v2
+  else
+    Format.fprintf fmt "(mod %a %a)" pp_val v1 pp_val v2
+
+let pp_div pp_val v1 v2 fmt =
+  if Types.is_int_type v1.value_type &&  not !Options.integer_div_euclidean then
+    (* C semantics: converting it from Euclidean operators
+       (a - (a mod_C b)) div_M b
+    *)
+    Format.fprintf fmt "(div (- %a %t) %a)"
+      pp_val v1
+      (pp_mod pp_val v1 v2)
+      pp_val v2
+  else
+    Format.fprintf fmt "(div %a %a)" pp_val v1 pp_val v2
+
 
 let pp_basic_lib_fun i pp_val fmt vl =
   match i, vl with
   | "ite", [v1; v2; v3] -> Format.fprintf fmt "(@[<hov 2>ite %a@ %a@ %a@])" pp_val v1 pp_val v2 pp_val v3
-
   | "uminus", [v] -> Format.fprintf fmt "(- %a)" pp_val v
   | "not", [v] -> Format.fprintf fmt "(not %a)" pp_val v
   | "=", [v1; v2] -> Format.fprintf fmt "(= %a %a)" pp_val v1 pp_val v2
   | "&&", [v1; v2] -> Format.fprintf fmt "(and %a %a)" pp_val v1 pp_val v2
   | "||", [v1; v2] -> Format.fprintf fmt "(or %a %a)" pp_val v1 pp_val v2
   | "impl", [v1; v2] -> Format.fprintf fmt "(=> %a %a)" pp_val v1 pp_val v2
-  | "mod", [v1; v2] -> Format.fprintf fmt "(mod %a %a)" pp_val v1 pp_val v2
   | "equi", [v1; v2] -> Format.fprintf fmt "(%a = %a)" pp_val v1 pp_val v2
   | "xor", [v1; v2] -> Format.fprintf fmt "(%a xor %a)" pp_val v1 pp_val v2
   | "!=", [v1; v2] -> Format.fprintf fmt "(not (= %a %a))" pp_val v1 pp_val v2
-  | "/", [v1; v2] -> Format.fprintf fmt "(div %a %a)" pp_val v1 pp_val v2
+  | "mod", [v1; v2] -> pp_mod pp_val v1 v2 fmt
+  | "/", [v1; v2] -> pp_div pp_val v1 v2 fmt
   | _, [v1; v2] -> Format.fprintf fmt "(%s %a %a)" i pp_val v1 pp_val v2
   | _ -> (Format.eprintf "internal error: Basic_library.pp_horn %s@." i; assert false)
 (*  | "mod", [v1; v2] -> Format.fprintf fmt "(%a %% %a)" pp_val v1 pp_val v2
@@ -138,7 +116,7 @@ let pp_basic_lib_fun i pp_val fmt vl =
    [pp_var] is a printer for variables (typically [pp_c_var_read]),
    but an offset suffix may be added for array variables
 *)
-let rec pp_horn_val ?(is_lhs=false) self pp_var fmt v =
+let rec pp_horn_val ?(is_lhs=false) m self pp_var fmt v =
   match v.value_desc with
   | Cst c       -> pp_horn_const fmt c
 
@@ -164,32 +142,35 @@ let rec pp_horn_val ?(is_lhs=false) self pp_var fmt v =
 	  fprintf fmt "(store %a %i %a)"
 	    print (t, (x+1))
 	    x
-	    (pp_horn_val ~is_lhs:is_lhs self pp_var) h
+	    (pp_horn_val ~is_lhs:is_lhs m self pp_var) h
      in
      print fmt (il, 0)
        
   | Access(tab,index) ->
      fprintf fmt "(select %a %a)"
-       (pp_horn_val ~is_lhs:is_lhs self pp_var) tab
-       (pp_horn_val ~is_lhs:is_lhs self pp_var) index
+       (pp_horn_val ~is_lhs:is_lhs m self pp_var) tab
+       (pp_horn_val ~is_lhs:is_lhs m self pp_var) index
 
   (* Code specific for arrays *)
     
   | Power (v, n)  -> assert false
-  | LocalVar v    -> pp_var fmt (rename_machine self v)
-  | StateVar v    ->
-     if Types.is_array_type v.var_type
-     then assert false
-     else pp_var fmt (rename_machine self ((if is_lhs then rename_next else rename_current) (* self *) v))
-  | Fun (n, vl)   -> fprintf fmt "%a" (pp_basic_lib_fun n (pp_horn_val self pp_var)) vl
+  | Var v    ->
+     if is_memory m v then
+       if Types.is_array_type v.var_type
+       then assert false
+       else pp_var fmt (rename_machine self ((if is_lhs then rename_next else rename_current) (* self *) v))
+     else
+       pp_var fmt (rename_machine self v)
+    
+  | Fun (n, vl)   -> fprintf fmt "%a" (pp_basic_lib_fun n (pp_horn_val m self pp_var)) vl
 
 (* Prints a [value] indexed by the suffix list [loop_vars] *)
-let rec pp_value_suffix self pp_value fmt value =
+let rec pp_value_suffix m self pp_value fmt value =
  match value.value_desc with
  | Fun (n, vl)  ->
-   pp_basic_lib_fun n (pp_value_suffix self pp_value) fmt vl
+    pp_basic_lib_fun n (pp_value_suffix m self pp_value) fmt vl
  |  _            ->
-   pp_horn_val self pp_value fmt value
+   pp_horn_val m self pp_value fmt value
 
 (* type_directed assignment: array vs. statically sized type
    - [var_type]: type of variable to be assigned
@@ -200,8 +181,8 @@ let rec pp_value_suffix self pp_value fmt value =
 let pp_assign m pp_var fmt var_name value =
   let self = m.mname.node_id in
   fprintf fmt "(= %a %a)" 
-    (pp_horn_val ~is_lhs:true self pp_var) var_name
-    (pp_value_suffix self pp_var) value
+    (pp_horn_val ~is_lhs:true m self pp_var) var_name
+    (pp_value_suffix m self pp_var) value
     
 
 (* In case of no reset call, we define mid_mem = current_mem *)
@@ -276,10 +257,10 @@ let pp_instance_call machines reset_instances m fmt i inputs outputs =
       | "_arrow", [i1; i2], [o], [mem_m], [mem_x] -> begin
 	fprintf fmt "@[<v 5>(and ";
 	fprintf fmt "(= %a (ite %a %a %a))"
-	  (pp_horn_val ~is_lhs:true self (pp_horn_var m)) (mk_val (LocalVar o) o.var_type) (* output var *)
+	  (pp_horn_val ~is_lhs:true m self (pp_horn_var m)) (mk_val (Var o) o.var_type) (* output var *)
 	  (pp_horn_var m) mem_m 
-	  (pp_horn_val self (pp_horn_var m)) i1
-	  (pp_horn_val self (pp_horn_var m)) i2
+	  (pp_horn_val m self (pp_horn_var m)) i1
+	  (pp_horn_val m self (pp_horn_var m)) i2
 	;
 	fprintf fmt "@ ";
 	fprintf fmt "(= %a false)" (pp_horn_var m) mem_x;
@@ -289,10 +270,10 @@ let pp_instance_call machines reset_instances m fmt i inputs outputs =
       | node_name_n -> begin
 	fprintf fmt "(%a @[<v 0>%a%t%a%t%a)@]"
 	  pp_machine_step_name (node_name n)
-	  (Utils.fprintf_list ~sep:"@ " (pp_horn_val self (pp_horn_var m))) inputs
+	  (Utils.fprintf_list ~sep:"@ " (pp_horn_val m self (pp_horn_var m))) inputs
 	  (Utils.pp_final_char_if_non_empty "@ " inputs)
-	  (Utils.fprintf_list ~sep:"@ " (pp_horn_val self (pp_horn_var m)))
-	  (List.map (fun v -> mk_val (LocalVar v) v.var_type) outputs)
+	  (Utils.fprintf_list ~sep:"@ " (pp_horn_val m self (pp_horn_var m)))
+	  (List.map (fun v -> mk_val (Var v) v.var_type) outputs)
 	  (Utils.pp_final_char_if_non_empty "@ " outputs)
 	  (Utils.fprintf_list ~sep:"@ " (pp_horn_var m)) (mid_mems@next_mems)
 	
@@ -302,11 +283,11 @@ let pp_instance_call machines reset_instances m fmt i inputs outputs =
     let (n,_) = List.assoc i m.mcalls in
     fprintf fmt "(%a @[<v 0>%a%t%a)@]"
       pp_machine_stateless_name (node_name n)
-      (Utils.fprintf_list ~sep:"@ " (pp_horn_val self (pp_horn_var m)))
+      (Utils.fprintf_list ~sep:"@ " (pp_horn_val m self (pp_horn_var m)))
       inputs
       (Utils.pp_final_char_if_non_empty "@ " inputs)
-      (Utils.fprintf_list ~sep:"@ " (pp_horn_val self (pp_horn_var m)))
-      (List.map (fun v -> mk_val (LocalVar v) v.var_type) outputs)
+      (Utils.fprintf_list ~sep:"@ " (pp_horn_val m self (pp_horn_var m)))
+      (List.map (fun v -> mk_val (Var v) v.var_type) outputs)
   )
     
     
@@ -323,12 +304,12 @@ let rec pp_machine_instr machines reset_instances (m: machine_t) fmt instr : ide
   | MLocalAssign (i,v) ->
     pp_assign
       m (pp_horn_var m) fmt
-      (mk_val (LocalVar i) i.var_type) v;
+      (mk_val (Var i) i.var_type) v;
     reset_instances
   | MStateAssign (i,v) ->
     pp_assign
       m (pp_horn_var m) fmt
-      (mk_val (StateVar i) i.var_type) v;
+      (mk_val (Var i) i.var_type) v;
     reset_instances
   | MStep ([i0], i, vl) when Basic_library.is_internal_fun i (List.map (fun v -> v.value_type) vl) ->
     assert false (* This should not happen anymore *)
@@ -357,7 +338,7 @@ let rec pp_machine_instr machines reset_instances (m: machine_t) fmt instr : ide
 					  may cause trouble. I have hard time
 					  producing a MWE, so I'll just keep the
 					  fix here as (not a) or b *)
-	(pp_horn_val self (pp_horn_var m)) g
+	(pp_horn_val m self (pp_horn_var m)) g
 	pp_horn_tag tag;
       let _ (* rs *) = pp_machine_instrs machines reset_instances m fmt instrs in 
       fprintf fmt "@])";
@@ -468,7 +449,7 @@ let print_machine machines fmt m =
 	     end
 	  | assertsl ->
 	     begin
-	       let pp_val = pp_horn_val ~is_lhs:true m.mname.node_id (pp_horn_var m) in
+	       let pp_val = pp_horn_val ~is_lhs:true m m.mname.node_id (pp_horn_var m) in
 	       
 	       fprintf fmt "; Stateless step rule with Assertions @.";
 	       (*Rule for step*)
@@ -515,7 +496,7 @@ let print_machine machines fmt m =
 	     end
 	  | assertsl -> 
 	     begin
-	       let pp_val = pp_horn_val ~is_lhs:true m.mname.node_id (pp_horn_var m) in
+	       let pp_val = pp_horn_val ~is_lhs:true m m.mname.node_id (pp_horn_var m) in
 	       (* print_string pp_val; *)
 	       fprintf fmt "; Step rule with Assertions @.";
 	       
@@ -621,7 +602,7 @@ let get_sf_info() =
 	    end
 	  | assertsl ->
 	    begin
-	      let pp_val = pp_horn_val ~is_lhs:true m.mname.node_id (pp_horn_var m) in
+	      let pp_val = pp_horn_val ~is_lhs:true m m.mname.node_id (pp_horn_var m) in
 	      (* print_string pp_val; *)
 	      fprintf fmt "; with Assertions @.";
 

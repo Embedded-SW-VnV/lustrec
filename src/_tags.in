@@ -1,7 +1,11 @@
 # general config
 true: bin_annot, color(always)
+# true: use_menhir
 
 # paths to sources
+"utils": include
+"checks": include
+"parsers": include
 "backends": include
 "backends/C": include
 "backends/Horn": include
@@ -40,7 +44,8 @@ true: bin_annot, color(always)
 <**/test_json*.*>               : package(yojson)
 
 # Required for ocamldoc. Otherwise failed to build
-<*.ml{,i}>: package(ocamlgraph)
+<**/*.ml{,i}>: package(ocamlgraph)
+<**/*.ml{,i}>: package(num)
 
 # Plugin dependencies
 @SALSA_TAG@

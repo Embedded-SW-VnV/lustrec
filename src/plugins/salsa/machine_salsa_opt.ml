@@ -31,8 +31,8 @@ let called_node_id m id =
 let rec get_expr_real_vars e =
   let open MT in 
   match e.value_desc with
-  | LocalVar v | StateVar v when Types.is_real_type v.LT.var_type -> Vars.singleton v
-  | LocalVar _| StateVar _
+  | Var v  when Types.is_real_type v.LT.var_type -> Vars.singleton v
+  | Var _
   | Cst _ -> Vars.empty 
   | Fun (_, args) -> 
     List.fold_left 
@@ -167,7 +167,7 @@ let opt_num_expr_sliced ranges e_salsa =
      
 (* Optimize a given expression. It returns the modified expression, a computed range and freshly defined variables. *)
 let optimize_expr nodename m constEnv printed_vars vars_env ranges formalEnv e : MT.value_t * RangesInt.t option * MT.instr_t list * Vars.VarSet.t = 
-  let rec opt_expr vars_env ranges formalEnv e =
+  let rec opt_expr m vars_env ranges formalEnv e =
     let open MT in
     match e.value_desc with
     | Cst cst ->
@@ -176,15 +176,14 @@ let optimize_expr nodename m constEnv printed_vars vars_env ranges formalEnv e :
   	  constant *)
        let typ = Typing.type_const Location.dummy_loc cst in
        if Types.is_real_type typ then 
-	 opt_num_expr vars_env ranges formalEnv e 
+	 opt_num_expr m vars_env ranges formalEnv e 
        else e, None, [], Vars.empty
-    | LocalVar v
-    | StateVar v -> 
+    | Var v -> 
        if not (Vars.mem v printed_vars) && 
 	 (* TODO xavier: comment recuperer le type de l'expression? Parfois e.value_type vaut 'd *)
 	 (Types.is_real_type e.value_type ||  Types.is_real_type v.LT.var_type) 
        then
-	 opt_num_expr vars_env ranges formalEnv e 
+	 opt_num_expr m vars_env ranges formalEnv e 
        else 
 	 e, None, [],  Vars.empty  (* Nothing to optimize for expressions containing a single non real variable *)
     (* (\* optimize only numerical vars *\) *)
@@ -194,14 +193,14 @@ let optimize_expr nodename m constEnv printed_vars vars_env ranges formalEnv e :
       (* necessarily, this is a basic function (ie. + - * / && || mod ... ) *)
       (* if the return type is real then optimize it, otherwise call recusrsively on arguments *)
       if Types.is_real_type e.value_type then
-	opt_num_expr vars_env ranges formalEnv e 
+	opt_num_expr m vars_env ranges formalEnv e 
       else (
 	(* We do not care for computed local ranges. *)
   	let args', il, new_locals =
 	  List.fold_right (
 	    fun arg (al, il, nl) ->
 	      let arg', _, arg_il, arg_nl =
-		opt_expr vars_env ranges formalEnv arg in
+		opt_expr m vars_env ranges formalEnv arg in
 	      arg'::al, arg_il@il, Vars.union arg_nl nl)
 	    args
 	    ([], [], Vars.empty)
@@ -212,10 +211,10 @@ let optimize_expr nodename m constEnv printed_vars vars_env ranges formalEnv e :
     | Array _
     | Access _
     | Power _ -> assert false  
-  and opt_num_expr vars_env ranges formalEnv e = 
+  and opt_num_expr m vars_env ranges formalEnv e = 
     if !debug then (
       Log.report ~level:2 (fun fmt -> Format.fprintf fmt "Optimizing expression @[<hov>%a@]@ "
-	MC.pp_val e);
+	(MC.pp_val m) e);
     );
     (* if !debug then Format.eprintf "Optimizing expression %a with Salsa@ " MC.pp_val e;  *)
     (* Convert expression *)
@@ -266,7 +265,7 @@ let optimize_expr nodename m constEnv printed_vars vars_env ranges formalEnv e :
 	  let v' = {v with LT.var_id = nodename.LT.node_id ^ "." ^ v.LT.var_id } in
 	  Vars.add v' accu)
 		   free_vars Vars.empty)
-	MC.pp_val (salsa_expr2value_t vars_env constEnv e_salsa));
+	(MC.pp_val m) (salsa_expr2value_t vars_env constEnv e_salsa));
       if !debug then Log.report ~level:2 (fun fmt -> Format.fprintf fmt  "Some free vars, not optimizing@ ");
       if !debug then Log.report ~level:3 (fun fmt -> Format.fprintf fmt "  ranges: %a@ "
 	RangesInt.pp ranges);
@@ -281,7 +280,7 @@ let optimize_expr nodename m constEnv printed_vars vars_env ranges formalEnv e :
       
       if !debug then
 	  Log.report ~level:3 (fun fmt -> Format.fprintf fmt "@[<v 2>Analyzing expression %a@  with ranges: @[<v>%a@ @]@ @]@ "
-	    (C_backend_common.pp_c_val "" (C_backend_common.pp_c_var_read m)) (salsa_expr2value_t vars_env constEnv e_salsa)
+	    (C_backend_common.pp_c_val m "" (C_backend_common.pp_c_var_read m)) (salsa_expr2value_t vars_env constEnv e_salsa)
 	    (Utils.fprintf_list ~sep:",@ "(fun fmt (l,r) -> Format.fprintf fmt "%s -> %a" l FloatIntSalsa.pp r)) abstractEnv)
 	
       ;
@@ -328,12 +327,12 @@ let optimize_expr nodename m constEnv printed_vars vars_env ranges formalEnv e :
 		 Format.fprintf fmt "(%s,%a) -> %a"
 		   id
 		   Printers.pp_var (get_var vars_env' id).vdecl
-		   (C_backend_common.pp_c_val "" (C_backend_common.pp_c_var_read m)) (salsa_expr2value_t vars_env' constEnv e_id)
+		   (C_backend_common.pp_c_val m "" (C_backend_common.pp_c_var_read m)) (salsa_expr2value_t vars_env' constEnv e_id)
 	       )
 	    )
 	    def_tmps;
 	  Format.eprintf "Sliced expression: %a@ "
-	    (C_backend_common.pp_c_val "" (C_backend_common.pp_c_var_read m)) (salsa_expr2value_t vars_env' constEnv e_salsa)
+	    (C_backend_common.pp_c_val m "" (C_backend_common.pp_c_var_read m)) (salsa_expr2value_t vars_env' constEnv e_salsa)
 	  ;
 	));
       (* Debug *)
@@ -386,12 +385,40 @@ let optimize_expr nodename m constEnv printed_vars vars_env ranges formalEnv e :
 
 
 
+     (* ???? Bout de code dans unstable lors du merge avec salsa ? 
+      ====
+
+      let new_e = try salsa_expr2value_t vars_env' constEnv new_e_salsa   with Not_found -> assert false in
+	if !debug then Log.report ~level:2 (fun fmt ->
+	  let old_range = Salsa.Analyzer.evalExpr e_salsa abstractEnv [] in
+	  match RangesInt.Value.leq old_range e_val, RangesInt.Value.leq e_val old_range with
+	  | true, true -> Format.fprintf fmt "No improvement on abstract value %a@ " RangesInt.pp_val e_val
+	  | true, false -> (
+	    Format.fprintf fmt "Improved!";
+	    Format.fprintf fmt
+	      "  @[<v>old_expr: @[<v 0>%a@ range: %a@]@ new_expr: @[<v 0>%a@ range: %a@]@ @]@ "
+	      (MC.pp_val m) e
+	      RangesInt.pp_val (Salsa.Analyzer.evalExpr e_salsa abstractEnv [])
+	      (MC.pp_val m) new_e
+	      RangesInt.pp_val e_val
+	  )
+	  | false, true -> Format.eprintf "Error; new range is worse!@.@?"; assert false
+	  | false, false -> Format.eprintf "Error; new range is not comparabe with old end. This should not happen!@.@?"; assert false
+	);
+	new_e, Some e_val, List.rev rev_def_tmp_instrs
+      with (* Not_found ->  *)
+      | Salsa.Epeg_types.EPEGError _ -> (
+	Log.report ~level:2 (fun fmt -> Format.fprintf fmt "BECAUSE OF AN ERROR, Expression %a was not optimized@ " (MC.pp_val m) e);
+	e, None, []
+      )
+>>>>>>> unstable
+      *)
     )
 
 
       
   in
-  opt_expr vars_env ranges formalEnv e  
+  opt_expr m vars_env ranges formalEnv e  
     
     
 (* Returns a list of assign, for each var in vars_to_print, that produce the

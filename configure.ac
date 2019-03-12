@@ -1,11 +1,13 @@
-define([gitversion], esyscmd([sh -c "git log --oneline | wc -l | tr -d '\n'"]))
-define([gitbranch], esyscmd([sh -c "git branch | grep \* | cut -d ' ' -f2"]))
-AC_INIT([lustrec], 1.5-gitversion, [ploc@garoche.net])
-AC_SUBST(VERSION_CODENAME, "Xia/Shao Kang-dev")
-AC_SUBST(GITBRANCH, gitbranch)
+define([gitversion], esyscmd([sh -c "git log --oneline | wc -l | tr -d ' \n'"]))
+
+AC_INIT([lustrec], 1.7-gitversion, [ploc@garoche.net])
+AC_SUBST(VERSION_NUMBER, 1.7)
+AC_SUBST(VERSION_CODENAME, "Xia/Huai-dev")
+
+
 # Next release will be
-#AC_INIT([lustrec], [1.6], [ploc@garoche.net])
-#AC_SUBST(VERSION_CODENAME, "Xia/Zhu")
+#AC_INIT([lustrec], [1.8], [ploc@garoche.net])
+#AC_SUBST(VERSION_CODENAME, "Xia/Mang")
 AC_MSG_NOTICE(Git branch: ${GITBRANCH})
 AC_CONFIG_SRCDIR([src/main_lustre_compiler.ml])
 AC_CONFIG_SRCDIR([src/main_lustre_testgen.ml])
@@ -61,12 +63,6 @@ AS_IF([ocamlfind query ocamlgraph cmdliner fmt logs num >/dev/null 2>&1],
 )
 AC_MSG_RESULT(yes)
 
-#Yojson
-AC_MSG_CHECKING(yojson library (optional))
-AS_IF([ocamlfind query yojson >/dev/null 2>&1],
-    [yojson=yes; AC_MSG_RESULT(yes)],[yojson=no; AC_MSG_WARN(Yojson required for lustresf. opam install yojson should solve the issue)],
-)
-
 # Salsa
 AC_ARG_ENABLE(salsa, [AS_HELP_STRING([--disable-salsa],
               [disable Salsa plugin. Enabled by default if available.])])
@@ -104,7 +100,11 @@ AC_SUBST_FILE(lustresf_src)
 lustresf=/dev/null
 lustresf_src=/dev/null
 
-AS_IF([test "x$enable_lustresf" != "xno" -a "x$yojson" = "xyes"], [
+AS_IF([test "x$enable_lustresf" != "xno"], [
+  AC_MSG_CHECKING(yojson library for lustresf)
+  AS_IF([ocamlfind query yojson >/dev/null 2>&1],
+      [yojson=yes; AC_MSG_RESULT(yes)],[yojson=no; AC_MSG_ERROR(Yojson required for lustresf. opam install yojson should solve the issue)],
+  )
   lustresf=Makefile-lustresf.in
   lustresf_src=src/Makefile-lustresf.in
   AC_SUBST(lustresf_target, "lustresf")
@@ -152,12 +152,14 @@ dnl refers to ${prefix}.  Thus we have to use `eval' twice.
 AC_DEFINE_DIR([abs_datadir], [datadir])
 
 # Instanciation
-AC_CONFIG_FILES([Makefile
+AC_CONFIG_FILES([opam
+		 Makefile
 		 src/Makefile
 		 src/version.ml
 		 src/pluginList.ml
 		 src/_tags
 		 src/ocaml_utils.ml
+		 share/FindLustre.cmake
 		 ])
 
 AC_OUTPUT

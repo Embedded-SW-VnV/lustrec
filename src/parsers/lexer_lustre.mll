@@ -24,7 +24,6 @@ let keyword_table =
   "state", STATE;
   "until", UNTIL;
   "unless", UNLESS;
-  "last", LAST;
   "resume", RESUME;
   "restart", RESTART;
   "if", IF;
@@ -42,7 +41,6 @@ let keyword_table =
   "returns", RETURNS;
   "var", VAR;
   "imported", IMPORTED;
-  "wcet", WCET;
   "type", TYPE;
   "int", TINT;
   "bool", TBOOL;
@@ -50,7 +48,6 @@ let keyword_table =
   "real", TREAL;
   "clock", TCLOCK;
   "not", NOT;
-  "tail", TAIL;
   "true", TRUE;
   "false", FALSE;
   "and", AND;
@@ -61,6 +58,7 @@ let keyword_table =
   "div", DIV;
   "const", CONST;
   "assert", ASSERT;
+  "contract", CONTRACT;
   "lib", LIB;
   "prototype", PROTOTYPE;
   "c_code", CCODE; (* not sure how it is used *)
@@ -82,7 +80,7 @@ let make_spec lexbuf s =
     let ns = LexerLustreSpec.spec s in
     NODESPEC ns
   with LexerLustreSpec.Error loc -> raise (Parse.Error (Location.shift (Location.curr lexbuf) loc, Parse.Node_spec_error s))
-   
+
 }
 
 let newline = ('\010' | '\013' | "\013\010")

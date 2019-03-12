@@ -43,7 +43,7 @@ let compile_header dirname  basename extension =
     Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v>");
     let header = parse_header true (dirname ^ "/" ^ header_name) in
     ignore (Modules.load_header ISet.empty header);
-    ignore (check_top_decls header);
+    ignore (check_top_decls header); (* typing/clocking with an empty env *)
     create_dest_dir ();
     Log.report ~level:1
       (fun fmt -> fprintf fmt ".. generating compiled header file %sc@," (destname ^ extension));
@@ -110,7 +110,7 @@ let rec compile_source dirname basename extension =
 	
     end;
   let machine_code = Plugins.refine_machine_code prog machine_code in
-  Log.report ~level:1 (fun fmt -> fprintf fmt "xxx@]@ yyy@ ");
+  Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ @ ");
   
   Compiler_stages.stage3 prog machine_code dependencies basename;
   begin

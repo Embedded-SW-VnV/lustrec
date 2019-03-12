@@ -55,7 +55,7 @@ dist-gzip: $(LOCAL_BINDIR)/lustrec dist-src-clean
 	@echo "Source distribution built: ../$(DIST_ARCHIVE_NAME)"
 
 dist-clean: dist-src-clean
-	@rm -f configure Makefile
+	@rm -f configure Makefile opam share/FindLustre.cmake
 
 %.lusic: %.lusi
 	@echo Compiling $<
@@ -78,7 +78,7 @@ install-base: clean-lusic
 	mkdir -p ${bindir}
 	for x in $(BIN_TARGETS); do install -m 0755 $(LOCAL_BINDIR)/$$x ${bindir}; done
 	mkdir -p ${datarootdir}
-	install -m 0655 share/* ${datarootdir}
+	install -m 0655 share/*.cmake ${datarootdir}
 	mkdir -p ${includedir}/lustrec
 	install -m 0655 include/* ${includedir}/lustrec
 
@@ -93,7 +93,7 @@ test-config: ${bindir}/lustrec
 	if @PATH_TO_TESTS_DEFINED@; then \
 	  mkdir -p test; \
 	  cd test; \
-	  cmake -DLUSTRE_PATH_HINT=${bindir} -DSUBPROJ=@GITBRANCH@ ../@PATH_TO_TESTS@; \
+	  cmake -DLUSTRE_PATH_HINT=${bindir} -DSUBPROJ=@CDASHSUBPROJ@ ../@PATH_TO_TESTS@; \
 	fi
 
 test-no-submit: test-config

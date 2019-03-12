@@ -14,7 +14,7 @@ let rec get_idx x l =
 let rec get_expr_vars v =
   match v.value_desc with
   | Cst c -> VSet.empty
-  | LocalVar v | StateVar v -> VSet.singleton v
+  | Var v -> VSet.singleton v
   | Fun (_, args) -> List.fold_left (fun accu v -> VSet.union accu (get_expr_vars v)) VSet.empty args
   | _ -> assert false (* Invalid argument *)
 
@@ -77,16 +77,25 @@ let pp_var_name fmt v = print_protect fmt (fun fmt -> Printers.pp_var_name fmt v
   
   
 let pp_tag_type fmt typ =
-  let const_list = match typ.tydef_desc with Tydec_enum tl -> tl | _ -> assert false in
-  let size = List.length const_list in
-  if size < 255 then
-    fprintf fmt "uint8"
-  else if size < 65535 then
-fprintf fmt "uint16"
-  else
-    assert false (* Too much states. This not reasonable *)
-      
-   
+  let rec aux tydec_desc =
+  match tydec_desc with  
+  | Tydec_int -> fprintf fmt "int"
+  | Tydec_real -> fprintf fmt "real"
+  | Tydec_bool -> fprintf fmt "bool"
+  | Tydec_clock ty -> aux ty
+  | Tydec_enum const_list -> (
+    let size = List.length const_list in
+    if size < 255 then
+      fprintf fmt "uint8"
+    else if size < 65535 then
+      fprintf fmt "uint16"
+    else
+      assert false (* Too much states. This not reasonable *)
+  )
+  | Tydec_const _ | Tydec_struct _ | Tydec_array _ | Tydec_any -> eprintf "unhandled cst tag in EMF: %a@." Printers.pp_var_type_dec_desc tydec_desc; assert false
+  in
+  aux typ.tydef_desc
+
      
 let pp_cst_type fmt c (*infered_typ*) =
   match c with
@@ -210,22 +219,21 @@ let pp_emf_cst fmt c =
   )
   
   
-let pp_emf_cst_or_var fmt v =
+let pp_emf_cst_or_var m fmt v =
   match v.value_desc with
   | Cst c -> pp_emf_cst fmt c
-  | LocalVar v
-  | StateVar v -> (
+  | Var v -> (
     fprintf fmt "{@[\"type\": \"variable\",@ \"value\": \"%a\",@ "
       pp_var_name v;
     (*    fprintf fmt "\"original_name\": \"%a\",@ " Printers.pp_var_name v; *)
     fprintf fmt "\"datatype\": \"%a\"@ " pp_var_type v;
     fprintf fmt "@]}"
   )
-  | _ -> eprintf "Not of cst or var: %a@." pp_val v ; assert false (* Invalid argument *)
+  | _ -> eprintf "Not of cst or var: %a@." (pp_val m) v ; assert false (* Invalid argument *)
 
 
-let pp_emf_cst_or_var_list =
-  Utils.fprintf_list ~sep:",@ " pp_emf_cst_or_var
+let pp_emf_cst_or_var_list m =
+  Utils.fprintf_list ~sep:",@ " (pp_emf_cst_or_var m)
 
 (* Printer lustre expr and eexpr *)
     
