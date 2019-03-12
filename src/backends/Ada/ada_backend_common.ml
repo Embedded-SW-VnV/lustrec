@@ -27,7 +27,7 @@ let is_builtin_fun ident =
     underscore and must not contain a double underscore
    @param var name to be cleaned*)
 let pp_clean_ada_identifier fmt name =
-  let reserved_words = ["abort"; "else"; "new"; "return";
+  let reserved_words = ["abort"; "else"; "new"; "return"; "boolean"; "integer";
                         "abs"; "elsif"; "not"; "reverse"; "abstract"; "end";
                         "null"; "accept"; "entry"; "select"; "access";
                         "exception"; "of"; "separate"; "aliased"; "exit";
@@ -40,7 +40,7 @@ let pp_clean_ada_identifier fmt name =
                         "until"; "is"; "raise"; "use"; "declare"; "	range";
                         "delay"; "limited"; "record"; "when"; "delta"; "loop";
                         "rem"; "while"; "digits"; "renames"; "with"; "do";
-                        "mod"; "requeue"; "xor"] in
+                        "mod"; "requeue"; "xor"; "float"] in
   let base_size = String.length name in
   assert(base_size > 0);
   let rec remove_double_underscore s = function
@@ -189,6 +189,14 @@ let get_machine machines instance =
 **)
 let pp_type_decl fmt (pp_name, pp_definition) =
   fprintf fmt "type %t is %t" pp_name pp_definition
+
+(** Print a private type declaration
+   @param fmt the formater to print on
+   @param pp_name a format printer which print the type name
+**)
+let pp_private_type_decl fmt pp_name =
+  let pp_definition fmt = fprintf fmt "private" in
+  pp_type_decl fmt (pp_name, pp_definition)
 
 (** Print a limited private type declaration
    @param fmt the formater to print on

@@ -22,7 +22,7 @@ open Ada_backend_common
 module Main =
 struct
 
-  (** Printing function for basic assignement [var_name := value;].
+  (** Printing function for basic assignement [var_name := value].
 
       @param fmt the formater to print on
       @param var_name the name of the variable
@@ -32,16 +32,6 @@ struct
     fprintf fmt "%a := %a"
       (pp_access_var m) var_name
       (pp_value m) value
-
-  (** Printing function for assignement. For the moment, only use
-      [pp_basic_assign] function.
-
-      @param pp_var pretty printer for variables
-      @param fmt the formater to print on
-      @param var_name the name of the variable
-      @param value the value to be assigned
-   **)
-  let pp_assign m pp_var fmt var_name value = pp_basic_assign m
 
   (** Extract from a machine the instance corresponding to the identifier,
         assume that the identifier exists in the instances of the machine.
@@ -92,13 +82,36 @@ struct
       @param fmt the formater to print on
       @param instr the instruction to print
    **)
-  let pp_machine_instr typed_submachines machine fmt instr =
+  let rec pp_machine_instr typed_submachines machine fmt instr =
+    let pp_instr = pp_machine_instr typed_submachines machine in
+    (* Print args for a step call *)
+    let pp_args vl il fmt =
+      fprintf fmt "@[%a@]%t@[%a@]"
+        (Utils.fprintf_list ~sep:",@ " (pp_value machine)) vl
+        (Utils.pp_final_char_if_non_empty ",@," il)
+        (Utils.fprintf_list ~sep:",@ " (pp_access_var machine)) il
+    in
+    (* Print a when branch of a case *)
+    let pp_when fmt (cond, instrs) =
+      fprintf fmt "when %s =>@,  @[<v>%a@]"
+        cond
+        (Utils.fprintf_list ~sep:";@," pp_instr) instrs
+    in
+    (* Print a case *)
+    let pp_case fmt (g, hl) = fprintf fmt "case %a is@,  @[<v>%a;@]@,end case"
+      (pp_value machine) g
+      (Utils.fprintf_list ~sep:";@," pp_when) hl
+    in
     match get_instr_desc instr with
       (* no reset *)
       | MNoReset _ -> ()
       (* reset  *)
       | MReset i ->
-          pp_package_call typed_submachines pp_reset_procedure_name fmt (i, None)
+          pp_package_call
+            typed_submachines
+            pp_reset_procedure_name
+            fmt
+            (i, None)
       | MLocalAssign (ident, value) ->
           pp_basic_assign machine fmt ident value
       | MStateAssign (ident, value) ->
@@ -107,30 +120,16 @@ struct
           let value = mk_val (Fun (i, vl)) i0.var_type in
           pp_basic_assign machine fmt i0 value
       | MStep (il, i, vl) when List.mem_assoc i typed_submachines ->
-        let pp_args fmt = fprintf fmt "@[%a@]%t@[%a@]"
-          (Utils.fprintf_list ~sep:",@ " (pp_value machine)) vl
-          (Utils.pp_final_char_if_non_empty ",@," il)
-          (Utils.fprintf_list ~sep:",@ " (pp_access_var machine)) il
-        in
-        pp_package_call typed_submachines pp_step_procedure_name fmt (i, Some pp_args)
-      | MBranch (_, []) -> fprintf fmt "Null"
-
-      (* (Format.eprintf "internal error: C_backend_src.pp_machine_instr %a@." (pp_instr m) instr; assert false) *)
-      | MBranch (g, hl) -> fprintf fmt "Null"
-      (* if let t = fst (List.hd hl) in t = tag_true || t = tag_false
-       * then (\* boolean case, needs special treatment in C because truth value is not unique *\)
-       *   (\* may disappear if we optimize code by replacing last branch test with default *\)
-       *   let tl = try List.assoc tag_true  hl with Not_found -> [] in
-       *   let el = try List.assoc tag_false hl with Not_found -> [] in
-       *   pp_conditional dependencies m self fmt g tl el
-       * else (\* enum type case *\)
-       *   (\*let g_typ = Typing.type_const Location.dummy_loc (Const_tag (fst (List.hd hl))) in*\)
-       *   fprintf fmt "@[<v 2>switch(%a) {@,%a@,}@]"
-       *     (pp_c_val m self (pp_c_var_read m)) g
-       *     (Utils.fprintf_list ~sep:"@," (pp_machine_branch dependencies m self)) hl *)
+          pp_package_call
+            typed_submachines
+            pp_step_procedure_name
+            fmt
+            (i, Some (pp_args vl il))
+      | MBranch (_, []) -> assert false
+      | MBranch (g, hl) -> pp_case fmt (g, hl)
       | MComment s  ->
-        let lines = String.split_on_char '\n' s in
-        fprintf fmt "%a" (Utils.fprintf_list ~sep:"" pp_oneline_comment) lines
+          let lines = String.split_on_char '\n' s in
+          fprintf fmt "%a" (Utils.fprintf_list ~sep:"" pp_oneline_comment) lines
       | _ -> assert false
 
   (** Print the definition of the step procedure from a machine.

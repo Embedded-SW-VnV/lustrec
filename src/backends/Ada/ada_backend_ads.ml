@@ -56,7 +56,7 @@ struct
       List.map (fun id fmt -> pp_polymorphic_type fmt id) polymorphic_types in
     if polymorphic_types != [] then
         fprintf fmt "generic@,  @[<v>%a;@]@,"
-          (Utils.fprintf_list ~sep:";@," pp_private_limited_type_decl)
+          (Utils.fprintf_list ~sep:";@," pp_private_type_decl)
           pp_polymorphic_types
     else
       fprintf fmt ""
