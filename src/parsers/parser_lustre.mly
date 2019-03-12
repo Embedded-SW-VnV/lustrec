@@ -49,7 +49,8 @@ let rec fby expr n init =
     mkexpr (Expr_arrow (init, mkexpr (Expr_pre expr)))
   else
     mkexpr (Expr_arrow (init, mkexpr (Expr_pre (fby expr (n-1) init))))
-  
+
+ 
 %}
 
 %token <int> INT
@@ -62,7 +63,7 @@ let rec fby expr n init =
 %token <string> UIDENT
 %token TRUE FALSE
 %token <Lustre_types.expr_annot> ANNOT
-%token <Lustre_types.contract_desc> NODESPEC
+%token <Lustre_types.spec_types> NODESPEC
 %token LBRACKET RBRACKET LCUR RCUR LPAR RPAR SCOL COL COMMA COLCOL 
 %token AMPERAMPER BARBAR NOT POWER
 %token IF THEN ELSE
@@ -113,7 +114,7 @@ let rec fby expr n init =
 %type <Lustre_types.expr_annot> lustre_annot
 
 %start lustre_spec
-%type <Lustre_types.contract_desc> lustre_spec
+%type <Lustre_types.spec_types> lustre_spec
 
 %start signed_const
 %type <Lustre_types.constant> signed_const
@@ -203,32 +204,25 @@ state_annot:
 
 top_decl_header:
 | CONST cdecl_list { List.rev ($2 true) }
-| nodespec_list state_annot node_ident LPAR vdecl_list SCOL_opt RPAR RETURNS LPAR vdecl_list SCOL_opt RPAR  prototype_opt in_lib_list SCOL
-    {let nd = mktop_decl true (ImportedNode
+| nodespecs state_annot node_ident_decl LPAR vdecl_list SCOL_opt RPAR RETURNS LPAR vdecl_list SCOL_opt RPAR  prototype_opt in_lib_list SCOL
+    {
+      let inputs = List.rev $5 in
+      let outputs = List.rev $10 in
+      let nd = mktop_decl true (ImportedNode
 				 {nodei_id = $3;
 				  nodei_type = Types.new_var ();
 				  nodei_clock = Clocks.new_var true;
-				  nodei_inputs = List.rev $5;
-				  nodei_outputs = List.rev $10;
+				  nodei_inputs = inputs;
+				  nodei_outputs = outputs;
 				  nodei_stateless = $2;
 				  nodei_spec = $1;
 				  nodei_prototype = $13;
 				  nodei_in_lib = $14;})
      in
-     (*add_imported_node $3 nd;*) [nd] } 
-| CONTRACT node_ident LPAR vdecl_list SCOL_opt RPAR RETURNS LPAR vdecl_list SCOL_opt RPAR SCOL_opt LET contract TEL 
-    {let nd = mktop_decl true (ImportedNode
-				 {nodei_id = $2;
-				  nodei_type = Types.new_var ();
-				  nodei_clock = Clocks.new_var true;
-				  nodei_inputs = List.rev $4;
-				  nodei_outputs = List.rev $9;
-				  nodei_stateless = false (* By default we assume contracts as stateful *);
-				  nodei_spec = Some $14;
-				  nodei_prototype = None;
-				  nodei_in_lib = [];})
-     in
-     (*add_imported_node $3 nd;*) [nd] }
+     pop_node ();
+     [nd] } 
+| top_contract { [$1] }
+
 
 prototype_opt:
  { None }
@@ -240,7 +234,7 @@ in_lib_list:
 
 top_decl:
 | CONST cdecl_list { List.rev ($2 false) }
-| state_annot node_ident_decl LPAR vdecl_list SCOL_opt RPAR RETURNS LPAR vdecl_list SCOL_opt RPAR SCOL_opt nodespec_list locals LET stmt_list TEL 
+| state_annot node_ident_decl LPAR vdecl_list SCOL_opt RPAR RETURNS LPAR vdecl_list SCOL_opt RPAR SCOL_opt nodespecs locals LET stmt_list TEL 
     {
      let stmts, asserts, annots = $16 in
       (* Declaring eqs annots *)
@@ -249,13 +243,15 @@ top_decl:
 	  Annotations.add_node_ann $2 key
 	) ann.annots
       ) annots;
-     (* Building the node *)
+      (* Building the node *)
+      let inputs = List.rev $4 in
+      let outputs = List.rev $9 in
      let nd = mktop_decl false (Node
 				  {node_id = $2;
 				   node_type = Types.new_var ();
 				   node_clock = Clocks.new_var true;
-				   node_inputs = List.rev $4;
-				   node_outputs = List.rev $9;
+				   node_inputs = inputs;
+				   node_outputs = outputs;
 				   node_locals = List.rev $14;
 				   node_gencalls = [];
 				   node_checks = [];
@@ -264,46 +260,36 @@ top_decl:
 				   node_dec_stateless = $1;
 				   node_stateless = None;
 				   node_spec = $13;
-				   node_annot = annots})
+				   node_annot = annots;
+				   node_iscontract = false;
+			       })
      in
      pop_node ();
      (*add_node $3 nd;*) [nd] }
 
-| state_annot IMPORTED node_ident_decl LPAR vdecl_list SCOL_opt RPAR RETURNS LPAR vdecl_list SCOL_opt RPAR SCOL_opt LET contract TEL
-    {let nd = mktop_decl true (ImportedNode
-				 {nodei_id = $3;
-				  nodei_type = Types.new_var ();
-				  nodei_clock = Clocks.new_var true;
-				  nodei_inputs = List.rev $5;
-				  nodei_outputs = List.rev $10;
-				  nodei_stateless = $1;
-				  nodei_spec = Some $15;
-				  nodei_prototype = None;
-				  nodei_in_lib = [];})
-     in
-     pop_node ();
-     (*add_imported_node $3 nd;*) [nd] } 
-| state_annot IMPORTED node_ident_decl LPAR vdecl_list SCOL_opt RPAR RETURNS LPAR vdecl_list SCOL_opt RPAR SCOL
-    {let nd = mktop_decl true (ImportedNode
-				 {nodei_id = $3;
-				  nodei_type = Types.new_var ();
-				  nodei_clock = Clocks.new_var true;
-				  nodei_inputs = List.rev $5;
-				  nodei_outputs = List.rev $10;
-				  nodei_stateless = $1;
-				  nodei_spec = None;
-				  nodei_prototype = None;
-				  nodei_in_lib = [];})
-     in
-     pop_node ();
-     (*add_imported_node $3 nd;*) [nd] } 
+
+| NODESPEC
+    { match $1 with
+      | LocalContract c -> assert false
+      | TopContract c   -> c
+			 
+    }
+
+nodespecs:
+nodespec_list {
+  match $1 with
+  | None -> None 
+  | Some c -> Some (Contract c)
+}
 
 nodespec_list:
  { None }
-| NODESPEC nodespec_list { 
-  (function 
-  | None    -> (fun s1 -> Some s1) 
-  | Some s2 -> (fun s1 -> Some (merge_contracts s1 s2))) $2 $1 }
+  | NODESPEC nodespec_list {
+	       let extract x = match x with LocalContract c -> c | _ -> assert false in
+	       let s1 = extract $1 in
+	       match $2 with
+	       | None -> Some s1
+	       | Some s2 -> Some (merge_contracts s1 s2) }
 
 typ_def_list:
     /* empty */             { (fun itf -> []) }
@@ -382,26 +368,58 @@ eq:
 | LPAR ident_list RPAR EQ expr SCOL {mkeq (List.rev (List.map fst $2), $5)}
 
 lustre_spec:
-| contract EOF { $1 }
+| top_contracts EOF     { TopContract $1 }
+| contract_content EOF { LocalContract $1}
 
-contract:
+top_contracts:
+| top_contract { [$1] }
+| top_contract top_contracts { $1::$2 }
+
+top_contract:
+| CONTRACT node_ident_decl LPAR vdecl_list SCOL_opt RPAR RETURNS LPAR vdecl_list SCOL_opt RPAR SCOL_opt LET contract_content TEL 
+    {
+      let nd = mktop_decl true (Node
+				 {node_id = $2;
+				  node_type = Types.new_var ();
+				  node_clock = Clocks.new_var true;
+				  node_inputs = List.rev $4;
+				  node_outputs = List.rev $9;
+				  node_locals = []; (* will be filled later *)
+				  node_gencalls = [];
+				  node_checks = [];
+				  node_asserts = [];
+				  node_stmts = []; (* will be filled later *)
+				  node_dec_stateless = false;
+				  (* By default we assume contracts as stateful *)
+				  node_stateless = None;
+				  node_spec = Some (Contract $14);
+				  node_annot = [];
+				  node_iscontract = true;
+				 }
+			       )
+     in
+     pop_node ();
+     (*add_imported_node $3 nd;*)
+     nd }
+
+contract_content:
 { empty_contract }
-| CONTRACT contract { $2 }
-| CONST IDENT EQ expr SCOL contract
+| CONTRACT contract_content { $2 }
+| CONST IDENT EQ expr SCOL contract_content
     { merge_contracts (mk_contract_var $2 true None $4 (get_loc())) $6 }
-| CONST IDENT COL typeconst EQ expr SCOL contract
+| CONST IDENT COL typeconst EQ expr SCOL contract_content
     { merge_contracts (mk_contract_var $2 true (Some(mktyp $4)) $6 (get_loc())) $8 }
-| VAR IDENT COL typeconst EQ expr SCOL contract
+| VAR IDENT COL typeconst EQ expr SCOL contract_content
     { merge_contracts (mk_contract_var $2 false (Some(mktyp $4)) $6 (get_loc())) $8 }
-| ASSUME qexpr SCOL contract
+| ASSUME qexpr SCOL contract_content
     { merge_contracts (mk_contract_assume $2) $4 }
-| GUARANTEES qexpr SCOL contract	
+| GUARANTEES qexpr SCOL contract_content	
     { merge_contracts (mk_contract_guarantees $2) $4 }
-| MODE IDENT LPAR mode_content RPAR SCOL contract
+| MODE IDENT LPAR mode_content RPAR SCOL contract_content
 	{ merge_contracts (
 	  let r, e = $4 in 
 	  mk_contract_mode $2 r e (get_loc())) $7 }	
-| IMPORT IDENT LPAR tuple_expr RPAR RETURNS LPAR tuple_expr RPAR SCOL contract
+| IMPORT IDENT LPAR expr RPAR RETURNS LPAR expr RPAR SCOL contract_content
     { merge_contracts (mk_contract_import $2  $4  $8 (get_loc())) $11 }
 
 mode_content:

@@ -345,7 +345,8 @@ struct
 			   node_dec_stateless = false;
 			   node_stateless = None;
 			   node_spec = None;
-			   node_annot = []}
+			   node_annot = [];
+                           node_iscontract = false}
       )  
 	in
 	[node]
@@ -400,7 +401,8 @@ Il faut faire les choses suivantes:
 			 node_dec_stateless = false;
 			 node_stateless = None;
 			 node_spec = None;
-			 node_annot = []}
+			 node_annot = [];
+                         node_iscontract = false;}
       )  
     in
     node_principal

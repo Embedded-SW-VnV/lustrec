@@ -105,7 +105,9 @@ let pp_machine fmt m =
     (Utils.fprintf_list ~sep:"@ " (pp_instr m)) m.minit
     (Utils.fprintf_list ~sep:"@ " (pp_instr m)) m.mconst
     (pp_step m) m.mstep
-    (fun fmt -> match m.mspec with | None -> () | Some spec -> Printers.pp_spec fmt spec)
+    (fun fmt -> match m.mspec with | None -> ()
+                                   | Some (NodeSpec id) -> Format.fprintf fmt "cocospec: %s" id
+                                   | Some (Contract spec) -> Printers.pp_spec fmt spec)
     (Utils.fprintf_list ~sep:"@ " Printers.pp_expr_annot) m.mannot
 
 let pp_machines fmt ml =
@@ -190,7 +192,9 @@ let empty_desc =
     node_dec_stateless = true;
     node_stateless = Some true;
     node_spec = None;
-    node_annot = [];  }
+    node_annot = [];
+    node_iscontract = false;
+}
 
 let empty_machine =
   {

@@ -76,17 +76,28 @@ let force_prog decls =
   List.iter (fun td -> ignore (force_node td)) decls
 
 let check_compat_decl decl =
- match decl.top_decl_desc with
- | ImportedNode nd ->
-   let td = Corelang.node_from_name nd.nodei_id in
-   (match td.top_decl_desc with
-   | Node nd' -> let stateless = check_node td in
-		 if nd.nodei_stateless && (not stateless)
-		 then raise (Error (td.top_decl_loc, Stateful_imp nd.nodei_id))
-		 else nd'.node_dec_stateless <- nd.nodei_stateless
-   | _        -> assert false)
- | Node _          -> assert false
- | _               -> ()
+  match decl.top_decl_desc with
+  | ImportedNode nd -> (* A node declared in the header (lusi) shall
+                          be locally defined with compatible stateless
+                          flag *)
+     begin
+       let td = Corelang.node_from_name nd.nodei_id in
+       (match td.top_decl_desc with
+        | Node nd' -> let stateless = check_node td in
+		      if nd.nodei_stateless && (not stateless)
+		      then raise (Error (td.top_decl_loc, Stateful_imp nd.nodei_id))
+		      else nd'.node_dec_stateless <- nd.nodei_stateless
+        | _        -> assert false)
+     end
+  | Node nd -> (
+     match nd.node_spec with
+       Some (Contract _) -> (* A contract element in a header does not
+                               need to be provided in the associed lus
+                               file *)
+        ()
+     | _ -> assert false)
+             
+  | _               -> ()
 
 let check_compat header =
   List.iter check_compat_decl header

@@ -421,9 +421,14 @@ let witness filename main_name orig inlined type_env clock_env =
     node_dec_stateless = false;
     node_stateless = None;
     node_spec = Some 
-      (mk_contract_guarantees (mkeexpr loc (mkexpr loc (Expr_ident ok_ident))));
-      node_annot = [];
-  }
+                  (Contract
+                     (mk_contract_guarantees
+                        (mkeexpr loc (mkexpr loc (Expr_ident ok_ident)))
+                     )
+                  );
+    node_annot = [];
+    node_iscontract = true;
+    }
   in
   let main = [{ top_decl_desc = Node main_node; top_decl_loc = loc; top_decl_owner = filename; top_decl_itf = false }] in
   let new_prog = others@nodes_origs@nodes_inlined@main in

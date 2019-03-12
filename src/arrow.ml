@@ -19,7 +19,9 @@ let arrow_desc =
     node_dec_stateless = false;
     node_stateless = Some false;
     node_spec = None;
-    node_annot = [];  }
+    node_annot = [];
+    node_iscontract = false;
+}
 
 let arrow_top_decl =
   {

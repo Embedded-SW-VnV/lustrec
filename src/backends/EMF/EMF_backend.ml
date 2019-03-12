@@ -393,9 +393,9 @@ let pp_emf_spec_import fmt i =
   fprintf fmt "\"contract\": \"%s\",@ "
     i.import_nodeid;
   fprintf fmt "\"inputs\": [%a],@ "
-    pp_emf_exprs i.inputs;
+    pp_emf_expr i.inputs;
   fprintf fmt "\"outputs\": [%a],@ "
-    pp_emf_exprs i.outputs;
+    pp_emf_expr i.outputs;
   fprintf fmt "@]}"
   
 let pp_emf_spec_imports = pp_emf_list pp_emf_spec_import
@@ -421,8 +421,14 @@ let pp_emf_spec fmt spec =
 let pp_emf_annots cpt fmt annots = fprintf_list ~sep:",@ " (pp_emf_annot cpt) fmt annots.annots
 let pp_emf_annots_list cpt fmt annots_list = fprintf_list ~sep:",@ " (pp_emf_annots cpt) fmt annots_list
 
+let pp_emf_contract fmt nd =
+  let c = Printers.node_as_contract nd in
+  fprintf fmt "@[v 2>\"%a\": {@ "
+    print_protect (fun fmt -> pp_print_string fmt nd.node_id);
+  fprintf fmt "\"contract\": %a@ "
+    pp_emf_spec c;
+  fprintf fmt "@]@ }"
   
-                                           
 let pp_machine fmt m =
   let instrs = (*merge_branches*) m.mstep.step_instrs in
   try
@@ -445,7 +451,10 @@ let pp_machine fmt m =
     fprintf fmt "\"original_name\": \"%s\",@ " m.mname.node_id;
     fprintf fmt "\"instrs\": {@[<v 0> %a@]@ },@ "
       (pp_emf_instrs m) instrs;
-    (match m.mspec with None -> () | Some spec -> fprintf fmt "\"spec\": %a,@ " pp_emf_spec spec);
+    (match m.mspec with | None -> () 
+                        | Some (Contract _) -> assert false 
+                        | Some (NodeSpec id) -> fprintf fmt "\"coco_contract\": %s" id
+    );
     fprintf fmt "\"annots\": {@[<v 0> %a@]@ }" (pp_emf_annots_list (ref 0)) m.mannot;
     fprintf fmt "@]@ }"
   with Unhandled msg -> (
@@ -455,9 +464,14 @@ let pp_machine fmt m =
     eprintf "node skipped - no output generated@ @]@."
   )
 
+let pp_machine fmt m =                      
+  match m.mspec with
+  | None | Some (NodeSpec _) -> pp_machine fmt m
+  | Some (Contract _) -> pp_emf_contract fmt m.mname 
+                       
 let pp_emf_imported_node fmt top =
   let ind = Corelang.imported_node_of_top top in
-   try
+  try
     fprintf fmt "@[<v 2>\"%a\": {@ "
       print_protect (fun fmt -> pp_print_string fmt ind.nodei_id);
     fprintf fmt "\"imported\": \"true\",@ ";
@@ -466,7 +480,10 @@ let pp_emf_imported_node fmt top =
     fprintf fmt "\"outputs\": [%a],@ "
       pp_emf_vars_decl ind.nodei_outputs;
     fprintf fmt "\"original_name\": \"%s\",@ " ind.nodei_id;
-    (match ind.nodei_spec with None -> () | Some spec -> fprintf fmt "\"spec\": %a" pp_emf_spec spec);
+    (match ind.nodei_spec with None -> ()
+                             | Some (Contract _) -> assert false (* should have been processed *)
+                             | Some (NodeSpec id) -> fprintf fmt "\"coco_contract\": %s" id
+    );
     fprintf fmt "@]@ }"
   with Unhandled msg -> (
     eprintf "[Error] @[<v 0>EMF backend@ Issues while translating node %s@ "

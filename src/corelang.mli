@@ -58,7 +58,8 @@ val node_from_name: ident -> top_decl
 val update_node: ident -> top_decl -> unit
 val is_generic_node: top_decl -> bool
 val is_imported_node: top_decl -> bool
-
+val is_contract: top_decl -> bool
+  
 val consts_table: (ident, top_decl) Hashtbl.t
 val print_consts_table:  Format.formatter -> unit -> unit
 val type_table: (type_dec_desc, top_decl) Hashtbl.t
@@ -167,7 +168,7 @@ val mk_contract_var: ident -> bool -> type_dec option -> expr -> Location.t -> c
 val mk_contract_guarantees: eexpr -> contract_desc
 val mk_contract_assume: eexpr -> contract_desc
 val mk_contract_mode: ident -> eexpr list -> eexpr list -> Location.t -> contract_desc
-val mk_contract_import: ident -> expr list -> expr list -> Location.t -> contract_desc
+val mk_contract_import: ident -> expr -> expr -> Location.t -> contract_desc
 val merge_contracts:  contract_desc -> contract_desc -> contract_desc 
 val extend_eexpr: (quantifier_type * var_decl list) list -> eexpr -> eexpr
 val update_expr_annot: ident -> expr -> expr_annot -> expr

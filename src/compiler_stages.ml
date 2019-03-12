@@ -78,6 +78,9 @@ let stage1 params prog dirname basename extension =
   (* Sorting nodes *)
   let prog = SortProg.sort prog in
 
+  (* Consolidating contracts *)
+  let prog = resolve_contracts prog in
+  
   (* Perform inlining before any analysis *)
   let orig, prog =
     if !Options.global_inline && !Options.main_node <> "" then

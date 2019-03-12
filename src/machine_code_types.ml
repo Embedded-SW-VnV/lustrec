@@ -30,18 +30,18 @@ and instr_t_desc =
   | MBranch of value_t * (label * instr_t list) list
   | MComment of string
 
-      type step_t = {
-  step_checks: (Location.t * value_t) list;
-  step_inputs: var_decl list;
-  step_outputs: var_decl list;
-  step_locals: var_decl list;
-  step_instrs: instr_t list;
-  step_asserts: value_t list;
-}
+type step_t = {
+    step_checks: (Location.t * value_t) list;
+    step_inputs: var_decl list;
+    step_outputs: var_decl list;
+    step_locals: var_decl list;
+    step_instrs: instr_t list;
+    step_asserts: value_t list;
+  }
 
 type static_call = top_decl * (Dimension.dim_expr list)
 
-                 
+  
 type machine_t = {
   mname: node_desc;
   mmemory: var_decl list;
@@ -51,7 +51,7 @@ type machine_t = {
   mstatic: var_decl list; (* static inputs only *)
   mconst: instr_t list; (* assignments of node constant locals *)
   mstep: step_t;
-  mspec: contract_desc option;
+  mspec: node_spec_t option;
   mannot: expr_annot list;
   msch: Scheduling_type.schedule_report option; (* Equations scheduling *)
 }

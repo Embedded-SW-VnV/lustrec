@@ -95,7 +95,7 @@ contract:
     { Guarantees($2)::$4 }
 | MODE ident LPAR mode_content RPAR SCOL contract
     { Mode($2,$4)::$7 }	
-| IMPORT ident LPAR tuple_expr RPAR returns LPAR tuple_expr RPAR SCOL contract
+| IMPORT ident LPAR expr RPAR returns LPAR expr RPAR SCOL contract
     { Import($2, $4, $8)::$11 }
 	
 

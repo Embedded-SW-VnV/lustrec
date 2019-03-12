@@ -324,6 +324,15 @@ let is_imported_node td =
   | ImportedNode nd -> true
   | _ -> assert false
 
+let is_contract td =
+  match td.top_decl_desc with 
+  | Node nd -> (
+    match nd.node_spec with
+    | Some (Contract _) -> true
+    | _ -> false
+  )                     
+  | _ -> false
+
 
 (* alias and type definition table *)
 
@@ -855,6 +864,7 @@ and rename_eexpr f_node f_var ee =
      node_stateless = nd.node_stateless;
      node_spec = spec;
      node_annot = annot;
+     node_iscontract = nd.node_iscontract;
    }
 
 
@@ -1255,6 +1265,9 @@ let find_eq xl eqs =
     in
     aux [] eqs
 
+
+
+       
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

@@ -554,7 +554,7 @@ let normalize_pred_eexpr decls norm_ctx (def,vars) ee =
 
 (* We use node local vars to make sure we are creating fresh variables *) 
 let normalize_spec decls parentid (in_vars, out_vars, l_vars) s =  
-  (* Original set of variables actually visible from here: iun/out and
+  (* Original set of variables actually visible from here: in/out and
      spec locals (no node locals) *)
   let orig_vars = in_vars @ out_vars @ s.locals in
   let not_is_orig_var v =
@@ -593,11 +593,10 @@ let normalize_spec decls parentid (in_vars, out_vars, l_vars) s =
   in
   
   let new_locals = List.filter not_is_orig_var vars in (* removing inouts and initial locals ones *)
-   
-      
+  new_locals, defs,      
   {s with
     locals = s.locals @ new_locals;
-    stmts = List.map (fun eq -> Eq eq) defs;
+    stmts = [];
     assume = assume';
     guarantees = guarantees';
     modes = modes'
@@ -644,15 +643,35 @@ let normalize_node decls node =
       is_output = (fun vid -> List.exists (fun v -> v.var_id = vid) node.node_outputs);
     }
   in
-  
+
+  let eqs, auts = get_node_eqs node in
+  if auts != [] then assert false; (* Automata should be expanded by now. *)
+  let spec, new_vars, eqs =
+    begin
+      (* Update mutable fields of eexpr to perform normalization of
+	 specification.
+
+	 Careful: we do not normalize annotations, since they can have the form
+	 x = (a, b, c) *)
+      match node.node_spec with
+      | None 
+        | Some (NodeSpec _) -> node.node_spec, [], eqs
+      | Some (Contract s) ->
+         let new_locals, new_stmts, s' = normalize_spec
+                    decls
+                    node.node_id
+                    (node.node_inputs, node.node_outputs, node.node_locals)
+                    s
+         in
+         Some (Contract s'), new_locals, new_stmts@eqs
+    end
+  in
   let defs, vars =
-    let eqs, auts = get_node_eqs node in
-    if auts != [] then assert false; (* Automata should be expanded by now. *)
-    List.fold_left (normalize_eq norm_ctx) ([], orig_vars) eqs in
+    List.fold_left (normalize_eq norm_ctx) ([], new_vars@orig_vars) eqs in
   (* Normalize the asserts *)
   let vars, assert_defs, asserts =
     List.fold_left (
-      fun (vars, def_accu, assert_accu) assert_ ->
+        fun (vars, def_accu, assert_accu) assert_ ->
 	let assert_expr = assert_.assert_expr in
 	let (defs, vars'), expr = 
 	  normalize_expr 
@@ -662,9 +681,9 @@ let normalize_node decls node =
 	    ([], vars) (* defvar only contains vars *)
 	    assert_expr
 	in
-      (*Format.eprintf "New assert vars: %a@.@?" (fprintf_list ~sep:", " Printers.pp_var) vars';*)
+        (*Format.eprintf "New assert vars: %a@.@?" (fprintf_list ~sep:", " Printers.pp_var) vars';*)
 	vars', defs@def_accu, {assert_ with assert_expr = expr}::assert_accu
-    ) (vars, [], []) node.node_asserts in
+      ) (vars, [], []) node.node_asserts in
   let new_locals = List.filter not_is_orig_var vars in (* we filter out inout
 							  vars and initial locals ones *)
   
@@ -679,29 +698,29 @@ let normalize_node decls node =
   (* Compute traceability info:
      - gather newly bound variables
      - compute the associated expression without aliases
-  *)
+   *)
   let new_annots =
     if !Options.traces then
       begin
 	let diff_vars = List.filter (fun v -> not (List.mem v node.node_locals) ) all_locals in
 	let norm_traceability = {
-	  annots = List.map (fun v ->
-	    let eq =
-	      try
-		List.find (fun eq -> List.exists (fun v' -> v' = v.var_id ) eq.eq_lhs) (defs@assert_defs) 
-	      with Not_found -> 
-		(
-		  Format.eprintf "Traceability annotation generation: var %s not found@." v.var_id; 
-		  assert false
-		) 
-	    in
-	    let expr = substitute_expr diff_vars (defs@assert_defs) eq.eq_rhs in
-	    let pair = mkeexpr expr.expr_loc (mkexpr expr.expr_loc (Expr_tuple [expr_of_ident v.var_id expr.expr_loc; expr])) in
-	    Annotations.add_expr_ann node.node_id pair.eexpr_tag ["traceability"];
-	    (["traceability"], pair)
-	  ) diff_vars;
-	  annot_loc = Location.dummy_loc
-	}
+	    annots = List.map (fun v ->
+	                 let eq =
+	                   try
+		             List.find (fun eq -> List.exists (fun v' -> v' = v.var_id ) eq.eq_lhs) (defs@assert_defs) 
+	                   with Not_found -> 
+		             (
+		               Format.eprintf "Traceability annotation generation: var %s not found@." v.var_id; 
+		               assert false
+		             ) 
+	                 in
+	                 let expr = substitute_expr diff_vars (defs@assert_defs) eq.eq_rhs in
+	                 let pair = mkeexpr expr.expr_loc (mkexpr expr.expr_loc (Expr_tuple [expr_of_ident v.var_id expr.expr_loc; expr])) in
+	                 Annotations.add_expr_ann node.node_id pair.eexpr_tag ["traceability"];
+	                 (["traceability"], pair)
+	               ) diff_vars;
+	    annot_loc = Location.dummy_loc
+	  }
 	in
 	norm_traceability::node.node_annot
       end
@@ -711,33 +730,23 @@ let normalize_node decls node =
 
   let new_annots =
     List.fold_left (fun annots v ->
-      if Machine_types.is_active && Machine_types.is_exportable v then
-	let typ = Machine_types.get_specified_type v in
-  	let typ_name = Machine_types.type_name typ in
+        if Machine_types.is_active && Machine_types.is_exportable v then
+	  let typ = Machine_types.get_specified_type v in
+  	  let typ_name = Machine_types.type_name typ in
 
-	let loc = v.var_loc in
-	let typ_as_string =
-	  mkexpr
-	    loc
-	    (Expr_const
-	       (Const_string typ_name))
-	in
-	let pair = expr_to_eexpr (expr_of_expr_list loc [expr_of_vdecl v; typ_as_string]) in
-	Annotations.add_expr_ann node.node_id pair.eexpr_tag Machine_types.keyword;
-	{annots = [Machine_types.keyword, pair]; annot_loc = loc}::annots
-      else
-	annots
-    ) new_annots new_locals
-  in
-  let spec =
-    begin
-      (* Update mutable fields of eexpr to perform normalization of
-	 specification.
-
-	 Careful: we do not normalize annotations, since they can have the form
-	 x = (a, b, c) *)
-      match node.node_spec with None -> None | Some s -> Some (normalize_spec decls node.node_id (node.node_inputs, node.node_outputs, node.node_locals) s) 
-    end
+	  let loc = v.var_loc in
+	  let typ_as_string =
+	    mkexpr
+	      loc
+	      (Expr_const
+	         (Const_string typ_name))
+	  in
+	  let pair = expr_to_eexpr (expr_of_expr_list loc [expr_of_vdecl v; typ_as_string]) in
+	  Annotations.add_expr_ann node.node_id pair.eexpr_tag Machine_types.keyword;
+	  {annots = [Machine_types.keyword, pair]; annot_loc = loc}::annots
+        else
+	  annots
+      ) new_annots new_locals
   in
   
   
@@ -750,17 +759,15 @@ let normalize_node decls node =
       node_spec = spec;
     }
   in ((*Printers.pp_node Format.err_formatter node;*)
-    node
-  )
+      node
+    )
 
 let normalize_inode decls nd =
   reset_cpt_fresh ();
   match nd.nodei_spec with
-    None -> nd
-  | Some s ->
-     let s = normalize_spec decls nd.nodei_id (nd.nodei_inputs, nd.nodei_outputs, []) s in
-     { nd with nodei_spec = Some s }
-  
+    None | Some (NodeSpec _) -> nd
+    | Some (Contract _) -> assert false
+                         
 let normalize_decl (decls: program_t) (decl: top_decl) : top_decl =
   match decl.top_decl_desc with
   | Node nd ->

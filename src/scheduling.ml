@@ -113,13 +113,15 @@ let filter_original n vl =
    let vdecl = get_node_var v n in
    if vdecl.var_orig then v :: res else res) vl []
 
+let eq_equiv eq_equiv_hash =
+  fun v1 v2 ->
+  try
+    Hashtbl.find eq_equiv_hash v1 = Hashtbl.find eq_equiv_hash v2
+  with Not_found -> false
+
 let schedule_node n =
   (* let node_vars = get_node_vars n in *)
-  let eq_equiv = ExprDep.node_eq_equiv n in
-  let eq_equiv v1 v2 =
-    try
-      Hashtbl.find eq_equiv v1 = Hashtbl.find eq_equiv v2
-    with Not_found -> false in
+  let eq_equiv = eq_equiv (ExprDep.node_eq_equiv n) in
 
   let n', g = global_dependency n in
   
@@ -135,6 +137,9 @@ let schedule_node n =
   let fanin = Liveness.compute_fanin n gg in
   { node = n'; schedule = sort; unused_vars = unused; fanin_table = fanin; dep_graph = gg; }
 
+(* let schedule_eqs eqs =
+ *   let eq_equiv = eq_equiv (ExprDep.eqs_eq_equiv eqs) in
+ *   assert false (\* TODO: continue to implement scheduling of eqs for spec *\) *)
 
 let compute_node_reuse_table report =
   let disjoint = Disjunction.clock_disjoint_map (get_node_vars report.node) in

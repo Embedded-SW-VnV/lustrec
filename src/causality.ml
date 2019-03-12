@@ -148,16 +148,21 @@ module ExprDep = struct
     List.fold_left eq_memory_variables ISet.empty (get_node_eqs nd)
 
   let node_input_variables nd =
-    List.fold_left (fun inputs v -> ISet.add v.var_id inputs) ISet.empty nd.node_inputs
+    List.fold_left (fun inputs v -> ISet.add v.var_id inputs) ISet.empty 
+      (if nd.node_iscontract then
+         nd.node_inputs@nd.node_outputs
+       else
+         nd.node_inputs)
+    
+  let node_output_variables nd =
+    List.fold_left (fun outputs v -> ISet.add v.var_id outputs) ISet.empty
+      (if nd.node_iscontract then [] else nd.node_outputs)
 
   let node_local_variables nd =
     List.fold_left (fun locals v -> ISet.add v.var_id locals) ISet.empty nd.node_locals
 
   let node_constant_variables nd =
     List.fold_left (fun locals v -> if v.var_dec_const then ISet.add v.var_id locals else locals) ISet.empty nd.node_locals
-
-  let node_output_variables nd =
-    List.fold_left (fun outputs v -> ISet.add v.var_id outputs) ISet.empty nd.node_outputs
 
   let node_auxiliary_variables nd =
     ISet.diff (node_local_variables nd) (node_memory_variables nd)
@@ -170,15 +175,17 @@ module ExprDep = struct
 (* computes the equivalence relation relating variables 
    in the same equation lhs, under the form of a table 
    of class representatives *)
-  let node_eq_equiv nd =
+  let eqs_eq_equiv eqs =
     let eq_equiv = Hashtbl.create 23 in
     List.iter (fun eq ->
       let first = List.hd eq.eq_lhs in
       List.iter (fun v -> Hashtbl.add eq_equiv v first) eq.eq_lhs
     )
-      (get_node_eqs nd);
+      eqs;
     eq_equiv
-
+    
+  let node_eq_equiv nd = eqs_eq_equiv  (get_node_eqs nd)
+  
 (* Create a tuple of right dimension, according to [expr] type, *)
 (* filled with variable [v] *)
   let adjust_tuple v expr =
@@ -624,6 +631,9 @@ let add_external_dependency outputs mems g =
     ISet.iter (fun m -> IdentDepGraph.add_edge g world m) mems;
   end
 
+(* Takes a node and return a pair (node', graph) where node' is node
+   rebuilt with the equations enriched with new ones introduced to
+   "break cycles" *)
 let global_dependency node =
   let mems = ExprDep.node_memory_variables node in
   let inputs =

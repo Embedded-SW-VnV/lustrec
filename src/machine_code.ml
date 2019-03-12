@@ -375,6 +375,7 @@ let translate_core sorted_eqs locals other_vars =
   
   ctx, ctx0.s
 
+ 
 let translate_decl nd sch =
   (* Extracting eqs, variables ..  *)
   let eqs, auts = get_node_eqs nd in
@@ -395,36 +396,9 @@ let translate_decl nd sch =
   let sorted_eqs = Scheduling.sort_equations_from_schedule eqs schedule in
 
   let ctx, ctx0_s = translate_core (assert_instrs@sorted_eqs) locals inout_vars in
-(* CODE QUI MARCHE
-  let constant_eqs = constant_equations locals in
   
-  (* Compute constants' instructions  *)
-  let ctx0 = translate_eqs env ctx_init constant_eqs in
-  assert (VSet.is_empty ctx0.m);
-  assert (ctx0.si = []);
-  assert (Utils.IMap.is_empty ctx0.j);
-
-  (* Compute ctx for all eqs *)
-  let ctx = translate_eqs env ctx_init (assert_instrs@sorted_eqs) in
- *)
   
-  (*
-  (* Processing spec: locals would be actual locals of the spec while
-     non locals would be inputs/ouptpus of the node. Locals of the
-     node are not visible. *)
-  let spec =
-    match nd.node_spec with
-    | None -> None
-    | Some spec -> translate_spec inout_vars spec
-  in
-
-
-        inout_vars spec =
-    let locals = VSet.of_list spec.locals in
-    let spec_consts = VSet.of_list spec.consts in
-    let other_spec_vars = VSet.union inout_vars spec_consts in
-    let spec_env = build_env spec_locals other_spec_vars in
-   *)             
+ 
   let mmap = Utils.IMap.elements ctx.j in
   {
     mname = nd;
@@ -454,6 +428,12 @@ let translate_decl nd sch =
         );
         step_asserts = List.map (translate_expr env) nd_node_asserts;
       };
+
+    (* Processing spec: there is no processing performed here. Contract
+     have been processed already. Either one of the other machine is a
+     cocospec node, or the current one is a cocospec node. Contract do
+     not contain any statement or import. *)
+ 
     mspec = nd.node_spec;
     mannot = nd.node_annot;
     msch = Some sch;
@@ -462,13 +442,15 @@ let translate_decl nd sch =
 (** takes the global declarations and the scheduling associated to each node *)
 let translate_prog decls node_schs =
   let nodes = get_nodes decls in
-  List.map
+  let machines =
+    List.map
     (fun decl ->
      let node = node_of_top decl in
       let sch = Utils.IMap.find node.node_id node_schs in
       translate_decl node sch
     ) nodes
-
+  in
+  machines
 
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
