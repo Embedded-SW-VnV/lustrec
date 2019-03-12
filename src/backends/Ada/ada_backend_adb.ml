@@ -133,78 +133,78 @@ struct
         fprintf fmt "%a" (Utils.fprintf_list ~sep:"" pp_oneline_comment) lines
       | _ -> assert false
 
-(** Print the definition of the step procedure from a machine.
+  (** Print the definition of the step procedure from a machine.
 
-   @param typed_submachines list of all typed machine instances of this machine
-   @param fmt the formater to print on
-   @param machine the machine
-**)
-let pp_step_definition typed_submachines fmt m = pp_procedure_definition
-      pp_step_procedure_name
-      (pp_step_prototype m)
-      (pp_machine_var_decl NoMode)
-      (pp_machine_instr typed_submachines m)
-      fmt
-      (m.mstep.step_locals, m.mstep.step_instrs)
+     @param typed_submachines list of all typed machine instances of this machine
+     @param fmt the formater to print on
+     @param machine the machine
+  **)
+  let pp_step_definition typed_submachines fmt m = pp_procedure_definition
+        pp_step_procedure_name
+        (pp_step_prototype m)
+        (pp_machine_var_decl NoMode)
+        (pp_machine_instr typed_submachines m)
+        fmt
+        (m.mstep.step_locals, m.mstep.step_instrs)
 
-(** Print the definition of the reset procedure from a machine.
+  (** Print the definition of the reset procedure from a machine.
 
-   @param typed_submachines list of all typed machine instances of this machine
-   @param fmt the formater to print on
-   @param machine the machine
-**)
-let pp_reset_definition typed_submachines fmt m = pp_procedure_definition
-      pp_reset_procedure_name
-      (pp_reset_prototype m)
-      (pp_machine_var_decl NoMode)
-      (pp_machine_instr typed_submachines m)
-      fmt
-      ([], m.minit)
+     @param typed_submachines list of all typed machine instances of this machine
+     @param fmt the formater to print on
+     @param machine the machine
+  **)
+  let pp_reset_definition typed_submachines fmt m = pp_procedure_definition
+        pp_reset_procedure_name
+        (pp_reset_prototype m)
+        (pp_machine_var_decl NoMode)
+        (pp_machine_instr typed_submachines m)
+        fmt
+        ([], m.minit)
 
-(** Print the package definition(ads) of a machine.
-  It requires the list of all typed instance.
-  A typed submachine instance is (ident, type_machine) with ident
-  the instance name and typed_machine is (substitution, machine) with machine
-  the machine associated to the instance and substitution the instanciation of
-  all its polymorphic types.
-   @param fmt the formater to print on
-   @param typed_submachines list of all typed machine instances of this machine
-   @param m the machine
-**)
-let pp_file fmt (typed_submachines, machine) =
-  let pp_reset fmt =
-    if is_machine_statefull machine then
-      fprintf fmt "%a;@,@," (pp_reset_definition typed_submachines) machine
-    else
-      fprintf fmt ""
-  in
-  let aux pkgs (id, _) =
-    try
-      let (pkg, _) = List.assoc id ada_supported_funs in
-      if List.mem pkg pkgs then
-        pkgs
+  (** Print the package definition(ads) of a machine.
+    It requires the list of all typed instance.
+    A typed submachine instance is (ident, type_machine) with ident
+    the instance name and typed_machine is (substitution, machine) with machine
+    the machine associated to the instance and substitution the instanciation of
+    all its polymorphic types.
+     @param fmt the formater to print on
+     @param typed_submachines list of all typed machine instances of this machine
+     @param m the machine
+  **)
+  let pp_file fmt (typed_submachines, machine) =
+    let pp_reset fmt =
+      if is_machine_statefull machine then
+        fprintf fmt "%a;@,@," (pp_reset_definition typed_submachines) machine
       else
-        pkg::pkgs
-    with Not_found -> pkgs
-  in
-  let packages = List.fold_left aux [] machine.mcalls in
-  fprintf fmt "%a%t%a@,  @[<v>@,%t%a;@,@]@,%a;@."
-    
-    (* Include all the required packages*)
-    (Utils.fprintf_list ~sep:";@," pp_with) packages
-    (Utils.pp_final_char_if_non_empty ";@,@," packages)
-    
-    (*Begin the package*)
-    (pp_begin_package true) machine
-    
-    (*Define the reset procedure*)
-    pp_reset
-    
-    (*Define the step procedure*)
-    (pp_step_definition typed_submachines) machine
-    
-    (*End the package*)
-    pp_end_package machine
+        fprintf fmt ""
+    in
+    let aux pkgs (id, _) =
+      try
+        let (pkg, _) = List.assoc id ada_supported_funs in
+        if List.mem pkg pkgs then
+          pkgs
+        else
+          pkg::pkgs
+      with Not_found -> pkgs
+    in
+    let packages = List.fold_left aux [] machine.mcalls in
+    fprintf fmt "%a%t%a@,  @[<v>@,%t%a;@,@]@,%a;@."
+      
+      (* Include all the required packages*)
+      (Utils.fprintf_list ~sep:";@," pp_with) packages
+      (Utils.pp_final_char_if_non_empty ";@,@," packages)
+      
+      (*Begin the package*)
+      (pp_begin_package true) machine
+      
+      (*Define the reset procedure*)
+      pp_reset
+      
+      (*Define the step procedure*)
+      (pp_step_definition typed_submachines) machine
+      
+      (*End the package*)
+      pp_end_package machine
 
 end
 
