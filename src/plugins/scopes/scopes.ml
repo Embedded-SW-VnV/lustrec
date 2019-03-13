@@ -33,13 +33,17 @@ let get_machine name machines =
     List.find (fun m -> m.mname.node_id = name) machines
   with Not_found -> raise Not_found
 
-let rec compute_scopes prog main_node : scope_t list =
 
+let rec compute_scopes ?(first=true) prog root_node : scope_t list =
+  let compute_scopes = compute_scopes ~first:false in
   (* Format.eprintf "Compute scope of %s@." main_node; *)
   try
-    let node =  get_node main_node prog in    
+    let node =  get_node root_node prog in    
     let all_vars = node.node_inputs @ node.node_locals @  node.node_outputs in
-    let local_vars = node.node_inputs @ node.node_locals in
+    let local_vars = if first then
+                       node.node_locals
+                     else
+                       node.node_inputs @ node.node_locals in
     let local_scopes = List.map (fun x -> [], x) local_vars  in
     let sub_scopes =
       let sub_nodes =
@@ -164,8 +168,8 @@ let inputs = ref []
 let option_show_scopes = ref false
 let option_scopes = ref false
 let option_all_scopes = ref false
-let option_mem_scopes = ref false
-let option_input_scopes = ref false
+(* let option_mems_scopes = ref false 
+ * let option_input_scopes = ref false *)
 
 let scopes_map : (Lustre_types.ident list  * scope_t) list ref  = ref []
 
@@ -218,12 +222,18 @@ let pp_scopes fmt scopes =
       (fun fmt -> C_backend_common.print_put_var fmt ("_scopes_" ^ string_of_int (idx+1)) id (*var*) typ var)
   ) scopes_vars
 
-let update_machine machine =
+let update_machine main_node machine =
   let stateassign vdecl =
     mkinstr 
     (MStateAssign (vdecl, mk_val (Var vdecl) vdecl.var_type))
   in
-  let local_decls = machine.mstep.step_inputs
+  let local_decls =
+    (* We only register inputs for non root node *)
+    (if machine.mname.node_id = main_node then
+      []
+    else
+      machine.mstep.step_inputs
+    )
     (* @ machine.mstep.step_outputs   *)
     @ machine.mstep.step_locals
   in
@@ -246,7 +256,8 @@ module Plugin : (
 struct
   let name = "scopes"
   let is_active () = 
-    !option_scopes || !option_show_scopes || !option_all_scopes || !option_mem_scopes || !option_input_scopes
+    !option_scopes || !option_show_scopes || !option_all_scopes
+  (* || !option_mem_scopes || !option_input_scopes *)
       
   let show_scopes () = 
     !option_show_scopes && (
@@ -258,8 +269,8 @@ struct
     "-input", Arg.String register_inputs, "specifies the simulation input";
     "-show-possible-scopes", Arg.Set option_show_scopes, "list possible variables to log";
     "-select-all", Arg.Set option_all_scopes, "select all possible variables to log";
-    "-select-mem", Arg.Set option_mem_scopes, "select all memory variables to log";
-    "-select-inputs", Arg.Set option_input_scopes, "select all input variables to log";
+    (* "-select-mems", Arg.Set option_mems_scopes, "select all memory variables to log";
+     * "-select-inputs", Arg.Set option_input_scopes, "select all input variables to log"; *)
   ]
 
   let activate () = 
@@ -323,7 +334,7 @@ struct
     in
     scopes_map := check_scopes main_node prog machines all_scopes selected_scopes;
     (* Each machine is updated with fresh memories and declared as stateful  *)
-    let machines = List.map update_machine machines in
+    let machines = List.map (update_machine main_node) machines in
      machines
 
   (* let pp fmt = pp_scopes fmt !scopes_map *)
