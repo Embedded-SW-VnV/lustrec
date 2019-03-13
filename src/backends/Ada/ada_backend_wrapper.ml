@@ -13,6 +13,7 @@ open Format
 
 open Machine_code_types
 open Ada_backend_common
+open Lustre_types
 
 module Main =
 struct
@@ -51,6 +52,8 @@ struct
     let pp_str str fmt = fprintf fmt "%s"str in
     (* Dependances *)
     let text_io = "Ada.Text_IO" in
+    let float_io = "package Float_IO is new Ada.Text_IO.Float_IO(Float)" in
+    let integer_io = "package Integer_IO is new Ada.Text_IO.Integer_IO(Integer)" in
     
     (* Locals *)
     let stateVar = "state" in
@@ -58,7 +61,7 @@ struct
     let pp_local_state_var_decl fmt = pp_node_state_decl [] stateVar fmt machine in
     let apply_pp_var_decl var fmt = pp_machine_var_decl NoMode fmt var in
     let locals = List.map apply_pp_var_decl step_parameters in
-    let locals = pp_local_state_var_decl::locals in
+    let locals = (pp_str integer_io)::(pp_str float_io)::pp_local_state_var_decl::locals in
 
     (* Node instructions *)
     let pp_reset fmt =
@@ -72,23 +75,37 @@ struct
         (Utils.fprintf_list ~sep:",@ " pp_var_name) step_parameters in
 
     (* Stream instructions *)
-    let pp_stdin fmt = fprintf fmt "Ada.Text_IO.Standard_Input" in
-    let pp_stdout fmt = fprintf fmt "Ada.Text_IO.Standard_Output" in
+    let get_basic var = match (Types.repr var.var_type ).Types.tdesc with
+        Types.Tbasic x -> x | _ -> assert false in
     let pp_read fmt var =
-      fprintf fmt "%a := %a'Value(Ada.Text_IO.Get_Line(%t))"
-        pp_var_name var
-        pp_var_type var
-        pp_stdin in
+      match get_basic var with
+        | Types.Basic.Tbool ->
+            fprintf fmt "%a := Integer'Value(Ada.Text_IO.Get_Line) /= 0"
+              pp_var_name var
+        | _ ->
+            fprintf fmt "%a := %a'Value(Ada.Text_IO.Get_Line)"
+              pp_var_name var
+              pp_var_type var
+    in
     let pp_write fmt var =
-      fprintf fmt "Ada.Text_IO.Put_Line(%t, %a'Image(%a))"
-        pp_stdout
-        pp_var_type var
-        pp_var_name var in
+      match get_basic var with
+        | Types.Basic.Tbool ->
+            fprintf fmt "Ada.Text_IO.Put_Line(\"'%a': '\" & (if %a then \"1\" else \"0\") & \"' \")"
+              pp_var_name var
+              pp_var_name var
+        | Types.Basic.Tint ->
+            fprintf fmt "Ada.Text_IO.Put(\"'%a': '\");@,Integer_IO.Put(%a);@,Ada.Text_IO.Put_Line(\"' \")"
+              pp_var_name var
+              pp_var_name var
+        | Types.Basic.Treal ->
+            fprintf fmt "Ada.Text_IO.Put(\"'%a': '\");@,Float_IO.Put(%a, Fore=>0, Aft=> 15, Exp => 0);@,Ada.Text_IO.Put_Line(\"' \")"
+              pp_var_name var
+              pp_var_name var
+    in
 
     (* Loop instructions *)
     let pp_loop fmt =
-      fprintf fmt "while not Ada.Text_IO.End_Of_File (%t) loop@,  @[<v>%a;@,%t;@,%a;@]@,end loop"
-        pp_stdin
+      fprintf fmt "while not Ada.Text_IO.End_Of_File loop@,  @[<v>%a;@,%t;@,%a;@]@,end loop"
         (Utils.fprintf_list ~sep:";@," pp_read) machine.mstep.step_inputs
         pp_step
         (Utils.fprintf_list ~sep:";@," pp_write) machine.mstep.step_outputs in
