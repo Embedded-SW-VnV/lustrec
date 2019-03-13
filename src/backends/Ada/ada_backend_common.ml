@@ -502,8 +502,8 @@ let pp_oneline_comment fmt s =
   assert (not (String.contains s '\n'));
   fprintf fmt "-- %s@," s
 
-(* Functions which computes the substitution for polymorphic type *)
 
+(* Functions which computes the substitution for polymorphic type *)
 
 (** Check if a submachine is statefull.
     @param submachine a submachine
@@ -640,6 +640,11 @@ let get_substitution machine ident submachine =
 
 (* Procedure pretty print functions *)
 
+let pp_block pp_item fmt items =
+  fprintf fmt "  @[<v>%a%t@]@,"
+    (Utils.fprintf_list ~sep:";@," pp_item) items
+    (Utils.pp_final_char_if_non_empty ";" items)
+
 (** Print the definition of a procedure
    @param pp_name the procedure name printer
    @param pp_prototype the prototype printer
@@ -650,13 +655,10 @@ let get_substitution machine ident submachine =
    @param instrs instructions list
 **)
 let pp_procedure_definition pp_name pp_prototype pp_local pp_instr fmt (locals, instrs) =
-  fprintf fmt "@[<v>%t is%t@[<v>%a%t@]@,begin@,  @[<v>%a%t@]@,end %t@]"
+  fprintf fmt "@[<v>%t is@,%abegin@,%aend %t@]"
     pp_prototype
-    (Utils.pp_final_char_if_non_empty "@,  " locals)
-    (Utils.fprintf_list ~sep:";@," pp_local) locals
-    (Utils.pp_final_char_if_non_empty ";" locals)
-    (Utils.fprintf_list ~sep:";@," pp_instr) instrs
-    (Utils.pp_final_char_if_non_empty ";" instrs)
+    (pp_block pp_local) locals
+    (pp_block pp_instr) instrs
     pp_name
 
 

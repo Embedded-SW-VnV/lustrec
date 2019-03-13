@@ -93,14 +93,38 @@ struct
     in
     (* Print a when branch of a case *)
     let pp_when fmt (cond, instrs) =
-      fprintf fmt "when %s =>@,  @[<v>%a@]"
-        cond
-        (Utils.fprintf_list ~sep:";@," pp_instr) instrs
+      fprintf fmt "when %s =>@,%a" cond (pp_block pp_instr) instrs
     in
     (* Print a case *)
-    let pp_case fmt (g, hl) = fprintf fmt "case %a is@,  @[<v>%a;@]@,end case"
-      (pp_value machine) g
-      (Utils.fprintf_list ~sep:";@," pp_when) hl
+    let pp_case fmt (g, hl) =
+      fprintf fmt "case %a is@,%aend case"
+        (pp_value machine) g
+        (pp_block pp_when) hl
+    in
+    (* Print a if *)
+    (* If neg is true the we must test for the negation of the condition. It
+       first check that we don't have a negation and a else case, if so it
+       inverses the two branch and remove the negation doing a recursive
+       call. *)
+    let rec pp_if neg fmt (g, instrs1, instrs2) =
+      match neg, instrs2 with
+        | true, Some x -> pp_if false fmt (g, x, Some instrs1)
+        | _ ->
+          let pp_cond =
+            if neg then
+              fun fmt x -> fprintf fmt "! (%a)" (pp_value machine) x
+            else
+              pp_value machine
+          in
+          let pp_else = match instrs2 with
+            | None -> fun fmt -> fprintf fmt ""
+            | Some i2 -> fun fmt ->
+                fprintf fmt "else@,%a" (pp_block pp_instr) i2
+          in
+          fprintf fmt "if %a then@,%a%tend if"
+            pp_cond g
+            (pp_block pp_instr) instrs1
+            pp_else
     in
     match get_instr_desc instr with
       (* no reset *)
@@ -126,6 +150,14 @@ struct
             fmt
             (i, Some (pp_args vl il))
       | MBranch (_, []) -> assert false
+      | MBranch (g, (c1, i1)::tl) when c1=tag_false || c1=tag_true ->
+          let neg = c1=tag_false in
+          let other = match tl with
+            | []         -> None
+            | [(c2, i2)] -> Some i2
+            | _          -> assert false
+          in
+          pp_if neg fmt (g, i1, other)
       | MBranch (g, hl) -> pp_case fmt (g, hl)
       | MComment s  ->
           let lines = String.split_on_char '\n' s in
