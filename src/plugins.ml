@@ -11,7 +11,7 @@ let options () =
 	(M.name, M.activate, M.options)
       ) plugins
     ))
-
+  
 let check_force_stateful () =
   List.exists (fun m ->
 	let module M = (val m : PluginType.PluginType) in

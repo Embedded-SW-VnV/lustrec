@@ -1239,6 +1239,22 @@ let mk_fresh_var node loc ty ck =
   }
   in aux ()
 
+       
+let get_node name prog =
+  let node_opt = List.fold_left
+    (fun res top -> 
+      match res, top.top_decl_desc with
+      | Some _, _ -> res
+      | None, Node nd -> 
+	(* Format.eprintf "Checking node %s = %s: %b@." nd.node_id name (nd.node_id = name); *)
+	if nd.node_id = name then Some nd else res
+      | _ -> None) 
+    None prog 
+  in
+  try 
+    Utils.desome node_opt
+  with Utils.DeSome -> raise Not_found
+
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

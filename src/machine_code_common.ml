@@ -5,7 +5,7 @@ open Corelang
 let print_statelocaltag = true
 
 let is_memory m id =
-  List.exists (fun o -> o.var_id = id.var_id) m.mmemory
+  (List.exists (fun o -> o.var_id = id.var_id) m.mmemory) 
 
 let rec pp_val m fmt v =
   let pp_val = pp_val m in
@@ -235,6 +235,12 @@ let get_machine_opt name machines =
       | None -> if m.mname.node_id = name then Some m else None)
     None machines
 
+    
+let get_machine name machines =
+  try
+    Utils.desome (get_machine_opt name machines) 
+  with Utils.DeSome -> raise Not_found
+  
 let get_const_assign m id =
   try
     match get_instr_desc (List.find

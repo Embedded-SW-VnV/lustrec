@@ -132,6 +132,10 @@ val get_typedefs: program -> top_decl list
 val get_dependencies : program -> top_decl list
 (* val prog_unfold_consts: program -> program *)
 
+(** Returns the node named ident in the provided program. Raise Not_found *)
+val get_node : ident -> program -> node_desc
+
+  
 val rename_static: (ident -> Dimension.dim_expr) -> type_dec_desc -> type_dec_desc
 val rename_carrier: (ident -> ident) -> clock_dec_desc -> clock_dec_desc
 
