@@ -705,34 +705,57 @@ let pp_instance_call m self fmt i (inputs: Machine_code_types.value_t list) (out
 
   (*** Common functions for main ***)
 
+let pp_print_file file_suffix fmt typ arg =
+  fprintf fmt "@[<v 2>if (traces) {@ ";
+  fprintf fmt "fprintf(f_%s, \"%%%s\\n\", %s);@ " file_suffix typ arg;
+  fprintf fmt "fflush(f_%s);@ " file_suffix;
+  fprintf fmt "@]}@ "
+  
 let print_put_var fmt file_suffix name var_type var_id =
+  let pp_file = pp_print_file ("out" ^ file_suffix) in
   let unclocked_t = Types.unclock_type var_type in
-  if Types.is_int_type unclocked_t then
-    fprintf fmt "_put_int(f_out%s, \"%s\", %s)" file_suffix name var_id
-  else if Types.is_bool_type unclocked_t then
-    fprintf fmt "_put_bool(f_out%s, \"%s\", %s)" file_suffix name var_id
+  if Types.is_int_type unclocked_t then (
+    fprintf fmt "_put_int(\"%s\", %s);@ " name var_id;
+    pp_file fmt "d" var_id
+  )
+  else if Types.is_bool_type unclocked_t then (
+    fprintf fmt "_put_bool(\"%s\", %s);@ " name var_id;
+    pp_file fmt "i" var_id
+  )
   else if Types.is_real_type unclocked_t then
-    if !Options.mpfr then
-      fprintf fmt "_put_double(f_out%s, \"%s\", mpfr_get_d(%s, %s), %i)" file_suffix name var_id (Mpfr.mpfr_rnd ()) !Options.print_prec_double
-    else
-      fprintf fmt "_put_double(f_out%s, \"%s\", %s, %i)" file_suffix name var_id !Options.print_prec_double
+    let _ =
+      if !Options.mpfr then
+        fprintf fmt "_put_double(\"%s\", mpfr_get_d(%s, %s), %i);@ " name var_id (Mpfr.mpfr_rnd ()) !Options.print_prec_double
+      else
+        fprintf fmt "_put_double(\"%s\", %s, %i);@ " name var_id !Options.print_prec_double
+    in
+    pp_file fmt ".*f" ((string_of_int !Options.print_prec_double) ^ ", " ^ var_id)
   else
     (Format.eprintf "Impossible to print the _put_xx for type %a@.@?" Types.print_ty var_type; assert false)
 
       
 let print_get_inputs fmt m =
   let pi fmt (id, v', v) =
-
+    let pp_file = pp_print_file ("in" ^ (string_of_int id)) in
     let unclocked_t = Types.unclock_type v.var_type in
-    if Types.is_int_type unclocked_t then
-      fprintf fmt "%s = _get_int(f_in%i, \"%s\")" v.var_id id v'.var_id
-    else if Types.is_bool_type unclocked_t then
-      fprintf fmt "%s = _get_bool(f_in%i, \"%s\")" v.var_id id v'.var_id
+    if Types.is_int_type unclocked_t then (
+      fprintf fmt "%s = _get_int(\"%s\");@ " v.var_id v'.var_id;
+      pp_file fmt "d" v.var_id
+    )
+    else if Types.is_bool_type unclocked_t then (
+      fprintf fmt "%s = _get_bool(\"%s\");@ " v.var_id v'.var_id;
+      pp_file fmt "i" v.var_id
+    )
     else if Types.is_real_type unclocked_t then
-      if !Options.mpfr then
-	fprintf fmt "mpfr_set_d(%s, _get_double(f_in%i, \"%s\"), %i)" v.var_id id v'.var_id (Mpfr.mpfr_prec ())
-      else
-	fprintf fmt "%s = _get_double(f_in%i, \"%s\")" v.var_id id v'.var_id
+        if !Options.mpfr then (
+	  fprintf fmt "double %s_tmp = _get_double(\"%s\");@ " v.var_id v'.var_id;
+          pp_file fmt "f" (v.var_id ^ "_tmp");
+          fprintf fmt "mpfr_set_d(%s, %s_tmp, %i);" v.var_id v.var_id (Mpfr.mpfr_prec ())
+        )
+        else (
+	  fprintf fmt "%s = _get_double(\"%s\");@ " v.var_id v'.var_id;
+          pp_file fmt "f" v.var_id
+        )
     else
       begin
 	Global.main_node := !Options.main_node;
@@ -743,8 +766,26 @@ let print_get_inputs fmt m =
       end
   in
   Utils.List.iteri2 (fun idx v' v ->
-    fprintf fmt "@ %a;" pi ((idx+1), v', v);
+    fprintf fmt "@ %a" pi ((idx+1), v', v);
   ) m.mname.node_inputs m.mstep.step_inputs
+
+
+let pp_file_decl fmt inout idx =
+  let idx = idx + 1 in (* we start from 1: in1, in2, ... *)
+  fprintf fmt "FILE *f_%s%i;@ " inout idx 
+
+let pp_file_open fmt inout idx =
+  let idx = idx + 1 in (* we start from 1: in1, in2, ... *)
+  fprintf fmt "const char* cst_char_suffix_%s%i = \"_simu.%s%i\";@ " inout idx inout idx;
+  fprintf fmt "size_t l%s%i = strlen(dir) + strlen(prefix) + strlen(cst_char_suffix_%s%i);@ " inout idx inout idx;
+  fprintf fmt "char* f_%s%i_name = malloc((l%s%i+2) * sizeof(char));@ " inout idx inout idx;
+  fprintf fmt "strcpy (f_%s%i_name, dir);@ " inout idx;
+  fprintf fmt "strcat(f_%s%i_name, \"/\");@ " inout idx;
+  fprintf fmt "strcat(f_%s%i_name, prefix);@ " inout idx;
+  fprintf fmt "strcat(f_%s%i_name, cst_char_suffix_%s%i);@ " inout idx inout idx;
+  fprintf fmt "f_%s%i = fopen(f_%s%i_name, \"w\");@ " inout idx inout idx;
+  fprintf fmt "free(f_%s%i_name);@ " inout idx;
+  "f_" ^ inout ^ (string_of_int idx)
 
 
 (* Local Variables: *)

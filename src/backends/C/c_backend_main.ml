@@ -40,24 +40,25 @@ let print_put_outputs fmt m =
   in
   List.iteri2 (fun idx v' v -> fprintf fmt "@ %a;" po ((idx+1), v', v)) m.mname.node_outputs m.mstep.step_outputs
 
-let print_main_inout_declaration basename fmt m =
-  let mname = m.mname.node_id in
-  (* TODO: find a proper way to shorthen long names. This causes segfault in the binary when trying to fprintf in them *)
-  let mname = if String.length mname > 50 then string_of_int (Hashtbl.hash mname) else mname in
+  
+let print_main_inout_declaration m fmt =
   fprintf fmt "/* Declaration of inputs/outputs variables */@ ";
-  List.iteri 
-    (fun idx v ->
+  List.iteri (fun idx v ->
       fprintf fmt "%a;@ " (pp_c_type v.var_id) v.var_type;
-      fprintf fmt "FILE *f_in%i;@ " (idx+1); (* we start from 1: in1, in2, ... *)
-      fprintf fmt "f_in%i = fopen(\"%s_%s_simu.in%i\", \"w\");@ " (idx+1) basename mname (idx+1);
+      ignore (pp_file_decl fmt "in" idx) 
     ) m.mstep.step_inputs;
-  List.iteri 
-    (fun idx v ->
+  List.iteri (fun idx v ->
       fprintf fmt "%a;@ " (pp_c_type v.var_id) v.var_type;
-      fprintf fmt "FILE *f_out%i;@ " (idx+1); (* we start from 1: in1, in2, ... *)
-      fprintf fmt "f_out%i = fopen(\"%s_%s_simu.out%i\", \"w\");@ " (idx+1) basename mname (idx+1);
-    ) m.mstep.step_outputs
-
+      ignore (pp_file_decl fmt "out" idx)
+    ) m.mstep.step_outputs;
+  fprintf fmt "@[<v 2>if (traces) {@ ";
+  List.iteri (fun idx _ ->
+      ignore (pp_file_open fmt "in" idx) 
+    ) m.mstep.step_inputs;
+  List.iteri (fun idx _ ->
+      ignore (pp_file_open fmt "out" idx)
+    ) m.mstep.step_outputs;
+  fprintf fmt "@]}@ "
 
   
 let print_main_memory_allocation mname main_mem fmt m =
@@ -122,22 +123,66 @@ let print_main_loop mname main_mem fmt m =
     fprintf fmt "@ /* Infinite loop */@ ";
     fprintf fmt "@[<v 2>while(1){@ ";
     fprintf fmt  "fflush(stdout);@ ";
+    fprintf fmt "@[<v 2>if (traces) {@ ";
     List.iteri (fun idx _ -> fprintf fmt "fflush(f_in%i);@ " (idx+1)) m.mstep.step_inputs;
     List.iteri (fun idx _ -> fprintf fmt "fflush(f_out%i);@ " (idx+1)) m.mstep.step_outputs;
+    fprintf fmt "@]}@ ";
     fprintf fmt "%a@ %t%a"
       print_get_inputs m
       (fun fmt -> pp_main_call mname main_mem fmt m input_values m.mstep.step_outputs)
       print_put_outputs m
   end
 
+let print_usage fmt =
+  fprintf fmt "@[<v 2>void usage(char *argv[]) {@ ";
+  fprintf fmt "printf(\"Usage: %%s\\n\", argv[0]);@ ";
+  fprintf fmt "printf(\" -t: produce trace files for input/output flows\\n\");@ ";
+  fprintf fmt "printf(\" -d<dir>: directory containing traces (default: _traces)\\n\");@ ";
+  fprintf fmt "printf(\" -p<prefix>: prefix_simu.scope<id> (default: file_node)\\n\");@ ";
+  fprintf fmt "exit (8);@ ";
+  fprintf fmt "@]}@ "
+
+let print_options fmt name =
+  fprintf fmt "int traces = 0;@ ";
+  fprintf fmt "char* prefix = \"%s\";@ " name;
+  fprintf fmt "char* dir = \".\";@ ";
+  fprintf fmt "@[<v 2>while ((argc > 1) && (argv[1][0] == '-')) {@ ";
+  fprintf fmt "@[<v 2>switch (argv[1][1]) {@ ";
+  fprintf fmt "@[<v 2>case 't':@ ";
+  fprintf fmt "traces = 1;@ ";
+  fprintf fmt "break;@ ";
+  fprintf fmt "@]@ ";
+  fprintf fmt "@[<v 2>case 'd':@ ";
+  fprintf fmt "dir = &argv[1][2];@ ";
+  fprintf fmt "break;@ ";
+  fprintf fmt "@]@ ";
+  fprintf fmt "@[<v 2>case 'p':@ ";
+  fprintf fmt "prefix = &argv[1][2];@ ";
+  fprintf fmt "break;@ ";
+  fprintf fmt "@]@ ";
+  fprintf fmt "@[<v 2>default:@ ";
+  fprintf fmt "printf(\"Wrong Argument: %%s\\n\", argv[1]);@ ";
+  fprintf fmt "usage(argv);@ ";
+  fprintf fmt "@]@ ";
+  fprintf fmt "@]}@ ";
+  fprintf fmt "++argv;@ ";
+  fprintf fmt "--argc;@ ";
+  fprintf fmt "@]}@ "
+  
 let print_main_code fmt basename m =
   let mname = m.mname.node_id in
+  (* TODO: find a proper way to shorthen long names. This causes segfault in the binary when trying to fprintf in them *)
+  let mname = if String.length mname > 50 then string_of_int (Hashtbl.hash mname) else mname in
+  
   let main_mem =
     if (!Options.static_mem && !Options.main_node <> "")
     then "&main_mem"
     else "main_mem" in
+  print_usage fmt;
+  
   fprintf fmt "@[<v 2>int main (int argc, char *argv[]) {@ ";
-  print_main_inout_declaration basename fmt m;
+  print_options fmt (basename ^ "_" ^ mname);
+  print_main_inout_declaration m fmt;
   Plugins.c_backend_main_loop_body_prefix basename mname fmt ();
   print_main_memory_allocation mname main_mem fmt m;
   if !Options.mpfr then
@@ -158,7 +203,7 @@ let print_main_code fmt basename m =
   fprintf fmt "@]@ }@."       
 
 let print_main_header fmt =
-  fprintf fmt (if !Options.cpp then "#include <stdio.h>@.#include <unistd.h>@.#include \"%s/io_frontend.hpp\"@." else "#include <stdio.h>@.#include <unistd.h>@.#include \"%s/io_frontend.h\"@.")
+  fprintf fmt (if !Options.cpp then "#include <stdio.h>@.#include <unistd.h>@.#include \"%s/io_frontend.hpp\"@." else "#include <stdio.h>@.#include <unistd.h>@.#include <string.h>@.#include \"%s/io_frontend.h\"@.")
     (Options_management.core_dependency "io_frontend")
 
 let print_main_c main_fmt main_machine basename prog machines _ (*dependencies*) =

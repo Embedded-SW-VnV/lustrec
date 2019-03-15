@@ -175,7 +175,7 @@ par ex main_mem->n8->n9->_reg.flow
 let extract_scopes_defs scopes =
   let rec scope_path_name (path, flow) accu = 
     match path with 
-    | [] -> accu ^ "_reg." ^ (scope_var_name flow.var_id), flow.var_type
+    | [] -> accu ^ "_reg." ^ (scope_var_name flow.var_id), flow
     | (_, _, Some instance_id)::tl -> scope_path_name (tl, flow) ( accu ^ instance_id ^ "->" ) 
     | _ -> assert false
   in
@@ -189,22 +189,32 @@ let extract_scopes_defs scopes =
   
 let pp_scopes_files basename mname fmt scopes =
   let scopes_vars = extract_scopes_defs scopes in
-  List.iteri (fun idx _ (* (id, (var, typ)) *) ->
-      Format.fprintf fmt "FILE *f_out_scopes_%i;@ " (idx+1);
-      (* we start from 1: in1, in2, ... *)
-    Format.fprintf fmt
-      "f_out_scopes_%i = fopen(\"%s_%s_simu.scope%i\", \"w\");@ "
-      (idx+1) basename mname (idx+1);
-  ) scopes_vars
-
+  List.iteri (fun idx  _(*(id, (var_path, var))*)  ->
+      C_backend_common.pp_file_decl fmt "out_scopes" idx)
+    scopes_vars;
+  Format.fprintf fmt "@[<v 2>if (traces) {@ ";
+  List.iteri (fun idx  (id, (var_path, var))  ->
+      let file = C_backend_common.pp_file_open fmt "out_scopes" idx in
+      Format.fprintf fmt
+        "fprintf(%s, \"# scope: %s\\n\");@ "
+        file id;
+      Format.fprintf fmt
+        "fprintf(%s, \"# node: %s\\n\");@ "
+        file (Utils.desome var.var_parent_nodeid);
+      Format.fprintf fmt
+        "fprintf(%s, \"# variable: %s\\n\");@ "
+        file var.var_id
+    ) scopes_vars;
+  Format.fprintf fmt "@]}@ "
+    
   
 let pp_scopes fmt scopes = 
   let scopes_vars = extract_scopes_defs scopes in
-  List.iteri (fun idx (id, (var, typ)) ->
+  List.iteri (fun idx (id, (var_path, var)) ->
     Format.fprintf fmt "@ %t;" 
       (fun fmt -> C_backend_common.print_put_var fmt
-                    ("_scopes_" ^ string_of_int (idx+1))
-                    id (*var*) typ var)
+                    ("_scopes" ^ string_of_int (idx+1))
+                    id (*var*) var.var_type var_path)
   ) scopes_vars
 
 (**********************************************************************)
