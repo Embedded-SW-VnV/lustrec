@@ -136,6 +136,10 @@ val get_typedefs: program_t -> top_decl list
 val get_dependencies : program_t -> top_decl list
 (* val prog_unfold_consts: program_t -> program_t *)
 
+(** Returns the node named ident in the provided program. Raise Not_found *)
+val get_node : ident -> program_t -> node_desc
+
+  
 val rename_static: (ident -> Dimension.dim_expr) -> type_dec_desc -> type_dec_desc
 val rename_carrier: (ident -> ident) -> clock_dec_desc -> clock_dec_desc
 
@@ -182,10 +186,13 @@ val reset_cpt_fresh: unit -> unit
 val mk_fresh_var: (ident * var_decl list) -> Location.t -> Types.type_expr ->  Clocks.clock_expr -> var_decl
 
 val find_eq: ident list -> eq list -> eq * eq list
+
+(* Extract a num to describe a real constant *)
+val cst_real_to_num: Num.num -> int -> Num.num
+
 val get_expr_calls: top_decl list -> expr -> Utils.ISet.t
 
 val eq_has_arrows: eq -> bool
-
 
 (* Local Variables: *)
 (* compile-command:"make -C .." *)

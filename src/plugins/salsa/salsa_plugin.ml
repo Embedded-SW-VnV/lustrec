@@ -5,7 +5,8 @@ let salsa_enabled = ref false
     (* "-salsa", Arg.Set salsa_enabled, "activate Salsa optimization <default>"; *)
     (* "-no-salsa", Arg.Clear salsa_enabled, "deactivate Salsa optimization"; *)
 
-
+  
+  
 module Plugin =
 (struct
   include PluginType.Default
@@ -13,11 +14,19 @@ module Plugin =
   
   let options = [
         "-debug", Arg.Set SalsaDatatypes.debug, "debug salsa plugin";
+        "-verbose", Arg.Set_int Salsa.Log.verbose_level, "salsa plugin verbose level (default is 0)";
         "-slice-depth", Arg.Set_int Salsa.Prelude.sliceSize, "salsa slice depth (default is 5)";
-      ]
+        "-disable", Arg.Clear salsa_enabled, "disable salsa";
+    ]
 
-  let activate () = salsa_enabled := true
-
+  let activate () =
+    salsa_enabled := true
+    
+  let init () =
+    if !salsa_enabled then
+      if  !SalsaDatatypes.debug then
+        Salsa.Log.debug := true
+  
   let refine_machine_code prog machine_code = 
     if !salsa_enabled then
       begin

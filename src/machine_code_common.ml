@@ -5,7 +5,7 @@ open Corelang
 let print_statelocaltag = true
 
 let is_memory m id =
-  List.exists (fun o -> o.var_id = id.var_id) m.mmemory
+  (List.exists (fun o -> o.var_id = id.var_id) m.mmemory) 
 
 let rec pp_val m fmt v =
   let pp_val = pp_val m in
@@ -247,13 +247,13 @@ let get_machine_opt machines name =
 
 let get_machine machines node_name =
  try
-  List.find (fun m  -> m.mname.node_id = node_name) machines
- with Not_found -> Format.eprintf "Unable to find machine %s in machines %a@.@?"
-   node_name
-   (Utils.fprintf_list ~sep:", " (fun fmt m -> Format.pp_print_string fmt m.mname.node_id)) machines
-   ; assert false
+    Utils.desome (get_machine_opt machines node_name) 
+ with Utils.DeSome ->
+   Format.eprintf "Unable to find machine %s in machines %a@.@?"
+     node_name
+     (Utils.fprintf_list ~sep:", " (fun fmt m -> Format.pp_print_string fmt m.mname.node_id)) machines
+      ; assert false
      
-    
 let get_const_assign m id =
   try
     match get_instr_desc (List.find

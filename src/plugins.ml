@@ -8,10 +8,16 @@ let options () =
     List.map Options_management.plugin_opt (
       List.map (fun m ->
 	let module M = (val m : PluginType.S) in
-	(M.name, M.activate, M.options)
+	(M.name, M.activate, M.usage, M.options)
       ) plugins
     ))
 
+let init () =
+  List.iter (fun m ->
+      let module M = (val m : PluginType.S) in
+      M.init ()
+    ) plugins
+  
 let check_force_stateful () =
   List.exists (fun m ->
 	let module M = (val m : PluginType.S) in

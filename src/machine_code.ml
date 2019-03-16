@@ -452,6 +452,7 @@ let translate_prog decls node_schs =
   in
   machines
 
+
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

@@ -9,15 +9,13 @@
 (*                                                                  *)
 (********************************************************************)
 
-let report ?plugin:(modulename="") ~level:level p =
-if !Options.verbose_level >= level then
+let report ?plugin:(modulename="") ?(verbose_level=Options.verbose_level) ~level:level p =
+if !verbose_level >= level then
   begin
     if modulename="" then
       Format.eprintf "%t" p
     else
       Format.eprintf "[%s] @[%t@]" modulename p
-  (* Removed the flush since it was breaking most open/close boxes *)
-  (* Format.pp_print_flush Format.err_formatter () *)
   end
 
 (* Local Variables: *)
