@@ -361,25 +361,31 @@ module Plugin : (
     include PluginType.PluginType
     val show_scopes: unit -> bool
     end) =
-struct
-  let name = "scopes"
-  let is_active () = 
-    !option_scopes || !option_show_scopes || !option_all_scopes
-  (* || !option_mem_scopes || !option_input_scopes *)
+  struct
+    include PluginType.Default
+    let name = "scopes"
+    let is_active () = 
+      !option_scopes || !option_show_scopes || !option_all_scopes
+    (* || !option_mem_scopes || !option_input_scopes *)
       
-  let show_scopes () = 
-    !option_show_scopes && (
-      Compiler_common.check_main ();
-      true)
+    let show_scopes () = 
+      !option_show_scopes && (
+        Compiler_common.check_main ();
+        true)
 
-  let options = [
-    "-select", Arg.String register_scopes, "specifies which variables to log";
-    "-input", Arg.String register_inputs, "specifies the simulation input";
-    "-show-possible-scopes", Arg.Set option_show_scopes, "list possible variables to log";
-    "-select-all", Arg.Unit register_all_scopes, "select all possible variables to log";
-    (* "-select-mems", Arg.Set option_mems_scopes, "select all memory variables to log";
-     * "-select-inputs", Arg.Set option_input_scopes, "select all input variables to log"; *)
-  ]
+    let usage fmt =
+      let open Format in
+      fprintf fmt "@[<hov 0>Scopes@ enrich@ the@ internal@ memories@ to@ record@ all@ or@ a@ selection@ of@ internals.@ In@ conjunction@ with@ the@ trace@ option@ of@ the@ produced@ binary@ it@ can@ also@ record@ these@ flow@ values@ within@ separated@ log@ files.@]@ @ ";
+      fprintf fmt "Options are:@ "
+    
+    let options = [
+        "-select", Arg.String register_scopes, "specifies which variables to log";
+        "-input", Arg.String register_inputs, "specifies the simulation input";
+        "-show-possible-scopes", Arg.Set option_show_scopes, "list possible variables to log";
+        "-select-all", Arg.Unit register_all_scopes, "select all possible variables to log";
+(* "-select-mems", Arg.Set option_mems_scopes, "select all memory variables to log";
+ * "-select-inputs", Arg.Set option_input_scopes, "select all input variables to log"; *)
+      ]
 
   let activate = activate
 
@@ -389,10 +395,10 @@ struct
     if show_scopes () then
       begin
 	let all_scopes = compute_scopes prog !Options.main_node in
-      (* Printing scopes *)
-      if !Options.verbose_level >= 1 then
-	Format.printf "Possible scopes are:@   ";
-	Format.printf "@[<v>%a@ @]@.@?" print_scopes all_scopes;
+        (* Printing scopes *)
+        if !Options.verbose_level >= 1 then 
+	  Format.printf "Possible scopes are:@ ";
+	Format.printf "@[<v 0>%a@ @]@.@?" print_scopes all_scopes;
 	exit 0
       end;
     if is_active () then

@@ -9,10 +9,11 @@
 (*                                                                  *)
 (********************************************************************)
 
-let report ~level:level p =
-if !Options.verbose_level >= level then
+let report ?(plugins="") ?(verbose_level=Options.verbose_level) ~level:level p =
+  let plugins = if plugins = "" then plugins else plugins ^ " " in 
+  if !verbose_level >= level then
   begin
-    Format.eprintf "%t" p;
+    Format.eprintf "%s%t" plugins p;
   (* Removed the flush since it was breaking most open/close boxes *)
   (* Format.pp_print_flush Format.err_formatter () *)
   end

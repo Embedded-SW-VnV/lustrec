@@ -120,6 +120,7 @@ let rec compile_source dirname basename extension =
   end
 
 let compile dirname basename extension =
+  Plugins.init ();
   match extension with
   | ".lusi"  -> compile_header dirname basename extension
   | ".lus"   -> compile_source dirname basename extension
