@@ -326,16 +326,16 @@ let node_as_switched_sys (mems:var_decl list) nd =
         | _ -> assert false (* should have been removed by normalization *)
       ) [] sorted_eqs
   in
-  report ~level:2 (fun fmt -> Format.fprintf fmt "Printing out memories definitions (may takes time)@.");
+  report ~level:2 (fun fmt -> Format.fprintf fmt "Printing out (guarded) memories definitions (may takes time)@.");
   (* Printing memories definitions *)
   report ~level:3
     (fun fmt ->
       Format.fprintf fmt
-        "%a"
-        (Utils.fprintf_list ~sep:"@."
+        "@[<v 0>%a@]@ "
+        (Utils.fprintf_list ~sep:"@ "
            (fun fmt (m,mdefs) ->
              Format.fprintf fmt
-               "%s -> @[<v 0>[%a@] ]@."
+               "%s -> [@[<v 0>%a@] ]@ "
                m
                (Utils.fprintf_list ~sep:"@ "
                   pp_guard_expr) mdefs
@@ -347,20 +347,20 @@ let node_as_switched_sys (mems:var_decl list) nd =
   report ~level:3
     (fun fmt ->
       Format.fprintf fmt
-        "Init:@.%a@.Step@.%a"
-        (Utils.fprintf_list ~sep:"@."
+        "@[<v 0>Init:@ %a@ Step@ %a@]@ "
+        (Utils.fprintf_list ~sep:"@ "
            (fun fmt (m,mdefs) ->
              Format.fprintf fmt
-               "%s -> @[<v 0>[%a@] ]@."
+               "%s -> @[<v 0>[%a@] ]@ "
                m
                (Utils.fprintf_list ~sep:"@ "
                   pp_guard_expr) mdefs
         ))
         init_defs
-        (Utils.fprintf_list ~sep:"@."
+        (Utils.fprintf_list ~sep:"@ "
            (fun fmt (m,mdefs) ->
              Format.fprintf fmt
-               "%s -> @[<v 0>[%a@] ]@."
+               "%s -> @[<v 0>[%a@] ]@ "
                m
                (Utils.fprintf_list ~sep:"@ "
                   pp_guard_expr) mdefs
