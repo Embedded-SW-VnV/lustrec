@@ -101,6 +101,7 @@ struct
             fprintf fmt "Ada.Text_IO.Put(\"'%a': '\");@,Float_IO.Put(%a, Fore=>0, Aft=> 15, Exp => 0);@,Ada.Text_IO.Put_Line(\"' \")"
               pp_var_name var
               pp_var_name var
+        | Types.Basic.Tstring | Types.Basic.Trat -> assert false (* Could not be the top level inputs *)
     in
 
     (* Loop instructions *)

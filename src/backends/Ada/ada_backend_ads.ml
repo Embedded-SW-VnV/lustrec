@@ -117,11 +117,15 @@ struct
      @param fmt the formater to print on
      @param machine the machine
   **)
-  let pp_step_prototype_contract fmt m = pp_procedure_prototype_contract
+  let pp_step_prototype_contract fmt m =
+    ()
+      (* Temporarily disabled while waiting for the code to stabilize 
+pp_procedure_prototype_contract
         (pp_step_prototype m)
         fmt
         m.mspec
-
+       *)
+    
   (** Remove duplicates from a list according to a given predicate.
      @param eq the predicate defining equality
      @param l the list to parse
