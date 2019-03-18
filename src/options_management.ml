@@ -146,8 +146,13 @@ let lustrev_options =
 ]
 
   
-let plugin_opt (name, activate, options) =
+let plugin_opt (name, activate, usage, options) =
+  let usage () =
+    Format.printf "@[<v 2>Plugin %s:@ %t@]@." name usage;
+    exit 0
+  in
   ( "-" ^ name , Arg.Unit activate, "activate plugin " ^ name ) ::
+  ( "-" ^ name ^ "-help" , Arg.Unit usage, "plugin " ^ name ^ " help") ::
     (List.map (fun (opt, act, desc) -> "-" ^ name ^ opt, act, desc) options)
  
 let verifier_opt (name, activate, options) =

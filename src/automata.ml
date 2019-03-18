@@ -162,7 +162,8 @@ let node_of_unless nused used node aut_id aut_state handler =
     node_dec_stateless = false;
     node_stateless = None;
     node_spec = None;
-    node_annot = []
+    node_annot = [];
+    node_iscontract = false;
   },
   mkexpr handler.hand_loc (Expr_appl (node_id, mkexpr handler.hand_loc (Expr_tuple args), reset))
 
@@ -213,7 +214,8 @@ let node_of_assign_until nused used node aut_id aut_state handler =
     node_dec_stateless = false;
     node_stateless = None;
     node_spec = None;
-    node_annot = handler.hand_annots
+    node_annot = handler.hand_annots;
+    node_iscontract = false;
   },
   mkexpr handler.hand_loc (Expr_appl (node_id, mkexpr handler.hand_loc (Expr_tuple args), reset))
 

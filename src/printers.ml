@@ -323,15 +323,51 @@ let pp_spec fmt spec =
   fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt import ->
     fprintf fmt "import %s (%a) returns (%a);" 
       import.import_nodeid
-      (fprintf_list ~sep:"@ " pp_expr) import.inputs
-      (fprintf_list ~sep:"@ " pp_expr) import.outputs
+      pp_expr import.inputs
+      pp_expr import.outputs
   ) fmt spec.imports
 
-let pp_spec_as_comment fmt spec =
-  fprintf fmt "@[<hov 2>(*@@ ";
-  pp_spec fmt spec;
-  fprintf fmt "@]*)@ "
+
+  let node_as_contract nd =
+  match nd.node_spec with
+  | None | Some (NodeSpec _) -> raise (Invalid_argument "Not a contract")
+  | Some (Contract c) -> (
+    assert (c.locals = []);
+    assert (c.stmts = []);
+    { c with
+      locals = nd.node_locals;
+      stmts = nd.node_stmts;
+    }
+  )
+
+let pp_contract fmt nd =    
+  let c = node_as_contract nd in
+  let pp_l = fprintf_list ~sep:"," pp_var_name in
+  fprintf fmt "@[<hov 2>(*@@ contract %s(%a) returns (%a);@ "
+    nd.node_id
+    pp_l nd.node_inputs
+    pp_l nd.node_outputs;
+  fprintf fmt "let@ ";
+  pp_spec fmt c;
+  fprintf fmt "tel@ @]*)@ "        
     
+let pp_spec_as_comment fmt (inl, outl, spec) =
+  match spec with
+  | Contract c -> (* should have been processed by now *)
+     fprintf fmt "@[<hov 2>(*@@ ";
+     pp_spec fmt c;
+     fprintf fmt "@]*)@ "
+     
+  | NodeSpec name -> (* Pushing stmts in contract. We update the
+                      original information with the computed one in
+                      nd. *)
+     let pp_l = fprintf_list ~sep:"," pp_var_name in
+     fprintf fmt "@[<hov 2>(*@@ contract import %s(%a) returns (%a)@]*)@ "
+       name
+       pp_l inl
+       pp_l outl
+     
+              
 let pp_node fmt nd =
   fprintf fmt "@[<v 0>";
   (* Prototype *)
@@ -342,7 +378,7 @@ let pp_node fmt nd =
     pp_node_args nd.node_outputs;
   (* Contracts *)
   fprintf fmt "%a%t"
-    (fun fmt s -> match s with Some s -> pp_spec_as_comment fmt s | _ -> ()) nd.node_spec
+    (fun fmt s -> match s with Some s -> pp_spec_as_comment fmt (nd.node_inputs, nd.node_outputs, s) | _ -> ()) nd.node_spec
     (fun fmt -> match nd.node_spec with None -> () | Some _ -> fprintf fmt "@ ");
   (* Locals *)
   fprintf fmt "%a" (fun fmt locals ->
@@ -375,6 +411,15 @@ let pp_node fmt nd =
 
 (*fprintf fmt "@ /* Scheduling: %a */ @ " (fprintf_list ~sep:", " pp_print_string) (Scheduling.schedule_node nd)*)
 
+let pp_node fmt nd =
+  match nd.node_spec, nd.node_iscontract with
+  | None, false
+    | Some (NodeSpec _), false 
+    -> pp_node fmt nd
+  | Some (Contract _), false -> pp_node fmt nd (* may happen early in the compil process *)
+  | Some (Contract _), true -> pp_contract fmt nd 
+  | _ -> assert false
+     
 let pp_imported_node fmt ind = 
   fprintf fmt "@[<v 0>";
   (* Prototype *)
@@ -385,7 +430,7 @@ let pp_imported_node fmt ind =
     pp_node_args ind.nodei_outputs;
   (* Contracts *)
   fprintf fmt "%a%t"
-    (fun fmt s -> match s with Some s -> pp_spec_as_comment fmt s | _ -> ()) ind.nodei_spec
+    (fun fmt s -> match s with Some s -> pp_spec_as_comment fmt (ind.nodei_inputs, ind.nodei_outputs, s) | _ -> ()) ind.nodei_spec
     (fun fmt -> match ind.nodei_spec with None -> () | Some _ -> fprintf fmt "@ ");
   fprintf fmt "@]@ "
   

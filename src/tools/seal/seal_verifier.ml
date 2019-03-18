@@ -4,6 +4,34 @@ open Seal_utils
 
 let active = ref false
 
+(* TODO
+
+   - build the output function: for the moment we slice the node with
+   its memories, building the function updating the memory. We will
+   need later the output function, using inputs and memories to
+   compute the output. A way to do this would be to declared memories
+   as input, remove their definitions, and slice the node with its
+   outputs. This should clean up unnecessary internal variables and
+   give us the output function.
+
+   - compute the dimension of the node (nb of memories)
+
+   - if the updates are all linear or affine, provide the update as a
+   matrix rather then a polynomial. Check if this is simpler to do
+   here or in matlab.
+
+   - analyzes require bounds on inputs or sometimes target property 
+   over states. These could be specified as node annotations: eg     
+     - /seal/bounds/inputs/semialg/: (in1^4 + in2^3, 1) 
+       to specify that the inputs are constrained by a semialgebraic 
+       set (p,b) such as p(inputs) <= b
+     - /seal/bounds/inputs/LMI/: (todo_describe_a_matrix) .... and so on. 
+       To be defined depending on needs.
+     - /seal/prop/semialg/: (x3 - x5, 2) -- if x3 - x5 <= 2 is 
+       the property to prove
+     
+ *)
+           
 (* Select the appropriate node, should have been inlined already and
    extract update/output functions. *)
 let seal_run basename prog machines =

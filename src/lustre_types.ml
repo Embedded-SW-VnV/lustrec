@@ -129,7 +129,10 @@ type contract_mode =
   { mode_id: ident; require: eexpr list; ensure: eexpr list; mode_loc: Location.t}
 
 type contract_import =
-  { import_nodeid: ident; inputs: expr list; outputs: expr list; import_loc: Location.t }
+  { import_nodeid: ident;
+    inputs: expr;
+    outputs: expr;
+    import_loc: Location.t }
     
 
 
@@ -174,6 +177,9 @@ type contract_desc =
     spec_loc: Location.t;
   }
 
+type node_spec_t = Contract of contract_desc
+                 | NodeSpec of ident
+
 type node_desc =
     {node_id: ident;
      mutable node_type: Types.type_expr;
@@ -187,8 +193,9 @@ type node_desc =
      node_stmts: statement list;
      mutable node_dec_stateless: bool;
      mutable node_stateless: bool option;
-     node_spec: contract_desc option;
+     node_spec: node_spec_t option;
      node_annot: expr_annot list;
+     node_iscontract: bool;
     }
 
 type imported_node_desc =
@@ -198,7 +205,7 @@ type imported_node_desc =
      nodei_inputs: var_decl list;
      nodei_outputs: var_decl list;
      nodei_stateless: bool;
-     nodei_spec: contract_desc option;
+     nodei_spec: node_spec_t option;
      (* nodei_annot: expr_annot list; *)
      nodei_prototype: string option;
      nodei_in_lib: string list;
@@ -213,14 +220,14 @@ type const_desc =
 
   
 type top_decl_desc =
-| Node of node_desc
-| Const of const_desc
-| ImportedNode of imported_node_desc
-| Open of bool * string (* the boolean set to true denotes a local
+  | Node of node_desc
+  | Const of const_desc
+  | ImportedNode of imported_node_desc
+  | Open of bool * string (* the boolean set to true denotes a local
 			   lusi vs a lusi installed at system level *)
-| Include of string (* the boolean set to true denotes a local
+  | Include of string (* the boolean set to true denotes a local
 			   lus vs a lus installed at system level *)
-| TypeDef of typedef_desc
+  | TypeDef of typedef_desc
     
 type top_decl =
     {top_decl_desc: top_decl_desc;      (* description of the symbol *)
@@ -236,6 +243,10 @@ type dep_t = {
     content: program_t;
     is_stateful: bool
   }
+
+type spec_types =
+  | LocalContract of contract_desc
+  | TopContract of top_decl list
 
 
 

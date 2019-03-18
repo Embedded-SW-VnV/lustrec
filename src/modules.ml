@@ -49,7 +49,7 @@ let add_node name value =
     let itf = value.top_decl_itf in
     match value'.top_decl_desc, value.top_decl_desc with
     | ImportedNode _, Node _          when owner = owner' && itf' && (not itf) -> ()
-    | Node _        , Node _                    -> raise (Error (value.top_decl_loc, Error.Already_bound_symbol ("node " ^ name)))
+    | Node _        , Node _                    -> assert false; raise (Error (value.top_decl_loc, Error.Already_bound_symbol ("node " ^ name)))
     | _                                         -> assert false
   with
     Not_found                                   -> update_node name value

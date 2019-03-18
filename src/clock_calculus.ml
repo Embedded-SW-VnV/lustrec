@@ -794,10 +794,17 @@ let uneval_prog_generics prog =
 
 let check_env_compat header declared computed =
   uneval_prog_generics header;
-  Env.iter declared (fun k decl_clock_k -> 
-    let computed_c = instantiate (ref []) (ref []) (Env.lookup_value computed k) in
-    try_semi_unify decl_clock_k computed_c Location.dummy_loc
-  ) 
+  Env.iter declared (fun k decl_clock_k ->
+      try
+        let computed_c = instantiate (ref []) (ref []) (Env.lookup_value computed k) in
+        try_semi_unify decl_clock_k computed_c Location.dummy_loc
+      with Not_found -> (* If the lookup failed then either an actual
+                           required element should have been declared
+                           and is missing but typing should have catch
+                           it, or it was a contract and does not
+                           require this additional check.  *)
+          ()
+    ) 
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

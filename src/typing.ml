@@ -669,16 +669,16 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
     let check_vd_env vd_env =
       ignore (List.fold_left add_vdecl [] vd_env)
 
-    let type_spec env spec =
-      let vd_env = spec.consts @ spec.locals in
+    let type_contract env c =
+      let vd_env = c.consts @ c.locals in
       check_vd_env vd_env;
       let env = type_var_decl_list ((* this argument seems useless to me, cf TODO at top of the file*) vd_env) env vd_env in
       (* typing stmts *)
-      let eqs = List.map (fun s -> match s with Eq eq -> eq | _ -> assert false) spec.stmts  in
+      let eqs = List.map (fun s -> match s with Eq eq -> eq | _ -> assert false) c.stmts  in
       let undefined_vars_init =
         List.fold_left
           (fun uvs v -> ISet.add v.var_id uvs)
-          ISet.empty spec.locals
+          ISet.empty c.locals
       in
       let _ =
         List.fold_left
@@ -692,9 +692,9 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       in
       List.iter type_pred_ee
         (
-          spec.assume 
-          @ spec.guarantees
-          @ List.flatten (List.map (fun m -> m.ensure @ m.require) spec.modes) 
+          c.assume 
+          @ c.guarantees
+          @ List.flatten (List.map (fun m -> m.ensure @ m.require) c.modes) 
         );
       (*TODO 
         enrich env locally with locals and consts
@@ -703,13 +703,19 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
         For the moment, returning the provided env           
        *)
       env
-      
+
+    let rec type_spec env spec loc =
+      match spec with
+      | Contract c -> type_contract env c
+      | NodeSpec id -> env
+                     
     (** [type_node env nd loc] types node [nd] in environment env. The
     location is used for error reports. *)
-    let type_node env nd loc =
+    and type_node env nd loc =
       let is_main = nd.node_id = !Options.main_node in
-      let vd_env_ol = nd.node_outputs@nd.node_locals in
-      let vd_env =  nd.node_inputs@vd_env_ol in
+      (* In contracts, outputs are considered as input values *)
+      let vd_env_ol = if nd.node_iscontract then nd.node_locals else nd.node_outputs@nd.node_locals in
+      let vd_env =  nd.node_inputs@nd.node_outputs@nd.node_locals in
       check_vd_env vd_env;
       let init_env = env in
       let delta_env = type_var_decl_list vd_env init_env nd.node_inputs in
@@ -720,18 +726,22 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
         List.fold_left
           (fun uvs v -> ISet.add v.var_id uvs)
           ISet.empty vd_env_ol in
+      Format.eprintf "Undef1: %a@ " pp_iset undefined_vars_init;
       let undefined_vars =
         let eqs, auts = get_node_eqs nd in
         (* TODO XXX: il faut typer les handlers de l'automate *)
         List.fold_left (type_eq (new_env, vd_env) is_main) undefined_vars_init eqs
       in
+      Format.eprintf "Undef2: %a@ " pp_iset undefined_vars;
       (* Typing asserts *)
       List.iter (fun assert_ ->
           let assert_expr =  assert_.assert_expr in
           type_subtyping_arg (new_env, vd_env) is_main false assert_expr (* Type_predef. *)type_bool
         )  nd.node_asserts;
       (* Typing spec/contracts *)
-      (match nd.node_spec with None -> () | Some spec -> ignore (type_spec new_env spec));
+      (match nd.node_spec with
+       | None -> ()
+       | Some spec -> ignore (type_spec new_env spec loc));
       (* Typing annots *)
       List.iter (fun annot ->
           List.iter (fun (_, eexpr) -> ignore (type_eexpr (new_env, vd_env) eexpr)) annot.annots
@@ -739,7 +749,10 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       
       (* check that table is empty *)
       let local_consts = List.fold_left (fun res vdecl -> if vdecl.var_dec_const then ISet.add vdecl.var_id res else res) ISet.empty nd.node_locals in
+      Format.eprintf "Localconsts: %a@ " pp_iset local_consts;
       let undefined_vars = ISet.diff undefined_vars local_consts in
+      Format.eprintf "Undef3: %a@ " pp_iset undefined_vars;
+
       if (not (ISet.is_empty undefined_vars)) then
         raise (Error (loc, Undefined_var undefined_vars));
       let ty_ins = type_of_vlist nd.node_inputs in
@@ -757,7 +770,9 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       let delta_env = type_var_decl_list vd_env delta_env nd.nodei_outputs in
       let new_env = Env.overwrite env delta_env in
       (* Typing spec *)
-      (match nd.nodei_spec with None -> () | Some spec -> ignore (type_spec new_env spec)); 
+      (match nd.nodei_spec with
+       | None -> ()
+       | Some spec -> ignore (type_spec new_env spec loc)); 
       let ty_ins = type_of_vlist nd.nodei_inputs in
       let ty_outs = type_of_vlist nd.nodei_outputs in
       let ty_node = new_ty (Tarrow (ty_ins,ty_outs)) in
@@ -865,14 +880,27 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
     let check_env_compat header declared computed = 
       uneval_prog_generics header;
       Env.iter declared (fun k decl_type_k ->
-          let loc = (get_imported_symbol header k).top_decl_loc in 
-          let computed_t =
-            instantiate (ref []) (ref []) 
-	      (try Env.lookup_value computed k
-	       with Not_found -> raise (Error (loc, Declared_but_undefined k))) in
-          (*Types.print_ty Format.std_formatter decl_type_k;
-      Types.print_ty Format.std_formatter computed_t;*)
-          try_unify ~sub:true ~semi:true decl_type_k computed_t loc
+          let top = get_imported_symbol header k in
+          let loc = top.top_decl_loc in 
+          try
+            let computed_t = Env.lookup_value computed k in
+            let computed_t = instantiate (ref []) (ref []) computed_t in
+            (*Types.print_ty Format.std_formatter decl_type_k;
+              Types.print_ty Format.std_formatter computed_t;*)                   
+            try_unify ~sub:true ~semi:true decl_type_k computed_t loc
+          with Not_found ->
+            begin
+              (* If top is a contract we do not require the lustre
+                 file to provide the same definition. *)
+              match top.top_decl_desc with
+              | Node nd -> (
+                match nd.node_spec with
+                | Some (Contract _) -> ()
+                | _ -> raise (Error (loc, Declared_but_undefined k))
+              )                                                            
+              | _ ->
+                 raise (Error (loc, Declared_but_undefined k))
+            end
         )
 
     let check_typedef_top decl =

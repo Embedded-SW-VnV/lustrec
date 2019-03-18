@@ -5,7 +5,7 @@ open Corelang
 let print_statelocaltag = true
 
 let is_memory m id =
-  List.exists (fun o -> o.var_id = id.var_id) m.mmemory
+  (List.exists (fun o -> o.var_id = id.var_id) m.mmemory) 
 
 let rec pp_val m fmt v =
   let pp_val = pp_val m in
@@ -105,7 +105,9 @@ let pp_machine fmt m =
     (Utils.fprintf_list ~sep:"@ " (pp_instr m)) m.minit
     (Utils.fprintf_list ~sep:"@ " (pp_instr m)) m.mconst
     (pp_step m) m.mstep
-    (fun fmt -> match m.mspec with | None -> () | Some spec -> Printers.pp_spec fmt spec)
+    (fun fmt -> match m.mspec with | None -> ()
+                                   | Some (NodeSpec id) -> Format.fprintf fmt "cocospec: %s" id
+                                   | Some (Contract spec) -> Printers.pp_spec fmt spec)
     (Utils.fprintf_list ~sep:"@ " Printers.pp_expr_annot) m.mannot
 
 let pp_machines fmt ml =
@@ -190,7 +192,9 @@ let empty_desc =
     node_dec_stateless = true;
     node_stateless = Some true;
     node_spec = None;
-    node_annot = [];  }
+    node_annot = [];
+    node_iscontract = false;
+}
 
 let empty_machine =
   {
@@ -243,13 +247,13 @@ let get_machine_opt machines name =
 
 let get_machine machines node_name =
  try
-  List.find (fun m  -> m.mname.node_id = node_name) machines
- with Not_found -> Format.eprintf "Unable to find machine %s in machines %a@.@?"
-   node_name
-   (Utils.fprintf_list ~sep:", " (fun fmt m -> Format.pp_print_string fmt m.mname.node_id)) machines
-   ; assert false
+    Utils.desome (get_machine_opt machines node_name) 
+ with Utils.DeSome ->
+   Format.eprintf "Unable to find machine %s in machines %a@.@?"
+     node_name
+     (Utils.fprintf_list ~sep:", " (fun fmt m -> Format.pp_print_string fmt m.mname.node_id)) machines
+      ; assert false
      
-    
 let get_const_assign m id =
   try
     match get_instr_desc (List.find

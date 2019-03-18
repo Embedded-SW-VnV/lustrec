@@ -41,6 +41,7 @@ let keyword_table =
   "returns", RETURNS;
   "var", VAR;
   "imported", IMPORTED;
+  "import", IMPORT;
   "type", TYPE;
   "int", TINT;
   "bool", TBOOL;

@@ -20,6 +20,5 @@ val get_machine_opt: Machine_code_types.machine_t list -> string -> Machine_code
 (* Same function but fails if no such a machine  exists *)
 val get_machine: Machine_code_types.machine_t list -> string -> Machine_code_types.machine_t
 
-  
 val get_node_def: string -> Machine_code_types.machine_t -> Lustre_types.node_desc
 val join_guards_list: Machine_code_types.instr_t list -> Machine_code_types.instr_t list

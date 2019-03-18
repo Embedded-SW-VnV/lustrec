@@ -24,6 +24,7 @@ let return_code kind =
   | AlgebraicLoop -> 9
   | LoadError _ -> 10
 
+
   let pp_error_msg fmt = function
   | Main_not_found ->
       fprintf fmt "Could not find the definition of main node %s.@."

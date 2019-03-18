@@ -40,6 +40,7 @@ let keyword_table =
   "tel", TEL;
   "returns", RETURNS;
   "var", VAR;
+  "import", IMPORT;
   "imported", IMPORTED;
   "int", TINT;
   "bool", TBOOL;
