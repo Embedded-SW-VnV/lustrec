@@ -1,0 +1,5 @@
+
+
+For the ADA backend:
+- GNAT 2018 community edition on https://www.adacore.com/download
+- gprbuild shall be in your path
