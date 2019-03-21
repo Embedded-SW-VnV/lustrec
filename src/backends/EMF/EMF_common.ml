@@ -102,7 +102,7 @@ let rec pp_concrete_type dec_t infered_t fmt =
   match dec_t with
   | Tydec_any -> (* Dynamical built variable. No declared type. Shall
                     use the infered one. *)
-     fprintf fmt "{ \"kind\": \"%a\" }" pp_infered_type infered_t
+     fprintf fmt "{ \"kind\": %a }" pp_infered_type infered_t
   | Tydec_int -> fprintf fmt "{ \"kind\": \"int\" }" (* !Options.int_type *)
   | Tydec_real -> fprintf fmt "{ \"kind\": \"real\" }" (* !Options.real_type *)
   (* TODO we could add more concrete types here if they were available in
@@ -170,9 +170,9 @@ and pp_tag_type id typ inf fmt =
 and pp_infered_type fmt t =
   (* Shall only be used for variable types that were not properly declared. Ie generated at compile time. *)
   let open Types in
-  if is_bool_type t  then fprintf fmt "bool" else
-    if is_int_type t then fprintf fmt "int" else (* !Options.int_type *)
-      if is_real_type t then fprintf fmt "real" else (* !Options.real_type *)
+  if is_bool_type t  then fprintf fmt "\"bool\"" else
+    if is_int_type t then fprintf fmt "\"int\"" else (* !Options.int_type *)
+      if is_real_type t then fprintf fmt "\"real\"" else (* !Options.real_type *)
         match t.tdesc with
         | Tclock t ->
            pp_infered_type fmt t
@@ -240,18 +240,18 @@ let pp_cst_type c inf fmt (*infered_typ*) =
   | Const_tag t ->
      let typ = (Corelang.typedef_of_top (Hashtbl.find Corelang.tag_table t)) in
      if typ.tydef_id = "bool" then
-       fprintf fmt "bool"
+       fprintf fmt "\"bool\""
      else
        pp_tag_type t typ inf fmt
-  | Const_int _ -> fprintf fmt "int" (*!Options.int_type*)
-  | Const_real _ -> fprintf fmt "real" (*!Options.real_type*)
-  | Const_string _ -> fprintf fmt "string" 
+  | Const_int _ -> fprintf fmt "\"int\"" (*!Options.int_type*)
+  | Const_real _ -> fprintf fmt "\"real\"" (*!Options.real_type*)
+  | Const_string _ -> fprintf fmt "\"string\"" 
   | _ -> eprintf "cst: %a@." Printers.pp_const c; assert false
 
     
 let pp_emf_cst c inf fmt =
   let pp_typ fmt =
-    fprintf fmt "\"datatype\": { \"kind\": \"%t\" } @ "
+    fprintf fmt "\"datatype\": { \"kind\": %t } @ "
       (pp_cst_type c inf)   
   in
   match c with
@@ -414,7 +414,7 @@ let rec pp_emf_typ_dec fmt tydef_dec =
  
 let pp_emf_typedef fmt typdef_top =
   let typedef = Corelang.typedef_of_top typdef_top in
-  fprintf fmt "\"%s\": @[%a@]" typedef.tydef_id pp_emf_typ_dec typedef.tydef_desc 
+  fprintf fmt "{ \"%s\": @[%a@] }" typedef.tydef_id pp_emf_typ_dec typedef.tydef_desc 
   
 let pp_emf_top_const fmt const_top = 
   let const = Corelang.const_of_top const_top in
