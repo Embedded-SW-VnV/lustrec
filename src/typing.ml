@@ -334,8 +334,8 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
            with Not_found -> 
 	     ty_struct
          end
-      | Const_string _ | Const_modeid _     -> 
-         if is_annot then (* Type_predef. *)type_string else  assert false (* string datatype should only appear in annotations *)
+      | Const_string s | Const_modeid s     -> 
+         if is_annot then (* Type_predef. *)type_string else (Format.eprintf "Typing string %s outisde of annot scope@.@?" s; assert false (* string datatype should only appear in annotations *))
 
     (* The following typing functions take as parameter an environment [env]
    and whether the element being typed is expected to be constant [const]. 
