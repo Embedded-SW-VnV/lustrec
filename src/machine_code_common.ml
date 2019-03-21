@@ -46,6 +46,7 @@ let rec  pp_instr m fmt i =
 	 pp_val g
 	 (Utils.fprintf_list ~sep:"@," pp_branch) hl
     | MComment s -> Format.pp_print_string fmt s
+    | MSpec s -> Format.pp_print_string fmt ("@" ^ s)
        
   in
   (* Annotation *)
@@ -122,7 +123,10 @@ let rec is_const_value v =
 
 (* Returns the declared stateless status and the computed one. *)
 let get_stateless_status m =
- (m.mname.node_dec_stateless, try Utils.desome m.mname.node_stateless with _ -> failwith ("stateless status of machine " ^ m.mname.node_id ^ " not computed"))
+  (m.mname.node_dec_stateless,
+   try
+     Utils.desome m.mname.node_stateless
+   with _ -> failwith ("stateless status of machine " ^ m.mname.node_id ^ " not computed"))
 
 let is_stateless m = m.minstances = [] && m.mmemory = []
 

@@ -64,7 +64,7 @@ let keyword_table =
   "mode", MODE;
   "assume", ASSUME;
   "contract", CONTRACT;
-  "guarantees", GUARANTEES;
+  "guarantee", GUARANTEES;
   "exists", EXISTS;
   "forall", FORALL;
   "c_code", CCODE;

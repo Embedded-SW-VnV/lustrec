@@ -132,14 +132,6 @@ let rec carrier_repr =
   function {carrier_desc = Carry_link cr'} -> carrier_repr cr'
     | cr -> cr
 
-(** Splits [ck] into the [lhs,rhs] of an arrow clock. Expects an arrow clock
-    (ensured by language syntax) *)
-let split_arrow ck =
-  match (repr ck).cdesc with
-  | Carrow (cin,cout) -> cin,cout
-    (* Functions are not first order, I don't think the var case
-       needs to be considered here *)
-  | _ -> failwith "Internal error: not an arrow clock"
 
 let get_carrier_name ck =
  match (repr ck).cdesc with

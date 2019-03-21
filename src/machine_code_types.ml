@@ -29,6 +29,7 @@ and instr_t_desc =
   | MStep of var_decl list * ident * value_t list
   | MBranch of value_t * (label * instr_t list) list
   | MComment of string
+  | MSpec of string 
 
 type step_t = {
     step_checks: (Location.t * value_t) list;

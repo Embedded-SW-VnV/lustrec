@@ -384,8 +384,13 @@ module NodeDep = struct
 		  )
 	       )
       	   in
+           let deps_spec = match nd.node_spec with
+             | None -> []
+             | Some (NodeSpec id) -> [id]
+             | Some (Contract c) -> []
+           in
 	   (*Format.eprintf "%a@.@?" (Utils.fprintf_list ~sep:"@." Format.pp_print_string) deps; *)
-	   add_edges [nd.node_id] (deps@deps_asserts) accu
+	   add_edges [nd.node_id] (deps@deps_asserts@deps_spec) accu
 	| _ -> assert false (* should not happen *)
 	   
       ) prog g in

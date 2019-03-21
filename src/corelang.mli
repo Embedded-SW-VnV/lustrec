@@ -59,6 +59,8 @@ val update_node: ident -> top_decl -> unit
 val is_generic_node: top_decl -> bool
 val is_imported_node: top_decl -> bool
 val is_contract: top_decl -> bool
+val is_node_contract: node_desc -> bool
+val get_node_contract: node_desc -> contract_desc
   
 val consts_table: (ident, top_decl) Hashtbl.t
 val print_consts_table:  Format.formatter -> unit -> unit
@@ -154,8 +156,9 @@ val rename_expr : (ident -> ident) -> (ident -> ident) -> expr -> expr
 val rename_eq : (ident -> ident) -> (ident -> ident) -> eq -> eq
 (** val rename_aut f_node f_var aut *)
 val rename_aut : (ident -> ident) -> (ident -> ident) -> automata_desc -> automata_desc
-(** rename_prog f_node f_var prog *)
+(** rename_prog f_node f_var f_const prog *)
 val rename_prog: (ident -> ident) -> (ident -> ident) -> (ident -> ident) -> program_t -> program_t
+val rename_node: (ident -> ident) -> (ident -> ident) -> node_desc -> node_desc
 
 val substitute_expr: var_decl list -> eq list -> expr -> expr
 
@@ -169,8 +172,8 @@ val copy_prog: top_decl list -> top_decl list
 val mkeexpr: Location.t ->  expr -> eexpr
 val empty_contract: contract_desc
 val mk_contract_var: ident -> bool -> type_dec option -> expr -> Location.t -> contract_desc
-val mk_contract_guarantees: eexpr -> contract_desc
-val mk_contract_assume: eexpr -> contract_desc
+val mk_contract_guarantees: ?name:string -> eexpr -> contract_desc
+val mk_contract_assume: ?name:string -> eexpr -> contract_desc
 val mk_contract_mode: ident -> eexpr list -> eexpr list -> Location.t -> contract_desc
 val mk_contract_import: ident -> expr -> expr -> Location.t -> contract_desc
 val merge_contracts:  contract_desc -> contract_desc -> contract_desc 

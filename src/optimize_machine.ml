@@ -28,7 +28,7 @@ let pp_elim m fmt elim =
 let rec eliminate m elim instr =
   let e_expr = eliminate_expr m elim in
   match get_instr_desc instr with
-  | MComment _         -> instr
+  | MSpec _ | MComment _         -> instr
   | MLocalAssign (i,v) -> update_instr_desc instr (MLocalAssign (i, e_expr v))
   | MStateAssign (i,v) -> update_instr_desc instr (MStateAssign (i, e_expr v))
   | MReset i           -> instr
@@ -119,7 +119,7 @@ let rec simplify_instr_offset m instr =
     -> update_instr_desc instr (
       MBranch(simplify_expr_offset m cond, List.map (fun (l, il) -> l, simplify_instrs_offset m il) brl)
     )
-  | MComment _             -> instr
+  | MSpec _ | MComment _             -> instr
 
 and simplify_instrs_offset m instrs =
   List.map (simplify_instr_offset m) instrs
@@ -265,12 +265,19 @@ let instr_of_const top_const =
   let vdecl = { vdecl with var_type = const.const_type }
   in mkinstr (MLocalAssign (vdecl, mk_val (Cst const.const_value) vdecl.var_type))
 
+(* We do not perform this optimization on contract nodes since there
+   is not explicit dependence btw variables and their use in
+   contracts. *)
 let machines_unfold consts node_schs machines =
   List.fold_right (fun m (machines, removed) ->
-    let fanin = (IMap.find m.mname.node_id node_schs).Scheduling_type.fanin_table in
-    let elim_consts, _ = instrs_unfold m fanin IMap.empty (List.map instr_of_const consts) in
-    let (m, removed_m) =  machine_unfold fanin elim_consts m in
-    (m::machines, IMap.add m.mname.node_id removed_m removed)
+      let is_contract = match m.mspec with Some (Contract _) -> true | _ -> false in
+      if is_contract then
+        m::machines, removed
+      else
+        let fanin = (IMap.find m.mname.node_id node_schs).Scheduling_type.fanin_table in
+        let elim_consts, _ = instrs_unfold m fanin IMap.empty (List.map instr_of_const consts) in
+        let (m, removed_m) =  machine_unfold fanin elim_consts m in
+        (m::machines, IMap.add m.mname.node_id removed_m removed)
     )
     machines
     ([], IMap.empty)
@@ -468,7 +475,7 @@ let rec value_replace_var fvar value =
 
 let rec instr_replace_var fvar instr cont =
   match get_instr_desc instr with
-  | MComment _          -> instr_cons instr cont
+  | MSpec _ | MComment _          -> instr_cons instr cont
   | MLocalAssign (i, v) -> instr_cons (update_instr_desc instr (MLocalAssign (fvar i, value_replace_var fvar v))) cont
   | MStateAssign (i, v) -> instr_cons (update_instr_desc instr (MStateAssign (i, value_replace_var fvar v))) cont
   | MReset i            -> instr_cons instr cont
@@ -593,7 +600,9 @@ let optimize prog node_schs machine_code =
   in
   (* Optimize machine code *)
   let machine_code, removed_table = 
-    if !Options.optimization >= 2 && !Options.output <> "emf" (*&& !Options.output <> "horn"*) then
+    if !Options.optimization >= 2
+       && !Options.output <> "emf" (*&& !Options.output <> "horn"*)
+    then
       begin
 	Log.report ~level:1 (fun fmt -> Format.fprintf fmt 
 	  ".. machines optimization: const. inlining (partial eval. with const)@,");
@@ -620,7 +629,7 @@ let optimize prog node_schs machine_code =
   in
   
 
-    machine_code  
+   List.rev machine_code  
     
     
 (* Local Variables: *)

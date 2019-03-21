@@ -712,6 +712,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
     (** [type_node env nd loc] types node [nd] in environment env. The
     location is used for error reports. *)
     and type_node env nd loc =
+      (* Format.eprintf "Typing node %s@." nd.node_id; *)
       let is_main = nd.node_id = !Options.main_node in
       (* In contracts, outputs are considered as input values *)
       let vd_env_ol = if nd.node_iscontract then nd.node_locals else nd.node_outputs@nd.node_locals in
@@ -726,13 +727,11 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
         List.fold_left
           (fun uvs v -> ISet.add v.var_id uvs)
           ISet.empty vd_env_ol in
-      Format.eprintf "Undef1: %a@ " pp_iset undefined_vars_init;
       let undefined_vars =
         let eqs, auts = get_node_eqs nd in
         (* TODO XXX: il faut typer les handlers de l'automate *)
         List.fold_left (type_eq (new_env, vd_env) is_main) undefined_vars_init eqs
       in
-      Format.eprintf "Undef2: %a@ " pp_iset undefined_vars;
       (* Typing asserts *)
       List.iter (fun assert_ ->
           let assert_expr =  assert_.assert_expr in
@@ -749,10 +748,8 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       
       (* check that table is empty *)
       let local_consts = List.fold_left (fun res vdecl -> if vdecl.var_dec_const then ISet.add vdecl.var_id res else res) ISet.empty nd.node_locals in
-      Format.eprintf "Localconsts: %a@ " pp_iset local_consts;
       let undefined_vars = ISet.diff undefined_vars local_consts in
-      Format.eprintf "Undef3: %a@ " pp_iset undefined_vars;
-
+      
       if (not (ISet.is_empty undefined_vars)) then
         raise (Error (loc, Undefined_var undefined_vars));
       let ty_ins = type_of_vlist nd.node_inputs in

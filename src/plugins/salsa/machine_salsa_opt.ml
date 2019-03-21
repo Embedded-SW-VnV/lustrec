@@ -61,7 +61,7 @@ let rec get_read_vars instrs =
     )
     | MReset _ 
     | MNoReset _ 
-    | MComment _ -> Vars.empty  
+    | MSpec _ | MComment _ -> Vars.empty  
   )
 
 let rec get_written_vars instrs =
@@ -79,7 +79,7 @@ let rec get_written_vars instrs =
     )
     | MReset _ 
     | MNoReset _ 
-    | MComment _ -> Vars.empty    
+      | MSpec _ | MComment _ -> Vars.empty    
   )
 
 (* let rec iterTransformExpr fresh_id e_salsa abstractEnv old_range = *)
@@ -720,7 +720,7 @@ let rec rewrite_instrs nodename m constEnv  vars_env m instrs ranges formalEnv p
 	   new_locals
 
 
-	 | MT.MReset(_) | MT.MNoReset _ | MT.MComment _ ->
+	 | MT.MReset(_) | MT.MNoReset _ | MT.MSpec _ | MT.MComment _ ->
 	    (* if !debug then Format.eprintf "Untouched %a (non real)@ " MC.pp_instr hd_instr; *)
 
 	   (* Untouched instruction *)

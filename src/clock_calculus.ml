@@ -493,6 +493,7 @@ and clock_appl env f args clock_reset loc =
     clock_call env f args clock_reset loc
 
 and clock_call env f args clock_reset loc =
+  (* Format.eprintf "Clocking call %s@." f; *)
   let cfun = clock_ident false env f loc in
   let cins, couts = split_arrow cfun in
   let cins = clock_list_of_clock cins in

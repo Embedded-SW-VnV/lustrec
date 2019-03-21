@@ -116,6 +116,7 @@ and  eexpr =
     {eexpr_tag: tag;
      eexpr_qfexpr: expr;
      eexpr_quantifiers: (quantifier_type * var_decl list) list;
+     eexpr_name: string option;
      mutable eexpr_type: Types.type_expr;
      mutable eexpr_clock: Clocks.clock_expr;
      (* mutable eexpr_normalized: (var_decl * eq list * var_decl list) option; *)

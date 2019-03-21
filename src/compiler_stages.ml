@@ -77,9 +77,14 @@ let stage1 params prog dirname basename extension =
 
   (* Sorting nodes *)
   let prog = SortProg.sort prog in
-
+Format.eprintf "ok1@.";
   (* Consolidating contracts *)
   let prog = resolve_contracts prog in
+Format.eprintf "ok2@.";
+  let prog = SortProg.sort prog in
+Format.eprintf "ok3@.";
+  Log.report ~level:3 (fun fmt ->
+      Format.fprintf fmt "@[<v 0>Contracts resolved:@ %a@ @]@ " Printers.pp_prog prog);
   
   (* Perform inlining before any analysis *)
   let orig, prog =
@@ -322,7 +327,7 @@ let stage3 prog machine_code dependencies basename extension =
   | "emf", _ ->
      begin
        let destname = !Options.dest_dir ^ "/" ^ basename in
-       let source_file = destname ^ ".emf" in (* Could be changed *)
+       let source_file = destname ^ ".json" in (* Could be changed *)
        let source_out = open_out source_file in
        let fmt = formatter_of_out_channel source_out in
        EMF_backend.translate fmt basename prog machine_code;
