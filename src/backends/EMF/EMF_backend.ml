@@ -150,7 +150,8 @@ let is_resetable_fun lustre_eq =
     | Expr_appl(_,_,reset) -> (
       match reset with None -> false | Some _ -> true
     )
-    | _ ->  assert false
+    | Expr_arrow _ -> true
+    | _ -> Format.eprintf "reseting expr %a@.@?" Printers.pp_expr eq.eq_rhs; assert false
   )
   | None -> assert false (* should have been assigned to an original lustre equation *)
 
@@ -179,10 +180,21 @@ let rec branch_block_vars m il =
       ISet.union accu_def common_def_vars,
       VSet.union accu_read read_vars)
     (ISet.empty, ISet.empty, VSet.empty) il
+  
 and branch_instr_vars m i =
+  (* Returns all_outputs, outputs, inputs of the instruction. It is
+     only called on MBranch instructions but evaluate recursively
+     instructions appearing in branches.
+
+     It is used to gather the global input/output of a switch and
+     print it at the begin of the JSON subtree.
+
+     The set "All outputs" is used to filter out input variables
+     belong to that set. *)
+
   match Corelang.get_instr_desc i with
   | MLocalAssign (var,expr) 
-  | MStateAssign (var,expr) -> ISet.singleton var.var_id, ISet.singleton var.var_id, get_expr_vars expr
+    | MStateAssign (var,expr) -> ISet.singleton var.var_id, ISet.singleton var.var_id, get_expr_vars expr
   | MStep (vars, f, args)  ->
      let is_stateful = List.mem_assoc f m.minstances in 
      let lhs = ISet.of_list (List.map (fun v -> v.var_id) vars) in
@@ -207,6 +219,7 @@ and branch_instr_vars m i =
      )
   | MBranch (g,(_,hd_il)::tl)     -> (* We focus on variables defined in all branches *)
      let read_guard = get_expr_vars g in
+     (* Bootstrapping with first item *) 
      let all_def_vars_hd, def_vars_hd, read_vars_hd = branch_block_vars m hd_il in
      let all_def_vars, def_vars, read_vars =
        List.fold_left
@@ -220,13 +233,20 @@ and branch_instr_vars m i =
 	 (all_def_vars_hd, def_vars_hd, read_vars_hd)
 	 tl
      in
+     (* all_def_vars correspond to variables written or defined in one
+        of the branch. It may happen that a variable is defined in one
+        but not in the other, because of reset for example.  
+
+        def_vars are variables defined in all branches. *)
+
+
      all_def_vars, def_vars, VSet.union read_guard read_vars
   | MBranch _ -> assert false (* branch instruction should admit at least one case *)
   | MReset ni           
-  | MNoReset ni ->
+    | MNoReset ni ->
      let write = ISet.singleton (reset_name ni) in
      write, write, VSet.empty
-  | MComment _ -> assert false (* not  available for EMF output *)
+  | MSpec _ | MComment _ -> assert false (* not  available for EMF output *)
      
 (* A kind of super join_guards: all MBranch are postponed and sorted by
    guards so they can be easier merged *)
@@ -358,7 +378,7 @@ let rec pp_emf_instr m fmt i =
     | MStep(outputs, f, inputs ) -> (* This is an imported node *)
        EMF_library_calls.pp_call fmt m f outputs inputs
 	 
-    | MComment _ 
+    | MSpec _ | MComment _ 
       -> Format.eprintf "unhandled comment in EMF@.@?"; assert false
   (* not  available for EMF output *)
   in
@@ -380,9 +400,9 @@ let pp_emf_spec_mode fmt m =
   fprintf fmt "{@[";
   fprintf fmt "\"mode_id\": \"%s\",@ "
     m.mode_id;
-  fprintf fmt "\"require\": [%a],@ "
+  fprintf fmt "\"ensure\": [%a],@ "
     pp_emf_eexprs m.ensure;
-  fprintf fmt "\"require\": [%a],@ "
+  fprintf fmt "\"require\": [%a]@ "
     pp_emf_eexprs m.require;
   fprintf fmt "@]}"
   
@@ -402,38 +422,39 @@ let pp_emf_spec_imports = pp_emf_list pp_emf_spec_import
 
 let pp_emf_spec fmt spec =
   fprintf fmt "{ @[<hov 0>";
-  fprintf fmt "\"consts\": [%a],@ "
-    pp_emf_consts spec.consts;
-  fprintf fmt "\"locals\": [%a],@ "
-    pp_emf_vars_decl spec.locals;
-  fprintf fmt "\"stmts\": [%a],@ "
-    pp_emf_stmts spec.stmts;
+  (* fprintf fmt "\"consts\": [%a],@ "
+   *   pp_emf_consts spec.consts;
+   * fprintf fmt "\"locals\": [%a],@ "
+   *   pp_emf_vars_decl spec.locals;
+   * fprintf fmt "\"stmts\": [%a],@ "
+   *   pp_emf_stmts spec.stmts; *)
   fprintf fmt "\"assume\": [%a],@ "
     pp_emf_eexprs spec.assume;
   fprintf fmt "\"guarantees\": [%a],@ "
     pp_emf_eexprs spec.guarantees;
-  fprintf fmt "\"modes\": [%a],@ "
+  fprintf fmt "\"modes\": [%a]@ "
     pp_emf_spec_modes spec.modes;
-  fprintf fmt "\"imports\": [%a]@ "
-    pp_emf_spec_imports spec.imports;  
+  (* fprintf fmt "\"imports\": [%a]@ "
+   *   pp_emf_spec_imports spec.imports;   *)
   fprintf fmt "@] }"
   
 let pp_emf_annots cpt fmt annots = fprintf_list ~sep:",@ " (pp_emf_annot cpt) fmt annots.annots
 let pp_emf_annots_list cpt fmt annots_list = fprintf_list ~sep:",@ " (pp_emf_annots cpt) fmt annots_list
 
-let pp_emf_contract fmt nd =
-  let c = Printers.node_as_contract nd in
-  fprintf fmt "@[v 2>\"%a\": {@ "
-    print_protect (fun fmt -> pp_print_string fmt nd.node_id);
-  fprintf fmt "\"contract\": %a@ "
-    pp_emf_spec c;
-  fprintf fmt "@]@ }"
+(* let pp_emf_contract fmt nd =
+ *   let c = Printers.node_as_contract nd in
+ *   fprintf fmt "@[<v 2>\"%a\": {@ "
+ *     print_protect (fun fmt -> pp_print_string fmt nd.node_id);
+ *   fprintf fmt "\"contract\": %a@ "
+ *     pp_emf_spec c;
+ *   fprintf fmt "@]@ }" *)
   
 let pp_machine fmt m =
   let instrs = (*merge_branches*) m.mstep.step_instrs in
   try
     fprintf fmt "@[<v 2>\"%a\": {@ "
       print_protect (fun fmt -> pp_print_string fmt m.mname.node_id);
+    (match m.mspec with Some (Contract _) -> fprintf fmt "\"contract\": \"true\",@ " | _ -> ());
     fprintf fmt "\"imported\": \"false\",@ ";
     fprintf fmt "\"kind\": %t,@ "
       (fun fmt -> if not ( snd (get_stateless_status m) )
@@ -452,8 +473,11 @@ let pp_machine fmt m =
     fprintf fmt "\"instrs\": {@[<v 0> %a@]@ },@ "
       (pp_emf_instrs m) instrs;
     (match m.mspec with | None -> () 
-                        | Some (Contract _) -> assert false 
-                        | Some (NodeSpec id) -> fprintf fmt "\"coco_contract\": %s" id
+                        | Some (Contract c) -> (
+                          assert (c.locals = [] && c.consts = [] && c.stmts = [] && c.imports = []);
+                          fprintf fmt "\"spec\": %a,@ " pp_emf_spec c
+                        )
+                        | Some (NodeSpec id) -> fprintf fmt "\"contract\": \"%s\",@ " id
     );
     fprintf fmt "\"annots\": {@[<v 0> %a@]@ }" (pp_emf_annots_list (ref 0)) m.mannot;
     fprintf fmt "@]@ }"
@@ -464,11 +488,12 @@ let pp_machine fmt m =
     eprintf "node skipped - no output generated@ @]@."
   )
 
-let pp_machine fmt m =                      
+(*let pp_machine fmt m =                      
   match m.mspec with
   | None | Some (NodeSpec _) -> pp_machine fmt m
-  | Some (Contract _) -> pp_emf_contract fmt m.mname 
-                       
+  | Some (Contract _) -> pp_emf_contract fmt m
+ *)
+                      
 let pp_emf_imported_node fmt top =
   let ind = Corelang.imported_node_of_top top in
   try

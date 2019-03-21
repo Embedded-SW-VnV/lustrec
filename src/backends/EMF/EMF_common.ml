@@ -102,7 +102,7 @@ let rec pp_concrete_type dec_t infered_t fmt =
   match dec_t with
   | Tydec_any -> (* Dynamical built variable. No declared type. Shall
                     use the infered one. *)
-     pp_infered_type fmt infered_t
+     fprintf fmt "{ \"kind\": \"%a\" }" pp_infered_type infered_t
   | Tydec_int -> fprintf fmt "{ \"kind\": \"int\" }" (* !Options.int_type *)
   | Tydec_real -> fprintf fmt "{ \"kind\": \"real\" }" (* !Options.real_type *)
   (* TODO we could add more concrete types here if they were available in
@@ -215,7 +215,7 @@ let pp_emf_list ?(eol:('a, formatter, unit) Pervasives.format="") pp fmt l =
   
 (* Print the variable declaration *)
 let pp_emf_var_decl fmt v =
-  fprintf fmt "@[{\"name\": \"%a\", \"datatype\":\"%a\", \"original_name\": \"%a\"}@]"
+  fprintf fmt "@[{\"name\": \"%a\", \"datatype\": %a, \"original_name\": \"%a\"}@]"
     pp_var_name v
     pp_var_type v
     Printers.pp_var_name v
@@ -251,9 +251,8 @@ let pp_cst_type c inf fmt (*infered_typ*) =
     
 let pp_emf_cst c inf fmt =
   let pp_typ fmt =
-    fprintf fmt "\"datatype\": \"";
-    pp_cst_type c inf fmt;
-    fprintf fmt "\"@ "
+    fprintf fmt "\"datatype\": { \"kind\": \"%t\" } @ "
+      (pp_cst_type c inf)   
   in
   match c with
   | Const_tag t->
@@ -293,7 +292,7 @@ let pp_emf_cst_or_var m fmt v =
     fprintf fmt "{@[\"type\": \"variable\",@ \"value\": \"%a\",@ "
       pp_var_name v;
     (*    fprintf fmt "\"original_name\": \"%a\",@ " Printers.pp_var_name v; *)
-    fprintf fmt "\"datatype\": \"%a\"@ " pp_var_type v;
+    fprintf fmt "\"datatype\": %a@ " pp_var_type v;
     fprintf fmt "@]}"
   )
   | _ -> eprintf "Not of cst or var: %a@." (pp_val m) v ; assert false (* Invalid argument *)
@@ -310,7 +309,7 @@ let rec pp_emf_expr fmt e =
   | Expr_ident id ->
      fprintf fmt "{@[\"type\": \"variable\",@ \"value\": \"%a\",@ "
        print_protect (fun fmt -> pp_print_string fmt id);
-    fprintf fmt "\"datatype\": \"%t\"@ "
+    fprintf fmt "\"datatype\": %t@ "
       (pp_concrete_type
 	 Tydec_any (* don't know much about that time since it was not
 		      declared. That may not work with clock constants *)
@@ -338,7 +337,7 @@ let rec pp_emf_expr fmt e =
       (fun fmt ->
 	fprintf fmt "Warning: unhandled expression %a in annotation.@ "
 	  Printers.pp_expr e;
-	fprintf fmt "Will not be produced in the experted JSON EMF"
+ 	fprintf fmt "Will not be produced in the experted JSON EMF@."
       );    
     fprintf fmt "\"unhandled construct, complain to Ploc\""
   )
@@ -357,7 +356,7 @@ let rec pp_emf_expr fmt e =
 let pp_emf_exprs = pp_emf_list pp_emf_expr
        
 let pp_emf_const fmt v =
-  fprintf fmt "@[{\"name\": \"%a\", \"datatype\":\"%a\", \"original_name\": \"%a\", \"value\": \"%a\"}@]"
+  fprintf fmt "@[<hov 0>{\"name\": \"%a\",@ \"datatype\":%a,@ \"original_name\": \"%a\",@ \"value\": %a}@]"
     pp_var_name v
     pp_var_type v
     Printers.pp_var_name v
@@ -386,7 +385,7 @@ let pp_emf_stmt fmt stmt =
   | Eq eq -> (
     fprintf fmt "@[ @[<v 2>\"%a\": {@ " (Utils.fprintf_list ~sep:"_" pp_print_string) eq.eq_lhs;
     fprintf fmt "\"lhs\": [%a],@ " (Utils.fprintf_list ~sep:", " (fun fmt vid -> fprintf fmt "\"%s\"" vid)) eq.eq_lhs;
-    fprintf fmt "\"rhs\": \"%a\",@ " pp_emf_expr eq.eq_rhs;
+    fprintf fmt "\"rhs\": %a,@ " pp_emf_expr eq.eq_rhs;
     fprintf fmt "@]@]@ }"
   )
 
@@ -419,8 +418,9 @@ let pp_emf_typedef fmt typdef_top =
   
 let pp_emf_top_const fmt const_top = 
   let const = Corelang.const_of_top const_top in
-  fprintf fmt "\"%s\": " const.const_id;
-  pp_emf_cst const.const_value const.const_type fmt
+  fprintf fmt "{ \"%s\": %t }"
+    const.const_id
+    (pp_emf_cst const.const_value const.const_type)
 
 (* Local Variables: *)
 (* compile-command: "make -C ../.." *)
