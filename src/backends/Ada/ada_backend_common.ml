@@ -14,10 +14,34 @@ exception Ada_not_supported of string
 
 let is_machine_statefull m = not m.mname.node_dec_stateless
 
+(*TODO Check all this function with unit test, improve this system and
+   add support for : "cbrt", "erf", "log10", "pow", "atan2".
+*)
 let ada_supported_funs =
-  [("sin", ("Ada.Numerics.Elementary_Functions", "Sin"));
-   ("cos", ("Ada.Numerics.Elementary_Functions", "Cos"));
-   ("tan", ("Ada.Numerics.Elementary_Functions", "Tan"))]
+  [("sqrt",  ("Ada.Numerics.Elementary_Functions", "Sqrt"));
+   ("log",   ("Ada.Numerics.Elementary_Functions", "Log"));
+   ("exp",   ("Ada.Numerics.Elementary_Functions", "Exp"));
+   ("pow",   ("Ada.Numerics.Elementary_Functions", "**"));
+   ("sin",   ("Ada.Numerics.Elementary_Functions", "Sin"));
+   ("cos",   ("Ada.Numerics.Elementary_Functions", "Cos"));
+   ("tan",   ("Ada.Numerics.Elementary_Functions", "Tan"));
+   ("asin",  ("Ada.Numerics.Elementary_Functions", "Arcsin"));
+   ("acos",  ("Ada.Numerics.Elementary_Functions", "Arccos"));
+   ("atan",  ("Ada.Numerics.Elementary_Functions", "Arctan"));
+   ("sinh",  ("Ada.Numerics.Elementary_Functions", "Sinh"));
+   ("cosh",  ("Ada.Numerics.Elementary_Functions", "Cosh"));
+   ("tanh",  ("Ada.Numerics.Elementary_Functions", "Tanh"));
+   ("asinh", ("Ada.Numerics.Elementary_Functions", "Arcsinh"));
+   ("acosh", ("Ada.Numerics.Elementary_Functions", "Arccosh"));
+   ("atanh", ("Ada.Numerics.Elementary_Functions", "Arctanh"));
+   
+   ("ceil",  ("", "Float'Ceiling"));
+   ("floor", ("", "Float'Floor"));
+   ("fmod",  ("", "Float'Remainder"));
+   ("round", ("", "Float'Rounding"));
+   ("trunc", ("", "Float'Truncation"));
+
+   ("fabs", ("", "abs"));]
 
 let is_builtin_fun ident =
   List.mem ident Basic_library.internal_funs ||
@@ -82,27 +106,25 @@ let pp_filename extension fmt pp_name =
 
 (* Package pretty print functions *)
 
+(** Return true if its the arrow machine
+   @param machine the machine to test
+*)
+let is_arrow machine = String.equal Arrow.arrow_id machine.mname.node_id
+
 (** Print the name of the arrow package.
    @param fmt the formater to print on
 **)
 let pp_arrow_package_name fmt = fprintf fmt "Arrow"
-
-(** Print the name of a package associated to a node.
-   @param fmt the formater to print on
-   @param machine the machine
-**)
-let pp_package_name_from_node fmt node =
-  if String.equal Arrow.arrow_id node.node_id then
-      fprintf fmt "%t" pp_arrow_package_name
-  else
-      fprintf fmt "%a" pp_clean_ada_identifier node.node_id
 
 (** Print the name of a package associated to a machine.
    @param fmt the formater to print on
    @param machine the machine
 **)
 let pp_package_name fmt machine =
-  pp_package_name_from_node fmt machine.mname
+  if is_arrow machine then
+      fprintf fmt "%t" pp_arrow_package_name
+  else
+      fprintf fmt "%a" pp_clean_ada_identifier machine.mname.node_id
 
 (** Print the ada package introduction sentence it can be used for body and
 declaration. Boolean parameter body should be true if it is a body delcaration.
@@ -177,7 +199,7 @@ let get_machine machines instance =
     try
       List.find (function m -> m.mname.node_id=id) machines
     with
-      Not_found -> assert false
+      Not_found -> assert false (*TODO*)
 
 
 (* Type pretty print functions *)
@@ -246,7 +268,7 @@ let pp_type fmt typ =
     | Types.Tbasic Types.Basic.Tint  -> pp_integer_type fmt
     | Types.Tbasic Types.Basic.Treal -> pp_float_type fmt
     | Types.Tbasic Types.Basic.Tbool -> pp_boolean_type fmt
-    | Types.Tunivar                  -> pp_polymorphic_type fmt typ.tid
+    | Types.Tunivar                  -> pp_polymorphic_type fmt typ.Types.tid
     | Types.Tbasic _                 -> eprintf "Tbasic@."; assert false (*TODO*)
     | Types.Tconst _                 -> eprintf "Tconst@."; assert false (*TODO*)
     | Types.Tclock _                 -> eprintf "Tclock@."; assert false (*TODO*)
@@ -261,6 +283,21 @@ let pp_type fmt typ =
     (*| _ -> eprintf "Type error : %a@." Types.print_ty typ; assert false *)
   )
 
+(** Return a default ada constant for a given type.
+   @param cst_typ the constant type
+**)
+let default_ada_cst cst_typ = match cst_typ with
+  | Types.Basic.Tint  -> Const_int 0
+  | Types.Basic.Treal -> Const_real (Num.num_of_int 0, 0, "0.0")
+  | Types.Basic.Tbool -> Const_tag tag_false
+
+(** Make a default value from a given type.
+   @param typ the type
+**)
+let mk_default_value typ =
+  match (Types.repr typ).Types.tdesc with
+    | Types.Tbasic t  -> mk_val (Cst (default_ada_cst t)) typ
+    | _                              -> assert false (*TODO*)
 
 (** Test if two types are the same.
    @param typ1 the first type
@@ -472,7 +509,7 @@ let pp_step_prototype m fmt =
    @param pp_name name function printer
 **)
 let pp_reset_prototype m fmt =
-  let state_mode = if is_machine_statefull m then Some InOut else None in
+  let state_mode = if is_machine_statefull m then Some Out else None in
   pp_base_prototype state_mode m.mstatic [] fmt pp_reset_procedure_name
 
 (** Print the prototype of the init procedure of a machine.
@@ -685,7 +722,8 @@ let pp_procedure_definition pp_name pp_prototype pp_local pp_instr fmt (locals, 
   let pp_ada_const fmt c =
     match c with
     | Const_int i                     -> pp_print_int fmt i
-    | Const_real (c, e, s)            -> pp_print_string fmt s
+    | Const_real (c, e, s)            ->
+        fprintf fmt "%s.0*1.0e-%i" (Num.string_of_num c) e
     | Const_tag t                     -> pp_ada_tag fmt t
     | Const_string _ | Const_modeid _ ->
       (Format.eprintf
@@ -788,3 +826,14 @@ let pp_procedure_definition pp_name pp_prototype pp_local pp_instr fmt (locals, 
     | _                 ->
       raise (Ada_not_supported
                "unsupported: Ada_backend.adb.pp_value does not support this value type")
+
+
+(** Print the filename of a machine package.
+   @param extension the extension to append to the package name
+   @param fmt the formatter
+   @param machine the machine corresponding to the package
+**)
+let pp_machine_filename extension fmt machine =
+  pp_filename extension fmt (function fmt -> pp_package_name fmt machine)
+
+let pp_main_filename fmt _ = pp_filename "adb" fmt pp_main_procedure_name

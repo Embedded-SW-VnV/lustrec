@@ -42,14 +42,6 @@ let write_file destname pp_filename pp_file arg =
   close_out out
 
 
-(** Print the filename of a machine package.
-   @param extension the extension to append to the package name
-   @param fmt the formatter
-   @param machine the machine corresponding to the package
-**)
-let pp_machine_filename extension fmt machine =
-  pp_filename extension fmt (function fmt -> pp_package_name fmt machine)
-
 (** Exception raised when a machine contains a feature not supported by the
   Ada backend*)
 exception CheckFailed of string
@@ -64,13 +56,6 @@ let check machine =
     | [] -> ()
     | _ -> raise (CheckFailed "machine.mconst should be void")
 
-(** Print the name of the ada project file.
-   @param fmt the formater to print on
-   @param main_machine the machine associated to the main node
-**)
-let pp_project_name fmt main_machine =
-  fprintf fmt "%a.gpr" pp_package_name main_machine
-
 
 let get_typed_submachines machines m =
   let instances = List.filter (fun (id, _) -> not (is_builtin_fun id)) m.mcalls in
@@ -83,7 +68,7 @@ let get_typed_submachines machines m =
 
 (** Main function of the Ada backend. It calls all the subfunction creating all
 the file and fill them with Ada code representing the machines list given.
-   @param basename useless
+   @param basename name of the lustre file
    @param prog useless
    @param prog list of machines to translate
    @param dependencies useless
@@ -98,7 +83,7 @@ let translate_to_ada basename prog machines dependencies =
 
   let _machines = List.combine typed_submachines machines in
 
-  let _pp_filename ext fmt (typed_submachines, machine) =
+  let _pp_filename ext fmt (typed_submachine, machine) =
     pp_machine_filename ext fmt machine in
 
   (* Extract the main machine if there is one *)
@@ -126,15 +111,13 @@ let translate_to_ada basename prog machines dependencies =
 
   (* If a main node is given we generate a main adb file and a project file *)
   log_str_level_two 1 "Generating wrapper files";
-  match main_machine with
-    | None -> log_str_level_two 2 "File not generated(no -node argument)";
+  (match main_machine with
+    | None -> ()
     | Some machine ->
-begin
-  let pp_main_filename fmt _ =
-    pp_filename "adb" fmt pp_main_procedure_name in
-  write_file destname pp_project_name Wrapper.pp_project_file machine;
-  write_file destname pp_main_filename Wrapper.pp_main_adb machine;
-end
+        write_file destname pp_main_filename Wrapper.pp_main_adb machine;
+        write_file destname (Wrapper.pp_project_name (basename^"_exe")) (Wrapper.pp_project_file machines basename) main_machine);
+  write_file destname Wrapper.pp_project_configuration_name Wrapper.pp_project_configuration_file basename;
+  write_file destname (Wrapper.pp_project_name (basename^"_lib")) (Wrapper.pp_project_file machines basename) None;
 
 
 (* Local Variables: *)

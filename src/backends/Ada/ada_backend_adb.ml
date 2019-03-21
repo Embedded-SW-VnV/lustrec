@@ -170,13 +170,14 @@ struct
      @param fmt the formater to print on
      @param machine the machine
   **)
-  let pp_step_definition typed_submachines fmt m = pp_procedure_definition
-        pp_step_procedure_name
-        (pp_step_prototype m)
-        (pp_machine_var_decl NoMode)
-        (pp_machine_instr typed_submachines m)
-        fmt
-        (m.mstep.step_locals, m.mstep.step_instrs)
+  let pp_step_definition typed_submachines fmt m =
+    pp_procedure_definition
+      pp_step_procedure_name
+      (pp_step_prototype m)
+      (pp_machine_var_decl NoMode)
+      (pp_machine_instr typed_submachines m)
+      fmt
+      (m.mstep.step_locals, m.mstep.step_instrs)
 
   (** Print the definition of the reset procedure from a machine.
 
@@ -184,13 +185,18 @@ struct
      @param fmt the formater to print on
      @param machine the machine
   **)
-  let pp_reset_definition typed_submachines fmt m = pp_procedure_definition
-        pp_reset_procedure_name
-        (pp_reset_prototype m)
-        (pp_machine_var_decl NoMode)
-        (pp_machine_instr typed_submachines m)
-        fmt
-        ([], m.minit)
+  let pp_reset_definition typed_submachines fmt m =
+    let build_assign = function var ->
+      mkinstr (MStateAssign (var, mk_default_value var.var_type))
+    in
+    let assigns = List.map build_assign m.mmemory in
+    pp_procedure_definition
+      pp_reset_procedure_name
+      (pp_reset_prototype m)
+      (pp_machine_var_decl NoMode)
+      (pp_machine_instr typed_submachines m)
+      fmt
+      ([], assigns@m.minit)
 
   (** Print the package definition(ads) of a machine.
     It requires the list of all typed instance.
