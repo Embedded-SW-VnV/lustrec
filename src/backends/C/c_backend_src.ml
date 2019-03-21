@@ -370,6 +370,7 @@ and pp_machine_instr dependencies (m: machine_t) self fmt instr =
       fprintf fmt "@[<v 2>switch(%a) {@,%a@,}@]"
 	(pp_c_val m self (pp_c_var_read m)) g
 	(Utils.fprintf_list ~sep:"@," (pp_machine_branch dependencies m self)) hl
+  | MSpec s -> fprintf fmt "@[/*@@ %s */@]@ " s
   | MComment s  -> 
       fprintf fmt "/*%s*/@ " s
 
@@ -633,6 +634,11 @@ let print_global_clear_code  fmt basename prog dependencies =
     (* dependencies initialization *)
     (Utils.fprintf_list ~sep:"@," print_import_clear) dependencies
 
+(* TODO: ACSL 
+- a contract machine shall not be directly printed in the C source
+- but a regular machine associated to a contract machine shall integrate the associated statements, updating its memories, at the end of the function body.
+- last one may print intermediate comment/acsl if/when they are present in the sequence of instruction
+*)
 let print_machine dependencies fmt m =
   if fst (get_stateless_status m) then
     begin
@@ -729,7 +735,7 @@ let print_lib_c source_fmt basename prog machines dependencies =
   (* Print the struct definitions of all machines. *)
   fprintf source_fmt "/* Struct definitions */@.";
   fprintf source_fmt "@[<v>";
-  List.iter (print_machine_struct source_fmt) machines;
+  List.iter (print_machine_struct machines source_fmt) machines;
   fprintf source_fmt "@]@.";
   pp_print_newline source_fmt ();
   (* Print nodes one by one (in the previous order) *)

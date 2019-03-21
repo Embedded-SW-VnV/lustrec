@@ -369,7 +369,7 @@ let pp_registers_struct fmt m =
   else
     ()
 
-let print_machine_struct fmt m =
+let print_machine_struct machines fmt m =
   if fst (get_stateless_status m) then
     begin
     end
