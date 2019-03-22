@@ -1,3 +1,11 @@
+On Mac
+brew install autoconf opam cmake
+Download ada from https://www.adacore.com/download
+
+
+Then
+opam install ocamlfind ocamlgraph cmdliner fmt logs dune num yojson 
+
 
 
 For the ADA backend:

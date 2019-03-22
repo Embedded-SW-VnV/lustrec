@@ -194,12 +194,13 @@ let mk_contract_var id is_const type_opt expr loc =
     let v = mkvar_decl loc (id, typ, mkclock loc Ckdec_any, is_const, None, None) in
     let eq = mkeq loc ([id], expr) in 
     { empty_contract with locals = [v]; stmts = [Eq eq]; spec_loc = loc; }
+let eexpr_add_name eexpr name =
+  {eexpr with eexpr_name = match name with "" -> None | _ -> Some name}
+let mk_contract_guarantees ?(name="") eexpr =
+  { empty_contract with guarantees = [eexpr_add_name eexpr name]; spec_loc = eexpr.eexpr_loc }
 
-let mk_contract_guarantees eexpr =
-  { empty_contract with guarantees = [eexpr]; spec_loc = eexpr.eexpr_loc }
-
-let mk_contract_assume eexpr =
-  { empty_contract with assume = [eexpr]; spec_loc = eexpr.eexpr_loc }
+let mk_contract_assume ?(name="") eexpr =
+  { empty_contract with assume = [eexpr_add_name eexpr name]; spec_loc = eexpr.eexpr_loc }
 
 let mk_contract_mode id rl el loc =
   { empty_contract with modes = [{ mode_id = id; require = rl; ensure = el; mode_loc = loc; }]; spec_loc = loc }
@@ -223,6 +224,7 @@ let mkeexpr loc expr =
   { eexpr_tag = Utils.new_tag ();
     eexpr_qfexpr = expr;
     eexpr_quantifiers = [];
+    eexpr_name = None;
     eexpr_type = Types.new_var ();
     eexpr_clock = Clocks.new_var true;
     eexpr_loc = loc }
@@ -324,15 +326,20 @@ let is_imported_node td =
   | ImportedNode nd -> true
   | _ -> assert false
 
+let is_node_contract nd =
+  match nd.node_spec with
+  | Some (Contract _) -> true
+  | _ -> false
+  
+let get_node_contract nd =
+  match nd.node_spec with
+  | Some (Contract c) -> c
+  | _ -> assert false
+  
 let is_contract td =
   match td.top_decl_desc with 
-  | Node nd -> (
-    match nd.node_spec with
-    | Some (Contract _) -> true
-    | _ -> false
-  )                     
+  | Node nd -> is_node_contract nd
   | _ -> false
-
 
 (* alias and type definition table *)
 
@@ -709,8 +716,36 @@ let get_node_interface nd =
  }
 
 (************************************************************************)
-(*        Renaming                                                      *)
+(*        Renaming / Copying                                                      *)
 
+let copy_var_decl vdecl =
+  mkvar_decl vdecl.var_loc ~orig:vdecl.var_orig (vdecl.var_id, vdecl.var_dec_type, vdecl.var_dec_clock, vdecl.var_dec_const, vdecl.var_dec_value, vdecl.var_parent_nodeid)
+
+let copy_const cdecl =
+  { cdecl with const_type = Types.new_var () }
+
+let copy_node nd =
+  { nd with
+    node_type     = Types.new_var ();
+    node_clock    = Clocks.new_var true;
+    node_inputs   = List.map copy_var_decl nd.node_inputs;
+    node_outputs  = List.map copy_var_decl nd.node_outputs;
+    node_locals   = List.map copy_var_decl nd.node_locals;
+    node_gencalls = [];
+    node_checks   = [];
+    node_stateless = None;
+  }
+
+let copy_top top =
+  match top.top_decl_desc with
+  | Node nd -> { top with top_decl_desc = Node (copy_node nd)  }
+  | Const c -> { top with top_decl_desc = Const (copy_const c) }
+  | _       -> top
+
+let copy_prog top_list =
+  List.map copy_top top_list
+
+  
 let rec rename_static rename cty =
  match cty with
  | Tydec_array (d, cty') -> Tydec_array (Dimension.expr_replace_expr rename d, rename_static rename cty')
@@ -768,17 +803,17 @@ let rec rename_carrier rename cck =
    | Expr_appl (i, e', i') -> 
      Expr_appl (f_node i, re e', Utils.option_map re i')
 
- let rename_dec_type f_node f_var t = assert false (*
+ let rename_dec_type f_node f_var t = t (* TODO : do we really want to rename a declared type ? 
 						     Types.rename_dim_type (Dimension.rename f_node f_var) t*)
 
- let rename_dec_clock f_node f_var c = assert false (* 
+ let rename_dec_clock f_node f_var c = c (* TODO : do we really want to rename a declared clock ? assert false  
 					  Clocks.rename_clock_expr f_var c*)
    
  let rename_var f_node f_var v = {
-   v with
+     (copy_var_decl v) with
      var_id = f_var v.var_id;
-     var_dec_type = rename_dec_type f_node f_var v.var_type;
-     var_dec_clock = rename_dec_clock f_node f_var v.var_clock
+     var_dec_type = rename_dec_type f_node f_var v.var_dec_type;
+     var_dec_clock = rename_dec_clock f_node f_var v.var_dec_clock
  } 
 
  let rename_vars f_node f_var = List.map (rename_var f_node f_var) 
@@ -822,17 +857,38 @@ and rename_eexpr f_node f_var ee =
      eexpr_qfexpr = rename_expr f_node f_var ee.eexpr_qfexpr;
      eexpr_quantifiers = List.map (fun (typ,vdecls) -> typ, rename_vars f_node f_var vdecls) ee.eexpr_quantifiers;
    }
- 
+and rename_mode f_node f_var m =
+  let rename_ee = rename_eexpr f_node f_var in
+  {
+    m with
+    require = List.map rename_ee m.require;
+    ensure = List.map rename_ee m.ensure
+  }
      
-     
+ let rename_import f_node f_var imp =
+   let rename_expr = rename_expr f_node f_var in
+   {
+     imp with
+     import_nodeid = f_node imp.import_nodeid;
+     inputs = rename_expr imp.inputs;
+     outputs =  rename_expr imp.outputs;
+   }
    
  let rename_node f_node f_var nd =
+   let f_var x = (* checking that this is actually a local variable *)
+     if List.exists (fun v -> v.var_id = x) (get_node_vars nd) then
+       f_var x
+     else
+       x
+   in
    let rename_var = rename_var f_node f_var in
+   let rename_vars = List.map rename_var in
    let rename_expr = rename_expr f_node f_var in
+   let rename_eexpr = rename_eexpr f_node f_var in
    let rename_stmts = rename_stmts f_node f_var in
-   let inputs = List.map rename_var nd.node_inputs in
-   let outputs = List.map rename_var nd.node_outputs in
-   let locals = List.map rename_var nd.node_locals in
+   let inputs = rename_vars nd.node_inputs in
+   let outputs = rename_vars nd.node_outputs in
+   let locals = rename_vars nd.node_locals in
    let gen_calls = List.map rename_expr nd.node_gencalls in
    let node_checks = List.map (Dimension.rename f_node f_var)  nd.node_checks in
    let node_asserts = List.map 
@@ -848,7 +904,19 @@ and rename_eexpr f_node f_var ee =
    in
    let spec = 
      Utils.option_map 
-       (fun s -> assert false; (*rename_node_annot f_node f_var s*) ) (* TODO: implement! *) 
+       (fun s -> match s with
+                   NodeSpec id -> NodeSpec (f_node id)
+                 | Contract c -> Contract {
+                     c with
+                     consts = rename_vars c.consts;
+                     locals = rename_vars c.locals;
+                     stmts = rename_stmts c.stmts;
+                     assume = List.map rename_eexpr c.assume;
+                     guarantees = List.map rename_eexpr c.guarantees;
+                     modes = List.map (rename_mode f_node f_var) c.modes;
+                     imports = List.map (rename_import f_node f_var) c.imports;
+                   }
+       )
        nd.node_spec 
    in
    let annot = rename_annots f_node f_var nd.node_annot in
@@ -1042,6 +1110,7 @@ let rec substitute_expr vars_to_replace defs e =
    { eexpr_tag = expr.expr_tag;
      eexpr_qfexpr = expr;
      eexpr_quantifiers = [];
+     eexpr_name = None;
      eexpr_type = expr.expr_type;
      eexpr_clock = expr.expr_clock;
      eexpr_loc = expr.expr_loc;
@@ -1176,32 +1245,6 @@ and node_has_arrows node =
 
 
 
-let copy_var_decl vdecl =
-  mkvar_decl vdecl.var_loc ~orig:vdecl.var_orig (vdecl.var_id, vdecl.var_dec_type, vdecl.var_dec_clock, vdecl.var_dec_const, vdecl.var_dec_value, vdecl.var_parent_nodeid)
-
-let copy_const cdecl =
-  { cdecl with const_type = Types.new_var () }
-
-let copy_node nd =
-  { nd with
-    node_type     = Types.new_var ();
-    node_clock    = Clocks.new_var true;
-    node_inputs   = List.map copy_var_decl nd.node_inputs;
-    node_outputs  = List.map copy_var_decl nd.node_outputs;
-    node_locals   = List.map copy_var_decl nd.node_locals;
-    node_gencalls = [];
-    node_checks   = [];
-    node_stateless = None;
-  }
-
-let copy_top top =
-  match top.top_decl_desc with
-  | Node nd -> { top with top_decl_desc = Node (copy_node nd)  }
-  | Const c -> { top with top_decl_desc = Const (copy_const c) }
-  | _       -> top
-
-let copy_prog top_list =
-  List.map copy_top top_list
 
 
 let rec expr_contains_expr expr_tag expr  =

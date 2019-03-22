@@ -62,10 +62,13 @@ let pp_var fmt id =
     id.var_id
     pp_var_type id
 
+let pp_vars fmt vars =
+  fprintf_list ~sep:"; " pp_var fmt vars
+  
 let pp_quantifiers fmt (q, vars) =
   match q with
-    | Forall -> fprintf fmt "forall %a" (fprintf_list ~sep:"; " pp_var) vars 
-    | Exists -> fprintf fmt "exists %a" (fprintf_list ~sep:"; " pp_var) vars 
+    | Forall -> fprintf fmt "forall %a" pp_vars vars 
+    | Exists -> fprintf fmt "exists %a" pp_vars vars 
 
 let rec pp_struct_const_field fmt (label, c) =
   fprintf fmt "%a = %a;" pp_print_string label pp_const c
@@ -278,17 +281,17 @@ let pp_typedec fmt ty =
 
 
 
-let pp_quantifiers fmt (q, vars) =
-  match q with
-    | Forall -> fprintf fmt "forall %a" (fprintf_list ~sep:"; " pp_var) vars 
-    | Exists -> fprintf fmt "exists %a" (fprintf_list ~sep:"; " pp_var) vars 
+(* let pp_quantifiers fmt (q, vars) =
+ *   match q with
+ *     | Forall -> fprintf fmt "forall %a" pp_vars vars 
+ *     | Exists -> fprintf fmt "exists %a" (fprintf_list ~sep:"; " pp_var) vars  *)
 
-let pp_eexpr fmt e =
+(*let pp_eexpr fmt e =
   fprintf fmt "%a%t %a"
     (Utils.fprintf_list ~sep:"; " pp_quantifiers) e.eexpr_quantifiers
     (fun fmt -> match e.eexpr_quantifiers with [] -> () | _ -> fprintf fmt ";")
     pp_expr e.eexpr_qfexpr
-
+ *)
     
 let pp_spec_eq fmt eq = 
   fprintf fmt "var %a : %a = %a;" 
@@ -306,7 +309,7 @@ let pp_spec fmt spec =
   (* const are prefixed with const in pp_var and with nothing for regular
      variables. We adapt the call to produce the appropriate output. *)
     fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt v ->
-    fprintf fmt "const %a = %t;"
+    fprintf fmt "%a = %t;"
       pp_var v
       (fun fmt -> match v.var_dec_value with None -> assert false | Some e -> pp_expr fmt e)
     ) fmt spec.consts;
@@ -315,10 +318,10 @@ let pp_spec fmt spec =
   fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt r -> fprintf fmt "assume %a;" pp_eexpr r) fmt spec.assume;
   fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt r -> fprintf fmt "guarantees %a;" pp_eexpr r) fmt spec.guarantees;
   fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt mode ->
-    fprintf fmt "mode %s (@[@ %a@ %a@]);" 
+    fprintf fmt "mode %s (@[<v 0>%a@ %a@]);" 
       mode.mode_id
-      (fprintf_list ~eol:"@," ~sep:"@ " (fun fmt r -> fprintf fmt "require %a;" pp_eexpr r)) mode.require
-      (fprintf_list ~eol:"@," ~sep:"@ " (fun fmt r -> fprintf fmt "ensure %a;" pp_eexpr r)) mode.ensure
+      (fprintf_list ~eol:"" ~sep:"@ " (fun fmt r -> fprintf fmt "require %a;" pp_eexpr r)) mode.require
+      (fprintf_list ~eol:"" ~sep:"@ " (fun fmt r -> fprintf fmt "ensure %a;" pp_eexpr r)) mode.ensure
   ) fmt spec.modes;
   fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt import ->
     fprintf fmt "import %s (%a) returns (%a);" 
@@ -327,29 +330,32 @@ let pp_spec fmt spec =
       pp_expr import.outputs
   ) fmt spec.imports
 
-
-  let node_as_contract nd =
+(* Project the contract node as a pure contract: local memories are pushed back in the contract definition. Should mainly be used to print it *) 
+let node_as_contract nd =
   match nd.node_spec with
   | None | Some (NodeSpec _) -> raise (Invalid_argument "Not a contract")
   | Some (Contract c) -> (
-    assert (c.locals = []);
-    assert (c.stmts = []);
+    (* While a processed contract shall have no locals, sttms nor
+       consts, an unprocessed one could. So we conservatively merge
+       elements, to enable printing unprocessed contracts *)
+    let consts, locals = List.partition(fun v -> v.var_dec_const) nd.node_locals in
     { c with
-      locals = nd.node_locals;
-      stmts = nd.node_stmts;
+      consts = consts @ c.consts;
+      locals = locals @ c.locals;
+      stmts = nd.node_stmts @ c.stmts;
     }
   )
-
+  
 let pp_contract fmt nd =    
+  
   let c = node_as_contract nd in
-  let pp_l = fprintf_list ~sep:"," pp_var_name in
-  fprintf fmt "@[<hov 2>(*@@ contract %s(%a) returns (%a);@ "
+  fprintf fmt "@[<v 2>(*@@ contract %s(%a) returns (%a);@ "
     nd.node_id
-    pp_l nd.node_inputs
-    pp_l nd.node_outputs;
-  fprintf fmt "let@ ";
+    pp_node_args nd.node_inputs
+    pp_node_args nd.node_outputs;
+  fprintf fmt "@[<v 2>let@ ";
   pp_spec fmt c;
-  fprintf fmt "tel@ @]*)@ "        
+  fprintf fmt "@]@ tel@ @]*)@ "        
     
 let pp_spec_as_comment fmt (inl, outl, spec) =
   match spec with
@@ -377,9 +383,9 @@ let pp_node fmt nd =
     pp_node_args nd.node_inputs
     pp_node_args nd.node_outputs;
   (* Contracts *)
-  fprintf fmt "%a%t"
+  fprintf fmt "%a"
     (fun fmt s -> match s with Some s -> pp_spec_as_comment fmt (nd.node_inputs, nd.node_outputs, s) | _ -> ()) nd.node_spec
-    (fun fmt -> match nd.node_spec with None -> () | Some _ -> fprintf fmt "@ ");
+    (* (fun fmt -> match nd.node_spec with None -> () | Some _ -> fprintf fmt "@ ") *);
   (* Locals *)
   fprintf fmt "%a" (fun fmt locals ->
       match locals with [] -> () | _ ->

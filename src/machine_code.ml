@@ -46,9 +46,9 @@ let build_env locals non_locals =
     get_var = (fun id -> try
                   VSet.get id all
                 with Not_found -> (
-                  Format.eprintf "Impossible to find variable %s in set %a@.@?"
-                    id
-                    VSet.pp all;
+                  (* Format.eprintf "Impossible to find variable %s in set %a@.@?"
+                   *   id
+                   *   VSet.pp all; *)
                   raise Not_found
                 )
               )  
@@ -377,6 +377,7 @@ let translate_core sorted_eqs locals other_vars =
 
  
 let translate_decl nd sch =
+  (* Format.eprintf "Translating node %s@." nd.node_id; *)
   (* Extracting eqs, variables ..  *)
   let eqs, auts = get_node_eqs nd in
   assert (auts = []); (* Automata should be expanded by now *)
@@ -390,13 +391,22 @@ let translate_decl nd sch =
   let locals = VSet.of_list locals_list in
   let inout_vars = (VSet.of_list (nd.node_inputs @ nd.node_outputs)) in
   let env = build_env locals inout_vars  in 
+
+  (* Format.eprintf "Node content is %a@." Printers.pp_node nd; *)
   
   (* Computing main content *)
+  (* Format.eprintf "ok1@.@?"; *)
   let schedule = sch.Scheduling_type.schedule in
+  (* Format.eprintf "ok2@.@?"; *)
   let sorted_eqs = Scheduling.sort_equations_from_schedule eqs schedule in
-
+  (* Format.eprintf "ok3@.locals=%a@.inout:%a@?"
+   *   VSet.pp locals
+   *   VSet.pp inout_vars
+   * ; *)
+  
   let ctx, ctx0_s = translate_core (assert_instrs@sorted_eqs) locals inout_vars in
   
+  (* Format.eprintf "ok4@.@?"; *)
   
  
   let mmap = Utils.IMap.elements ctx.j in

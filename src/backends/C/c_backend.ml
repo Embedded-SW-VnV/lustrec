@@ -29,13 +29,15 @@ let makefile_opt print basename dependencies makefile_fmt machines =
 let gen_files funs basename prog machines dependencies =
   let destname = !Options.dest_dir ^ "/" ^ basename in
   
-  let print_header, print_lib_c, print_main_c, print_makefile(* , print_cmake *) = funs in
+  let print_header, print_lib_c, print_main_c, print_makefile, preprocess (* , print_cmake *) = funs in
 
+  let machines, spec = preprocess machines in
+  
   (* Generating H file *)
   let alloc_header_file = destname ^ "_alloc.h" in (* Could be changed *)
   let header_out = open_out alloc_header_file in
   let header_fmt = formatter_of_out_channel header_out in
-  print_header header_fmt basename prog machines dependencies;
+  print_header header_fmt basename prog machines dependencies spec;
   close_out header_out;
   
   (* Generating Lib C file *)
@@ -146,7 +148,8 @@ let translate_to_c basename prog machines dependencies =
       Header.print_alloc_header, 
       Source.print_lib_c, 
       SourceMain.print_main_c, 
-      Makefile.print_makefile(* , *)
+      Makefile.print_makefile,
+      (fun m -> m, [])
       (* CMakefile.print_makefile *)
     in
     gen_files funs basename prog machines dependencies 
@@ -169,7 +172,8 @@ let translate_to_c basename prog machines dependencies =
       Header.print_alloc_header, 
       Source.print_lib_c,
       SourceMain.print_main_c,
-      Makefile.print_makefile(* , *)
+      Makefile.print_makefile,
+      C_backend_spec.preprocess_acsl
       (* CMakefile.print_makefile  *)
     in
     gen_files funs basename prog machines dependencies 

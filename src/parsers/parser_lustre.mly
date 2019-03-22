@@ -413,19 +413,31 @@ contract_content:
     { merge_contracts (mk_contract_var $2 false (Some(mktyp $4)) $6 (get_loc())) $8 }
 | ASSUME qexpr SCOL contract_content
     { merge_contracts (mk_contract_assume $2) $4 }
+| ASSUME STRING qexpr SCOL contract_content
+    { merge_contracts (mk_contract_assume ~name:$2 $3) $5 }
 | GUARANTEES qexpr SCOL contract_content	
     { merge_contracts (mk_contract_guarantees $2) $4 }
+| GUARANTEES STRING qexpr SCOL contract_content	
+    { merge_contracts (mk_contract_guarantees ~name:$2 $3) $5 }
 | MODE IDENT LPAR mode_content RPAR SCOL contract_content
 	{ merge_contracts (
 	  let r, e = $4 in 
 	  mk_contract_mode $2 r e (get_loc())) $7 }	
+| IMPORT IDENT LPAR tuple_expr RPAR RETURNS LPAR tuple_expr RPAR SCOL contract_content
+    { merge_contracts (mk_contract_import $2  (mkexpr (Expr_tuple (List.rev $4)))  (mkexpr (Expr_tuple (List.rev $8))) (get_loc())) $11 }
+| IMPORT IDENT LPAR expr RPAR RETURNS LPAR tuple_expr RPAR SCOL contract_content
+    { merge_contracts (mk_contract_import $2  $4  (mkexpr (Expr_tuple (List.rev $8))) (get_loc())) $11 }
+| IMPORT IDENT LPAR tuple_expr RPAR RETURNS LPAR expr RPAR SCOL contract_content
+    { merge_contracts (mk_contract_import $2  (mkexpr (Expr_tuple (List.rev $4)))  $8 (get_loc())) $11 }
 | IMPORT IDENT LPAR expr RPAR RETURNS LPAR expr RPAR SCOL contract_content
     { merge_contracts (mk_contract_import $2  $4  $8 (get_loc())) $11 }
 
 mode_content:
 { [], [] }
 | REQUIRE qexpr SCOL mode_content { let (r,e) = $4 in $2::r, e }
+| REQUIRE STRING qexpr SCOL mode_content { let (r,e) = $5 in {$3 with eexpr_name = Some $2}::r, e }
 | ENSURE qexpr SCOL mode_content { let (r,e) = $4 in r, $2::e }
+| ENSURE STRING qexpr SCOL mode_content { let (r,e) = $5 in r, {$3 with eexpr_name = Some $2}::e }
 
 /* WARNING: UNUSED RULES */
 tuple_qexpr:

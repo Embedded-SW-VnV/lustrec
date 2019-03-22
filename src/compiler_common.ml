@@ -190,7 +190,8 @@ let check_compatibility (prog, computed_types_env, computed_clocks_env) (header,
 (* Process each node/imported node and introduce the associated contract node *)
 let resolve_contracts prog =
   (* Bind a fresh node with a new name according to existing nodes and freshly binded contract node. Clean the contract to remove the stmts  *)
-  let process_contract new_contracts prog c =
+  let process_contract new_contracts c =
+    Format.eprintf "Process contract@.";
     (* Resolve first the imports *)
     let stmts, locals, c =
       List.fold_left (
@@ -204,50 +205,55 @@ let resolve_contracts prog =
              Last the contracts elements are replaced with the renamed vars and merged with c contract.
            *)
           let name = import.import_nodeid in
-          assert false; (* TODO: we do not handle imports yet.  The
-                           algorithm is sketched below *)
-        (*
+          Format.eprintf "Process contract import %s@." name;
+          let loc = import.import_loc in
           try
-            let imp_nd = xxx in (* Get the contract node in prog *)
+            let imp_nd = get_node name new_contracts in (* Get the contract node in process contracts *)
             (* checking that it's actually a (processed) contract *)
-            let imp_c =
-              match imp_nd.node_spec with
-                Some (Contract imp_c) ->
-                 if imp_c.imports = [] then
-                   imp_c
-                 else
-                   assert false (* should be processed *)
-              | _ -> assert false (* should be a contract *)
-            in  
-            (* Preparing vars: renaming them *)
-            let imp_in = rename imp_nd.node_inputs in
-            let imp_out = rename imp_nd.node_outputs in
-            let imp_locals = rename imp_nd.node_locals in
+            let _ =
+              if not (is_node_contract imp_nd) then
+                assert false (* should be a contract *)
+              else
+                let imp_c = get_node_contract imp_nd in
+                if not (imp_c.imports = [] && imp_c.locals = [] && imp_c.consts = [] && imp_c.stmts = []) then
+                (  Format.eprintf "Invalid processed contract: %i %i %i %i@.@?" (List.length imp_c.imports) (List.length imp_c.locals) (List.length imp_c.consts) (List.length imp_c.stmts);
+                assert false (* should be processed *)
+                )
+            in
+            let name_prefix x = "__" ^ name ^ "__" ^ x in
+            let imp_nd = rename_node (fun x -> x (* not changing node names *)) name_prefix imp_nd in
+            let imp_in = imp_nd.node_inputs in
+            let imp_out = imp_nd.node_outputs in
+            let imp_locals = imp_nd.node_locals in
             let locals = imp_in@imp_out@imp_locals@locals in
-            (* Assinging in and out *)
-            let in_assigns =
-              xxx imp_in = import.inputs
+            let imp_c = get_node_contract imp_nd in
+            (* Assigning in and out *)
+            let mk_def vars_l e =
+              let lhs = List.map (fun v -> v.var_id) vars_l in
+              Eq (mkeq loc (lhs, e))
             in
-            let out_assigns =
-              xxx imp_out = import.outputs
-            in
-            let stmts = stmts @ (rename imp_nd.stmts) in
-            let imp_c = rename imp_c in
+            let in_assigns = mk_def imp_in import.inputs in
+            let out_assigns = mk_def imp_out import.outputs in
+            let stmts = in_assigns :: out_assigns :: imp_nd.node_stmts @ stmts in
             let c = merge_contracts c imp_c in
             stmts, locals, c 
-          with Not_found -> raise (Error.Unbound_symbol ("contract " ^ name))
+          with Not_found -> Format.eprintf "Where is contract %s@.@?" name; assert false; raise (Error (loc, (Error.Unbound_symbol ("contract " ^ name))))
 
-                            *)
+         
         ) ([], c.consts@c.locals, c) c.imports
     in
+    let stmts = stmts @ c.stmts in 
     (* Other contract elements will be normalized later *)
-    let c = { c with
+    let c = { c with (* we erase locals and stmts sinced they are now in the parent node *)
               locals = [];
               consts = [];
               stmts = [];
               imports = []
             }
     in
+    
+    (* Format.eprintf "Processed stmts: %a@." Printers.pp_node_stmts stmts;
+     * Format.eprintf "Processed locals: %a@." Printers.pp_vars locals; *)
     stmts, locals, c
     
   in
@@ -258,11 +264,14 @@ let resolve_contracts prog =
       | ImportedNode ind -> ind.nodei_id, ind.nodei_spec, ind.nodei_inputs, ind.nodei_outputs
       | _ -> assert false
     in
+    Format.eprintf "Process contract new node for node %s@." id;
+
     let stmts, locals, c =
       match spec with
       | None | Some (NodeSpec _) -> assert false
       | Some (Contract c) ->
-         process_contract accu_contracts prog c
+         (* Format.eprintf "Processing contract of node %s@." id; *)
+         process_contract accu_contracts c
     in
     (* Create a fresh name *)
     let used v = List.exists (fun top ->
@@ -279,23 +288,23 @@ let resolve_contracts prog =
         c.spec_loc
         top.top_decl_owner
         top.top_decl_itf
-      (Node {
-           node_id = new_nd_id;
-	   node_type = Types.new_var ();
-	   node_clock = Clocks.new_var true;
-	   node_inputs = inputs;
-	   node_outputs = outputs;
-	   node_locals = locals;
-	   node_gencalls = [];
-	   node_checks = [];
-	   node_asserts = []; 
-	   node_stmts = stmts;
-	   node_dec_stateless = false;
-	   node_stateless = None;
-	   node_spec = Some (Contract c);
-	   node_annot = [];
-	   node_iscontract = true;
-      }) in
+        (Node {
+             node_id = new_nd_id;
+	     node_type = Types.new_var ();
+	     node_clock = Clocks.new_var true;
+	     node_inputs = inputs;
+	     node_outputs = outputs;
+	     node_locals = locals;
+	     node_gencalls = [];
+	     node_checks = [];
+	     node_asserts = []; 
+	     node_stmts = stmts;
+	     node_dec_stateless = false;
+	     node_stateless = None;
+	     node_spec = Some (Contract c);
+	     node_annot = [];
+	     node_iscontract = true;
+        }) in
     new_nd
   in
   (* Processing nodes in order. Should have been sorted by now
@@ -317,7 +326,8 @@ let resolve_contracts prog =
           match nd.node_spec with
           | None | Some (NodeSpec _) -> assert false
           | Some (Contract c) ->
-             let stmts, locals, c = process_contract accu_contracts prog c in
+             (* Format.eprintf "Processing top contract %s@." nd.node_id; *)
+             let stmts, locals, c = process_contract accu_contracts c in
              let nd =
                { nd with
                  node_locals = nd.node_locals @ locals;
@@ -337,7 +347,7 @@ let resolve_contracts prog =
           | Some (Contract c) -> (* A contract: processing it *)
              (* we bind a fresh node *)
              let new_nd = process_contract_new_node accu_contracts prog top in
-             Format.eprintf "Creating new contract node %s@." (node_name new_nd);
+             (* Format.eprintf "Creating new contract node %s@." (node_name new_nd); *)
              let nd = { nd with node_spec = (Some (NodeSpec (node_name new_nd))) } in
              new_nd::accu_contracts,
              { top with top_decl_desc = Node nd }::accu_nodes

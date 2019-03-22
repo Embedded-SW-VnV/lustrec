@@ -450,18 +450,21 @@ let normalize_pred_eexpr decls norm_ctx (def,vars) ee =
        inline possible calls within, normalize it and type/clock the
        result.  *)
     let eq = mkeq ee.eexpr_loc ([output_id], ee.eexpr_qfexpr) in
-    (* Inlining any calls *)
-    let nodes = get_nodes decls in
-    let calls = ISet.elements (get_expr_calls nodes ee.eexpr_qfexpr) in
-    let vars, eqs =
-      if calls = [] && not (eq_has_arrows eq) then
-        vars, [eq]    
-      else
-        assert false (* TODO *)
-    in
+
+
+    (* (\* Inlining any calls *\)
+     * let nodes = get_nodes decls in
+     * let calls = ISet.elements (get_expr_calls nodes ee.eexpr_qfexpr) in
+     * let vars, eqs =
+     *   if calls = [] && not (eq_has_arrows eq) then
+     *     vars, [eq]    
+     *   else
+     *     assert false (\* TODO *\)
+     * in *)
     
     (* Normalizing expr and eqs *)
-    let defs, vars = List.fold_left (normalize_eq_split norm_ctx) (def, vars) eqs in
+    let defs, vars = List.fold_left (normalize_eq_split norm_ctx) (def, vars) [eq] in
+    let vars = output_var :: vars in 
 (*    let todefine =
       List.fold_left
         (fun m x-> if List.exists (fun y-> x.var_id = y.var_id) (locals) then m else ISet.add x.var_id m)
@@ -557,6 +560,7 @@ let normalize_spec decls parentid (in_vars, out_vars, l_vars) s =
   (* Original set of variables actually visible from here: in/out and
      spec locals (no node locals) *)
   let orig_vars = in_vars @ out_vars @ s.locals in
+  (* Format.eprintf "NormSpec: init locals: %a@." Printers.pp_vars s.locals; *)
   let not_is_orig_var v =
     List.for_all ((!=) v) orig_vars in
   let norm_ctx = {
@@ -574,10 +578,15 @@ let normalize_spec decls parentid (in_vars, out_vars, l_vars) s =
   (* Iterate through predicates and normalize them on the go, creating
      fresh variables for any guarantees/assumes/require/ensure *)
   let process_predicates l defvars =
-    List.fold_right (fun ee (accu, defvars) ->
+    (* Format.eprintf "ProcPred: vars: %a@." Printers.pp_vars (snd defvars); *)
+    let res = List.fold_right (fun ee (accu, defvars) ->
         let ee', defvars = normalize_pred_eexpr decls norm_ctx defvars ee in
         ee'::accu, defvars
       ) l ([], defvars)
+    in
+    (* Format.eprintf "ProcStmt: %a@." Printers.pp_node_eqs (fst (snd res));
+     * Format.eprintf "ProcPred: vars: %a@." Printers.pp_vars (snd (snd res)); *)
+    res
   in
 
   
@@ -595,7 +604,7 @@ let normalize_spec decls parentid (in_vars, out_vars, l_vars) s =
   let new_locals = List.filter not_is_orig_var vars in (* removing inouts and initial locals ones *)
   new_locals, defs,      
   {s with
-    locals = s.locals @ new_locals;
+    (* locals = s.locals @ new_locals; *)
     stmts = [];
     assume = assume';
     guarantees = guarantees';
@@ -663,6 +672,8 @@ let normalize_node decls node =
                     (node.node_inputs, node.node_outputs, node.node_locals)
                     s
          in
+         (* Format.eprintf "Normalization bounded new locals: %a@." Printers.pp_vars new_locals;
+          * Format.eprintf "Normalization bounded stmts: %a@." Printers.pp_node_eqs new_stmts; *)
          Some (Contract s'), new_locals, new_stmts@eqs
     end
   in

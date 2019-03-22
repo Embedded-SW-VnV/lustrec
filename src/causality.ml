@@ -331,34 +331,46 @@ module NodeDep = struct
        then ESet.add expr (get_expr_calls prednode e)
        else (get_expr_calls prednode e)
 
+  let get_eexpr_calls prednode ee =
+    get_expr_calls prednode ee.eexpr_qfexpr
+    
   let get_callee expr =
     match expr.expr_desc with
     | Expr_appl (id, args, _) -> Some (id, expr_list_of_expr args)
     | _ -> None
 
-  let get_calls prednode nd =
-    let accu f init objl = List.fold_left (fun accu o -> ESet.union accu (f o)) init objl in
-    let get_eq_calls eq = get_expr_calls prednode eq.eq_rhs in
-    let rec get_stmt_calls s =
-      match s with Eq eq -> get_eq_calls eq | Aut aut -> get_aut_calls aut 
-    and get_aut_calls aut =
-      let get_handler_calls h =
-	let get_cond_calls c = accu (fun (_,e,_,_) -> get_expr_calls prednode e) ESet.empty c in
-	let until = get_cond_calls h.hand_until in
-	let unless = get_cond_calls h.hand_unless in
-	let calls = ESet.union until unless in 
-	let calls = accu get_stmt_calls calls h.hand_stmts in
-	let calls = accu (fun a -> get_expr_calls prednode a.assert_expr) calls h.hand_asserts in
-	(* let calls = accu xx calls h.hand_annots in *) (* TODO: search for calls in eexpr *)
-	calls
-      in
-      accu get_handler_calls ESet.empty aut.aut_handlers
+  let accu f init objl = List.fold_left (fun accu o -> ESet.union accu (f o)) init objl 
+
+  let get_eq_calls prednode eq = get_expr_calls prednode eq.eq_rhs
+                      
+  let rec get_stmt_calls prednode s =
+    match s with Eq eq -> get_eq_calls prednode eq | Aut aut -> get_aut_calls prednode aut 
+  and get_aut_calls prednode aut =
+    let get_handler_calls prednode h =
+      let get_cond_calls c = accu (fun (_,e,_,_) -> get_expr_calls prednode e) ESet.empty c in
+      let until = get_cond_calls h.hand_until in
+      let unless = get_cond_calls h.hand_unless in
+      let calls = ESet.union until unless in 
+      let calls = accu (get_stmt_calls prednode) calls h.hand_stmts in
+      let calls = accu (fun a -> get_expr_calls prednode a.assert_expr) calls h.hand_asserts in
+      (* let calls = accu xx calls h.hand_annots in *) (* TODO: search for calls in eexpr *)
+      calls
     in
+    accu (get_handler_calls prednode) ESet.empty aut.aut_handlers
+    
+  let get_calls prednode nd =
     let eqs, auts = get_node_eqs nd in
-    let deps = accu get_eq_calls ESet.empty eqs in
-    let deps = accu get_aut_calls deps auts in
+    let deps = accu (get_eq_calls prednode) ESet.empty eqs in
+    let deps = accu (get_aut_calls prednode) deps auts in
     ESet.elements deps
 
+  let get_contract_calls prednode c =
+    let deps = accu (get_stmt_calls prednode) ESet.empty c.stmts in
+    let deps = accu (get_eexpr_calls prednode) deps ( c.assume @ c.guarantees @ (List.fold_left (fun accu m -> accu @ m.require @ m.ensure ) [] c.modes)) in
+    let id_deps = List.map (fun e -> fst (desome (get_callee e))) (ESet.elements deps) in  
+    let id_deps = (List.fold_left (fun accu imp -> imp.import_nodeid::accu) [] c.imports) @ id_deps in  
+    id_deps
+    
   let dependence_graph prog =
     let g = new_graph () in
     let g = List.fold_right 
@@ -384,8 +396,14 @@ module NodeDep = struct
 		  )
 	       )
       	   in
+           let deps_spec = match nd.node_spec with
+             | None -> []
+             | Some (NodeSpec id) -> [id]
+             | Some (Contract c) -> get_contract_calls (fun _ -> true) c
+                                  
+           in
 	   (*Format.eprintf "%a@.@?" (Utils.fprintf_list ~sep:"@." Format.pp_print_string) deps; *)
-	   add_edges [nd.node_id] (deps@deps_asserts) accu
+	   add_edges [nd.node_id] (deps@deps_asserts@deps_spec) accu
 	| _ -> assert false (* should not happen *)
 	   
       ) prog g in

@@ -129,6 +129,18 @@ let print_machine_decl_prefix fmt m =
 
   *)
 
+(* TODO ACSL
+   mspec are function body annotations, sush as loop invariants, acsl asserts ... *) 
+let pp_mspec fmt s = ()
+
+   (* TODO ACSL 
+   Return updates machines (eg with local annotations) and acsl preamble *)
+let preprocess_acsl machines = machines, []
+                          
+(* TODO: This preamble shall be a list of types, axiomatics, predicates, theorems *)
+let pp_acsl_preamble fmt preamble =
+  Format.fprintf fmt "";
+  ()
 (**************************************************************************)
 (*                              MAKEFILE                                  *)
 (**************************************************************************)
