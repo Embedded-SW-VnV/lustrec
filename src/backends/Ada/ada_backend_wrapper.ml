@@ -49,7 +49,7 @@ struct
      @param machine the main machine
   **)
   let pp_main_adb fmt machine =
-    let pp_str str fmt = fprintf fmt "%s"str in
+    let pp_str str fmt = fprintf fmt "%s" str in
     (* Dependances *)
     let text_io = "Ada.Text_IO" in
     let float_io = "package Float_IO is new Ada.Text_IO.Float_IO(Float)" in
@@ -119,14 +119,80 @@ struct
       pp_with_machine machine
       (pp_main_procedure_definition machine) (locals, instrs)
 
-  (** Print the gpr project file.
+  (** Print the name of the ada project configuration file.
+     @param fmt the formater to print on
+     @param main_machine the machine associated to the main node
+  **)
+  let pp_project_configuration_name fmt basename =
+    fprintf fmt "%s.adc" basename
+
+  (** Print the project configuration file.
      @param fmt the formater to print on
      @param machine the main machine
   **)
-  let pp_project_file fmt machine =
-      fprintf fmt "project %a is@.  for Main use (\"%a\");@.end %a;"
-        pp_package_name machine
-        (pp_filename "adb") pp_main_procedure_name
-        pp_package_name machine
+  let pp_project_configuration_file fmt machine =
+    fprintf fmt "pragma SPARK_Mode (On);"
+
+  (** Print the name of the ada project file.
+     @param base_name name of the lustre file
+     @param fmt the formater to print on
+     @param machine_opt the main machine option
+  **)
+  let pp_project_name basename fmt machine_opt =
+    fprintf fmt "%s.gpr" basename
+
+  let pp_for_single name arg fmt =
+    fprintf fmt "for %s use \"%s\"" name arg
+
+  let pp_for name args fmt =
+    fprintf fmt "for %s use (@[%a@])" name
+      (Utils.fprintf_list ~sep:",@ " (fun fmt arg -> fprintf fmt "\"%s\"" arg))
+      args
+
+  let pp_content fmt lines =
+    fprintf fmt "  @[<v>%a%t@]"
+      (Utils.fprintf_list ~sep:";@," (fun fmt pp -> fprintf fmt "%t" pp)) lines
+      (Utils.pp_final_char_if_non_empty ";" lines)
+
+  let pp_package name lines fmt =
+    fprintf fmt "package %s is@,%a@,end %s"
+      name
+      pp_content lines
+      name
+
+  (** Print the gpr project file, if there is a machine in machine_opt then
+        an executable project is made else it is a library.
+     @param fmt the formater to print on
+     @param machine_opt the main machine option
+  **)
+  let pp_project_file machines basename fmt machine_opt =
+    let adbs = (List.map (asprintf "%a" (pp_machine_filename "adb")) machines)
+                  @(match machine_opt with
+                    | None -> []
+                    | Some m -> [asprintf "%a" pp_main_filename m]) in
+    let project_name = basename^(if machine_opt=None then "_lib" else "_exe") in
+    fprintf fmt "%sproject %s is@,%a@,end %s;" (if machine_opt=None then "library " else "") project_name
+    pp_content
+    ((match machine_opt with
+      | None -> [
+          pp_for_single "Library_Name" basename;
+          pp_for_single "Library_Dir" "lib";
+        ]
+      | Some machine -> [
+          pp_for "Main" [asprintf "%t" pp_main_procedure_name];
+          pp_for_single "Exec_Dir" "bin";
+        ])
+    @[
+      pp_for_single "Object_Dir" "obj";
+      pp_for "Source_Files" adbs;
+      pp_package "Builder" [
+        pp_for_single "Global_Configuration_Pragmas" (asprintf "%a" pp_project_configuration_name basename);
+      ];
+      pp_package "Prove" [
+        pp_for "Switches" ["--mode=prove"; "--report=statistics"; "--proof=per_check"; "--warnings=continue"];
+      ]
+    ])
+    project_name
+
 
   end

@@ -547,7 +547,7 @@ let translate fmt basename prog machines =
   fprintf fmt "\"nodes\": @[<v 0>{@ ";
   (* Previous alternative: mapping normalized lustre to EMF: 
      fprintf_list ~sep:",@ " pp_decl fmt prog; *)
-  pp_emf_list pp_machine fmt (List.rev machines);
+  pp_emf_list pp_machine fmt machines;
   fprintf fmt "}@]@ }";
   fprintf fmt "@]@ }"
 

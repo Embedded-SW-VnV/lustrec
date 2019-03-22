@@ -106,8 +106,9 @@ struct
   let pp_procedure_prototype_contract pp_prototype fmt opt_contract =
     match opt_contract with
       | None -> pp_prototype fmt
-      | Some contract -> 
-          fprintf fmt "@[<v 2>%t with@,%a%t%a@]"
+      | Some (NodeSpec ident) -> pp_prototype fmt (*TODO*)
+      | Some (Contract contract) ->
+          fprintf fmt "@[<v 2>%t with@,Global => null;@,%a%t%a@]"
             pp_prototype
             (Utils.fprintf_list ~sep:",@," pp_pre) contract.assume
             (Utils.pp_final_char_if_non_empty ",@," contract.assume)
@@ -118,13 +119,11 @@ struct
      @param machine the machine
   **)
   let pp_step_prototype_contract fmt m =
-    ()
-      (* Temporarily disabled while waiting for the code to stabilize 
-pp_procedure_prototype_contract
-        (pp_step_prototype m)
-        fmt
-        m.mspec
-       *)
+    pp_procedure_prototype_contract
+      (pp_step_prototype m)
+      fmt
+      m.mspec
+       
     
   (** Remove duplicates from a list according to a given predicate.
      @param eq the predicate defining equality
