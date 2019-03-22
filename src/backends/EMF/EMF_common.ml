@@ -236,22 +236,23 @@ let pp_tag_id fmt t =
     fprintf fmt "%i" (get_idx t const_list)
 
 let pp_cst_type c inf fmt (*infered_typ*) =
+  let pp_basic fmt s = fprintf fmt "{ \"kind\": \"%s\" }" s in
   match c with
   | Const_tag t ->
      let typ = (Corelang.typedef_of_top (Hashtbl.find Corelang.tag_table t)) in
      if typ.tydef_id = "bool" then
-       fprintf fmt "\"bool\""
+       pp_basic fmt "bool"
      else
        pp_tag_type t typ inf fmt
-  | Const_int _ -> fprintf fmt "\"int\"" (*!Options.int_type*)
-  | Const_real _ -> fprintf fmt "\"real\"" (*!Options.real_type*)
-  | Const_string _ -> fprintf fmt "\"string\"" 
+  | Const_int _ -> pp_basic fmt "int" (*!Options.int_type*)
+  | Const_real _ -> pp_basic fmt "real" (*!Options.real_type*)
+  | Const_string _ -> pp_basic fmt "string" 
   | _ -> eprintf "cst: %a@." Printers.pp_const c; assert false
 
     
 let pp_emf_cst c inf fmt =
-  let pp_typ fmt =
-    fprintf fmt "\"datatype\": { \"kind\": %t } @ "
+  let pp_typ fmt = 
+    fprintf fmt "\"datatype\": %t@ "
       (pp_cst_type c inf)   
   in
   match c with

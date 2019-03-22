@@ -290,6 +290,7 @@ let default_ada_cst cst_typ = match cst_typ with
   | Types.Basic.Tint  -> Const_int 0
   | Types.Basic.Treal -> Const_real (Num.num_of_int 0, 0, "0.0")
   | Types.Basic.Tbool -> Const_tag tag_false
+  | _ -> assert false
 
 (** Make a default value from a given type.
    @param typ the type
