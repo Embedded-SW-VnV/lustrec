@@ -48,31 +48,40 @@ struct
      @param fmt the formater to print on
      @param machine the main machine
   **)
-  let pp_main_adb fmt machine =
+  let pp_main_adb typed_submachines fmt machine =
+    let statefull = is_machine_statefull machine in
     let pp_str str fmt = fprintf fmt "%s" str in
+    
     (* Dependances *)
     let text_io = "Ada.Text_IO" in
     let float_io = "package Float_IO is new Ada.Text_IO.Float_IO(Float)" in
     let integer_io = "package Integer_IO is new Ada.Text_IO.Integer_IO(Integer)" in
     
     (* Locals *)
-    let stateVar = "state" in
-    let step_parameters = machine.mstep.step_inputs@machine.mstep.step_outputs in
+    let stateVar = asprintf "%t" pp_state_name in
     let pp_local_state_var_decl fmt = pp_node_state_decl [] stateVar fmt machine in
     let apply_pp_var_decl var fmt = pp_machine_var_decl NoMode fmt var in
+    let step_parameters = machine.mstep.step_inputs@machine.mstep.step_outputs in
     let locals = List.map apply_pp_var_decl step_parameters in
-    let locals = (pp_str integer_io)::(pp_str float_io)::pp_local_state_var_decl::locals in
+    let locals = [pp_str integer_io;pp_str float_io]@(if statefull then [pp_local_state_var_decl] else [])@locals in
 
     (* Node instructions *)
     let pp_reset fmt =
-      fprintf fmt "%a.reset(%s)"
-        pp_package_name machine
-        stateVar in
+      pp_package_call
+        pp_reset_procedure_name
+        fmt
+        ([], machine, pp_state_name, None)
+    in
+    let pp_args fmt =
+      fprintf fmt "@[%a@]"
+        (Utils.fprintf_list ~sep:",@ " pp_var_name) step_parameters
+    in
     let pp_step fmt =
-      fprintf fmt "%a.step(@[%s,@ %a@])"
-        pp_package_name machine
-        stateVar
-        (Utils.fprintf_list ~sep:",@ " pp_var_name) step_parameters in
+          pp_package_call
+            pp_step_procedure_name
+            fmt
+            ([], machine, pp_state_name, Some pp_args)
+    in
 
     (* Stream instructions *)
     let get_basic var = match (Types.repr var.var_type ).Types.tdesc with
@@ -112,8 +121,7 @@ struct
         (Utils.fprintf_list ~sep:";@," pp_write) machine.mstep.step_outputs in
     
     (* Print the file *)
-    let instrs = [ pp_reset;
-                   pp_loop] in
+    let instrs = (if statefull then [pp_reset] else [])@[pp_loop] in
     fprintf fmt "@[<v>%a;@,%a;@,@,%a;@]"
       pp_private_with (pp_str text_io)
       pp_with_machine machine

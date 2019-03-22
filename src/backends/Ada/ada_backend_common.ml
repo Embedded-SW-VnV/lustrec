@@ -837,3 +837,43 @@ let pp_machine_filename extension fmt machine =
   pp_filename extension fmt (function fmt -> pp_package_name fmt machine)
 
 let pp_main_filename fmt _ = pp_filename "adb" fmt pp_main_procedure_name
+
+(** Extract from a machine the instance corresponding to the identifier,
+      assume that the identifier exists in the instances of the machine.
+
+   @param identifier the instance identifier
+   @param machine a machine
+   @return the instance of machine.minstances corresponding to identifier
+**)
+let get_instance identifier typed_submachines =
+  try
+    List.assoc identifier typed_submachines
+  with Not_found -> assert false
+
+(** Printing a call to a package function
+
+    @param typed_submachines list of all typed machine instances of this machine
+    @param pp_name printer for the function name
+    @param fmt the formater to use
+    @param identifier the instance identifier
+    @param pp_args_opt optional printer for other arguments
+ **)
+let pp_package_call pp_name fmt (substitution, submachine, pp_state, pp_args_opt) =
+  let statefull = is_machine_statefull submachine in
+  let pp_opt fmt = function
+      | Some pp_args when statefull -> fprintf fmt ",@,%t" pp_args
+      | Some pp_args -> pp_args fmt
+      | None -> fprintf fmt ""
+  in
+  let pp_state fmt =
+    if statefull then
+      pp_state fmt
+    else
+      fprintf fmt ""
+  in
+  fprintf fmt "%a.%t(@[<v>%t%a@])"
+    (pp_package_name_with_polymorphic substitution) submachine
+    pp_name
+    pp_state
+    pp_opt pp_args_opt
+

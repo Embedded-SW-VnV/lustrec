@@ -33,46 +33,6 @@ struct
       (pp_access_var m) var_name
       (pp_value m) value
 
-  (** Extract from a machine the instance corresponding to the identifier,
-        assume that the identifier exists in the instances of the machine.
-
-     @param identifier the instance identifier
-     @param machine a machine
-     @return the instance of machine.minstances corresponding to identifier
-  **)
-  let get_instance identifier typed_submachines =
-    try
-      List.assoc identifier typed_submachines
-    with Not_found -> assert false
-
-  (** Printing a call to a package function
-
-      @param typed_submachines list of all typed machine instances of this machine
-      @param pp_name printer for the function name
-      @param fmt the formater to use
-      @param identifier the instance identifier
-      @param pp_args_opt optional printer for other arguments
-   **)
-  let pp_package_call typed_submachines pp_name fmt (identifier, pp_args_opt) =
-    let (substitution, submachine) = get_instance identifier typed_submachines in
-    let statefull = is_machine_statefull submachine in
-    let pp_opt fmt = function
-        | Some pp_args when statefull -> fprintf fmt ",@,%t" pp_args
-        | Some pp_args -> pp_args fmt
-        | None -> fprintf fmt ""
-    in
-    let pp_state fmt =
-      if statefull then
-        fprintf fmt "%t.%s" pp_state_name identifier
-      else
-        fprintf fmt ""
-    in
-    fprintf fmt "%a.%t(@[<v>%t%a@])"
-      (pp_package_name_with_polymorphic substitution) submachine
-      pp_name
-      pp_state
-      pp_opt pp_args_opt
-
   (** Printing function for instruction. See
       {!type:Machine_code_types.instr_t} for more details on
       machine types.
@@ -85,11 +45,12 @@ struct
   let rec pp_machine_instr typed_submachines machine fmt instr =
     let pp_instr = pp_machine_instr typed_submachines machine in
     (* Print args for a step call *)
+    let pp_state i fmt = fprintf fmt "%t.%s" pp_state_name i in
     let pp_args vl il fmt =
       fprintf fmt "@[%a@]%t@[%a@]"
         (Utils.fprintf_list ~sep:",@ " (pp_value machine)) vl
         (Utils.pp_final_char_if_non_empty ",@," il)
-        (Utils.fprintf_list ~sep:",@ " (pp_access_var machine)) il
+        (Utils.fprintf_list ~sep:",@ " pp_var_name) il
     in
     (* Print a when branch of a case *)
     let pp_when fmt (cond, instrs) =
@@ -130,12 +91,12 @@ struct
       (* no reset *)
       | MNoReset _ -> ()
       (* reset  *)
-      | MReset i ->
+      | MReset i when List.mem_assoc i typed_submachines ->
+          let (substitution, submachine) = get_instance i typed_submachines in
           pp_package_call
-            typed_submachines
             pp_reset_procedure_name
             fmt
-            (i, None)
+            (substitution, submachine, pp_state i, None)
       | MLocalAssign (ident, value) ->
           pp_basic_assign machine fmt ident value
       | MStateAssign (ident, value) ->
@@ -144,11 +105,11 @@ struct
           let value = mk_val (Fun (i, vl)) i0.var_type in
           pp_basic_assign machine fmt i0 value
       | MStep (il, i, vl) when List.mem_assoc i typed_submachines ->
+          let (substitution, submachine) = get_instance i typed_submachines in
           pp_package_call
-            typed_submachines
             pp_step_procedure_name
             fmt
-            (i, Some (pp_args vl il))
+            (substitution, submachine, pp_state i, Some (pp_args vl il))
       | MBranch (_, []) -> assert false
       | MBranch (g, (c1, i1)::tl) when c1=tag_false || c1=tag_true ->
           let neg = c1=tag_false in

@@ -114,7 +114,7 @@ let translate_to_ada basename prog machines dependencies =
   (match main_machine with
     | None -> ()
     | Some machine ->
-        write_file destname pp_main_filename Wrapper.pp_main_adb machine;
+        write_file destname pp_main_filename (Wrapper.pp_main_adb (get_typed_submachines machines machine)) machine;
         write_file destname (Wrapper.pp_project_name (basename^"_exe")) (Wrapper.pp_project_file machines basename) main_machine);
   write_file destname Wrapper.pp_project_configuration_name Wrapper.pp_project_configuration_file basename;
   write_file destname (Wrapper.pp_project_name (basename^"_lib")) (Wrapper.pp_project_file machines basename) None;
