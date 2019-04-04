@@ -1,0 +1,58 @@
+This is the Ada Backend generating Ada code from the machine code computed
+from a Lustre file.
+
+The backend is split in several files described in this README.
+
+=> misc_lustre_function.ml
+Some fonction on pure Lustre machine code, no printers
+or anything related to Ada. It just compute information from the Machine Code.
+It contains mostly the unification code used for polymorphic type. It is
+important since the Arrow node is polymorphic.
+
+=> misc_printer.ml
+Some general format printer function, not related at all
+to Ada but used by this backend.
+
+=> ada_printer.mli
+=> ada_printer.ml
+It contains Type representing some part of Ada syntaxe and printers function
+to generates it. There is nothing specifics to Lustre in this file. It is
+mostly printers for the declarative part of Ada. The printer functions takes in
+general directly printer function build by other files(like ada_backend_common.ml)
+to print instruction and expression contained in the declaration.
+For example, the printer for the declaration of a variable will take
+two printer functions as argument:
+ - pp_type: printing the type
+ - pp_name: printing the variable name
+The printer will looks like :
+--
+let pp_var_decl pp_type pp_name =
+  fprintf fmt "%t : %t" pp_type pp_name
+--
+
+=> ada_backend_common.mli
+=> ada_backend_common.ml
+It contains function printing Ada code(instruction and exression) from Machine
+Code. This functions are used or could be used for ads and/or adb and/or
+wrappers.
+
+=> ada_backend_ads.ml
+It contains function printing Ada code(instruction and exression) from Machine
+Code for the Ads file.
+
+=> ada_backend_adb.ml
+It contains function printing Ada code(instruction and exression) from Machine
+Code for the Adb file.
+
+=> ada_backend_wrapper.ml
+It contains function printing Ada code(instruction and exression) from Machine
+Code for :
+  - an adb file witha main function containg a loop calling step.
+  - a project file
+  - a configuration file
+
+=> ada_backend.ml
+It contains the main function of the backend which perform the unification
+and write all the files using the previsous code.
+
+

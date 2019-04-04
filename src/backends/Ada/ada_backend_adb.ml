@@ -15,6 +15,10 @@ open Machine_code_types
 open Lustre_types
 open Corelang
 open Machine_code_common
+
+open Misc_printer
+open Misc_lustre_function
+open Ada_printer
 open Ada_backend_common
 
 (** Main module for generating packages bodies
@@ -42,25 +46,19 @@ struct
       @param fmt the formater to print on
       @param instr the instruction to print
    **)
-  let rec pp_machine_instr typed_submachines machine fmt instr =
+  let rec pp_machine_instr typed_submachines machine instr fmt =
     let pp_instr = pp_machine_instr typed_submachines machine in
     (* Print args for a step call *)
     let pp_state i fmt = fprintf fmt "%t.%s" pp_state_name i in
-    let pp_args vl il fmt =
-      fprintf fmt "@[%a@]%t@[%a@]"
-        (Utils.fprintf_list ~sep:",@ " (pp_value machine)) vl
-        (Utils.pp_final_char_if_non_empty ",@," il)
-        (Utils.fprintf_list ~sep:",@ " pp_var_name) il
-    in
     (* Print a when branch of a case *)
-    let pp_when fmt (cond, instrs) =
-      fprintf fmt "when %s =>@,%a" cond (pp_block pp_instr) instrs
+    let pp_when (cond, instrs) fmt =
+      fprintf fmt "when %s =>@,%a" cond pp_block (List.map pp_instr instrs)
     in
     (* Print a case *)
     let pp_case fmt (g, hl) =
       fprintf fmt "case %a is@,%aend case"
         (pp_value machine) g
-        (pp_block pp_when) hl
+        pp_block (List.map pp_when hl)
     in
     (* Print a if *)
     (* If neg is true the we must test for the negation of the condition. It
@@ -80,11 +78,11 @@ struct
           let pp_else = match instrs2 with
             | None -> fun fmt -> fprintf fmt ""
             | Some i2 -> fun fmt ->
-                fprintf fmt "else@,%a" (pp_block pp_instr) i2
+                fprintf fmt "else@,%a" pp_block (List.map pp_instr i2)
           in
           fprintf fmt "if %a then@,%a%tend if"
             pp_cond g
-            (pp_block pp_instr) instrs1
+            pp_block (List.map pp_instr instrs1)
             pp_else
     in
     match get_instr_desc instr with
@@ -93,10 +91,9 @@ struct
       (* reset  *)
       | MReset i when List.mem_assoc i typed_submachines ->
           let (substitution, submachine) = get_instance i typed_submachines in
-          pp_package_call
-            pp_reset_procedure_name
-            fmt
-            (substitution, submachine, pp_state i, None)
+          let pp_package = pp_package_name_with_polymorphic substitution submachine in
+          let args = if is_machine_statefull submachine then [[pp_state i]] else [] in
+          pp_call fmt (pp_package_access (pp_package, pp_reset_procedure_name), args)
       | MLocalAssign (ident, value) ->
           pp_basic_assign machine fmt ident value
       | MStateAssign (ident, value) ->
@@ -106,10 +103,15 @@ struct
           pp_basic_assign machine fmt i0 value
       | MStep (il, i, vl) when List.mem_assoc i typed_submachines ->
           let (substitution, submachine) = get_instance i typed_submachines in
-          pp_package_call
-            pp_step_procedure_name
-            fmt
-            (substitution, submachine, pp_state i, Some (pp_args vl il))
+          let pp_package = pp_package_name_with_polymorphic substitution submachine in
+          let input = List.map (fun x fmt -> pp_value machine fmt x) vl in
+          let output = List.map (fun x fmt -> pp_var_name fmt x) il in
+          let args =
+            (if is_machine_statefull submachine then [[pp_state i]] else [])
+              @(if input!=[] then [input] else [])
+              @(if output!=[] then [output] else [])
+          in
+          pp_call fmt (pp_package_access (pp_package, pp_step_procedure_name), args)
       | MBranch (_, []) -> assert false
       | MBranch (g, (c1, i1)::tl) when c1=tag_false || c1=tag_true ->
           let neg = c1=tag_false in
@@ -131,14 +133,19 @@ struct
      @param fmt the formater to print on
      @param machine the machine
   **)
-  let pp_step_definition typed_submachines fmt m =
-    pp_procedure_definition
-      pp_step_procedure_name
-      (pp_step_prototype m)
-      (pp_machine_var_decl NoMode)
-      (pp_machine_instr typed_submachines m)
-      fmt
-      (m.mstep.step_locals, m.mstep.step_instrs)
+  let pp_step_definition typed_submachines fmt (m, m_spec_opt) =
+    let spec_instrs = match m_spec_opt with
+      | None -> []
+      | Some m -> m.mstep.step_instrs
+    in
+    let spec_locals = match m_spec_opt with
+      | None -> []
+      | Some m -> m.mstep.step_locals
+    in
+    let pp_local_list = List.map build_pp_var_decl_local (m.mstep.step_locals@spec_locals) in
+    let pp_instr_list = List.map (pp_machine_instr typed_submachines m) (m.mstep.step_instrs@spec_instrs) in
+    let content = AdaProcedureContent ((if pp_local_list = [] then [] else [pp_local_list]), pp_instr_list) in
+    pp_procedure pp_step_procedure_name (build_pp_arg_step m) None fmt content
 
   (** Print the definition of the reset procedure from a machine.
 
@@ -151,13 +158,8 @@ struct
       mkinstr (MStateAssign (var, mk_default_value var.var_type))
     in
     let assigns = List.map build_assign m.mmemory in
-    pp_procedure_definition
-      pp_reset_procedure_name
-      (pp_reset_prototype m)
-      (pp_machine_var_decl NoMode)
-      (pp_machine_instr typed_submachines m)
-      fmt
-      ([], assigns@m.minit)
+    let pp_instr_list = List.map (pp_machine_instr typed_submachines m) (assigns@m.minit) in
+    pp_procedure pp_reset_procedure_name (build_pp_arg_reset m) None fmt (AdaProcedureContent ([], pp_instr_list))
 
   (** Print the package definition(ads) of a machine.
     It requires the list of all typed instance.
@@ -169,7 +171,7 @@ struct
      @param typed_submachines list of all typed machine instances of this machine
      @param m the machine
   **)
-  let pp_file fmt (typed_submachines, machine) =
+  let pp_file fmt (typed_submachines, ((opt_spec_machine, guarantees), machine)) =
     let pp_reset fmt =
       if is_machine_statefull machine then
         fprintf fmt "%a;@,@," (pp_reset_definition typed_submachines) machine
@@ -185,24 +187,23 @@ struct
           pkg::pkgs
       with Not_found -> pkgs
     in
-    let packages = List.fold_left aux [] machine.mcalls in
-    fprintf fmt "%a%t%a@,  @[<v>@,%t%a;@,@]@,%a;@."
+    let packages = List.map pp_str (List.fold_left aux [] machine.mcalls) in
+    let pp_content fmt =
+      fprintf fmt "%t%a"
+        (*Define the reset procedure*)
+        pp_reset
+        
+        (*Define the step procedure*)
+        (pp_step_definition typed_submachines) (machine, opt_spec_machine)
+    in
+    fprintf fmt "%a%t%a;@."
       
       (* Include all the required packages*)
-      (Utils.fprintf_list ~sep:";@," pp_with) packages
+      (Utils.fprintf_list ~sep:";@," (pp_with AdaNoVisibility)) packages
       (Utils.pp_final_char_if_non_empty ";@,@," packages)
       
-      (*Begin the package*)
-      (pp_begin_package true) machine
-      
-      (*Define the reset procedure*)
-      pp_reset
-      
-      (*Define the step procedure*)
-      (pp_step_definition typed_submachines) machine
-      
-      (*End the package*)
-      pp_end_package machine
+      (*Print package*)
+      (pp_package (pp_package_name machine) [] true ) pp_content
 
 end
 

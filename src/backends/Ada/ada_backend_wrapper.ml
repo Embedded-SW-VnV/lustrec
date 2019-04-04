@@ -12,37 +12,21 @@
 open Format
 
 open Machine_code_types
-open Ada_backend_common
 open Lustre_types
+
+open Misc_printer
+open Misc_lustre_function
+open Ada_printer
+open Ada_backend_common
 
 module Main =
 struct
 
-  (** Print the main procedure
-     @param fmt the formater to print on
-     @param machine the main machine
-     @param locals list of local variable printers
-     @param instrs list of instructions printer
-  **)
-  let pp_main_procedure_definition machine fmt (locals, instrs) =
-      pp_procedure_definition
-        pp_main_procedure_name
-        (pp_simple_prototype pp_main_procedure_name)
-        (fun fmt local -> fprintf fmt "%t" local)
-        (fun fmt instr -> fprintf fmt "%t" instr)
-        fmt
-        (locals, instrs)
-
-  (** Print call to machine procedure on state.
-     @param instance name of the variable
-     @param fmt the formater to print on
-     @param instance node
-  **)
-  let pp_node_reset_call name fmt node =
-    let pp_package fmt = pp_package_name fmt node in
-    let pp_type fmt = pp_package_access fmt (pp_package, pp_state_type) in
-    let pp_name fmt = pp_clean_ada_identifier fmt name in
-    pp_var_decl fmt (NoMode, pp_name, pp_type)
+  let build_text_io_package_local typ =
+    AdaLocalPackage (
+      (fun fmt -> fprintf fmt "%s_IO" typ),
+      (fun fmt -> fprintf fmt "Ada.Text_IO.%s_IO" typ),
+      [((fun fmt -> fprintf fmt "Num"), (fun fmt -> fprintf fmt "%s" typ))])
 
   (** Print the main file calling in a loop the step function of the main machine.
      @param fmt the formater to print on
@@ -50,37 +34,18 @@ struct
   **)
   let pp_main_adb typed_submachines fmt machine =
     let statefull = is_machine_statefull machine in
-    let pp_str str fmt = fprintf fmt "%s" str in
+    
+    let pp_package = pp_package_name_with_polymorphic [] machine in
     
     (* Dependances *)
     let text_io = "Ada.Text_IO" in
-    let float_io = "package Float_IO is new Ada.Text_IO.Float_IO(Float)" in
-    let integer_io = "package Integer_IO is new Ada.Text_IO.Integer_IO(Integer)" in
     
     (* Locals *)
-    let stateVar = asprintf "%t" pp_state_name in
-    let pp_local_state_var_decl fmt = pp_node_state_decl [] stateVar fmt machine in
-    let apply_pp_var_decl var fmt = pp_machine_var_decl NoMode fmt var in
-    let step_parameters = machine.mstep.step_inputs@machine.mstep.step_outputs in
-    let locals = List.map apply_pp_var_decl step_parameters in
-    let locals = [pp_str integer_io;pp_str float_io]@(if statefull then [pp_local_state_var_decl] else [])@locals in
-
-    (* Node instructions *)
-    let pp_reset fmt =
-      pp_package_call
-        pp_reset_procedure_name
-        fmt
-        ([], machine, pp_state_name, None)
-    in
-    let pp_args fmt =
-      fprintf fmt "@[%a@]"
-        (Utils.fprintf_list ~sep:",@ " pp_var_name) step_parameters
-    in
-    let pp_step fmt =
-          pp_package_call
-            pp_step_procedure_name
-            fmt
-            ([], machine, pp_state_name, Some pp_args)
+    let locals =
+      [[build_text_io_package_local "Integer";build_text_io_package_local "Float"]]
+      @(if statefull then [[AdaLocalVar (build_pp_state_decl_from_subinstance (asprintf "%t" pp_state_name, ([], machine)))]] else [])
+      @(if machine.mstep.step_inputs != [] then [List.map build_pp_var_decl_local machine.mstep.step_inputs] else [])
+      @(if machine.mstep.step_outputs != [] then [List.map build_pp_var_decl_local machine.mstep.step_outputs] else [])
     in
 
     (* Stream instructions *)
@@ -115,17 +80,18 @@ struct
 
     (* Loop instructions *)
     let pp_loop fmt =
-      fprintf fmt "while not Ada.Text_IO.End_Of_File loop@,  @[<v>%a;@,%t;@,%a;@]@,end loop"
+      let args = pp_state_name::(List.map (fun x fmt -> pp_var_name fmt x) (machine.mstep.step_inputs@machine.mstep.step_outputs)) in
+      fprintf fmt "while not Ada.Text_IO.End_Of_File loop@,  @[<v>%a;@,%a;@,%a;@]@,end loop"
         (Utils.fprintf_list ~sep:";@," pp_read) machine.mstep.step_inputs
-        pp_step
+        pp_call (pp_package_access (pp_package, pp_step_procedure_name), [args])
         (Utils.fprintf_list ~sep:";@," pp_write) machine.mstep.step_outputs in
     
     (* Print the file *)
-    let instrs = (if statefull then [pp_reset] else [])@[pp_loop] in
+    let instrs = (if statefull then [fun fmt -> pp_call fmt (pp_package_access (pp_package, pp_reset_procedure_name), [[pp_state_name]])] else [])@[pp_loop] in
     fprintf fmt "@[<v>%a;@,%a;@,@,%a;@]"
-      pp_private_with (pp_str text_io)
-      pp_with_machine machine
-      (pp_main_procedure_definition machine) (locals, instrs)
+      (pp_with AdaPrivate) (pp_str text_io)
+      (pp_with AdaPrivate) (pp_package_name machine)
+      (pp_procedure pp_main_procedure_name [] None) (AdaProcedureContent (locals, instrs))
 
   (** Print the name of the ada project configuration file.
      @param fmt the formater to print on
