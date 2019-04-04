@@ -253,7 +253,7 @@ struct
       let pp_contract_opt = match guarantees with
                               | [] -> None
                               | _ ->  Some (pp_contract guarantees) in
-      fprintf fmt "%a%a;@,%a" (* %a;@, *)
+      fprintf fmt "%a%a%a%a" (* %a;@, *)
         pp_ifstatefull pp_state_decl_and_reset
         
         (*Declare the transition predicate*)
@@ -261,6 +261,8 @@ struct
         
         (*Declare the step procedure*)
         (pp_procedure pp_step_procedure_name (build_pp_arg_step m) pp_contract_opt) AdaNoContent
+        
+        pp_ifstatefull (fun fmt -> fprintf fmt ";@,")
         
         (*Print the private section*)
         pp_ifstatefull pp_private_section
