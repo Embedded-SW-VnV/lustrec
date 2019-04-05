@@ -9,7 +9,9 @@ type visibility = AdaNoVisibility | AdaPrivate | AdaLimitedPrivate
 
 type printer = Format.formatter -> unit
 
-type ada_var_decl = parameter_mode * printer * printer
+type ada_with = (bool * (printer list) * (printer list)) option
+
+type ada_var_decl = parameter_mode * printer * printer * ada_with
 
 type ada_local_decl =
   | AdaLocalVar of ada_var_decl
@@ -17,7 +19,8 @@ type ada_local_decl =
 
 type def_content =
   | AdaNoContent
-  | AdaPackageContent of (Format.formatter -> unit)
+  | AdaPackageContent of printer
+  | AdaSimpleContent of printer
   | AdaVisibilityDefinition of visibility
   | AdaProcedureContent of ((ada_local_decl list list) * (printer list))
   | AdaRecord of ((ada_var_decl list) list)
@@ -48,6 +51,21 @@ let pp_visibility fmt visibility =
                      | AdaPrivate          -> "private"
                      | AdaLimitedPrivate   -> "limited private")
 
+(** Print the integer type name.
+   @param fmt the formater to print on
+**)
+let pp_integer_type fmt = fprintf fmt "Integer"
+
+(** Print the float type name.
+   @param fmt the formater to print on
+**)
+let pp_float_type fmt = fprintf fmt "Float"
+
+(** Print the boolean type name.
+   @param fmt the formater to print on
+**)
+let pp_boolean_type fmt = fprintf fmt "Boolean"
+
 let pp_group ~sep:sep pp_list fmt =
   assert(pp_list != []);
   fprintf fmt "@[%a@]"
@@ -62,6 +80,29 @@ let pp_block fmt pp_item_list =
     (Utils.pp_final_char_if_non_empty "  " pp_item_list)
     (Utils.fprintf_list ~sep:";@," (fun fmt pp -> pp fmt)) pp_item_list
     (Utils.pp_final_char_if_non_empty ";@," pp_item_list)
+
+
+let pp_ada_with fmt = function
+  | None -> fprintf fmt ""
+  | Some (ghost, pres, posts) ->
+      assert(ghost || (pres != []) || (posts != []));
+      let contract = pres@posts in
+      let pp_ghost fmt = if not ghost then fprintf fmt "" else
+        fprintf fmt " Ghost%t" (Utils.pp_final_char_if_non_empty ",@," contract)
+      in
+      let pp_aspect aspect fmt pps = if pps = [] then fprintf fmt "" else
+        fprintf fmt "%s => %t" aspect (pp_group ~sep:"@,and " pps)
+      in
+      let pp_contract fmt = if contract = [] then fprintf fmt "" else
+        let sep = if pres != [] && posts != [] then ",@," else "" in
+        fprintf fmt "@,  @[<v>%a%s%a@]"
+          (pp_aspect "Pre") pres
+          sep
+          (pp_aspect "Post") posts
+      in
+      fprintf fmt " with%t%t"
+        pp_ghost
+        pp_contract
 
 (** Print instanciation of a generic type in a new statement.
    @param fmt the formater to print on
@@ -78,12 +119,13 @@ let pp_generic_instanciation (pp_name, pp_type) fmt =
    @param fmt the formater to print on
    @param id the variable
 **)
-let pp_var_decl (mode, pp_name, pp_type) fmt =
-  fprintf fmt "%t: %a%s%t"
+let pp_var_decl (mode, pp_name, pp_type, with_statement) fmt =
+  fprintf fmt "%t: %a%s%t%a"
     pp_name
     pp_parameter_mode mode
     (if mode = AdaNoMode then "" else " ")
     pp_type
+    pp_ada_with with_statement
 
 let apply_var_decl_lists var_list =
   List.map (fun l-> List.map pp_var_decl l) var_list
@@ -108,21 +150,23 @@ and pp_content pp_name fmt = function
       fprintf fmt " is %a" pp_visibility visbility
   | AdaPackageContent pp_package ->
       fprintf fmt " is@,  @[<v>%t;@]@,end %t" pp_package pp_name
+  | AdaSimpleContent pp_content ->
+      fprintf fmt " is@,  @[<v 2>(%t)@]" pp_content
   | AdaProcedureContent (local_list, pp_instr_list) ->
       fprintf fmt " is@,%abegin@,%aend %t"
-        pp_block (List.map (fun l -> pp_group ~sep:";@," (List.map pp_local l)) local_list)
+        pp_block (List.map (fun l -> pp_group ~sep:";@;" (List.map pp_local l)) local_list)
         pp_block pp_instr_list
         pp_name
   | AdaRecord var_list ->
       assert(var_list != []);
       let pp_lists = apply_var_decl_lists var_list in
       fprintf fmt " is@,  @[<v>record@,  @[<v>%a@]@,end record@]"
-        pp_block (List.map (pp_group ~sep:";@,") pp_lists)
+        pp_block (List.map (pp_group ~sep:";@;") pp_lists)
   | AdaPackageInstanciation (pp_name, instanciations) ->
       fprintf fmt " is new %t%a"
         pp_name
         (pp_args ~sep:",@,") (List.map pp_generic_instanciation instanciations)
-and pp_def fmt (pp_generics, kind_def, pp_name, args, pp_type_opt, content, pp_spec_opt) =
+and pp_def fmt (pp_generics, kind_def, pp_name, args, pp_type_opt, content, pp_with_opt) =
   let pp_arg_lists = apply_var_decl_lists args in
   fprintf fmt "%a%a %t%a%a%a%a"
     pp_generic pp_generics
@@ -131,7 +175,7 @@ and pp_def fmt (pp_generics, kind_def, pp_name, args, pp_type_opt, content, pp_s
     (pp_args ~sep:";@,") (List.map (pp_group ~sep:";@,") pp_arg_lists)
     (pp_opt "return") pp_type_opt
     (pp_content pp_name) content
-    (pp_opt   "with") pp_spec_opt
+    pp_ada_with pp_with_opt
 and pp_package_instanciation pp_name pp_base_name fmt instanciations =
   pp_def fmt ([], AdaPackageDecl, pp_name, [], None, (AdaPackageInstanciation (pp_base_name, instanciations)), None)
 
@@ -164,6 +208,18 @@ let pp_record pp_name fmt var_lists =
 
 let pp_procedure pp_name args pp_with_opt fmt content =
   pp_def fmt ([], AdaProcedure, pp_name, args, None, content, pp_with_opt)
+
+let pp_predicate pp_name args fmt content_opt =
+  let rec quantify pp_content = function
+    | [] -> pp_content
+    | (pp_var, pp_type)::q -> fun fmt ->
+      fprintf fmt "for some %t in %t => (@,  @[<v>%t@])" pp_var pp_type (quantify pp_content q)
+  in
+  let content, with_st = match content_opt with
+    | Some (locals, booleans) -> AdaSimpleContent (quantify (fun fmt -> Utils.fprintf_list ~sep:"@;and " (fun fmt pp->pp fmt) fmt booleans) locals), None
+    | None -> AdaNoContent, Some (true, [], [])
+  in
+  pp_def fmt ([], AdaFunction, pp_name, args, Some pp_boolean_type, content, with_st)
 
 
 
@@ -228,40 +284,16 @@ let pp_oneline_comment fmt s =
 let pp_call fmt (pp_name, args) =
   fprintf fmt "%t%a"
     pp_name
-    (pp_args ~sep:",@ ") (List.map (pp_group ~sep:",@ ") args)
+    (pp_args ~sep:",@ ") (List.map (pp_group ~sep:",@,") args)
 
 
-(*
-
-(** Print a precondition in aspect
+(** Print the complete name of variable.
+   @param m the machine to check if it is memory
    @param fmt the formater to print on
-   @param expr the expession to print as pre
+   @param var the variable
 **)
-let pp_pre fmt expr =
-  fprintf fmt "Pre => %a"
-    pp_clean_ada_identifier expr
+let pp_access pp_state pp_var fmt =
+  fprintf fmt "%t.%t" pp_state pp_var
 
-(** Print a postcondition in aspect
-   @param fmt the formater to print on
-   @param expr the expession to print as pre
-**)
-let pp_post fmt ident =
-  fprintf fmt "Post => %a"
-    pp_clean_ada_identifier ident
-
-(** Print the declaration of a procedure with a contract
-   @param pp_prototype the prototype printer
-   @param fmt the formater to print on
-   @param contract the contract for the function to declare
-**)
-let pp_contract guarantees fmt =
-  fprintf fmt "@,  @[<v>Global => null%t%a@]"
-    (Utils.pp_final_char_if_non_empty ",@," guarantees)
-    (Utils.fprintf_list ~sep:",@," pp_post) guarantees
-
-*)
-
-
-
-
+let pp_old pp fmt = fprintf fmt "%t'Old" pp
 

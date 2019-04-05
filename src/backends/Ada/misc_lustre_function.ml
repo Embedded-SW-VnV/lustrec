@@ -1,12 +1,12 @@
 
 open Machine_code_types
 open Lustre_types
-(*
 open Corelang
+(*
 open Machine_code_common
 *)
 
-let is_machine_statefull m = m.mmemory != [] || m.mcalls != []
+let is_machine_statefull m = not m.mname.node_dec_stateless
 
 (** Return true if its the arrow machine
    @param machine the machine to test
@@ -34,19 +34,6 @@ let get_machine machines instance =
       List.find (function m -> m.mname.node_id=id) machines
     with
       Not_found -> assert false (*TODO*)
-
-(** Test if two types are the same.
-   @param typ1 the first type
-   @param typ2 the second type
-**)
-let pp_eq_type typ1 typ2 = 
-  let get_basic typ = match (Types.repr typ).Types.tdesc with
-    | Types.Tbasic Types.Basic.Tint -> Types.Basic.Tint
-    | Types.Tbasic Types.Basic.Treal -> Types.Basic.Treal
-    | Types.Tbasic Types.Basic.Tbool -> Types.Basic.Tbool
-    | _ -> assert false (*TODO*)
-  in
-  get_basic typ1 = get_basic typ2
 
 (** Extract all the inputs and outputs.
    @param machine the machine
@@ -96,6 +83,22 @@ let rec find_submachine_step_call ident instr_list =
       | _ -> []
   in
   List.flatten (List.map search_instr instr_list)
+
+(* Replace this function by check_type_equal but be careful to the fact that
+   this function chck equality and that it is both basic type.
+   This might be a required feature when it used *)
+(** Test if two types are the same.
+   @param typ1 the first type
+   @param typ2 the second type
+**)
+let pp_eq_type typ1 typ2 = 
+  let get_basic typ = match (Types.repr typ).Types.tdesc with
+    | Types.Tbasic Types.Basic.Tint -> Types.Basic.Tint
+    | Types.Tbasic Types.Basic.Treal -> Types.Basic.Treal
+    | Types.Tbasic Types.Basic.Tbool -> Types.Basic.Tbool
+    | _ -> assert false (*TODO*)
+  in
+  get_basic typ1 = get_basic typ2
 
 (** Check that two types are the same.
    @param t1 a type
@@ -217,4 +220,93 @@ let get_instance identifier typed_submachines =
   try
     List.assoc identifier typed_submachines
   with Not_found -> assert false
+
+(*Usefull for debug*)
+let pp_type_debug fmt typ = 
+  (match (Types.repr typ).Types.tdesc with
+    | Types.Tbasic Types.Basic.Tint  -> Format.fprintf fmt "INTEGER"
+    | Types.Tbasic Types.Basic.Treal -> Format.fprintf fmt "FLOAT"
+    | Types.Tbasic Types.Basic.Tbool -> Format.fprintf fmt "BOOLEAN"
+    | Types.Tunivar                  -> Format.fprintf fmt "POLY(%i)" typ.Types.tid
+    | _ -> assert false
+  )
+
+let build_if g c1 i1 tl =
+  let neg = c1=tag_false in
+  let other = match tl with
+    | []         -> None
+    | [(c2, i2)] -> Some i2
+    | _          -> assert false
+  in
+  match neg, other with
+    | true, Some x -> (false, g, x, Some i1)
+    | _ ->
+  (neg, g, i1, other)
+
+let rec push_if_in_expr = function
+  | [] -> []
+  | instr::q ->
+    (
+      match get_instr_desc instr with
+        | MBranch (g, (c1, i1)::tl) when c1=tag_false || c1=tag_true ->
+            let (neg, g, instrs1, instrs2) = build_if g c1 i1 tl in
+            let instrs1_pushed = push_if_in_expr instrs1 in
+            let get_assign instr = match get_instr_desc instr with
+              | MLocalAssign (id, value) -> (false, id, value)
+              | MStateAssign (id, value) -> (true, id, value)
+              | _ -> assert false
+            in
+            let gen_eq ident state value1 value2 =
+              assert(check_type_equal ident.var_type value1.value_type);
+              assert(check_type_equal ident.var_type value2.value_type);
+              let value = {
+                            value_desc   = Fun ("ite", [g;value1;value2]);
+                            value_type   = ident.var_type;
+                            value_annot  = None
+                          }
+              in
+              let assign = if state then MStateAssign (ident, value) else MLocalAssign (ident, value) in
+              { instr_desc = assign;
+                lustre_eq  = None
+              }
+            in
+            let mkval_var id = {
+                              value_desc   = Var id;
+                              value_type   = id.var_type;
+                              value_annot  = None
+                            }
+            in
+            let rec find_split s1 id1 accu = function
+              | [] -> [], accu, mkval_var id1
+              | (s2, id2, v2)::q when s1 = s2
+                                  && id1.var_id = id2.var_id -> accu, q, v2
+              | t::q -> find_split s1 id1 (t::accu) q
+            in
+            let gen_from_else l =
+              List.map
+                (fun (s2, id2, v2) -> gen_eq id2 s2 (mkval_var id2) v2)
+                l
+            in
+            let rec gen_assigns if_assigns else_assigns =
+              let res, accu_else = match if_assigns with
+                | (s1, id1, v1)::q ->
+                  let accu, remain, v2 = find_split s1 id1 [] else_assigns in
+                  (gen_eq id1 s1 v1 v2)::(gen_assigns q remain), accu
+                | [] -> [], else_assigns
+              in
+              (gen_from_else accu_else)@res
+            in
+            let if_assigns = List.map get_assign instrs1_pushed in
+            let else_assigns = match instrs2 with
+              | None -> []
+              | Some instrs2 -> 
+                  let instrs2_pushed = push_if_in_expr instrs2 in
+                  List.map get_assign instrs2_pushed
+            in
+            gen_assigns if_assigns else_assigns
+        | x -> [instr]
+      )@(push_if_in_expr q)
+
+
+
 

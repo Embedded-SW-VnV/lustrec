@@ -7,7 +7,9 @@ type kind_def = AdaType | AdaProcedure | AdaFunction | AdaPackageDecl | AdaPacka
 
 type visibility = AdaNoVisibility | AdaPrivate | AdaLimitedPrivate
 
-type ada_var_decl = parameter_mode*printer*printer
+type ada_with = (bool * (printer list) * (printer list)) option
+
+type ada_var_decl = parameter_mode * printer * printer * ada_with
 
 type ada_local_decl =
   | AdaLocalVar of ada_var_decl
@@ -16,11 +18,15 @@ type ada_local_decl =
 type def_content =
   | AdaNoContent
   | AdaPackageContent of printer
+  | AdaSimpleContent of printer
   | AdaVisibilityDefinition of visibility
   | AdaProcedureContent of ((ada_local_decl list list) * (printer list))
   | AdaRecord of (ada_var_decl list list)
   | AdaPackageInstanciation of (printer * ((printer*printer) list))
 
+val pp_integer_type : printer
+val pp_float_type : printer
+val pp_boolean_type : printer
 
 val pp_clean_ada_identifier : formatter -> string -> unit
 val pp_package_access : (printer*printer) -> printer
@@ -28,14 +34,18 @@ val pp_block : formatter -> printer list -> unit
 val pp_oneline_comment : formatter -> string -> unit
 val pp_with : visibility -> formatter -> printer -> unit
 val pp_var_decl : ada_var_decl -> printer
+val pp_access :  printer -> printer -> formatter -> unit
 val pp_call : formatter -> (printer*(printer list list)) -> unit
+val pp_old : printer -> printer
 
 (* declaration printer *)
 val pp_package : printer -> printer list -> bool -> formatter -> printer -> unit
 val pp_package_instanciation : printer -> printer -> formatter -> (printer*printer) list -> unit
 val pp_type_decl : printer -> visibility -> printer
 val pp_record : printer -> formatter -> ada_var_decl list list -> unit
-val pp_procedure : printer -> (ada_var_decl list list) -> printer option -> formatter -> def_content -> unit
+val pp_procedure : printer -> (ada_var_decl list list) -> ada_with -> formatter -> def_content -> unit
+val pp_predicate : printer -> (ada_var_decl list list) -> formatter -> ((((printer*printer) list)*(printer list)) option) -> unit
+
 (* Local function :
 
 val pp_parameter_mode : formatter -> parameter_mode -> unit

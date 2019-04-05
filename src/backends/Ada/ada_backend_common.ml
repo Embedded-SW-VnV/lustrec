@@ -93,23 +93,6 @@ let pp_package_name machine fmt =
   else
       fprintf fmt "%a" pp_clean_ada_identifier machine.mname.node_id
 
-
-(** Print the integer type name.
-   @param fmt the formater to print on
-**)
-let pp_integer_type fmt = fprintf fmt "Integer"
-
-(** Print the float type name.
-   @param fmt the formater to print on
-**)
-let pp_float_type fmt = fprintf fmt "Float"
-
-(** Print the boolean type name.
-   @param fmt the formater to print on
-**)
-let pp_boolean_type fmt = fprintf fmt "Boolean"
-
-
 (** Print a type.
    @param fmt the formater to print on
    @param type the type
@@ -179,7 +162,7 @@ let pp_package_name_with_polymorphic substitution machine fmt =
    @param fmt the formater to print on
    @param id the variable
 **)
-let pp_var_name fmt id =
+let pp_var_name id fmt =
   fprintf fmt "%a" pp_clean_ada_identifier id.var_id
 
 (** Print the complete name of variable.
@@ -187,12 +170,10 @@ let pp_var_name fmt id =
    @param fmt the formater to print on
    @param var the variable
 **)
-let pp_access_var m fmt var =
-  if is_memory m var then
-    fprintf fmt "%t.%a" pp_state_name pp_var_name var
-  else
-    pp_var_name fmt var
-
+let pp_var env fmt var =
+  match List.assoc_opt var.var_id env with
+    | None -> pp_var_name var fmt
+    | Some pp_state -> pp_access pp_state (pp_var_name var) fmt
 
 (* Expression print functions *)
 
@@ -296,6 +277,8 @@ let pp_basic_lib_fun pp_value ident fmt vl =
     Format.fprintf fmt "(%a %s %a)" pp_value v1 "or else" pp_value v2
   | "!=", [v1; v2]    ->
     Format.fprintf fmt "(%a %s %a)" pp_value v1 "/=" pp_value v2
+  | "ite", [v1; v2; v3]    ->
+    Format.fprintf fmt "(if %a then %a else %a)" pp_value v1 pp_value v2 pp_value v3
   | op, [v1; v2]     ->
     Format.fprintf fmt "(%a %s %a)" pp_value v1 op pp_value v2
   | op, [v1] when  List.mem_assoc ident ada_supported_funs ->
@@ -313,11 +296,11 @@ let pp_basic_lib_fun pp_value ident fmt vl =
     @param value the value to print. Should be a
            {!type:Machine_code_types.value_t} value
  **)
-let rec pp_value m fmt value =
+let rec pp_value env fmt value =
   match value.value_desc with
   | Cst c             -> pp_ada_const fmt c
-  | Var var      -> pp_access_var m fmt var
-  | Fun (f_ident, vl) -> pp_basic_lib_fun (pp_value m) f_ident fmt vl
+  | Var var      -> pp_var env fmt var (* Find better to test if it is memory or not *)
+  | Fun (f_ident, vl) -> pp_basic_lib_fun (pp_value env) f_ident fmt vl
   | _                 ->
     raise (Ada_not_supported
              "unsupported: Ada_backend.adb.pp_value does not support this value type")
@@ -341,44 +324,51 @@ let pp_main_filename fmt _ = pp_filename "adb" fmt pp_main_procedure_name
    @param ident the identifier of the subinstance
    @param submachine the submachine of the subinstance
 **)
-let build_pp_state_decl_from_subinstance (name, (substitution, machine)) =
+let build_pp_state_decl_from_subinstance mode with_statement (name, (substitution, machine)) =
   let pp_package = pp_package_name_with_polymorphic substitution machine in
   let pp_type = pp_package_access (pp_package, pp_state_type) in
   let pp_name fmt = pp_clean_ada_identifier fmt name in
-  (AdaNoMode, pp_name, pp_type)
+  (mode, pp_name, pp_type, with_statement)
 
 (** Print variable declaration for a local state variable
    @param fmt the formater to print on
    @param mode input/output mode of the parameter
 **)
-let build_pp_state_decl mode =
-  (mode, pp_state_name, pp_state_type)
+let build_pp_state_decl mode with_statement =
+  (mode, pp_state_name, pp_state_type, with_statement)
 
-let build_pp_var_decl mode var =
-  let pp_name = function fmt -> pp_var_name fmt var in
+let build_pp_var_decl mode with_statement var =
+  let pp_name = function fmt -> pp_var_name var fmt in
   let pp_type = function fmt -> pp_var_type fmt var in
-  (mode, pp_name, pp_type)
+  (mode, pp_name, pp_type, with_statement)
 
-let build_pp_var_decl_local var =
-  AdaLocalVar (build_pp_var_decl AdaNoMode var)
+let build_pp_var_decl_local with_statement var =
+  AdaLocalVar (build_pp_var_decl AdaNoMode with_statement var)
 
-let build_pp_var_decl_step_input mode m =
+let build_pp_var_decl_step_input mode with_statement m =
   if m.mstep.step_inputs=[] then [] else
-    [List.map (build_pp_var_decl mode) m.mstep.step_inputs]
+    [List.map (build_pp_var_decl mode with_statement) m.mstep.step_inputs]
 
-let build_pp_var_decl_step_output mode m =
+let build_pp_var_decl_step_output mode with_statement m =
   if m.mstep.step_outputs=[] then [] else
-    [List.map (build_pp_var_decl mode) m.mstep.step_outputs]
+    [List.map (build_pp_var_decl mode with_statement) m.mstep.step_outputs]
 
-let build_pp_var_decl_static mode m =
+let build_pp_var_decl_static mode with_statement m =
   if m.mstatic=[] then [] else
-    [List.map (build_pp_var_decl mode) m.mstatic]
+    [List.map (build_pp_var_decl mode with_statement) m.mstatic]
 
 let build_pp_arg_step m =
-  (if is_machine_statefull m then [[build_pp_state_decl AdaInOut]] else [])
-    @ (build_pp_var_decl_step_input AdaIn m)
-    @ (build_pp_var_decl_step_output AdaOut m)
+  (if is_machine_statefull m then [[build_pp_state_decl AdaInOut None]] else [])
+    @ (build_pp_var_decl_step_input AdaIn None m)
+    @ (build_pp_var_decl_step_output AdaOut None m)
 
 let build_pp_arg_reset m =
-  (if is_machine_statefull m then [[build_pp_state_decl AdaOut]] else [])
-    @ (build_pp_var_decl_static AdaIn m)
+  (if is_machine_statefull m then [[build_pp_state_decl AdaOut None]] else [])
+    @ (build_pp_var_decl_static AdaIn None m)
+
+
+let build_pp_arg_transition m =
+  (if is_machine_statefull m then [[build_pp_state_decl AdaInOut None]] else [])
+    @ (build_pp_var_decl_step_input AdaIn None m)
+    @ (build_pp_var_decl_step_output AdaOut None m)
+

@@ -43,9 +43,9 @@ struct
     (* Locals *)
     let locals =
       [[build_text_io_package_local "Integer";build_text_io_package_local "Float"]]
-      @(if statefull then [[AdaLocalVar (build_pp_state_decl_from_subinstance (asprintf "%t" pp_state_name, ([], machine)))]] else [])
-      @(if machine.mstep.step_inputs != [] then [List.map build_pp_var_decl_local machine.mstep.step_inputs] else [])
-      @(if machine.mstep.step_outputs != [] then [List.map build_pp_var_decl_local machine.mstep.step_outputs] else [])
+      @(if statefull then [[AdaLocalVar (build_pp_state_decl_from_subinstance AdaNoMode None (asprintf "%t" pp_state_name, ([], machine)))]] else [])
+      @(if machine.mstep.step_inputs != [] then [List.map (build_pp_var_decl_local None) machine.mstep.step_inputs] else [])
+      @(if machine.mstep.step_outputs != [] then [List.map (build_pp_var_decl_local None) machine.mstep.step_outputs] else [])
     in
 
     (* Stream instructions *)
@@ -54,33 +54,33 @@ struct
     let pp_read fmt var =
       match get_basic var with
         | Types.Basic.Tbool ->
-            fprintf fmt "%a := Integer'Value(Ada.Text_IO.Get_Line) /= 0"
-              pp_var_name var
+            fprintf fmt "%t := Integer'Value(Ada.Text_IO.Get_Line) /= 0"
+              (pp_var_name var)
         | _ ->
-            fprintf fmt "%a := %a'Value(Ada.Text_IO.Get_Line)"
-              pp_var_name var
+            fprintf fmt "%t := %a'Value(Ada.Text_IO.Get_Line)"
+              (pp_var_name var)
               pp_var_type var
     in
     let pp_write fmt var =
       match get_basic var with
         | Types.Basic.Tbool ->
-            fprintf fmt "Ada.Text_IO.Put_Line(\"'%a': '\" & (if %a then \"1\" else \"0\") & \"' \")"
-              pp_var_name var
-              pp_var_name var
+            fprintf fmt "Ada.Text_IO.Put_Line(\"'%t': '\" & (if %t then \"1\" else \"0\") & \"' \")"
+              (pp_var_name var)
+              (pp_var_name var)
         | Types.Basic.Tint ->
-            fprintf fmt "Ada.Text_IO.Put(\"'%a': '\");@,Integer_IO.Put(%a);@,Ada.Text_IO.Put_Line(\"' \")"
-              pp_var_name var
-              pp_var_name var
+            fprintf fmt "Ada.Text_IO.Put(\"'%t': '\");@,Integer_IO.Put(%t);@,Ada.Text_IO.Put_Line(\"' \")"
+              (pp_var_name var)
+              (pp_var_name var)
         | Types.Basic.Treal ->
-            fprintf fmt "Ada.Text_IO.Put(\"'%a': '\");@,Float_IO.Put(%a, Fore=>0, Aft=> 15, Exp => 0);@,Ada.Text_IO.Put_Line(\"' \")"
-              pp_var_name var
-              pp_var_name var
+            fprintf fmt "Ada.Text_IO.Put(\"'%t': '\");@,Float_IO.Put(%t, Fore=>0, Aft=> 15, Exp => 0);@,Ada.Text_IO.Put_Line(\"' \")"
+              (pp_var_name var)
+              (pp_var_name var)
         | Types.Basic.Tstring | Types.Basic.Trat -> assert false (* Could not be the top level inputs *)
     in
 
     (* Loop instructions *)
     let pp_loop fmt =
-      let args = pp_state_name::(List.map (fun x fmt -> pp_var_name fmt x) (machine.mstep.step_inputs@machine.mstep.step_outputs)) in
+      let args = pp_state_name::(List.map pp_var_name (machine.mstep.step_inputs@machine.mstep.step_outputs)) in
       fprintf fmt "while not Ada.Text_IO.End_Of_File loop@,  @[<v>%a;@,%a;@,%a;@]@,end loop"
         (Utils.fprintf_list ~sep:";@," pp_read) machine.mstep.step_inputs
         pp_call (pp_package_access (pp_package, pp_step_procedure_name), [args])
