@@ -1,4 +1,3 @@
-#open <lustrec_math>
 function rem_int (x,y: int) returns (z: int) prototype C;
 function rem_real (x,y: real) returns (z: real) prototype C;
 function mod_int (x,y: int) returns (z: int) prototype C;
