@@ -42,6 +42,8 @@ let pp_arrow_package_name fmt = fprintf fmt "Arrow"
 **)
 let pp_polymorphic_type id fmt = fprintf fmt "T_%i" id
 
+let pp_past_name nbr fmt = fprintf fmt "past_state_%i" nbr
+
 
 
 
@@ -153,7 +155,7 @@ let pp_package_name_with_polymorphic substitution machine fmt =
   assert(List.for_all2 (fun poly1 (poly2, _) -> poly1 = poly2)
             polymorphic_types substituion);
   let instantiated_types = snd (List.split substitution) in
-  fprintf fmt "%t%t%a"
+  fprintf fmt "%t_inst%t%a"
     (pp_package_name machine)
     (Utils.pp_final_char_if_non_empty "_" instantiated_types)
     (Utils.fprintf_list ~sep:"_" pp_type) instantiated_types

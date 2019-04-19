@@ -271,10 +271,10 @@ let rec push_if_in_expr = function
               }
             in
             let mkval_var id = {
-                              value_desc   = Var id;
-                              value_type   = id.var_type;
-                              value_annot  = None
-                            }
+              value_desc   = Var id;
+              value_type   = id.var_type;
+              value_annot  = None
+            }
             in
             let rec find_split s1 id1 accu = function
               | [] -> [], accu, mkval_var id1

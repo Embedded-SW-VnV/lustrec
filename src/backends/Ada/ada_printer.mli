@@ -37,6 +37,10 @@ val pp_var_decl : ada_var_decl -> printer
 val pp_access :  printer -> printer -> formatter -> unit
 val pp_call : formatter -> (printer*(printer list list)) -> unit
 val pp_old : printer -> printer
+val pp_adastring : printer -> printer
+
+val pp_or : (printer list) -> printer
+val pp_and : (printer list) -> printer
 
 (* declaration printer *)
 val pp_package : printer -> printer list -> bool -> formatter -> printer -> unit
@@ -44,8 +48,7 @@ val pp_package_instanciation : printer -> printer -> formatter -> (printer*print
 val pp_type_decl : printer -> visibility -> printer
 val pp_record : printer -> formatter -> ada_var_decl list list -> unit
 val pp_procedure : printer -> (ada_var_decl list list) -> ada_with -> formatter -> def_content -> unit
-val pp_predicate : printer -> (ada_var_decl list list) -> formatter -> ((((printer*printer) list)*(printer list)) option) -> unit
-
+val pp_predicate : printer -> (ada_var_decl list list) -> formatter -> (printer option) -> unit
 (* Local function :
 
 val pp_parameter_mode : formatter -> parameter_mode -> unit

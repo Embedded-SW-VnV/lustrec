@@ -13,6 +13,7 @@ val pp_reset_procedure_name : printer
 val pp_step_procedure_name : printer
 val pp_main_procedure_name : printer
 val pp_polymorphic_type : int -> printer
+val pp_past_name : int -> printer
 
 val is_builtin_fun : string -> bool
 val ada_supported_funs : (string*(string*string)) list
@@ -35,6 +36,7 @@ val build_pp_var_decl_step_output : parameter_mode -> ada_with -> machine_t -> (
 val build_pp_arg_step : machine_t -> (ada_var_decl list list)
 val build_pp_arg_reset : machine_t -> (ada_var_decl list list)
 val build_pp_state_decl_from_subinstance : parameter_mode -> ada_with -> (string * ((int * Types.type_expr) list * Machine_code_types.machine_t)) -> ada_var_decl
+val build_pp_state_decl : parameter_mode -> ada_with -> ada_var_decl
 
 val pp_machine_filename : string -> formatter -> machine_t -> unit
 val pp_main_filename : formatter -> machine_t -> unit

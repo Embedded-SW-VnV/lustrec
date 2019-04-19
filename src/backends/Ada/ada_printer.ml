@@ -81,6 +81,8 @@ let pp_block fmt pp_item_list =
     (Utils.fprintf_list ~sep:";@," (fun fmt pp -> pp fmt)) pp_item_list
     (Utils.pp_final_char_if_non_empty ";@," pp_item_list)
 
+let pp_and l fmt = fprintf fmt "(%t)" (pp_group ~sep:"@ and then " l)
+let pp_or l fmt = fprintf fmt "(%t)" (pp_group ~sep:"@ or " l)
 
 let pp_ada_with fmt = function
   | None -> fprintf fmt ""
@@ -91,11 +93,11 @@ let pp_ada_with fmt = function
         fprintf fmt " Ghost%t" (Utils.pp_final_char_if_non_empty ",@," contract)
       in
       let pp_aspect aspect fmt pps = if pps = [] then fprintf fmt "" else
-        fprintf fmt "%s => %t" aspect (pp_group ~sep:"@,and " pps)
+        fprintf fmt "%s => %t" aspect (pp_and pps)
       in
       let pp_contract fmt = if contract = [] then fprintf fmt "" else
-        let sep = if pres != [] && posts != [] then ",@," else "" in
-        fprintf fmt "@,  @[<v>%a%s%a@]"
+        let sep fmt = if pres != [] && posts != [] then fprintf fmt ",@," else fprintf fmt "" in
+        fprintf fmt "@,  @[<v>%a%t%a@]"
           (pp_aspect "Pre") pres
           sep
           (pp_aspect "Post") posts
@@ -179,6 +181,9 @@ and pp_def fmt (pp_generics, kind_def, pp_name, args, pp_type_opt, content, pp_w
 and pp_package_instanciation pp_name pp_base_name fmt instanciations =
   pp_def fmt ([], AdaPackageDecl, pp_name, [], None, (AdaPackageInstanciation (pp_base_name, instanciations)), None)
 
+let pp_adastring pp_content fmt =
+  fprintf fmt "\"%t\"" pp_content
+
 (** Print the ada package introduction sentence it can be used for body and
 declaration. Boolean parameter body should be true if it is a body delcaration.
    @param fmt the formater to print on
@@ -201,7 +206,11 @@ let pp_package pp_name pp_generics body fmt pp_content =
    @param pp_value a format printer which print the type definition
 **)
 let pp_type_decl pp_name visibility fmt =
-  pp_def fmt ([], AdaType, pp_name, [], None, AdaVisibilityDefinition visibility, None)
+  let v = match visibility with
+    | AdaNoVisibility -> AdaNoContent
+    | _ -> AdaVisibilityDefinition visibility
+  in
+  pp_def fmt ([], AdaType, pp_name, [], None, v, None)
 
 let pp_record pp_name fmt var_lists =
   pp_def fmt ([], AdaType, pp_name, [], None, AdaRecord var_lists, None)
@@ -210,19 +219,11 @@ let pp_procedure pp_name args pp_with_opt fmt content =
   pp_def fmt ([], AdaProcedure, pp_name, args, None, content, pp_with_opt)
 
 let pp_predicate pp_name args fmt content_opt =
-  let rec quantify pp_content = function
-    | [] -> pp_content
-    | (pp_var, pp_type)::q -> fun fmt ->
-      fprintf fmt "for some %t in %t => (@,  @[<v>%t@])" pp_var pp_type (quantify pp_content q)
-  in
   let content, with_st = match content_opt with
-    | Some (locals, booleans) -> AdaSimpleContent (quantify (fun fmt -> Utils.fprintf_list ~sep:"@;and " (fun fmt pp->pp fmt) fmt booleans) locals), None
+    | Some content -> AdaSimpleContent content, None
     | None -> AdaNoContent, Some (true, [], [])
   in
   pp_def fmt ([], AdaFunction, pp_name, args, Some pp_boolean_type, content, with_st)
-
-
-
 
 (** Print a cleaned an identifier for ada exportation : Ada names must not start by an
     underscore and must not contain a double underscore

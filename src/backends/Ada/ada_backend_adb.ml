@@ -124,20 +124,22 @@ struct
      @param fmt the formater to print on
      @param machine the machine
   **)
-  let pp_step_definition env typed_submachines fmt (m, m_spec_opt) =
+  let pp_step_definition env typed_submachines fmt (m, m_spec_opt, guarantees) =
     let transform_local_to_state_assign instr = match instr.instr_desc with
       | MLocalAssign (ident, value) -> 
           { instr_desc = MStateAssign (ident, value);
             lustre_eq= instr.lustre_eq }
       | x -> instr
     in
-    let spec_instrs = match m_spec_opt with
-      | None -> []
-      | Some m_spec -> List.map transform_local_to_state_assign m_spec.mstep.step_instrs
+    let pp_local_ghost_list, spec_instrs = match m_spec_opt with
+      | None -> [], []
+      | Some m_spec ->
+          List.map (build_pp_var_decl_local (Some (true, [], []))) (List.filter (fun x -> not (List.mem x.var_id guarantees)) m_spec.mstep.step_locals),
+          List.map transform_local_to_state_assign m_spec.mstep.step_instrs
     in
     let pp_local_list = List.map (build_pp_var_decl_local None) (m.mstep.step_locals) in
     let pp_instr_list = List.map (pp_machine_instr typed_submachines env) (m.mstep.step_instrs@spec_instrs) in
-    let content = AdaProcedureContent ((if pp_local_list = [] then [] else [pp_local_list]), pp_instr_list) in
+    let content = AdaProcedureContent ((if pp_local_ghost_list = [] then [] else [pp_local_ghost_list])@(if pp_local_list = [] then [] else [pp_local_list]), pp_instr_list) in
     pp_procedure pp_step_procedure_name (build_pp_arg_step m) None fmt content
 
   (** Print the definition of the reset procedure from a machine.
@@ -146,11 +148,17 @@ struct
      @param fmt the formater to print on
      @param machine the machine
   **)
-  let pp_reset_definition env typed_submachines fmt m =
+  let pp_reset_definition env typed_submachines fmt (m, m_spec_opt) =
     let build_assign = function var ->
       mkinstr (MStateAssign (var, mk_default_value var.var_type))
     in
-    let assigns = List.map build_assign m.mmemory in
+    let env, memory = match m_spec_opt with
+      | None -> env, m.mmemory
+      | Some m_spec ->
+          env,
+          (m.mmemory)
+    in
+    let assigns = List.map build_assign memory in
     let pp_instr_list = List.map (pp_machine_instr typed_submachines env) (assigns@m.minit) in
     pp_procedure pp_reset_procedure_name (build_pp_arg_reset m) None fmt (AdaProcedureContent ([], pp_instr_list))
 
@@ -164,11 +172,11 @@ struct
      @param typed_submachines list of all typed machine instances of this machine
      @param m the machine
   **)
-  let pp_file fmt (typed_submachines, ((opt_spec_machine, guarantees), machine)) =
+  let pp_file fmt (typed_submachines, ((opt_spec_machine, guarantees, past_size), machine)) =
     let env = List.map (fun x -> x.var_id, pp_state_name) machine.mmemory in
     let pp_reset fmt =
       if is_machine_statefull machine then
-        fprintf fmt "%a;@,@," (pp_reset_definition env typed_submachines) machine
+        fprintf fmt "%a;@,@," (pp_reset_definition env typed_submachines) (machine, opt_spec_machine)
       else
         fprintf fmt ""
     in
@@ -188,12 +196,12 @@ struct
         pp_reset
         
         (*Define the step procedure*)
-        (pp_step_definition env typed_submachines) (machine, opt_spec_machine)
+        (pp_step_definition env typed_submachines) (machine, opt_spec_machine, guarantees)
     in
     fprintf fmt "%a%t%a;@."
       
       (* Include all the required packages*)
-      (Utils.fprintf_list ~sep:";@," (pp_with AdaNoVisibility)) packages
+      (Utils.fprintf_list ~sep:";@," (pp_with AdaPrivate)) packages
       (Utils.pp_final_char_if_non_empty ";@,@," packages)
       
       (*Print package*)
