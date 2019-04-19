@@ -46,7 +46,7 @@ doc:
 
 dot: doc
 	$(OCAMLBUILD) lustrec.docdir/lustrec.dot
-	dot -T png -o $(LOCAL_DOCDIR)/lustrec.dot _build/lustrec.docdir/lustrec.dot
+	dot -T svg -o $(LOCAL_DOCDIR)/lustrec.svg _build/lustrec.docdir/lustrec.dot
 
 clean:
 	$(OCAMLBUILD) -clean
