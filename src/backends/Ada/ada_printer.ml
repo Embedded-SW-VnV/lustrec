@@ -9,7 +9,7 @@ type visibility = AdaNoVisibility | AdaPrivate | AdaLimitedPrivate
 
 type printer = Format.formatter -> unit
 
-type ada_with = (bool * (printer list) * (printer list)) option
+type ada_with = (bool * bool * (printer list) * (printer list)) option
 
 type ada_var_decl = parameter_mode * printer * printer * ada_with
 
@@ -86,11 +86,14 @@ let pp_or l fmt = fprintf fmt "(%t)" (pp_group ~sep:"@ or " l)
 
 let pp_ada_with fmt = function
   | None -> fprintf fmt ""
-  | Some (ghost, pres, posts) ->
-      assert(ghost || (pres != []) || (posts != []));
+  | Some (ghost, import, pres, posts) ->
+      assert(ghost || import || (pres != []) || (posts != []));
       let contract = pres@posts in
       let pp_ghost fmt = if not ghost then fprintf fmt "" else
-        fprintf fmt " Ghost%t" (Utils.pp_final_char_if_non_empty ",@," contract)
+        fprintf fmt " Ghost%t" (fun fmt -> if (contract != []) || import then fprintf fmt ",@," else fprintf fmt "")
+      in
+      let pp_import fmt = if not import then fprintf fmt "" else
+        fprintf fmt " Import%t" (Utils.pp_final_char_if_non_empty ",@," contract)
       in
       let pp_aspect aspect fmt pps = if pps = [] then fprintf fmt "" else
         fprintf fmt "%s => %t" aspect (pp_and pps)
@@ -102,8 +105,9 @@ let pp_ada_with fmt = function
           sep
           (pp_aspect "Post") posts
       in
-      fprintf fmt " with%t%t"
+      fprintf fmt " with%t%t%t"
         pp_ghost
+        pp_import
         pp_contract
 
 (** Print instanciation of a generic type in a new statement.
@@ -218,10 +222,10 @@ let pp_record pp_name fmt var_lists =
 let pp_procedure pp_name args pp_with_opt fmt content =
   pp_def fmt ([], AdaProcedure, pp_name, args, None, content, pp_with_opt)
 
-let pp_predicate pp_name args fmt content_opt =
+let pp_predicate pp_name args imported fmt content_opt =
   let content, with_st = match content_opt with
     | Some content -> AdaSimpleContent content, None
-    | None -> AdaNoContent, Some (true, [], [])
+    | None -> AdaNoContent, Some (true, imported, [], [])
   in
   pp_def fmt ([], AdaFunction, pp_name, args, Some pp_boolean_type, content, with_st)
 

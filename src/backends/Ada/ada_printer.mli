@@ -7,7 +7,7 @@ type kind_def = AdaType | AdaProcedure | AdaFunction | AdaPackageDecl | AdaPacka
 
 type visibility = AdaNoVisibility | AdaPrivate | AdaLimitedPrivate
 
-type ada_with = (bool * (printer list) * (printer list)) option
+type ada_with = (bool * bool * (printer list) * (printer list)) option
 
 type ada_var_decl = parameter_mode * printer * printer * ada_with
 
@@ -48,7 +48,7 @@ val pp_package_instanciation : printer -> printer -> formatter -> (printer*print
 val pp_type_decl : printer -> visibility -> printer
 val pp_record : printer -> formatter -> ada_var_decl list list -> unit
 val pp_procedure : printer -> (ada_var_decl list list) -> ada_with -> formatter -> def_content -> unit
-val pp_predicate : printer -> (ada_var_decl list list) -> formatter -> (printer option) -> unit
+val pp_predicate : printer -> (ada_var_decl list list) -> bool -> formatter -> (printer option) -> unit
 (* Local function :
 
 val pp_parameter_mode : formatter -> parameter_mode -> unit

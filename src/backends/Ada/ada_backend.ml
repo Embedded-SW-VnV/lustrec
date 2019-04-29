@@ -112,9 +112,9 @@ let extract_contract machines m =
             | [] -> None
             | _ -> Some machine_spec
         in
-        (opt_machine_spec, guarantees, 4)
+        (opt_machine_spec, guarantees)
       end
-    | _ -> None, [], 0
+    | _ -> None, []
 
 (** Main function of the Ada backend. It calls all the subfunction creating all
 the file and fill them with Ada code representing the machines list given.

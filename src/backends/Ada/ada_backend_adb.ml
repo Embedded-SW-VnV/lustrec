@@ -134,7 +134,7 @@ struct
     let pp_local_ghost_list, spec_instrs = match m_spec_opt with
       | None -> [], []
       | Some m_spec ->
-          List.map (build_pp_var_decl_local (Some (true, [], []))) (List.filter (fun x -> not (List.mem x.var_id guarantees)) m_spec.mstep.step_locals),
+          List.map (build_pp_var_decl_local (Some (true, false, [], []))) (List.filter (fun x -> not (List.mem x.var_id guarantees)) m_spec.mstep.step_locals),
           List.map transform_local_to_state_assign m_spec.mstep.step_instrs
     in
     let pp_local_list = List.map (build_pp_var_decl_local None) (m.mstep.step_locals) in
@@ -172,7 +172,7 @@ struct
      @param typed_submachines list of all typed machine instances of this machine
      @param m the machine
   **)
-  let pp_file fmt (typed_submachines, ((opt_spec_machine, guarantees, past_size), machine)) =
+  let pp_file fmt (typed_submachines, ((opt_spec_machine, guarantees), machine)) =
     let env = List.map (fun x -> x.var_id, pp_state_name) machine.mmemory in
     let pp_reset fmt =
       if is_machine_statefull machine then

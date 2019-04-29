@@ -164,6 +164,7 @@ struct
       ];
       pp_package "Prove" [
         pp_for "Switches" ["--mode=prove"; "--report=statistics"; "--proof=per_check"; "--warnings=continue"];
+        pp_for_single "Proof_Dir" (asprintf "proof");
       ]
     ])
     project_name
