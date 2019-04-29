@@ -160,7 +160,6 @@ let check_scopes main_node_name prog machines all_scopes scopes =
   
   
 
-
 let scope_var_name vid =  vid ^ "__scope"
 
 (**********************************************************************)
@@ -344,7 +343,7 @@ let register_scopes s =
   option_all_scopes:=false; 
   let scope_list = Str.split (Str.regexp ", *") s in
   let scope_list = List.map (fun scope -> Str.split (Str.regexp "\\.") scope) scope_list in
-  scopes_def := scope_list
+  scopes_def := List.rev scope_list
 
 let register_inputs s = 
   activate ();
