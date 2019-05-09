@@ -97,6 +97,8 @@ let base_inject_op id =
   | ">"      -> "MPFRGt"
   | "="      -> "MPFREq"
   | "!="     -> "MPFRNeq"
+  (* Conv functions *)
+  | "int_to_real" -> "MPFRint_to_real"
   (* Math library functions *)
   | "acos" -> "MPFRacos"
   | "acosh" -> "MPFRacosh"

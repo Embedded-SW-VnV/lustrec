@@ -20,6 +20,9 @@ function MPFREq(i1, i2: real) returns (out: bool);
 
 function MPFRNeq(i1, i2: real) returns (out: bool);
 
+-- Functions already available in conv
+function MPFRint_to_real (x: int) returns (y: real);
+
 -- Functions already available in lustrec_math
 
 function MPFRacos (x: real) returns (y: real) ;

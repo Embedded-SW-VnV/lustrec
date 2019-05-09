@@ -95,6 +95,12 @@ void MPFRClear(mpfr_t i)
   mpfr_clear(i);
 }
 
+// functions of conv
+
+void MPFRint_to_real_step (int i, mpfr_t out)
+{
+  mpfr_set_si(out, i, MPFR_RNDN);
+}
 // functions of lustrec_math
 void MPFRacos_step (mpfr_t i, 
                              mpfr_t out
