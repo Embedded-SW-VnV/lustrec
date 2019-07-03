@@ -154,7 +154,8 @@ let arrow_machine =
   let var_input2 = List.nth Arrow.arrow_desc.node_inputs 1 in
   let var_output = List.nth Arrow.arrow_desc.node_outputs 0 in
   let cst b = mk_val (Cst (const_of_bool b)) Type_predef.type_bool in
-  let t_arg = Types.new_univar () in (* TODO Xavier: c'est bien la bonne def ? *)
+  assert(var_input1.var_type = var_input2.var_type);
+  let t_arg = var_input1.var_type in (* TODO Xavier: c'est bien la bonne def ? Guillaume: Bof preferable de reprendre le type des variables non ? *)
   {
     mname = Arrow.arrow_desc;
     mmemory = [var_state];

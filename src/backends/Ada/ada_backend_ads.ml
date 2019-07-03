@@ -16,58 +16,48 @@ open Lustre_types
 open Corelang
 open Machine_code_common
 
+open Misc_printer
+open Misc_lustre_function
+open Ada_printer
 open Ada_backend_common
+
+
 
 (** Functions printing the .ads file **)
 module Main =
 struct
 
-  (** Print the declaration of a state element of a subinstance of a machine.
+  let rec init f = function i when i < 0 -> [] | i -> (f i)::(init f (i-1)) (*should be replaced by the init of list from ocaml std lib*)
+
+  let suffixOld = "_old"
+  let suffixNew = "_new"
+  let pp_invariant_name fmt = fprintf fmt "inv"
+  let pp_transition_name fmt = fprintf fmt "transition"
+  let pp_init_name fmt = fprintf fmt "init"
+  let pp_state_name_predicate suffix fmt = fprintf fmt "%t%s" pp_state_name suffix
+  let pp_axiomatize_package_name fmt = fprintf  fmt "axiomatize"
+
+  (** Print the expression function representing the transition predicate.
+     @param fmt the formater to print on
      @param machine the machine
-     @param fmt the formater to print on
-     @param substitution correspondance between polymorphic type id and their instantiation
-     @param ident the identifier of the subinstance
-     @param submachine the submachine of the subinstance
   **)
-  let pp_machine_subinstance_state_decl fmt (ident, (substitution, submachine)) =
-    pp_node_state_decl substitution ident fmt submachine
+  let pp_init_predicate typed_submachines fmt (opt_spec_machine, m) =
+    let new_state = (AdaIn, pp_state_name_predicate suffixNew, pp_state_type, None) in
+    pp_predicate pp_init_name [[new_state]] true fmt None
 
-  (** Print the state record for a machine.
+  (** Print the expression function representing the transition predicate.
      @param fmt the formater to print on
-     @param var_list list of all state var
-     @param typed_instances list typed instances
+     @param machine the machine
   **)
-  let pp_state_record_definition fmt (var_list, typed_instances) =
-    fprintf fmt "@,  @[<v>record@,  @[<v>%a%t%t%a%t@]@,end record@]"
-      (Utils.fprintf_list ~sep:";@;" pp_machine_subinstance_state_decl)
-      typed_instances
-      (Utils.pp_final_char_if_non_empty ";" typed_instances)
-      (fun fmt -> if var_list!=[] && typed_instances!= [] then fprintf fmt "@,@," else fprintf fmt "")
-      (Utils.fprintf_list ~sep:";@;" (pp_machine_var_decl NoMode))
-      var_list
-      (Utils.pp_final_char_if_non_empty ";" var_list)
+  let pp_transition_predicate typed_submachines fmt (opt_spec_machine, m) =
+    let old_state = (AdaIn, pp_state_name_predicate suffixOld, pp_state_type, None) in
+    let new_state = (AdaIn, pp_state_name_predicate suffixNew, pp_state_type, None) in
+    let inputs = build_pp_var_decl_step_input AdaIn None m in
+    let outputs = build_pp_var_decl_step_output AdaIn None m in
+    pp_predicate pp_transition_name ([[old_state; new_state]]@inputs@outputs) true fmt None
 
-  (** Print the declaration for polymorphic types.
-     @param fmt the formater to print on
-     @param polymorphic_types all the types to print
-  **)
-  let pp_generic fmt polymorphic_types =
-    let pp_polymorphic_types =
-      List.map (fun id fmt -> pp_polymorphic_type fmt id) polymorphic_types in
-    if polymorphic_types != [] then
-        fprintf fmt "generic@,  @[<v>%a;@]@,"
-          (Utils.fprintf_list ~sep:";@," pp_private_type_decl)
-          pp_polymorphic_types
-    else
-      fprintf fmt ""
-
-  (** Print instanciation of a generic type in a new statement.
-     @param fmt the formater to print on
-     @param id id of the polymorphic type
-     @param typ the new type
-  **)
-  let pp_generic_instanciation fmt (id, typ) =
-    fprintf fmt "%a => %a" pp_polymorphic_type id pp_type typ
+  let pp_invariant_predicate typed_submachines fmt (opt_spec_machine, m) =
+    pp_predicate pp_invariant_name [[build_pp_state_decl AdaIn None]] true fmt None
 
   (** Print a new statement instantiating a generic package.
      @param fmt the formater to print on
@@ -75,56 +65,11 @@ struct
      @param machine the machine to instanciate
   **)
   let pp_new_package fmt (substitutions, machine) =
-    fprintf fmt "package %a is new %a @[<v>(%a)@]"
-      (pp_package_name_with_polymorphic substitutions) machine
-      pp_package_name machine
-      (Utils.fprintf_list ~sep:",@," pp_generic_instanciation) substitutions
+    let pp_name = pp_package_name machine in
+    let pp_new_name = pp_package_name_with_polymorphic substitutions machine in
+    let instanciations = List.map (fun (id, typ) -> (pp_polymorphic_type id, fun fmt -> pp_type fmt typ)) substitutions in
+    pp_package_instanciation pp_new_name pp_name fmt instanciations
 
-  let pp_eexpr fmt eexpr = fprintf fmt "true"
-
-  (** Print a precondition in aspect
-     @param fmt the formater to print on
-     @param expr the expession to print as pre
-  **)
-  let pp_pre fmt expr =
-    fprintf fmt "Pre => %a"
-      pp_eexpr expr
-
-  (** Print a postcondition in aspect
-     @param fmt the formater to print on
-     @param expr the expession to print as pre
-  **)
-  let pp_post fmt expr =
-    fprintf fmt "Post => %a"
-      pp_eexpr expr
-
-  (** Print the declaration of a procedure with a contract
-     @param pp_prototype the prototype printer
-     @param fmt the formater to print on
-     @param contract the contract for the function to declare
-  **)
-  let pp_procedure_prototype_contract pp_prototype fmt opt_contract =
-    match opt_contract with
-      | None -> pp_prototype fmt
-      | Some (NodeSpec ident) -> pp_prototype fmt (*TODO*)
-      | Some (Contract contract) ->
-          fprintf fmt "@[<v 2>%t with@,Global => null;@,%a%t%a@]"
-            pp_prototype
-            (Utils.fprintf_list ~sep:",@," pp_pre) contract.assume
-            (Utils.pp_final_char_if_non_empty ",@," contract.assume)
-            (Utils.fprintf_list ~sep:",@," pp_post) contract.guarantees
-
-  (** Print the prototype with a contract of the reset procedure from a machine.
-     @param fmt the formater to print on
-     @param machine the machine
-  **)
-  let pp_step_prototype_contract fmt m =
-    pp_procedure_prototype_contract
-      (pp_step_prototype m)
-      fmt
-      m.mspec
-       
-    
   (** Remove duplicates from a list according to a given predicate.
      @param eq the predicate defining equality
      @param l the list to parse
@@ -152,11 +97,11 @@ struct
      @param typed_submachines list of all typed submachines of this machine
      @param m the machine
   **)
-  let pp_file fmt (typed_submachines, m) =
+  let pp_file fmt (typed_submachines, ((m_spec_opt, guarantees), m)) =
     let typed_machines = snd (List.split typed_submachines) in
     let typed_machines_set = remove_duplicates eq_typed_machine typed_machines in
     
-    let machines_to_import = snd (List.split typed_machines_set) in
+    let machines_to_import = List.map pp_package_name (snd (List.split typed_machines_set)) in
 
     let polymorphic_types = find_all_polymorphic_type m in
     
@@ -164,24 +109,22 @@ struct
       List.filter (fun (l, _) -> l != []) typed_machines_set in
 
     let typed_instances = List.filter is_submachine_statefull typed_submachines in
+
+    let memories = match m_spec_opt with
+      | None -> []
+      | Some m -> List.map (fun x-> pp_var_decl (build_pp_var_decl AdaNoMode (Some (true, false, [], [])) x)) m.mmemory
+    in
+    let ghost_private = memories in
     
-    let pp_record fmt =
-      pp_state_record_definition fmt (m.mmemory, typed_instances) in
-
-    let pp_state_decl_and_reset fmt = fprintf fmt "%a;@,@,%t;@,@,"
-      (*Declare the state type*)
-      pp_private_limited_type_decl pp_state_type
-      (*Declare the reset procedure*)
-      (pp_reset_prototype m)
+    let vars_spec = match m_spec_opt with
+      | None -> []
+      | Some m_spec -> List.map (build_pp_var_decl AdaNoMode (Some (true, false, [], []))) (m_spec.mmemory)
     in
-
-    let pp_private_section fmt = fprintf fmt "@,private@,@,%a%t%a;@,"
-      (*Instantiate the polymorphic type that need to be instantiated*)
-      (Utils.fprintf_list ~sep:";@," pp_new_package) typed_machines_to_instanciate
-      (Utils.pp_final_char_if_non_empty ";@,@," typed_machines_to_instanciate)
-      (*Define the state type*)
-      pp_type_decl (pp_state_type, pp_record)
-    in
+    let vars = List.map (build_pp_var_decl AdaNoMode None) m.mmemory in
+    let states = List.map (build_pp_state_decl_from_subinstance AdaNoMode None) typed_instances in
+    let var_lists =
+      (if states = [] then [] else [states]) @
+      (if vars = [] then [] else [vars]) in
     
     let pp_ifstatefull fmt pp =
       if is_machine_statefull m then
@@ -189,27 +132,99 @@ struct
       else
         fprintf fmt ""
     in
+
+    let pp_state_decl_and_reset fmt =
+      let init fmt = pp_call fmt (pp_access pp_axiomatize_package_name pp_init_name, [[pp_state_name]]) in
+      let contract = Some (false, false, [], [init]) in
+      fprintf fmt "%t;@,@,%a;@,@,"
+        (*Declare the state type*)
+        (pp_type_decl pp_state_type AdaPrivate)
+        
+        (*Declare the reset procedure*)
+        (pp_procedure pp_reset_procedure_name (build_pp_arg_reset m) contract) AdaNoContent
+    in
+
+    let pp_private_section fmt =
+      fprintf fmt "@,private@,@,%a%t%a%t%a"
+      (*Instantiate the polymorphic type that need to be instantiated*)
+      (Utils.fprintf_list ~sep:";@," pp_new_package) typed_machines_to_instanciate
+      (Utils.pp_final_char_if_non_empty ";@,@," typed_machines_to_instanciate)
+      
+      (*Define the state type*)
+      pp_ifstatefull (fun fmt-> pp_record pp_state_type fmt var_lists)
+        
+      (Utils.pp_final_char_if_non_empty ";@,@," ghost_private)
+      (Utils.fprintf_list ~sep:";@," (fun fmt pp -> pp fmt)) ghost_private
+    in
+
+    let pp_content fmt =
+      let pp_contract_opt =
+        let pp_var x fmt =
+            pp_clean_ada_identifier fmt x
+        in
+        let guarantee_post_conditions = List.map pp_var guarantees in
+        let state_pre_conditions, state_post_conditions =
+          if is_machine_statefull m then
+          begin
+            let input = List.map pp_var_name m.mstep.step_inputs in
+            let output = List.map pp_var_name m.mstep.step_outputs in
+            let args =
+              [[pp_old pp_state_name;pp_state_name]]
+                @(if input!=[] then [input] else [])
+                @(if output!=[] then [output] else [])
+            in
+            let transition fmt = pp_call fmt (pp_access pp_axiomatize_package_name pp_transition_name, args) in
+            let invariant fmt = pp_call fmt (pp_access pp_axiomatize_package_name pp_invariant_name, [[pp_state_name]]) in
+            [invariant], [transition;invariant]
+          end
+          else
+            [], []
+        in
+        let post_conditions = state_post_conditions@guarantee_post_conditions in
+        let pre_conditions = state_pre_conditions in
+        if post_conditions = [] && pre_conditions = [] then
+          None
+        else
+          Some (false, false, pre_conditions, post_conditions)
+      in
+      let pp_guarantee name = pp_var_decl (AdaNoMode, (fun fmt -> pp_clean_ada_identifier fmt name), pp_boolean_type , (Some (true, false, [], []))) in
+      let ghost_public = List.map pp_guarantee guarantees in
+      fprintf fmt "@,%a%t%a%a%a@,@,%a;@,@,%t"
+        
+        (Utils.fprintf_list ~sep:";@," (fun fmt pp -> pp fmt)) ghost_public
+        (Utils.pp_final_char_if_non_empty ";@,@," ghost_public)
+        
+        pp_ifstatefull pp_state_decl_and_reset
+        
+        (*Declare the step procedure*)
+        (pp_procedure pp_step_procedure_name (build_pp_arg_step m) pp_contract_opt) AdaNoContent
+        
+        pp_ifstatefull (fun fmt -> fprintf fmt ";@,")
+        
+        (pp_package (pp_axiomatize_package_name) [] false)
+          (fun fmt -> fprintf fmt "pragma Annotate (GNATProve, External_Axiomatization);@,@,%a;@,%a;@,%a"
+            (*Declare the init predicate*)
+            (pp_init_predicate typed_submachines) (m_spec_opt, m)
+            (*Declare the transition predicate*)
+            (pp_transition_predicate typed_submachines) (m_spec_opt, m)
+            (*Declare the invariant predicate*)
+            (pp_invariant_predicate typed_submachines) (m_spec_opt, m)
+          )
+        
+        (*Print the private section*)
+        pp_private_section
+    in
     
-    fprintf fmt "@[<v>%a%t%a%a@,  @[<v>@,%a%a;@,%a@]@,%a;@.@]"
+    let pp_poly_type id = pp_type_decl (pp_polymorphic_type id) AdaPrivate in
+    let pp_generics = List.map pp_poly_type polymorphic_types in
+    
+    fprintf fmt "@[<v>%a%t%a;@]@."
       
       (* Include all the subinstance package*)
-      (Utils.fprintf_list ~sep:";@," pp_with_machine) machines_to_import
+      (Utils.fprintf_list ~sep:";@," (pp_with AdaNoVisibility)) machines_to_import
       (Utils.pp_final_char_if_non_empty ";@,@," machines_to_import)
       
-      pp_generic polymorphic_types
-      
       (*Begin the package*)
-      (pp_begin_package false) m
-
-      pp_ifstatefull pp_state_decl_and_reset
-      
-      (*Declare the step procedure*)
-      pp_step_prototype_contract m
-      
-      (*Print the private section*)
-      pp_ifstatefull pp_private_section
-      
-      (*End the package*)
-      pp_end_package m
+      (pp_package (pp_package_name m) pp_generics false) pp_content
 
 end
