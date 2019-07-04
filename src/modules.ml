@@ -207,15 +207,18 @@ let rec load_rec ~is_header accu program =
                            content = lusic.Lusic.contents;
                            is_stateful = is_stateful } in
            
-           (* Returning the prog without the Open, the deps with the new
-            one and the updated envs *)
-           accu_prog, (new_dep::accu_dep), typ_env, clk_env
+           (* Returning the prog while keeping the Open, the deps with the new
+            elements and the updated envs *)
+           decl::accu_prog, (new_dep::accu_dep), typ_env, clk_env
          )
       | Include name ->
          let basename = Options_management.name_dependency (true, name) "" in
          if Filename.check_suffix basename ".lus" then
            let include_src = Compiler_common.parse basename ".lus" in
-           load_rec ~is_header:false accu include_src
+           let (accu_prog, accu_dep, typ_env, clk_env) =
+             load_rec ~is_header:false accu include_src
+           in
+           decl::accu_prog, accu_dep, typ_env, clk_env
          else
            raise (Error (decl.top_decl_loc, LoadError("include requires a lustre file")))
    
