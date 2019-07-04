@@ -316,7 +316,7 @@ let pp_spec fmt spec =
   
   fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt s -> pp_spec_stmt fmt s) fmt spec.stmts;
   fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt r -> fprintf fmt "assume %a;" pp_eexpr r) fmt spec.assume;
-  fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt r -> fprintf fmt "guarantees %a;" pp_eexpr r) fmt spec.guarantees;
+  fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt r -> fprintf fmt "guarantee %a;" pp_eexpr r) fmt spec.guarantees;
   fprintf_list ~eol:"@, " ~sep:"@, " (fun fmt mode ->
     fprintf fmt "mode %s (@[<v 0>%a@ %a@]);" 
       mode.mode_id
@@ -368,7 +368,7 @@ let pp_spec_as_comment fmt (inl, outl, spec) =
                       original information with the computed one in
                       nd. *)
      let pp_l = fprintf_list ~sep:"," pp_var_name in
-     fprintf fmt "@[<hov 2>(*@@ contract import %s(%a) returns (%a)@]*)@ "
+     fprintf fmt "@[<hov 2>(*@@ contract import %s(%a) returns (%a); @]*)@ "
        name
        pp_l inl
        pp_l outl
@@ -452,8 +452,8 @@ let pp_const_decl_list fmt clist =
 let pp_decl fmt decl =
   match decl.top_decl_desc with
   | Node nd -> fprintf fmt "%a" pp_node nd
-  | ImportedNode ind ->
-     fprintf fmt "imported %a;" pp_imported_node ind
+  | ImportedNode ind -> (* We do not print imported nodes *)
+     fprintf fmt "(* imported %a; *)" pp_imported_node ind
   | Const c -> fprintf fmt "const %a" pp_const_decl c
   | Open (local, s) -> if local then fprintf fmt "#open \"%s\"" s else fprintf fmt "#open <%s>" s
   | Include s -> fprintf fmt "include \"%s\"" s
