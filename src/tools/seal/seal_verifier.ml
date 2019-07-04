@@ -60,7 +60,9 @@ let seal_run basename prog machines =
   let sliced_nd = slice_node mems msch nd in
   (* Format.eprintf "Sliced Node %a@." Printers.pp_node sliced_nd; *)
   report ~level:3 (fun fmt -> Format.fprintf fmt "Node sliced@.");
-  let sw_init, sw_sys = node_as_switched_sys mems sliced_nd in
+
+  let consts = Corelang.(List.map const_of_top (get_consts prog)) in
+  let sw_init, sw_sys = node_as_switched_sys consts mems sliced_nd in
   let pp_res =
     (Utils.fprintf_list ~sep:"@ "
        (fun fmt (gel, up) ->

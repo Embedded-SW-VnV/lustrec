@@ -213,7 +213,12 @@ let _ =
 
   let res_status = Z3.Fixedpoint.query_r !fp [decl_err] in
 
-  Format.eprintf "Status: %s@." (Z3.Solver.string_of_status res_status)
+  Format.eprintf "Status: %s@." (Z3.Solver.string_of_status res_status);
+
+
+  let ts = Z3.Tactic.get_tactic_names !ctx in
+  List.iter (fun s -> Format.printf "%s@." s) ts;
+  ()
     
 	
 

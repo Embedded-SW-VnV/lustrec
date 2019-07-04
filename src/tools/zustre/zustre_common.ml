@@ -36,7 +36,8 @@ let machine_stateless_name = HBC.machine_stateless_name
 
 let preprocess = Horn_backend.preprocess
   
-  
+
+exception UnknownFunction of (string * (Format.formatter -> unit))
 (** Sorts
 
 A sort is introduced for each basic type and each enumerated type.
@@ -349,7 +350,8 @@ let horn_basic_app i val_to_expr vl =
        (val_to_expr v1)
        (val_to_expr v2)
 
-       
+
+    
   (* | _, [v1; v2] ->      Z3.Boolean.mk_and
    *      !ctx
    *      (val_to_expr v1)
@@ -357,9 +359,12 @@ let horn_basic_app i val_to_expr vl =
    * 
    *      Format.fprintf fmt "(%s %a %a)" i val_to_exprr v1 val_to_expr v2 *)
   | _ -> (
-    Format.eprintf
-      "internal error: zustre unkown function %s@." i;
-    assert false)
+    let msg fmt = Format.fprintf fmt
+                    "internal error: zustre unkown function %s (nb args = %i)@."
+                    i (List.length vl)
+    in
+    raise (UnknownFunction(i, msg))
+  )
 
            
 (* Convert a value expression [v], with internal function calls only.  [pp_var]
