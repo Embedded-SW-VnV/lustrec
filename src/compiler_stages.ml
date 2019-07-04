@@ -67,7 +67,6 @@ let stage1 params prog dirname basename extension =
 
   (* Importing source *)
   let prog, dependencies, (typ_env, clk_env) = Modules.load ~is_header:(extension = ".lusi") prog in
-
   (* Registering types and clocks for future checks *)
   Global.type_env := Env.overwrite !Global.type_env typ_env;
   Global.clock_env := Env.overwrite !Global.clock_env clk_env;
@@ -77,12 +76,9 @@ let stage1 params prog dirname basename extension =
 
   (* Sorting nodes *)
   let prog = SortProg.sort prog in
-Format.eprintf "ok1@.";
   (* Consolidating contracts *)
   let prog = resolve_contracts prog in
-Format.eprintf "ok2@.";
   let prog = SortProg.sort prog in
-Format.eprintf "ok3@.";
   Log.report ~level:3 (fun fmt ->
       Format.fprintf fmt "@[<v 0>Contracts resolved:@ %a@ @]@ " Printers.pp_prog prog);
   
