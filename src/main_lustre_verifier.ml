@@ -78,7 +78,8 @@ let rec verify dirname basename extension =
   in
 
   Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ ");
-  Log.report ~level:3 (fun fmt -> fprintf fmt ".. Generated machines:@ %a@ "Machine_code_common.pp_machines machine_code);
+  Log.report ~level:3 (fun fmt -> fprintf fmt ".. Generated machines:@ %a@ "
+                                    Machine_code_common.pp_machines machine_code);
   
   if Scopes.Plugin.show_scopes () then
     begin
@@ -93,7 +94,7 @@ let rec verify dirname basename extension =
 
   let machine_code = Plugins.refine_machine_code prog machine_code in
 
-  assert (dependencies = []); (* Do not handle deps yet *)
+  (*assert (dependencies = []); (* Do not handle deps yet *)*)
   incr Options.verbose_level;
   Verifier.run basename prog machine_code;
   begin
