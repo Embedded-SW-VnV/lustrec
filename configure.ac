@@ -88,6 +88,9 @@ AS_IF([test "x$seal" = "xyes"], [
 
 # z3 (optional)
 
+AC_ARG_ENABLE(z3, [AS_HELP_STRING([--disable-z3],
+              [disable Z3 dependencies. Enabled by default if available.])])
+
 # option to rely on github version if installed
 AC_ARG_WITH(z3_github, [AS_HELP_STRING([--with-z3-github],
               [Rely on Z3 as distributed by the official github
@@ -107,15 +110,18 @@ AC_MSG_CHECKING(z3 library)
 AS_IF([ocamlfind query $z3name >/dev/null 2>&1],
     [z3=yes; AC_MSG_RESULT([yes])],[zustre=no; AC_MSG_RESULT(no)],
 )
-AS_IF([test "x$z3" = "xyes"], [
+
+AS_IF([test "x$enable_z3" != "xno"], [
+  if (test "x$z3" = xyes ); then
    AC_SUBST(LUSTREV_ZUSTRE, "(module Zustre_verifier.Verifier : VerifierType.S);")
-   AC_SUBST(LUSTREV_Z3_TAG, "<**/*verifier.native> or <tools/zustre/*.ml> or <tools/zustre/*.mli>: package($z3name)")
+   AC_SUBST(LUSTREV_Z3_TAG, "<**/*verifier.native> or <tools/zustre/*.ml> or <tools/zustre/*.mli> or <tools/seal/seal_extract.ml> or <tools/seal/seal_extract.mli>: package($z3name)")
    AS_IF([test "x$z3name" = "xZ3"],
    	       [define([Z3path], esyscmd([ocamlfind query Z3 | tr -d '\n']))
 	        AC_SUBST(Z3LIBPATH, "Z3path")],
  	       [define([z3path], esyscmd([ocamlfind query z3 | tr -d '\n']))
 	        AC_SUBST(Z3LIBPATH, "z3path")]
 		)
+  fi	
 ])
 
 
@@ -251,6 +257,12 @@ AC_MSG_NOTICE(********    Plugins    ********)
       AC_MSG_NOTICE([Salsa plugin disabled])
   fi
 
+  if (test "x$z3" = xyes -a "x$enable_z3" != xno); then
+      AC_MSG_NOTICE([Z3 dependencies enabled])
+  else
+      AC_MSG_NOTICE([Z3 dependencies disabled])
+  fi
+
   if (test "x$yojson" = xyes -a "x$enable_lustresf" != "xno"); then
       AC_MSG_NOTICE([lustresf available])
   else
@@ -268,7 +280,7 @@ AC_MSG_NOTICE(********   Verifiers    ********)
       AC_MSG_NOTICE([Seal   disabled. Require Seal library])
   fi
 
-  if (test "x$z3" = xyes); then
+  if (test "x$z3" = xyes  -a "x$enable_z3" != xno); then
       AC_MSG_NOTICE([Zustre enabled])
       AC_MSG_WARN(Z3 shared lib (libz3.so) has to be available in the LD_LIBRARY_PATH (DYLD_LIBRARY_PATH in OSX).)
       dnl AC_MSG_WARN(It is currently located in "z3path")
