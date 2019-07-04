@@ -56,9 +56,9 @@ let testgen_source dirname basename extension =
   if !Options.gen_mcdc then (
     let prog_mcdc = PathConditions.mcdc prog in
     (* We re-type the fresh equations *)
-    let _ = Modules.load ~is_header:false prog_mcdc in
+    (*let _ = Modules.load ~is_header:false prog_mcdc in*)
     let _ = type_decls !Global.type_env prog_mcdc in
-
+    
     let destname = !Options.dest_dir ^ "/" ^ basename in
     let source_file = destname ^ ".mcdc" in (* Could be changed *)
 
