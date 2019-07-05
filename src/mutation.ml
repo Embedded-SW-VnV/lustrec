@@ -561,11 +561,27 @@ let fold_mutate_stmt stmt =
   | Eq eq   -> Eq (fold_mutate_eq eq)
   | Aut aut -> assert false
 
+let mutate_contract c =
+  { c with
+    (* TODO: translate other fields. Do not mutate them, just rename
+       the calls with the _mutant suffix *)
+    imports = List.map (fun ci -> { ci with import_nodeid = rename_app ci.import_nodeid }) c.imports;
+  }
+  
+let mutate_spec spec =
+  match spec with
+  | Contract c -> Contract (mutate_contract c)
+  | NodeSpec id -> NodeSpec (rename_app id)
+                 
 let fold_mutate_node nd =
   current_node := Some nd.node_id;
   { nd with 
     node_stmts = 
       List.fold_right (fun stmt res -> (fold_mutate_stmt stmt)::res) nd.node_stmts [];
+    node_spec = (
+      match nd.node_spec with
+      | None -> None
+      | Some spec -> Some (mutate_spec spec)); 
     node_id = rename_app nd.node_id
   }
 
