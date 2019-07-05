@@ -64,20 +64,26 @@ let combine (f: expr list -> expr ) subs orig : ((expr * int) * expr) list  =
   ) (IdSet.elements all)
 
 
-(* In a previous version, the printer was introducing fake description, ie
-   tautologies, over inout variables to make sure they were not suppresed by
-   some other algorithms *)
+(* In a previous version, the printer was introducing fake
+   description, ie tautologies, over inout variables to make sure they
+   were not suppresed by some other algorithms *)
 
-(* Takes the variable on which these coverage criteria will apply, as well as
-   the expression and its negated version. Returns the expr and the variable
-   expression, as well as the two new boolean expressions descibing the two
-   associated modes. *)
-let mcdc_var vi_as_expr expr expr_neg_vi =
+(* Takes the variable on which these coverage criteria will apply, as
+   well as the expression and its negated version. Returns the expr
+   and the variable expression, as well as the two new boolean
+   expressions descibing the two associated modes. *)
+let mcdc_var vi_as_expr nb_elems expr expr_neg_vi =
   let loc = expr.expr_loc in
-  let changed_expr = mkpredef_call loc "!=" [expr; expr_neg_vi] in
   let not_vi_as_expr = mkpredef_call loc "not" [vi_as_expr] in
-  let expr1 = mkpredef_call loc "&&" [vi_as_expr; changed_expr] in
-  let expr2 = mkpredef_call loc "&&" [not_vi_as_expr; changed_expr] in
+  let expr1, expr2 =
+    if nb_elems > 1 then 
+      let changed_expr = mkpredef_call loc "!=" [expr; expr_neg_vi] in
+      let expr1 = mkpredef_call loc "&&" [vi_as_expr; changed_expr] in
+      let expr2 = mkpredef_call loc "&&" [not_vi_as_expr; changed_expr] in
+      expr1, expr2
+    else
+      vi_as_expr, not_vi_as_expr
+  in
   ((expr,vi_as_expr),[(true,expr1);(false,expr2)]) (* expr1 corresponds to atom
                                                      true while expr2
                                                      corresponds to atom
@@ -102,38 +108,38 @@ let rec compute_neg_expr cpt_pre (expr: Lustre_types.expr) =
   | Expr_tuple l -> 
      let vl, neg = neg_list l in
      vl, combine (fun l' -> {expr with expr_desc = Expr_tuple l'}) neg l
-       
+     
   | Expr_ite (i,t,e) when (Types.is_bool_type t.expr_type) -> (
     let list = [i; t; e] in
     let vl, neg = neg_list list in
     vl, combine (fun l ->
-      match l with
-      | [i'; t'; e'] -> {expr with expr_desc = Expr_ite(i', t', e')}
-      | _ -> assert false
-    ) neg list
+            match l with
+            | [i'; t'; e'] -> {expr with expr_desc = Expr_ite(i', t', e')}
+            | _ -> assert false
+          ) neg list
   )
   | Expr_ite (i,t,e) -> ( (* We return the guard as a new guard *)
     let vl = gen_mcdc_cond_guard i in
     let list = [i; t; e] in
     let vl', neg = neg_list list in
     vl@vl', combine (fun l ->
-      match l with
-      | [i'; t'; e'] -> {expr with expr_desc = Expr_ite(i', t', e')}
-      | _ -> assert false
-    ) neg list
+                match l with
+                | [i'; t'; e'] -> {expr with expr_desc = Expr_ite(i', t', e')}
+                | _ -> assert false
+              ) neg list
   )
   | Expr_arrow (e1, e2) -> 
      let vl1, e1' = compute_neg_expr cpt_pre e1 in
      let vl2, e2' = compute_neg_expr cpt_pre e2 in
      vl1@vl2, combine (fun l -> match l with
-     | [x;y] -> { expr with expr_desc = Expr_arrow (x, y) }
-     | _ -> assert false
-     ) [e1'; e2'] [e1; e2]
+                                | [x;y] -> { expr with expr_desc = Expr_arrow (x, y) }
+                                | _ -> assert false
+                ) [e1'; e2'] [e1; e2]
 
   | Expr_pre e ->
      let vl, e' = compute_neg_expr (cpt_pre+1) e in
      vl, List.map
-       (fun (v, negv) -> (v, { expr with expr_desc = Expr_pre negv } )) e'
+           (fun (v, negv) -> (v, { expr with expr_desc = Expr_pre negv } )) e'
 
   | Expr_appl (op_name, args, r) when List.mem op_name rel_op -> 
      [], [(expr, cpt_pre), mkpredef_call expr.expr_loc "not" [expr]]
@@ -141,38 +147,38 @@ let rec compute_neg_expr cpt_pre (expr: Lustre_types.expr) =
   | Expr_appl (op_name, args, r) ->
      let vl, args' = compute_neg_expr cpt_pre args in
      vl, List.map 
-       (fun (v, negv) -> (v, { expr with expr_desc = Expr_appl (op_name, negv, r) } ))
-       args'
+           (fun (v, negv) -> (v, { expr with expr_desc = Expr_appl (op_name, negv, r) } ))
+           args'
 
   | Expr_ident _ when (Types.is_bool_type expr.expr_type) ->
      [], [(expr, cpt_pre), mkpredef_call expr.expr_loc "not" [expr]]
   | _ -> [] (* empty vars *) , [] 
 and gen_mcdc_cond_var v expr =
   report ~level:1 (fun fmt ->
-    Format.fprintf fmt ".. Generating MC/DC cond for boolean flow %s and expression %a@."
-      v
-      Printers.pp_expr expr);
+      Format.fprintf fmt ".. Generating MC/DC cond for boolean flow %s and expression %a@."
+        v
+        Printers.pp_expr expr);
   let vl, leafs_n_neg_expr = compute_neg_expr 0 expr in
-  if List.length leafs_n_neg_expr >= 1 then (
+  let len = List.length leafs_n_neg_expr in 
+  if len >= 1 then (
     List.fold_left (fun accu ((vi, nb_pre), expr_neg_vi) ->
-      (mcdc_var  (mk_pre nb_pre vi) expr expr_neg_vi)::accu
-    ) vl leafs_n_neg_expr
+        (mcdc_var  (mk_pre nb_pre vi) len expr expr_neg_vi)::accu
+      ) vl leafs_n_neg_expr
   )
   else
-    (* TODO: deal with the case length xxx = 1 with a simpler condition  *)
     vl
 
 and gen_mcdc_cond_guard expr =
   report ~level:1 (fun fmt ->
-    Format.fprintf fmt".. Generating MC/DC cond for guard %a@."
-      Printers.pp_expr expr);
+      Format.fprintf fmt".. Generating MC/DC cond for guard %a@."
+        Printers.pp_expr expr);
   let vl, leafs_n_neg_expr = compute_neg_expr 0 expr in
-  if List.length leafs_n_neg_expr >= 1 then (
+  let len = List.length leafs_n_neg_expr in
+  if len >= 1 then (
     List.fold_left (fun accu ((vi, nb_pre), expr_neg_vi) ->
-      (mcdc_var  (mk_pre nb_pre vi) expr expr_neg_vi)::accu
-    ) vl leafs_n_neg_expr)
+        (mcdc_var (mk_pre nb_pre vi) len expr expr_neg_vi)::accu
+      ) vl leafs_n_neg_expr)
   else
-    (* TODO: deal with the case length xxx = 1 with a simpler condition  *)
     vl
   
 
