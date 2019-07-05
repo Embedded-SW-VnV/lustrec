@@ -30,16 +30,20 @@ let threshold_bool_op = 95
 let int_consts = ref []
 
 let rename_app id =
-  let node = Corelang.node_from_name id in
-  let is_imported =
-    match node.top_decl_desc with
-    | ImportedNode _ -> true
-    | _ -> false
-  in
-  if !Options.no_mutation_suffix || is_imported then
+  if List.mem id Basic_library.internal_funs ||
+       !Options.no_mutation_suffix then
     id
   else
-    id ^ "_mutant"
+    let node = Corelang.node_from_name id in
+    let is_imported =
+      match node.top_decl_desc with
+      | ImportedNode _ -> true
+      | _ -> false
+    in
+    if is_imported then
+      id
+    else
+      id ^ "_mutant"
 
 (************************************************************************************)
 (*                    Gathering constants in the code                               *)
@@ -455,7 +459,7 @@ let fold_mutate_op op =
     target := Some (Op(op_orig, n-1, op_new));
     op
   )
-  | _ -> if List.mem op Basic_library.internal_funs then op else rename_app op
+  | _ -> op
 
 
 let fold_mutate_var expr = 
@@ -491,19 +495,19 @@ let fold_mutate_pre orig_expr e =
   )
   | _ -> Expr_pre e
     
-let fold_mutate_const_value c = 
-match c with
-| Const_int i -> (
-  match !target with
-  | Some (IncrIntCst 0) -> (set_mutation_loc (); Const_int (i+1))
-  | Some (DecrIntCst 0) -> (set_mutation_loc (); Const_int (i-1))
-  | Some (SwitchIntCst (0, id)) ->
-     (set_mutation_loc (); Const_int id) 
-  | Some (IncrIntCst n) -> (target := Some (IncrIntCst (n-1)); c)
-  | Some (DecrIntCst n) -> (target := Some (DecrIntCst (n-1)); c)
-  | Some (SwitchIntCst (n, id)) -> (target := Some (SwitchIntCst (n-1, id)); c)
-  | _ -> c)
-| _ -> c
+let fold_mutate_const_value c =
+  match c with
+  | Const_int i -> (
+    match !target with
+    | Some (IncrIntCst 0) -> (set_mutation_loc (); Const_int (i+1))
+    | Some (DecrIntCst 0) -> (set_mutation_loc (); Const_int (i-1))
+    | Some (SwitchIntCst (0, id)) ->
+       (set_mutation_loc (); Const_int id) 
+    | Some (IncrIntCst n) -> (target := Some (IncrIntCst (n-1)); c)
+    | Some (DecrIntCst n) -> (target := Some (DecrIntCst (n-1)); c)
+    | Some (SwitchIntCst (n, id)) -> (target := Some (SwitchIntCst (n-1, id)); c)
+    | _ -> c)
+  | _ -> c
 
 (*
   match c with
@@ -561,29 +565,16 @@ let fold_mutate_stmt stmt =
   | Eq eq   -> Eq (fold_mutate_eq eq)
   | Aut aut -> assert false
 
-let mutate_contract c =
-  { c with
-    (* TODO: translate other fields. Do not mutate them, just rename
-       the calls with the _mutant suffix *)
-    imports = List.map (fun ci -> { ci with import_nodeid = rename_app ci.import_nodeid }) c.imports;
-  }
-  
-let mutate_spec spec =
-  match spec with
-  | Contract c -> Contract (mutate_contract c)
-  | NodeSpec id -> NodeSpec (rename_app id)
-                 
+
 let fold_mutate_node nd =
   current_node := Some nd.node_id;
-  { nd with 
-    node_stmts = 
-      List.fold_right (fun stmt res -> (fold_mutate_stmt stmt)::res) nd.node_stmts [];
-    node_spec = (
-      match nd.node_spec with
-      | None -> None
-      | Some spec -> Some (mutate_spec spec)); 
-    node_id = rename_app nd.node_id
-  }
+  let nd =
+    { nd with 
+      node_stmts = 
+        List.fold_right (fun stmt res -> (fold_mutate_stmt stmt)::res) nd.node_stmts [];
+    }
+  in
+  rename_node rename_app (fun x -> x) nd 
 
 let fold_mutate_top_decl td =
   match td.top_decl_desc with

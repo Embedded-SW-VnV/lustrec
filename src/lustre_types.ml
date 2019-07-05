@@ -127,7 +127,12 @@ and expr_annot =
   annot_loc: Location.t}
 
 type contract_mode =
-  { mode_id: ident; require: eexpr list; ensure: eexpr list; mode_loc: Location.t}
+  {
+    mode_id: ident;
+    require: eexpr list;
+    ensure: eexpr list;
+    mode_loc: Location.t
+  }
 
 type contract_import =
   { import_nodeid: ident;

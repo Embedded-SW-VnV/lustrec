@@ -719,7 +719,17 @@ let get_node_interface nd =
 (*        Renaming / Copying                                                      *)
 
 let copy_var_decl vdecl =
-  mkvar_decl vdecl.var_loc ~orig:vdecl.var_orig (vdecl.var_id, vdecl.var_dec_type, vdecl.var_dec_clock, vdecl.var_dec_const, vdecl.var_dec_value, vdecl.var_parent_nodeid)
+  mkvar_decl
+    vdecl.var_loc
+    ~orig:vdecl.var_orig
+    (
+      vdecl.var_id,
+      vdecl.var_dec_type,
+      vdecl.var_dec_clock,
+      vdecl.var_dec_const,
+      vdecl.var_dec_value,
+      vdecl.var_parent_nodeid
+    )
 
 let copy_const cdecl =
   { cdecl with const_type = Types.new_var () }
@@ -802,18 +812,12 @@ let rec rename_carrier rename cck =
      Expr_merge (f_var i, List.map (fun (t, h) -> (t, re h)) hl)
    | Expr_appl (i, e', i') -> 
      Expr_appl (f_node i, re e', Utils.option_map re i')
-
- let rename_dec_type f_node f_var t = t (* TODO : do we really want to rename a declared type ? 
-						     Types.rename_dim_type (Dimension.rename f_node f_var) t*)
-
- let rename_dec_clock f_node f_var c = c (* TODO : do we really want to rename a declared clock ? assert false  
-					  Clocks.rename_clock_expr f_var c*)
    
  let rename_var f_node f_var v = {
      (copy_var_decl v) with
      var_id = f_var v.var_id;
-     var_dec_type = rename_dec_type f_node f_var v.var_dec_type;
-     var_dec_clock = rename_dec_clock f_node f_var v.var_dec_clock
+     var_type = v.var_type;
+     var_clock = v.var_clock;
  } 
 
  let rename_vars f_node f_var = List.map (rename_var f_node f_var) 
