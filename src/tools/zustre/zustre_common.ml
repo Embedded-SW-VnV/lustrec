@@ -215,7 +215,7 @@ let horn_tag_to_expr t =
 let rec horn_const_to_expr c =
   match c with
     | Const_int i    -> Z3.Arithmetic.Integer.mk_numeral_i !ctx i
-    | Const_real (_,_,s)   -> Z3.Arithmetic.Real.mk_numeral_i !ctx 0
+    | Const_real (_,_,s)   -> Z3.Arithmetic.Real.mk_numeral_s !ctx s
     | Const_tag t    -> horn_tag_to_expr t
     | _              -> assert false
 
