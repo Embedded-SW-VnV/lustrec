@@ -15,10 +15,13 @@ let pp_elem fmt e =
   | IsInit -> Format.fprintf fmt "init"
   | Expr e -> Printers.pp_expr fmt e
 
+let pp_guard_list fmt gl =
+  (fprintf_list ~sep:"; "
+     (fun fmt (e,b) -> if b then pp_elem fmt e else Format.fprintf fmt "not(%a)" pp_elem e)) fmt gl
+  
 let pp_guard_expr fmt (gl,e) =
   Format.fprintf fmt "%a -> %a"
-    (fprintf_list ~sep:"; "
-       (fun fmt (e,b) -> if b then pp_elem fmt e else Format.fprintf fmt "not(%a)" pp_elem e)) gl
+    pp_guard_list  gl
     pp_elem e
 
 let pp_mdefs fmt gel = fprintf_list ~sep:"@ " pp_guard_expr fmt gel
@@ -222,6 +225,7 @@ let neg_ze z3e = Z3.Boolean.mk_not !ctx z3e
 let check_sat, clean_guard = 
   (
     fun l ->
+    (* Format.eprintf "@[<v 2>Z3 check sat: [%a]@ " pp_guard_list l; *)
     let solver = Z3.Solver.mk_simple_solver !ctx in
     try (
     let zl =
@@ -237,7 +241,9 @@ let check_sat, clean_guard =
             neg_ze ze
         ) l
     in
+    (* Format.eprintf "Z3 exprs: [%a]@ " (fprintf_list ~sep:",@ " (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))) zl; *)
     let status_res = Z3.Solver.check solver zl in
+    (* Format.eprintf "Z3 status: %s@ @]@. " (Z3.Solver.string_of_status status_res); *)
     let sat = match status_res with
       | Z3.Solver.UNSATISFIABLE -> false
       | _ -> true in
@@ -268,23 +274,25 @@ let check_sat, clean_guard =
      Z3.Goal.add goal zl;
     let goal' = Z3.Goal.simplify goal None in
     
-    Format.eprintf "Goal before: %s@.Goal after : %s@.Sat? %s@."
-      (Z3.Goal.to_string goal)
-      (Z3.Goal.to_string goal')
-      (Z3.Solver.string_of_status status_res)
-    ;
+    (* Format.eprintf "Goal before: %s@.Goal after : %s@.Sat? %s@."
+     *   (Z3.Goal.to_string goal)
+     *   (Z3.Goal.to_string goal')
+     *   (Z3.Solver.string_of_status status_res)
+     * ; *)
     let ze = Z3.Goal.as_expr goal' in
-    Format.eprintf "as an expr: %s@." (Z3.Expr.to_string ze);
-   (* let l =
-      match zexpr_to_expr ze with
+    (* Format.eprintf "as an expr: %s@." (Z3.Expr.to_string ze); *)
+    let l =
+      (* zexpr_to_expr function returns a pair (is_init option, expr
+         option). Since we are simplifying /pure/ expression, there
+         should be not init sub-expressions here.  *)
+      match zexpr_to_expr ze with 
       | None, None -> []
       | None, Some e -> [e, true]
       | _ -> assert false
-    (*      | Some init, None -> [IsInit, init]
-      | Some init, Some e -> [IsInit, init; Expr e, true]
-     *)  in
-     *)
+    in
     l
+           
+    
     )
       with Zustre_common.UnknownFunction(id, msg) -> (
       report ~level:1 msg;
@@ -317,22 +325,43 @@ let combine_guards ?(fresh=None) gl1 gl2 =
   (* Filtering out trivial cases. More semantics ones would have to be
      addressed later *)
   let check (gexpr, posneg) l =
+    (* Format.eprintf "Checking %a=%b in %a@ "
+     *   pp_elem gexpr
+     *   posneg
+     *   pp_guard_list l
+     * ; *)
     (* Check if gepxr is part of l *)
-    let sel_fun = select_elem gexpr in
-    if List.exists sel_fun l then
+   let sel_fun = select_elem gexpr in
+   let ok, res =
+     if List.exists sel_fun l then (
       (* Checking the guard value posneg *)
       let _, status = List.find sel_fun l in
+      (* Format.eprintf "Found %a in %a. @ Checking status (%b).@ "
+     *     pp_elem gexpr
+     *     pp_guard_list l
+     *     (status=posneg)
+     * ; *)
       status=posneg, l
-    else
+    )
+    else (
+      (* Format.eprintf "Not found.@ "; *)
       (* Valid: no overlap *)
       (* Individual checkat *)
       let ok, e = check_sat [gexpr, posneg] in
+      (* let ok, e = true, [gexpr, posneg] in (* TODO solve the issue with check_sat *) *)
+      (* Format.eprintf "Check_sat? %b@ " ok; *)
       if ok then
         let l = e@l in
         let ok, l = check_sat l in
+        (* let ok, l = true, l in (* TODO solve the issue with check_sat *) *)
         ok, l 
       else
-        true, l
+        false, []
+     )
+   in
+   (* Format.eprintf "Check sat res: %a@ "
+    *   pp_guard_list res; *)
+   ok, res
   in
   let ok, gl =
     List.fold_left (
@@ -351,8 +380,13 @@ let combine_guards ?(fresh=None) gl1 gl2 =
       check fresh_g gl
     )
   else
-    ok, []
+    false, []
 
+(* DEBUG 
+let combine_guards  ?(fresh=None) gl1 gl2 =
+  true,
+  (match fresh with None -> [] | Some (gexpr, posneg) -> [gexpr, posneg])@gl1@gl2
+ *)
 (* Encode "If gel1=posneg then gel2":
    - Compute the combination of guarded exprs in gel1 and gel2:
      - Each guarded_expr in gel1 is transformed as a guard: the
@@ -365,54 +399,66 @@ let concatenate_ge gel1 posneg gel2 =
       fun accu (g2,e2) ->
       List.fold_left (
           fun accu (g1,e1) ->
+           (* Format.eprintf "@[<v 2>Combining guards: (%a=%b) AND [%a] AND [%a]@ "
+            *  pp_elem e1
+            *  posneg
+            *  pp_guard_list g1
+            *  pp_guard_list g2; *)
+            
           let ok, gl = combine_guards ~fresh:(Some(e1,posneg)) g1 g2 in
+          (* Format.eprintf "@]@ Result is [%a]@ "
+           *   pp_guard_list gl; *)
+            
           if ok then
             (gl, e2)::accu
-          else
+          else (
+            
             accu
+          )
         ) accu gel1
     ) [] gel2
 
 let rec rewrite defs expr : guarded_expr list =
   let rewrite = rewrite defs in
-  match expr.expr_desc with
-  | Expr_appl (id, args, None) ->
-     let args = rewrite args in
-     List.map (fun (guards, e) ->
+  let res =
+    match expr.expr_desc with
+    | Expr_appl (id, args, None) ->
+       let args = rewrite args in
+       List.map (fun (guards, e) ->
            guards,
            Expr {expr with expr_desc = Expr_appl(id, deelem e, None)}
-       ) args 
-  | Expr_const _  -> [[], Expr expr]
-  | Expr_ident id ->
-     if Hashtbl.mem defs id then
-       Hashtbl.find defs id
-     else
-       (* id should be an input *)
-       [[], Expr expr]
-  | Expr_ite (g, e1, e2) ->
-     let g = rewrite g and
-         e1 = rewrite e1 and
-         e2 = rewrite e2 in
-     (concatenate_ge g true e1)@
-       (concatenate_ge g false e2)
-  | Expr_merge (g, branches) ->
-     assert false (* TODO: deal with merges *)
-    
-  | Expr_when (e, _, _) -> rewrite e
-  | Expr_arrow _ -> [[], IsInit] (* At this point the only arrow should be true -> false *)
-  | Expr_tuple el ->
-     (* Each expr is associated to its flatten guarded expr list *)
-     let gell = List.map rewrite el in
-     (* Computing all combinations: we obtain a list of guarded tuple *)
-     let rec aux gell : (guard * expr list) list =
-       match gell with
-       | [] -> assert false (* Not happening *)
-       | [gel] -> List.map (fun (g,e) -> g, [deelem e]) gel
-       | gel::getl ->
-          let getl = aux getl in
-          List.fold_left (
-              fun accu (g,e) ->
-              List.fold_left (
+         ) args 
+    | Expr_const _  -> [[], Expr expr]
+    | Expr_ident id ->
+       if Hashtbl.mem defs id then
+         Hashtbl.find defs id
+       else
+         (* id should be an input *)
+         [[], Expr expr]
+    | Expr_ite (g, e1, e2) ->
+       let g = rewrite g and
+           e1 = rewrite e1 and
+           e2 = rewrite e2 in
+       (concatenate_ge g true e1)@
+         (concatenate_ge g false e2)
+    | Expr_merge (g, branches) ->
+       assert false (* TODO: deal with merges *)
+      
+    | Expr_when (e, _, _) -> rewrite e
+    | Expr_arrow _ -> [[], IsInit] (* At this point the only arrow should be true -> false *)
+    | Expr_tuple el ->
+       (* Each expr is associated to its flatten guarded expr list *)
+       let gell = List.map rewrite el in
+       (* Computing all combinations: we obtain a list of guarded tuple *)
+       let rec aux gell : (guard * expr list) list =
+         match gell with
+         | [] -> assert false (* Not happening *)
+         | [gel] -> List.map (fun (g,e) -> g, [deelem e]) gel
+         | gel::getl ->
+            let getl = aux getl in
+            List.fold_left (
+                fun accu (g,e) ->
+                List.fold_left (
                     fun accu (gl, minituple) ->
                     let is_compat, guard_comb = combine_guards g gl in
                     if is_compat then
@@ -420,24 +466,37 @@ let rec rewrite defs expr : guarded_expr list =
                       new_gt::accu
                     else
                       accu
-                  
+                    
                   ) accu getl
-            ) [] gel
-     in
-     let gtuples = aux gell in
-     (* Rebuilding the valid type: guarded expr list (with tuple exprs) *)
-     List.map (fun (g,tuple) -> g, Expr {expr with expr_desc = Expr_tuple tuple}) gtuples
-  | Expr_fby _
-    | Expr_appl _
-                (* Should be removed by mormalization and inlining *)
-    -> Format.eprintf "Pb expr: %a@.@?" Printers.pp_expr expr; assert false
-  | Expr_array _ | Expr_access _ | Expr_power _
-                                              (* Arrays not handled here yet *)
-    -> assert false
-  | Expr_pre _ -> (* Not rewriting mem assign *)
-     assert false
+              ) [] gel
+       in
+       let gtuples = aux gell in
+       (* Rebuilding the valid type: guarded expr list (with tuple exprs) *)
+       List.map (fun (g,tuple) -> g, Expr {expr with expr_desc = Expr_tuple tuple}) gtuples
+    | Expr_fby _
+      | Expr_appl _
+                  (* Should be removed by mormalization and inlining *)
+      -> Format.eprintf "Pb expr: %a@.@?" Printers.pp_expr expr; assert false
+    | Expr_array _ | Expr_access _ | Expr_power _
+                                                (* Arrays not handled here yet *)
+      -> assert false
+    | Expr_pre _ -> (* Not rewriting mem assign *)
+       assert false
+  in
+  (* Format.eprintf "Rewriting %a as [@[<v 0>%a@]]@ "
+   *   Printers.pp_expr expr
+   *   (Utils.fprintf_list ~sep:"@ "
+   *        pp_guard_expr) res; *)
+  res
 and add_def defs vid expr =
-  Hashtbl.add defs vid (rewrite defs expr)
+  let vid_defs = rewrite defs expr in
+  (* Format.eprintf "Add_def: %s = %a@. -> @[<v 0>%a@]@."
+   *   vid
+   *   Printers.pp_expr expr
+   *   (
+   *     (Utils.fprintf_list ~sep:"@ "
+   *        pp_guard_expr)) vid_defs; *)
+  Hashtbl.add defs vid vid_defs
 
 (* Takes a list of guarded exprs (ge) and a guard
 returns the same list of ge splited into the ones where the guard is true and the ones where it is false. In both lists the associated ge do not mention that guard anymore.
@@ -608,6 +667,7 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
   let _ =
     List.iter (fun c -> Hashtbl.add const_defs c.const_id c.const_value) consts
   in
+
   
   (* Registering node equations: identifying mem definitions and
      storing others in the "defs" hashtbl. *)
@@ -685,3 +745,4 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
     build_switch_sys update_defs []
   in
   clean_sys sw_init, clean_sys sw_sys
+ 
