@@ -59,10 +59,7 @@ let get_const id = Hashtbl.find const_defs id
 (* expressions are only basic constructs here, no more ite, tuples,
    arrows, fby, ... *)
 let expr_to_z3_expr, zexpr_to_expr =
-  (* List to store converted expression. Some expressions seem to
-     produce segfaults in z3. Storing the processed ones may solved
-     the issue. Using list instead of hash to ease the comparison of
-     expressions. *)
+  (* List to store converted expression. *)
   let hash = ref [] in
   let comp_expr e (e', _) = Corelang.is_eq_expr e e' in
   let comp_zexpr ze (_, ze') = Z3.Expr.equal ze ze' in
@@ -106,8 +103,13 @@ let expr_to_z3_expr, zexpr_to_expr =
          let z3e = Zustre_common.horn_basic_app id e2ze (Corelang.expr_list_of_expr args) in
          add_expr e z3e;
          z3e
-         
-      | _ -> assert false
+      | Expr_tuple [e] ->
+         let z3e = e2ze e in
+         add_expr e z3e;
+         z3e
+      | _ -> ( match e.expr_desc with Expr_tuple _ -> Format.eprintf "tuple e2ze(%a)@.@?" Printers.pp_expr e
+                                    | _ -> Format.eprintf "e2ze(%a)@.@?" Printers.pp_expr e)
+                 ; assert false
       in
       res
     )
@@ -187,9 +189,10 @@ let expr_to_z3_expr, zexpr_to_expr =
             in
             None, Some e 
           )
-          | "and" -> (
+          | "and" | "or" -> (
             (* Special case since it can contain is_init pred *)
             let args = List.map (fun ze -> ze2e ze) zel in
+            let op = if op = "and" then "&&" else if op = "or" then "||" else assert false in 
             match args with
             | [] -> assert false
             | [hd] -> hd
@@ -202,14 +205,13 @@ let expr_to_z3_expr, zexpr_to_expr =
                    (match expr_opt1, expr_opt2 with
                     | None, x | x, None -> x
                     | Some e1, Some e2 ->
-                       Some (mkpredef_call Location.dummy_loc "&&" [e1; e2])
+                       Some (mkpredef_call Location.dummy_loc op [e1; e2])
                  ))
                  hd tl 
           )
-                   
           | op -> 
              let args = List.map (fun ze ->  (snd (ze2e ze))) zel in
-             Format.eprintf "deal with op %s (%i). Expr is %s@."  op (List.length args) (Z3.Expr.to_string ze); assert false
+             Format.eprintf "deal with op %s (nb args: %i). Expr is %s@."  op (List.length args) (Z3.Expr.to_string ze); assert false
       )
   in
   (fun e -> e2ze e), (fun ze -> ze2e ze)
@@ -217,17 +219,103 @@ let expr_to_z3_expr, zexpr_to_expr =
 let is_init_z3e = Z3.Expr.mk_const_s !ctx is_init_name  Zustre_common.bool_sort 
 let neg_ze z3e = Z3.Boolean.mk_not !ctx z3e 
 
+let zexpr_to_guard_list ze =
+  let init_opt, expr_opt = zexpr_to_expr ze in
+  (match init_opt with
+   | None -> []
+   |Some b -> [IsInit, b]
+  ) @ (match expr_opt with
+       | None -> []
+       | Some e -> [Expr e, true]
+      )
+let simplify_neg_guard l =
+  List.map (fun (g,posneg) ->
+      match g with
+      | IsInit -> g, posneg
+      | Expr g ->
+          if posneg then
+            Expr (Corelang.push_negations g),
+            true
+          else
+            (* Pushing the negation in the expression *)
+            Expr(Corelang.push_negations ~neg:true g),
+            true
+    ) l 
+
+(* TODO:
+individuellement demander si g1 => g2. Si c'est le cas, on peut ne garder que g1 dans la liste
+*)    
 (*****************************************************************)
 (* Checking sat(isfiability) of an expression and simplifying it *)
 (* All (free) variables have to be declared in the Z3 context    *)
 (*****************************************************************)
-               
-let check_sat, clean_guard = 
-  (
-    fun l ->
-    (* Format.eprintf "@[<v 2>Z3 check sat: [%a]@ " pp_guard_list l; *)
-    let solver = Z3.Solver.mk_simple_solver !ctx in
-    try (
+let goal_simplify zl =
+  let goal = Z3.Goal.mk_goal !ctx false false false in
+  Z3.Goal.add goal zl;
+  let goal' = Z3.Goal.simplify goal None in
+  (* Format.eprintf "Goal before: %s@.Goal after : %s@.Sat? %s@."
+   *   (Z3.Goal.to_string goal)
+   *   (Z3.Goal.to_string goal')
+   *   (Z3.Solver.string_of_status status_res) 
+   * ; *)
+  let ze = Z3.Goal.as_expr goal' in
+  (* Format.eprintf "as an expr: %s@." (Z3.Expr.to_string ze); *)
+  ze
+
+let implies e1 e2 =
+  (* Format.eprintf "Checking implication: %s => %s? "
+   * (Z3.Expr.to_string e1) (Z3.Expr.to_string e2)
+   * ; *)
+  let solver = Z3.Solver.mk_simple_solver !ctx in
+  let tgt = Z3.Boolean.mk_not !ctx (Z3.Boolean.mk_implies !ctx e1 e2) in
+  try
+    let status_res = Z3.Solver.check solver [tgt] in
+    match status_res with
+    | Z3.Solver.UNSATISFIABLE -> (* Format.eprintf "Valid!@."; *)
+                                 true
+    | _ -> (* Format.eprintf "not proved valid@."; *)
+           false
+  with Zustre_common.UnknownFunction(id, msg) -> (
+    report ~level:1 msg;
+    false
+  )
+                                               
+let rec simplify zl =
+  match zl with
+  | [] | [_] -> zl
+  | hd::tl -> (
+  (* Forall e in tl, checking whether hd => e or e => hd, to keep hd
+     in the first case and e in the second one *)
+    let tl = simplify tl in
+    let keep_hd, tl =
+      List.fold_left (fun (keep_hd, accu) e ->
+          if implies hd e then
+            true, accu (* throwing away e *)
+          else if implies e hd then
+            false, e::accu (* throwing away hd *)
+          else
+            keep_hd, e::accu (* keeping both *)
+        ) (true,[]) tl
+    in
+    (* Format.eprintf "keep_hd?%b hd=%s, tl=[%a]@."
+     *   keep_hd
+     *   (Z3.Expr.to_string hd)
+     * (Utils.fprintf_list ~sep:"; " (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))) tl
+     *   ; *)
+    if keep_hd then
+      hd::tl
+    else
+      tl
+  )
+  
+let check_sat ?(just_check=false) (l:guard) : bool * guard =
+  (* Syntactic simplification *)
+  (* Format.eprintf "Before simplify: %a@." pp_guard_list l; *)
+  let l = simplify_neg_guard l in
+  (* Format.eprintf "After simplify: %a@." pp_guard_list l; *)
+  (* Format.eprintf "@[<v 2>Z3 check sat: [%a]@ " pp_guard_list l; *)
+  let solver = Z3.Solver.mk_simple_solver !ctx in
+  try (
     let zl =
       List.map (fun (e, posneg) ->
           let ze =
@@ -241,64 +329,37 @@ let check_sat, clean_guard =
             neg_ze ze
         ) l
     in
-    (* Format.eprintf "Z3 exprs: [%a]@ " (fprintf_list ~sep:",@ " (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))) zl; *)
+    (* Format.eprintf "Z3 exprs1: [%a]@ " (fprintf_list ~sep:",@ " (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))) zl; *)
+    let zl = simplify zl in
+       (* Format.eprintf "Z3 exprs2: [%a]@ " (fprintf_list ~sep:",@ " (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))) zl; *)
     let status_res = Z3.Solver.check solver zl in
     (* Format.eprintf "Z3 status: %s@ @]@. " (Z3.Solver.string_of_status status_res); *)
-    let sat = match status_res with
-      | Z3.Solver.UNSATISFIABLE -> false
-      | _ -> true in
-    sat, if not sat then [] else l
+    match status_res with
+    | Z3.Solver.UNSATISFIABLE -> false, []
+    | _ -> (
+      if false && just_check then
+        true, l
+      else
+        let zl = goal_simplify zl in
+        let l = zexpr_to_guard_list zl in
+  (* Format.eprintf "@.@[<v 2>Check_Sat:@ before: %a@ after:
+       %a@. Goal precise? %b/%b@]@.@. " * pp_guard_list l
+       pp_guard_list l' * (Z3.Goal.is_precise goal) *
+       (Z3.Goal.is_precise goal'); *)
+  
+
+        true, l
+        
+         
     )
-    with Zustre_common.UnknownFunction(id, msg) -> (
-      report ~level:1 msg;
-      true, l (* keeping everything. *)
-    )
+         
+  )
+  with Zustre_common.UnknownFunction(id, msg) -> (
+    report ~level:1 msg;
+    true, l (* keeping everything. *)
+  )
       
   
-  ),
-  ( fun l ->
-    try (
-        let solver = Z3.Solver.mk_simple_solver !ctx in
-     let zl =
-    List.map (fun (e, posneg) ->
-        let ze = expr_to_z3_expr e 
-        in
-        if posneg then
-          ze
-        else
-          neg_ze ze
-      ) l
-     in
-     let goal = Z3.Goal.mk_goal !ctx false false false in
-     let status_res = Z3.Solver.check solver zl in
-     Z3.Goal.add goal zl;
-    let goal' = Z3.Goal.simplify goal None in
-    
-    (* Format.eprintf "Goal before: %s@.Goal after : %s@.Sat? %s@."
-     *   (Z3.Goal.to_string goal)
-     *   (Z3.Goal.to_string goal')
-     *   (Z3.Solver.string_of_status status_res)
-     * ; *)
-    let ze = Z3.Goal.as_expr goal' in
-    (* Format.eprintf "as an expr: %s@." (Z3.Expr.to_string ze); *)
-    let l =
-      (* zexpr_to_expr function returns a pair (is_init option, expr
-         option). Since we are simplifying /pure/ expression, there
-         should be not init sub-expressions here.  *)
-      match zexpr_to_expr ze with 
-      | None, None -> []
-      | None, Some e -> [e, true]
-      | _ -> assert false
-    in
-    l
-           
-    
-    )
-      with Zustre_common.UnknownFunction(id, msg) -> (
-      report ~level:1 msg;
-      l (* keeping everything. *)
-    )
-  )
 
 
 (**************************************************************)
@@ -306,8 +367,8 @@ let check_sat, clean_guard =
   
 let clean_sys sys =
   List.fold_left (fun accu (guards, updates) ->
-      let guards' = clean_guard guards in
-      let sat, _ =  check_sat (List.map (fun (g, pn) -> Expr g, pn) guards') in
+      (*let guards' = clean_guard guards in*)
+      let sat, guards' =  check_sat (List.map (fun (g, pn) -> Expr g, pn) guards) in
       (*Format.eprintf "Guard: %a@.Guard cleaned: %a@.Sat? %b@."
         (fprintf_list ~sep:"@ " (pp_guard_expr Printers.pp_expr))  guards
         (fprintf_list ~sep:"@ " (pp_guard_expr Printers.pp_expr))  guards'
@@ -315,7 +376,7 @@ let clean_sys sys =
 
       ;*)
         if sat then
-        (guards', updates)::accu
+        (List.map (fun (e, b) -> (deelem e, b)) guards', updates)::accu
       else
         accu
     )
@@ -347,12 +408,12 @@ let combine_guards ?(fresh=None) gl1 gl2 =
       (* Format.eprintf "Not found.@ "; *)
       (* Valid: no overlap *)
       (* Individual checkat *)
-      let ok, e = check_sat [gexpr, posneg] in
+      let ok, e = check_sat ~just_check:true [gexpr, posneg] in
       (* let ok, e = true, [gexpr, posneg] in (* TODO solve the issue with check_sat *) *)
       (* Format.eprintf "Check_sat? %b@ " ok; *)
       if ok then
         let l = e@l in
-        let ok, l = check_sat l in
+        let ok, l = check_sat ~just_check:true l in
         (* let ok, l = true, l in (* TODO solve the issue with check_sat *) *)
         ok, l 
       else
@@ -491,11 +552,11 @@ let rec rewrite defs expr : guarded_expr list =
 and add_def defs vid expr =
   let vid_defs = rewrite defs expr in
   (* Format.eprintf "Add_def: %s = %a@. -> @[<v 0>%a@]@."
-   *   vid
-   *   Printers.pp_expr expr
-   *   (
-   *     (Utils.fprintf_list ~sep:"@ "
-   *        pp_guard_expr)) vid_defs; *)
+   *     vid
+   *     Printers.pp_expr expr
+   *     (
+   *       (Utils.fprintf_list ~sep:"@ "
+   *          pp_guard_expr)) vid_defs;  *)
   Hashtbl.add defs vid vid_defs
 
 (* Takes a list of guarded exprs (ge) and a guard
@@ -580,7 +641,8 @@ let rec build_switch_sys
      mem_defs expr.
 
      otherwise pick a guard in one of the mem, eg (g, b) then for each
-     other mem, one need to select the same guard g with the same status b, *)
+     other mem, one need to select the same guard g with the same
+     status b, *)
   if List.for_all (fun (m,mdefs) ->
          (* All defs are unguarded *)
          match mdefs with
@@ -629,9 +691,20 @@ let rec build_switch_sys
           *     | _ -> Format.eprintf "something else@."
           *   )
           * in *)
-         (build_switch_sys pos ((elem, true)::prefix))
+         let clean l =
+           let l = List.map (fun (e,b) -> (Expr e), b) l in
+           let ok, l = check_sat l in
+           let l = List.map (fun (e,b) -> deelem e, b) l in
+           ok, l
+         in
+         let pos_prefix = (elem, true)::prefix in
+         let ok_pos, pos_prefix = clean pos_prefix in         
+         let neg_prefix = (elem, false)::prefix in
+         let ok_neg, neg_prefix = clean neg_prefix in         
+         
+         (if ok_pos then build_switch_sys pos pos_prefix else [])
          @
-           (build_switch_sys neg ((elem, false)::prefix))
+           (if ok_neg then build_switch_sys neg neg_prefix else [])
     )
 
 
@@ -711,7 +784,7 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
                   pp_guard_expr) mdefs
         ))
         mem_defs);
-  
+  (* Format.eprintf "Split init@."; *)
   let init_defs, update_defs =
     split_init mem_defs 
   in
@@ -737,10 +810,12 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
                   pp_guard_expr) mdefs
         ))
         update_defs);
+  (* Format.eprintf "Build init@."; *)
 
   let sw_init= 
     build_switch_sys init_defs []
   in
+  (* Format.eprintf "Build step@."; *)
   let sw_sys =
     build_switch_sys update_defs []
   in
