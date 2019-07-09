@@ -1331,6 +1331,59 @@ let get_node name prog =
     Utils.desome node_opt
   with Utils.DeSome -> raise Not_found
 
-(* Local Variables: *)
-(* compile-command:"make -C .." *)
-(* End: *)
+(* Pushing negations in expression. Subtitute operators whenever possible *)
+let rec push_negations ?(neg=false) e =
+  let res =
+    let pn = push_negations in
+    let map desc = { e with expr_desc = desc } in
+    match e.expr_desc with
+    | Expr_ite (g,t,e) ->
+       if neg then
+         map (Expr_ite(pn g, pn e, pn t))
+       else
+         map (Expr_ite(pn g, pn t, pn e)) 
+    | Expr_tuple t ->
+       map (Expr_tuple (List.map (pn ~neg) t))
+    | Expr_arrow (e1, e2) ->
+       map (Expr_arrow (pn ~neg e1, pn ~neg e2)) 
+    | Expr_fby (e1, e2) ->
+       map (Expr_fby (pn ~neg e1, pn ~neg e2))
+    | Expr_pre e ->
+       map (Expr_pre (pn ~neg e))
+    | Expr_appl (op, e', None) when op = "not" ->
+       if neg then
+         push_negations ~neg:false e'
+       else
+         push_negations ~neg:true e'
+    | Expr_appl (op, e', None) when List.mem op (Basic_library.bool_funs @ Basic_library.rel_funs) -> (
+      match op with
+      | "&&" -> map (Expr_appl((if neg then "||" else op), pn ~neg e', None))
+      | "||" -> map (Expr_appl((if neg then "&&" else op), pn ~neg e', None))
+      (* TODO xor/equi/impl *)
+      | "<" -> map (Expr_appl((if neg then ">=" else op), pn e', None))
+      | ">" -> map (Expr_appl((if neg then "<=" else op), pn e', None))
+      | "<=" -> map (Expr_appl((if neg then ">" else op), pn e', None))
+      | ">=" -> map (Expr_appl((if neg then "<" else op), pn e', None))
+      | "!=" -> map (Expr_appl((if neg then "=" else op), pn e', None))
+      | "=" -> map (Expr_appl((if neg then "!=" else op), pn e', None))
+             
+      | _ -> assert false                     
+    )
+    | Expr_const _
+      | Expr_ident _ -> if neg then
+                         mkpredef_call e.expr_loc "not" [e]
+                       else
+                         e
+    | Expr_appl (op,_,_) -> 
+       if neg then
+         mkpredef_call e.expr_loc "not" [e]
+       else
+         e
+    | _ -> assert false (* no array, array access, power or merge/when *)
+  in
+  res
+
+    
+    (* Local Variables: *)
+    (* compile-command:"make -C .." *)
+    (* End: *)

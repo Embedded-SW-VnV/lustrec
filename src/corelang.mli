@@ -197,6 +197,7 @@ val get_expr_calls: top_decl list -> expr -> Utils.ISet.t
 
 val eq_has_arrows: eq -> bool
 
+val  push_negations: ?neg:bool -> expr -> expr
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)
