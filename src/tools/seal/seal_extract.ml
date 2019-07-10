@@ -4,8 +4,11 @@ open Seal_utils
 open Zustre_data (* Access to Z3 context *)
    
 
-(* Switched system extraction *)
+(* Switched system extraction: expression are memoized *)
+(*let expr_mem = Hashtbl.create 13*)
+             
 type element = IsInit | Expr of expr
+                              
 type guard = (element * bool) list
 type guarded_expr = guard * element
 type mdef_t = guarded_expr list
@@ -13,7 +16,7 @@ type mdef_t = guarded_expr list
 let pp_elem fmt e =
   match e with
   | IsInit -> Format.fprintf fmt "init"
-  | Expr e -> Printers.pp_expr fmt e
+  | Expr e -> Format.fprintf fmt "%a" Printers.pp_expr e 
 
 let pp_guard_list fmt gl =
   (fprintf_list ~sep:"; "
@@ -37,8 +40,8 @@ let deelem e =  match e with
 let is_eq_elem elem elem' =
   match elem, elem' with
   | IsInit, IsInit -> true
-  | Expr e, Expr e' ->
-     Corelang.is_eq_expr e e'
+  | Expr e, Expr e' -> e = e' (*
+     Corelang.is_eq_expr e e' *)
   | _ -> false
 
 let select_elem elem (gelem, _) =
@@ -58,22 +61,71 @@ let get_const id = Hashtbl.find const_defs id
                  
 (* expressions are only basic constructs here, no more ite, tuples,
    arrows, fby, ... *)
+
+(* Set of hash to support memoization *)
+let expr_hash: (expr * Utils.tag) list ref = ref []
+let ze_hash: (Z3.Expr.expr, Utils.tag) Hashtbl.t = Hashtbl.create 13
+let e_hash: (Utils.tag, Z3.Expr.expr) Hashtbl.t = Hashtbl.create 13
+let pp_hash pp_key pp_v fmt h = Hashtbl.iter (fun key v -> Format.fprintf fmt "%a -> %a@ " pp_key key pp_v v) h
+let pp_e_map fmt = List.iter (fun (e,t) -> Format.fprintf fmt "%i -> %a@ " t Printers.pp_expr e) !expr_hash
+let pp_ze_hash fmt = pp_hash
+                      (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))
+                      Format.pp_print_int
+                      fmt
+                      ze_hash
+let pp_e_hash fmt = pp_hash
+                      Format.pp_print_int
+                      (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))
+                      fmt
+                      e_hash                              
+let mem_expr e =
+  (* Format.eprintf "Searching for %a in map: @[<v 0>%t@]"
+   *   Printers.pp_expr e
+   *   pp_e_map; *)
+  let res = List.exists (fun (e',_) -> Corelang.is_eq_expr e e') !expr_hash in
+  (* Format.eprintf "found?%b@." res; *)
+  res
+  
+let mem_zexpr ze =
+  Hashtbl.mem ze_hash ze
+let get_zexpr e =
+  let eref, uid = List.find (fun (e',_) -> Corelang.is_eq_expr e e') !expr_hash in
+  (* Format.eprintf "found expr=%a id=%i@." Printers.pp_expr eref eref.expr_tag; *)
+  Hashtbl.find e_hash uid
+let get_expr ze =
+  let uid = Hashtbl.find ze_hash ze in
+  let e,_ = List.find (fun (e,t) -> t = uid) !expr_hash in
+  e
+  
+let neg_ze z3e = Z3.Boolean.mk_not !ctx z3e 
+let is_init_z3e =
+  Z3.Expr.mk_const_s !ctx is_init_name  Zustre_common.bool_sort 
+
+let get_zid (ze:Z3.Expr.expr) : Utils.tag = 
+  try
+    if Z3.Expr.equal ze is_init_z3e then -1 else
+      if Z3.Expr.equal ze (neg_ze is_init_z3e) then -2 else
+    Hashtbl.find ze_hash ze
+  with _ -> (Format.eprintf "Looking for ze %s in Hash %a"
+               (Z3.Expr.to_string ze)
+               (fun fmt hash -> Hashtbl.iter (fun ze uid -> Format.fprintf fmt "%s -> %i@ " (Z3.Expr.to_string ze) uid) hash ) ze_hash;
+             assert false)
+let add_expr =
+  let cpt = ref 0 in
+  fun e ze ->
+  incr cpt;
+  let uid = !cpt in
+  expr_hash := (e, uid)::!expr_hash;
+  Hashtbl.add e_hash uid ze;
+  Hashtbl.add ze_hash ze uid
+
+  
 let expr_to_z3_expr, zexpr_to_expr =
   (* List to store converted expression. *)
-  let hash = ref [] in
-  let comp_expr e (e', _) = Corelang.is_eq_expr e e' in
-  let comp_zexpr ze (_, ze') = Z3.Expr.equal ze ze' in
-  let mem_expr e = List.exists (comp_expr e) !hash in
-  let mem_zexpr ze = List.exists (comp_zexpr ze) !hash in
-  let get_zexpr e =
-    let (_, ze) = List.find (comp_expr e) !hash in
-    ze
-  in
-  let get_expr ze =
-    let (e, _) = List.find (comp_zexpr ze) !hash in
-    e
-  in
-  let add_expr e ze = hash := (e, ze)::!hash in
+  (* let hash = ref [] in
+   * let comp_expr e (e', _) = Corelang.is_eq_expr e e' in
+   * let comp_zexpr ze (_, ze') = Z3.Expr.equal ze ze' in *)
+  
   let rec e2ze e =
     if mem_expr e then (
       get_zexpr e
@@ -216,9 +268,7 @@ let expr_to_z3_expr, zexpr_to_expr =
   in
   (fun e -> e2ze e), (fun ze -> ze2e ze)
 
-let is_init_z3e = Z3.Expr.mk_const_s !ctx is_init_name  Zustre_common.bool_sort 
-let neg_ze z3e = Z3.Boolean.mk_not !ctx z3e 
-
+               
 let zexpr_to_guard_list ze =
   let init_opt, expr_opt = zexpr_to_expr ze in
   (match init_opt with
@@ -228,6 +278,8 @@ let zexpr_to_guard_list ze =
        | None -> []
        | Some e -> [Expr e, true]
       )
+                
+               
 let simplify_neg_guard l =
   List.map (fun (g,posneg) ->
       match g with
@@ -249,6 +301,7 @@ individuellement demander si g1 => g2. Si c'est le cas, on peut ne garder que g1
 (* Checking sat(isfiability) of an expression and simplifying it *)
 (* All (free) variables have to be declared in the Z3 context    *)
 (*****************************************************************)
+(*
 let goal_simplify zl =
   let goal = Z3.Goal.mk_goal !ctx false false false in
   Z3.Goal.add goal zl;
@@ -260,31 +313,45 @@ let goal_simplify zl =
    * ; *)
   let ze = Z3.Goal.as_expr goal' in
   (* Format.eprintf "as an expr: %s@." (Z3.Expr.to_string ze); *)
-  ze
-
-let implies e1 e2 =
-  (* Format.eprintf "Checking implication: %s => %s? "
-   * (Z3.Expr.to_string e1) (Z3.Expr.to_string e2)
-   * ; *)
-  let solver = Z3.Solver.mk_simple_solver !ctx in
-  let tgt = Z3.Boolean.mk_not !ctx (Z3.Boolean.mk_implies !ctx e1 e2) in
-  try
-    let status_res = Z3.Solver.check solver [tgt] in
-    match status_res with
-    | Z3.Solver.UNSATISFIABLE -> (* Format.eprintf "Valid!@."; *)
-                                 true
-    | _ -> (* Format.eprintf "not proved valid@."; *)
-           false
-  with Zustre_common.UnknownFunction(id, msg) -> (
-    report ~level:1 msg;
-    false
-  )
+  zexpr_to_guard_list ze
+  *)
+  
+let implies =
+  let ze_implies_hash : ((Utils.tag * Utils.tag), bool) Hashtbl.t  = Hashtbl.create 13 in
+  fun ze1 ze2 ->
+  let ze1_uid = get_zid ze1 in
+  let ze2_uid = get_zid ze2 in
+  if Hashtbl.mem ze_implies_hash (ze1_uid, ze2_uid) then
+    Hashtbl.find ze_implies_hash (ze1_uid, ze2_uid)
+  else
+    begin
+       Format.eprintf "Checking implication: %s => %s? "
+        (Z3.Expr.to_string ze1) (Z3.Expr.to_string ze2)
+        ; 
+      let solver = Z3.Solver.mk_simple_solver !ctx in
+      let tgt = Z3.Boolean.mk_not !ctx (Z3.Boolean.mk_implies !ctx ze1 ze2) in
+      let res =
+        try
+          let status_res = Z3.Solver.check solver [tgt] in
+          match status_res with
+          | Z3.Solver.UNSATISFIABLE -> Format.eprintf "Valid!@."; 
+             true
+          | _ -> Format.eprintf "not proved valid@."; 
+             false
+        with Zustre_common.UnknownFunction(id, msg) -> (
+          report ~level:1 msg;
+          false
+        )
+      in
+      Hashtbl.add ze_implies_hash (ze1_uid,ze2_uid) res ;
+      res
+    end
                                                
 let rec simplify zl =
   match zl with
   | [] | [_] -> zl
   | hd::tl -> (
-  (* Forall e in tl, checking whether hd => e or e => hd, to keep hd
+    (* Forall e in tl, checking whether hd => e or e => hd, to keep hd
      in the first case and e in the second one *)
     let tl = simplify tl in
     let keep_hd, tl =
@@ -310,10 +377,13 @@ let rec simplify zl =
   
 let check_sat ?(just_check=false) (l:guard) : bool * guard =
   (* Syntactic simplification *)
-  (* Format.eprintf "Before simplify: %a@." pp_guard_list l; *)
+  if false then
+    Format.eprintf "Before simplify: %a@." pp_guard_list l; 
   let l = simplify_neg_guard l in
-  (* Format.eprintf "After simplify: %a@." pp_guard_list l; *)
-  (* Format.eprintf "@[<v 2>Z3 check sat: [%a]@ " pp_guard_list l; *)
+  if false then (
+    Format.eprintf "After simplify: %a@." pp_guard_list l; 
+    Format.eprintf "@[<v 2>Z3 check sat: [%a]@ " pp_guard_list l;
+  );
   let solver = Z3.Solver.mk_simple_solver !ctx in
   try (
     let zl =
@@ -329,19 +399,24 @@ let check_sat ?(just_check=false) (l:guard) : bool * guard =
             neg_ze ze
         ) l
     in
-    (* Format.eprintf "Z3 exprs1: [%a]@ " (fprintf_list ~sep:",@ " (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))) zl; *)
+    if false then Format.eprintf "Z3 exprs1: [%a]@ " (fprintf_list ~sep:",@ " (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))) zl; 
     let zl = simplify zl in
-       (* Format.eprintf "Z3 exprs2: [%a]@ " (fprintf_list ~sep:",@ " (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))) zl; *)
+        if false then Format.eprintf "Z3 exprs2: [%a]@ " (fprintf_list ~sep:",@ " (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))) zl; 
     let status_res = Z3.Solver.check solver zl in
-    (* Format.eprintf "Z3 status: %s@ @]@. " (Z3.Solver.string_of_status status_res); *)
+     if false then Format.eprintf "Z3 status: %s@ @]@. " (Z3.Solver.string_of_status status_res); 
     match status_res with
     | Z3.Solver.UNSATISFIABLE -> false, []
     | _ -> (
       if false && just_check then
         true, l
       else
-        let zl = goal_simplify zl in
-        let l = zexpr_to_guard_list zl in
+        (* TODO: may be reactivate but it may create new expressions *)
+        (* let l = goal_simplify zl in *)
+        let l = List.fold_left
+                  (fun accu ze -> accu @ (zexpr_to_guard_list ze))
+                  []
+                  zl
+        in
   (* Format.eprintf "@.@[<v 2>Check_Sat:@ before: %a@ after:
        %a@. Goal precise? %b/%b@]@.@. " * pp_guard_list l
        pp_guard_list l' * (Z3.Goal.is_precise goal) *
@@ -381,73 +456,103 @@ let clean_sys sys =
         accu
     )
     [] sys
-  
+
+(* Most costly function: has the be efficiently implemented.  All
+   registered guards are initially produced by the call to
+   combine_guards. We csan normalize the guards to ease the
+   comparisons.
+
+   We assume that gl1 and gl2 are already both satisfiable and in a
+   kind of reduced form. Let lshort and llong be the short and long
+   list of gl1, gl2. We check whether each element elong of llong is
+   satisfiable with lshort. If no, stop. If yes, we search to reduce
+   the list. If elong => eshort_i, we can remove eshort_i from
+   lshort. we can continue with this lshort shortened, lshort'; it is
+   not necessary to add yet elong in lshort' since we already know
+   rthat elong is somehow reduced with respect to other elements of
+   llong. If eshort_i => elong, then we keep ehosrt_i in lshort and do
+   not store elong.
+
+   After iterating through llong, we have a shortened version of
+   lshort + some elements of llong that have to be remembered. We add
+   them to this new consolidated list. 
+
+ *)
+
+(* combine_guards ~fresh:Some(e,b) gl1 gl2 returns ok, gl with ok=true
+   when (e=b) ang gl1 and gl2 is satisfiable and gl is a consilidated
+   version of it.  *)
 let combine_guards ?(fresh=None) gl1 gl2 =
   (* Filtering out trivial cases. More semantics ones would have to be
      addressed later *)
-  let check (gexpr, posneg) l =
-    (* Format.eprintf "Checking %a=%b in %a@ "
-     *   pp_elem gexpr
-     *   posneg
-     *   pp_guard_list l
-     * ; *)
-    (* Check if gepxr is part of l *)
-   let sel_fun = select_elem gexpr in
-   let ok, res =
-     if List.exists sel_fun l then (
-      (* Checking the guard value posneg *)
-      let _, status = List.find sel_fun l in
-      (* Format.eprintf "Found %a in %a. @ Checking status (%b).@ "
-     *     pp_elem gexpr
-     *     pp_guard_list l
-     *     (status=posneg)
-     * ; *)
-      status=posneg, l
-    )
-    else (
-      (* Format.eprintf "Not found.@ "; *)
-      (* Valid: no overlap *)
-      (* Individual checkat *)
-      let ok, e = check_sat ~just_check:true [gexpr, posneg] in
-      (* let ok, e = true, [gexpr, posneg] in (* TODO solve the issue with check_sat *) *)
-      (* Format.eprintf "Check_sat? %b@ " ok; *)
-      if ok then
-        let l = e@l in
-        let ok, l = check_sat ~just_check:true l in
-        (* let ok, l = true, l in (* TODO solve the issue with check_sat *) *)
-        ok, l 
-      else
-        false, []
-     )
-   in
-   (* Format.eprintf "Check sat res: %a@ "
-    *   pp_guard_list res; *)
-   ok, res
+  let check_sat e = (* temp function before we clean the original one *)
+    let ok, _ = check_sat e in
+    ok
   in
-  let ok, gl =
-    List.fold_left (
-        fun (ok, l) g ->
-        (* Bypass for negative output *)
-        if not ok then false, []
-        else
-          check g l 
-      ) (true, gl2) gl1
+  let implies (e1,pn1) (e2,pn2) =
+    let e2z e pn =
+      match e with
+        | IsInit -> if pn then is_init_z3e else neg_ze is_init_z3e
+        | Expr e -> expr_to_z3_expr (if pn then e else (Corelang.push_negations ~neg:true e))
+      in
+    implies (e2z e1 pn1) (e2z e2 pn2)
   in
-  if ok then
-    match fresh with
-      None -> true, gl
-    | Some fresh_g -> (
-    (* Checking the fresh element *)
-      check fresh_g gl
-    )
-  else
-    false, []
+  let lshort, llong =
+    if List.length gl1 > List.length gl2 then gl2, gl1 else gl1, gl2
+  in
+  let merge long short =
+    let short, long_sel, ok = 
+    List.fold_left (fun (short,long_sel, ok) long_e ->
+        if not ok then
+          [],[], false (* Propagating unsat case *)
+        else if check_sat (long_e::short) then
+          let short, keep_long_e =
+            List.fold_left (fun (accu_short, keep_long_e) eshort_i ->
+                if not keep_long_e then (* shorten the algo *)
+                  eshort_i :: accu_short, false
+                else (* keep_long_e = true in the following *)
+                  if implies eshort_i long_e then
+                    (* First case is trying to remove long_e!
 
-(* DEBUG 
-let combine_guards  ?(fresh=None) gl1 gl2 =
-  true,
-  (match fresh with None -> [] | Some (gexpr, posneg) -> [gexpr, posneg])@gl1@gl2
- *)
+                     Since short is already normalized, we can remove
+                     long_e. If later long_e is stronger than another
+                     element of short, then necessarily eshort_i =>
+                     long_e ->
+                     that_other_element_of_short. Contradiction. *)
+                    eshort_i::accu_short, false
+                  else if implies long_e eshort_i then 
+                    (* removing eshort_i, keeping long_e. *)
+                    accu_short, true
+                  else (* Not comparable, keeping both *)
+                    eshort_i::accu_short, true
+              )
+              ([],true) (* Initially we assume that we will keep long_e *)
+              short
+          in
+          if keep_long_e then
+            short, long_e::long_sel, true
+          else
+            short, long_sel, true
+        else
+          [],[],false
+      ) (short, [], true) long
+    in
+    ok, long_sel@short
+  in
+  let ok, l = match fresh with
+    | None -> true, []
+    | Some g -> merge [g] []
+  in
+  if not ok then
+    false, []
+  else
+    let ok, lshort = merge lshort l in
+    if not ok then
+      false, []
+    else
+      merge llong lshort
+    
+
 (* Encode "If gel1=posneg then gel2":
    - Compute the combination of guarded exprs in gel1 and gel2:
      - Each guarded_expr in gel1 is transformed as a guard: the
@@ -456,29 +561,34 @@ let combine_guards  ?(fresh=None) gl1 gl2 =
      - We keep expr in the ge of gel2 as the legitimate expression 
  *)
 let concatenate_ge gel1 posneg gel2 =
-  List.fold_left (
-      fun accu (g2,e2) ->
-      List.fold_left (
-          fun accu (g1,e1) ->
-           (* Format.eprintf "@[<v 2>Combining guards: (%a=%b) AND [%a] AND [%a]@ "
-            *  pp_elem e1
-            *  posneg
-            *  pp_guard_list g1
-            *  pp_guard_list g2; *)
-            
-          let ok, gl = combine_guards ~fresh:(Some(e1,posneg)) g1 g2 in
-          (* Format.eprintf "@]@ Result is [%a]@ "
-           *   pp_guard_list gl; *)
-            
-          if ok then
-            (gl, e2)::accu
-          else (
-            
-            accu
-          )
-        ) accu gel1
-    ) [] gel2
+  let l, all_invalid =
+    List.fold_left (
+        fun (accu, all_invalid) (g2,e2) ->
+        List.fold_left (
+            fun (accu, all_invalid) (g1,e1) ->
+            (* Format.eprintf "@[<v 2>Combining guards: (%a=%b) AND [%a] AND [%a]@ "
+             *  pp_elem e1
+             *  posneg
+             *  pp_guard_list g1
+             *  pp_guard_list g2; *)
 
+            let ok, gl = combine_guards ~fresh:(Some(e1,posneg)) g1 g2 in
+            (* Format.eprintf "@]@ Result is [%a]@ "
+             *   pp_guard_list gl; *)
+
+            if ok then
+              (gl, e2)::accu, false
+            else (
+              accu, all_invalid
+            )
+          ) (accu, all_invalid) gel1
+      ) ([], true) gel2
+  in
+  not all_invalid, l
+     
+(* Rewrite the expression expr, replacing any occurence of a variable
+   by its definition.
+*)
 let rec rewrite defs expr : guarded_expr list =
   let rewrite = rewrite defs in
   let res =
@@ -500,8 +610,10 @@ let rec rewrite defs expr : guarded_expr list =
        let g = rewrite g and
            e1 = rewrite e1 and
            e2 = rewrite e2 in
-       (concatenate_ge g true e1)@
-         (concatenate_ge g false e2)
+       let ok_then, g_then = concatenate_ge g true e1 in
+       let ok_else, g_else = concatenate_ge g false e2 in
+       (if ok_then then g_then else [])@
+         (if ok_else then g_else else [])
     | Expr_merge (g, branches) ->
        assert false (* TODO: deal with merges *)
       
@@ -611,7 +723,8 @@ let split_mem_defs
 let split_init mem_defs =
   split_mem_defs IsInit mem_defs 
 
-let pick_guard mem_defs : expr option =
+(* Previous version of the function: way too costly 
+let pick_guard mem_defs : expr option =  
   let gel = List.flatten (List.map snd mem_defs) in
   let gl = List.flatten (List.map fst gel) in
   let all_guards =
@@ -630,6 +743,28 @@ let pick_guard mem_defs : expr option =
   try
   Some (List.hd all_guards)  
   with _ -> None
+   *)
+
+(* Returning the first non empty guard expression *)
+let rec pick_guard mem_defs : expr option =
+  match mem_defs with
+  | [] -> None
+  | (_, gel)::tl -> (
+    let found =
+      List.fold_left (fun found (g,_) ->
+          if found = None then
+            match g with
+            | [] -> None
+            | (Expr e, _)::_ -> Some e
+            | (IsInit, _)::_ -> assert false (* should be removed already *)
+          else
+            found
+        ) None gel
+    in
+    if found = None then pick_guard tl else found
+  )
+          
+
 (* Transform a list of variable * guarded exprs into a list of guarded pairs (variable, expressions)
 *)
 let rec build_switch_sys
@@ -698,10 +833,15 @@ let rec build_switch_sys
            ok, l
          in
          let pos_prefix = (elem, true)::prefix in
-         let ok_pos, pos_prefix = clean pos_prefix in         
          let neg_prefix = (elem, false)::prefix in
+         Format.eprintf "Pos_prefix: %a@.Neg_prefix: %a@."
+           pp_guard_list (List.map (fun (e,b) -> Expr e ,b) pos_prefix)
+           pp_guard_list (List.map (fun (e,b) -> Expr e ,b) neg_prefix);
+         let ok_pos, pos_prefix = clean pos_prefix in         
          let ok_neg, neg_prefix = clean neg_prefix in         
-         
+         Format.eprintf "Pos_prefix: %b %a@.Neg_prefix: %b %a@."
+           ok_pos pp_guard_list (List.map (fun (e,b) -> Expr e ,b) pos_prefix)
+           ok_neg pp_guard_list (List.map (fun (e,b) -> Expr e ,b) neg_prefix);
          (if ok_pos then build_switch_sys pos pos_prefix else [])
          @
            (if ok_neg then build_switch_sys neg neg_prefix else [])
@@ -743,7 +883,11 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
 
   
   (* Registering node equations: identifying mem definitions and
-     storing others in the "defs" hashtbl. *)
+     storing others in the "defs" hashtbl.
+
+     Each assign is stored in a hash tbl as list of guarded
+     expressions. The memory definition is also "rewritten" as such a
+     list of guarded assigns.  *)
   let mem_defs =
     List.fold_left (fun accu eq ->
         match eq.eq_lhs with
