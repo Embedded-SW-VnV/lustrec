@@ -774,6 +774,12 @@ let rec build_switch_sys
           prefix
         :
           ((expr * bool) list * (ident * expr) list ) list =
+  Format.eprintf "Build_switch with %a@."
+    (Utils.fprintf_list ~sep:",@ "
+       (fun fmt (id, gel) -> Format.fprintf fmt "%s -> [@[<v 0>%a@ ]@]"
+                               id
+                               pp_mdefs gel))
+    mem_defs;
   (* if all mem_defs have empty guards, we are done, return prefix,
      mem_defs expr.
 
@@ -884,28 +890,36 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
      Each assign is stored in a hash tbl as list of guarded
      expressions. The memory definition is also "rewritten" as such a
      list of guarded assigns.  *)
-  let mem_defs =
-    List.fold_left (fun accu eq ->
+  let mem_defs, output_defs =
+    List.fold_left (fun (accu_mems, accu_outputs) eq ->
         match eq.eq_lhs with
         | [vid] ->
-           (* Only focus on non memory definitions *)
-           if not (List.exists (fun v -> v.var_id = vid) mems) then (
-             report ~level:3 (fun fmt ->
-                 Format.fprintf fmt "Registering variable %s@." vid);
-             add_def vid eq.eq_rhs;
-             accu
-           )
-           else
+           (* Only focus on memory definitions *)
+           if List.exists (fun v -> v.var_id = vid) mems then 
              (
                match eq.eq_rhs.expr_desc with
                | Expr_pre def_m ->
                   report ~level:3 (fun fmt ->
                       Format.fprintf fmt "Preparing mem %s@." vid);
-                  (vid, rewrite defs def_m)::accu
+                  (vid, rewrite defs def_m)::accu_mems, accu_outputs
                | _ -> assert false
-             )
+             ) 
+           else if List.exists (fun v -> v.var_id = vid) nd.node_outputs then (
+             report ~level:3 (fun fmt ->
+                 Format.fprintf fmt "Output variable %s@." vid);
+             add_def vid eq.eq_rhs;
+             accu_mems, (vid, rewrite defs eq.eq_rhs)::accu_outputs
+          
+           )
+           else
+             (
+             report ~level:3 (fun fmt ->
+                 Format.fprintf fmt "Registering variable %s@." vid);
+             add_def vid eq.eq_rhs;
+             accu_mems, accu_outputs
+           )
         | _ -> assert false (* should have been removed by normalization *)
-      ) [] sorted_eqs
+      ) ([], []) sorted_eqs
   in
 
   
@@ -927,6 +941,9 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
   (* Format.eprintf "Split init@."; *)
   let init_defs, update_defs =
     split_init mem_defs 
+  in
+  let init_out, update_out =
+    split_init output_defs
   in
   report ~level:3
     (fun fmt ->
@@ -959,8 +976,18 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
   let sw_sys =
     build_switch_sys update_defs []
   in
-  let sw_init, sw_sys = clean_sys sw_init, clean_sys sw_sys in
 
+  let init_out =
+    build_switch_sys init_out []
+  in
+  let update_out =
+    build_switch_sys update_out []
+  in
+
+  let sw_init = clean_sys sw_init in
+  let sw_sys = clean_sys sw_sys in
+  let init_out = clean_sys init_out in
+  let update_out = clean_sys update_out in
 
   (* Some additional checks *)
   let pp_gl pp_expr =
@@ -1146,4 +1173,4 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
       ) map []
     
   in
-  process sw_init, process sw_sys
+  process sw_init, process sw_sys, process init_out, process update_out

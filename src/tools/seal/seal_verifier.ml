@@ -62,7 +62,7 @@ let seal_run basename prog machines =
   report ~level:3 (fun fmt -> Format.fprintf fmt "Node sliced@.");
 
   let consts = Corelang.(List.map const_of_top (get_consts prog)) in
-  let sw_init, sw_sys = node_as_switched_sys consts mems sliced_nd in
+  let sw_init, sw_sys, init_out, update_out = node_as_switched_sys consts mems sliced_nd in
   let pp_res pp_expr =
     (Utils.fprintf_list ~sep:"@ "
        (fun fmt (g, up) ->
@@ -97,8 +97,8 @@ let seal_run basename prog machines =
       Format.fprintf fmt "@[<v 3>Step:@ %a@]@]@ "
         pp_res  sw_sys
     );
-  (* let new_node = Seal_export.to_lustre(m,sw_init, sw_sys) in  
-   * Format.eprintf "%a@." Printer.pp_node new_node; *)
+  let new_node = Seal_export.to_lustre m sw_init sw_sys init_out update_out in  
+  Format.eprintf "%a@." Printers.pp_node new_node;
   ()
   
 module Verifier =
