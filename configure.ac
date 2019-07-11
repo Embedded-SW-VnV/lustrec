@@ -83,7 +83,7 @@ AS_IF([ocamlfind query seal >/dev/null 2>&1; echo 1],
 )
 AS_IF([test "x$seal" = "xyes"], [
    AC_SUBST(LUSTREV_SEAL, "(module Seal_verifier.Verifier : VerifierType.S);")
-   # AC_SUBST(LUSTREV_SEAL_TAG, "<**/*>: package(seal)")
+   AC_SUBST(LUSTREV_SEAL_TAG, "") # <**/*>: package(seal)")
 ])
 
 # z3 (optional)
