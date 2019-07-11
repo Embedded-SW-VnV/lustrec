@@ -63,20 +63,22 @@ let seal_run basename prog machines =
 
   let consts = Corelang.(List.map const_of_top (get_consts prog)) in
   let sw_init, sw_sys = node_as_switched_sys consts mems sliced_nd in
-  let pp_res =
+  let pp_res pp_expr =
     (Utils.fprintf_list ~sep:"@ "
-       (fun fmt (gel, up) ->
-         Format.fprintf fmt "@[<v 2>[%a]:@ %a@]"
-           (Utils.fprintf_list ~sep:"; "
-              (fun fmt (e,b) ->
-                if b then Printers.pp_expr fmt e
-                else Format.fprintf fmt "not(%a)"
-                       Printers.pp_expr e)) gel
+       (fun fmt (g, up) ->
+         Format.fprintf fmt "@[<v 2>[%t]:@ %a@]"
+           (fun fmt -> match g with None -> () | Some g -> pp_expr fmt g)
+           
+           (* (Utils.fprintf_list ~sep:"; "
+            *    (fun fmt (e,b) ->
+            *      if b then pp_expr fmt e
+            *      else Format.fprintf fmt "not(%a)"
+            *             pp_expr e)) gel *)
            (Utils.fprintf_list ~sep:";@ "
               (fun fmt (id, e) ->
                 Format.fprintf fmt "%s = @[<hov 0>%a@]"
                   id
-                  Printers.pp_expr e)) up
+                  pp_expr e)) up
     ))
   in
   report ~level:1 (
@@ -88,13 +90,15 @@ let seal_run basename prog machines =
                
     );
   report ~level:1 (fun fmt ->
+      (*let pp_res = pp_res (fun fmt e -> Format.fprintf fmt "%i" e.Lustre_types.expr_tag)  in*)
+       let pp_res = pp_res Printers.pp_expr in
       Format.fprintf fmt "@[<v 0>@[<v 3>Init:@ %a@]@ "
-        pp_res sw_init;
+        pp_res  sw_init;
       Format.fprintf fmt "@[<v 3>Step:@ %a@]@]@ "
-        pp_res sw_sys
+        pp_res  sw_sys
     );
-  
-
+  (* let new_node = Seal_export.to_lustre(m,sw_init, sw_sys) in  
+   * Format.eprintf "%a@." Printer.pp_node new_node; *)
   ()
   
 module Verifier =

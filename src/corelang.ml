@@ -1335,7 +1335,7 @@ let get_node name prog =
 let rec push_negations ?(neg=false) e =
   let res =
     let pn = push_negations in
-    let map desc = { e with expr_desc = desc } in
+    let map desc = mkexpr e.expr_loc desc in
     match e.expr_desc with
     | Expr_ite (g,t,e) ->
        if neg then
@@ -1383,7 +1383,32 @@ let rec push_negations ?(neg=false) e =
   in
   res
 
-    
+let rec add_pre_expr vars e =
+  let ap = add_pre_expr vars in
+  let desc =
+    match e.expr_desc with
+    | Expr_ite (g,t,e) ->
+       Expr_ite (ap g, ap t,ap e)
+    | Expr_tuple t ->
+       Expr_tuple (List.map ap t)
+    | Expr_arrow (e1, e2) ->
+       Expr_arrow (ap e1, ap e2) 
+    | Expr_fby (e1, e2) ->
+       Expr_fby (ap e1, ap e2)
+    | Expr_pre e ->
+       Expr_pre (ap e)
+    | Expr_appl (op, e, opt) ->
+       Expr_appl (op, ap e, opt)
+    | Expr_const _ -> e.expr_desc 
+    | Expr_ident id ->
+       if List.mem id vars then
+         Expr_pre e
+       else
+         e.expr_desc
+    | _ -> assert false (* no array, array access, power or merge/when yet *)
+  in
+  mkexpr e.expr_loc desc
+   
     (* Local Variables: *)
     (* compile-command:"make -C .." *)
     (* End: *)

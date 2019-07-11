@@ -325,18 +325,19 @@ let implies =
     Hashtbl.find ze_implies_hash (ze1_uid, ze2_uid)
   else
     begin
-       Format.eprintf "Checking implication: %s => %s? "
-        (Z3.Expr.to_string ze1) (Z3.Expr.to_string ze2)
-        ; 
+      if !debug then (
+        Format.eprintf "Checking implication: %s => %s? "
+          (Z3.Expr.to_string ze1) (Z3.Expr.to_string ze2)
+      ); 
       let solver = Z3.Solver.mk_simple_solver !ctx in
       let tgt = Z3.Boolean.mk_not !ctx (Z3.Boolean.mk_implies !ctx ze1 ze2) in
       let res =
         try
           let status_res = Z3.Solver.check solver [tgt] in
           match status_res with
-          | Z3.Solver.UNSATISFIABLE -> Format.eprintf "Valid!@."; 
+          | Z3.Solver.UNSATISFIABLE -> if !debug then Format.eprintf "Valid!@."; 
              true
-          | _ -> Format.eprintf "not proved valid@."; 
+          | _ -> if !debug then Format.eprintf "not proved valid@."; 
              false
         with Zustre_common.UnknownFunction(id, msg) -> (
           report ~level:1 msg;
@@ -442,7 +443,6 @@ let check_sat ?(just_check=false) (l:guard) : bool * guard =
   
 let clean_sys sys =
   List.fold_left (fun accu (guards, updates) ->
-      (*let guards' = clean_guard guards in*)
       let sat, guards' =  check_sat (List.map (fun (g, pn) -> Expr g, pn) guards) in
       (*Format.eprintf "Guard: %a@.Guard cleaned: %a@.Sat? %b@."
         (fprintf_list ~sep:"@ " (pp_guard_expr Printers.pp_expr))  guards
@@ -597,7 +597,7 @@ let rec rewrite defs expr : guarded_expr list =
        let args = rewrite args in
        List.map (fun (guards, e) ->
            guards,
-           Expr {expr with expr_desc = Expr_appl(id, deelem e, None)}
+           Expr (Corelang.mkexpr expr.expr_loc (Expr_appl(id, deelem e, None)))
          ) args 
     | Expr_const _  -> [[], Expr expr]
     | Expr_ident id ->
@@ -645,7 +645,9 @@ let rec rewrite defs expr : guarded_expr list =
        in
        let gtuples = aux gell in
        (* Rebuilding the valid type: guarded expr list (with tuple exprs) *)
-       List.map (fun (g,tuple) -> g, Expr {expr with expr_desc = Expr_tuple tuple}) gtuples
+       List.map
+         (fun (g,tuple) -> g, Expr (Corelang.mkexpr expr.expr_loc (Expr_tuple tuple)))
+         gtuples
     | Expr_fby _
       | Expr_appl _
                   (* Should be removed by mormalization and inlining *)
@@ -834,14 +836,8 @@ let rec build_switch_sys
          in
          let pos_prefix = (elem, true)::prefix in
          let neg_prefix = (elem, false)::prefix in
-         Format.eprintf "Pos_prefix: %a@.Neg_prefix: %a@."
-           pp_guard_list (List.map (fun (e,b) -> Expr e ,b) pos_prefix)
-           pp_guard_list (List.map (fun (e,b) -> Expr e ,b) neg_prefix);
          let ok_pos, pos_prefix = clean pos_prefix in         
          let ok_neg, neg_prefix = clean neg_prefix in         
-         Format.eprintf "Pos_prefix: %b %a@.Neg_prefix: %b %a@."
-           ok_pos pp_guard_list (List.map (fun (e,b) -> Expr e ,b) pos_prefix)
-           ok_neg pp_guard_list (List.map (fun (e,b) -> Expr e ,b) neg_prefix);
          (if ok_pos then build_switch_sys pos pos_prefix else [])
          @
            (if ok_neg then build_switch_sys neg neg_prefix else [])
@@ -963,5 +959,191 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
   let sw_sys =
     build_switch_sys update_defs []
   in
-  clean_sys sw_init, clean_sys sw_sys
- 
+  let sw_init, sw_sys = clean_sys sw_init, clean_sys sw_sys in
+
+
+  (* Some additional checks *)
+  let pp_gl pp_expr =
+    fprintf_list ~sep:", " (fun fmt (e,b) -> Format.fprintf fmt "%s%a" (if b then "" else "NOT ") pp_expr e)
+  in
+  let pp_gl_short = pp_gl (fun fmt e -> Format.fprintf fmt "%i" e.Lustre_types.expr_tag) in
+  let pp_up fmt up = List.iter (fun (id,e) -> Format.fprintf fmt "%s->%i; " id e.expr_tag) up in
+  
+  if false then
+    begin
+      Format.eprintf "@.@.CHECKING!!!!!!!!!!!@.";
+      Format.eprintf "Any duplicate expression in guards?@.";
+      
+      let sw_sys =
+        List.map (fun (gl, up) ->
+            let gl = List.sort (fun (e,b) (e',b') ->
+                         let res = compare e.expr_tag e'.expr_tag in
+                         if res = 0 then (Format.eprintf "Same exprs?@.%a@.%a@.@."
+                                            Printers.pp_expr e
+                                            Printers.pp_expr e'
+                                         );
+                         res
+                       ) gl in
+            gl, up
+          ) sw_sys 
+      in
+      Format.eprintf "Another check for duplicates in guard list@.";
+      List.iter (fun (gl, _) ->
+          let rec aux hd l =
+            match l with
+              [] -> ()
+            | (e,b)::tl -> let others = hd@tl in
+                           List.iter (fun (e',_) -> if Corelang.is_eq_expr e e' then
+                                                      (Format.eprintf "Same exprs?@.%a@.%a@.@."
+                                                         Printers.pp_expr e
+                                                         Printers.pp_expr e'
+                             )) others;
+                           aux ((e,b)::hd) tl
+          in
+          aux [] gl
+        ) sw_sys;
+      Format.eprintf "Checking duplicates in updates@.";
+      let rec check_dup_up accu l =
+        match l with
+        | [] -> ()
+        | ((gl, up) as hd)::tl ->
+           let others = accu@tl in
+           List.iter (fun (gl',up') -> if up = up' then
+                                         Format.eprintf "Same updates?@.%a@.%a@.%a@.%a@.@."
+
+                                           pp_gl_short gl
+                                           pp_up up
+                                           pp_gl_short gl'
+                                           pp_up up'
+                                       
+             ) others;
+           
+           
+
+           check_dup_up (hd::accu) tl
+           
+      in
+      check_dup_up [] sw_sys;
+      let sw_sys =
+        List.sort (fun (gl1, _) (gl2, _) ->
+            let glid gl = List.map (fun (e,_) -> e.expr_tag) gl in
+            
+            let res = compare (glid gl1) (glid gl2) in
+            if res = 0 then Format.eprintf "Same guards?@.%a@.%a@.@."
+                              pp_gl_short gl1 pp_gl_short gl2
+            ;
+              res
+
+          ) sw_sys
+
+      in
+      ()
+    end;
+  
+
+  (* Iter through the elements and gather them by updates *)
+  let module UpMap =
+    struct
+      include Map.Make (
+                  struct
+                    type t = (ident * expr) list
+                    let compare l1 l2 =
+                      let proj l = List.map (fun (s,e) -> s, e.expr_tag) l in
+                      compare (proj l1) (proj l2) 
+                  end)
+      let pp = pp_up 
+    end
+  in
+  let module Guards = struct
+      include Set.Make (
+                  struct
+                    type t = (expr * bool) 
+                    let compare l1 l2 =
+                      let proj (e,b) = e.expr_tag, b in
+                      compare (proj l1) (proj l2) 
+                  end)
+      let pp_short fmt s = pp_gl_short fmt (elements s)
+      let pp_long fmt s = pp_gl Printers.pp_expr fmt (elements s)
+    end
+  in
+  let process sys =
+    (* The map will associate to each update up the pair (set, set
+       list) where set is the share guards and set list a list of
+       disjunctive guards. Each set represents a conjunction of
+       expressions. *)
+    let map = 
+      List.fold_left (fun map (gl,up) ->
+          (* creating a new set to describe gl *)
+          let new_set =
+            List.fold_left
+              (fun set g -> Guards.add g set)
+              Guards.empty
+              gl
+          in
+          (* updating the map with up -> new_set *)
+          if UpMap.mem up map then
+            let (shared, disj) = UpMap.find up map in
+            let new_shared = Guards.inter shared new_set in
+            let remaining_shared = Guards.diff shared new_shared in
+            let remaining_new_set = Guards.diff new_set new_shared in
+            (* Adding remaining_shared to all elements of disj *)
+            let disj' = List.map (fun gs -> Guards.union remaining_shared gs) disj in
+            UpMap.add up (new_shared, remaining_new_set::disj') map
+          else
+            UpMap.add up (new_set, []) map
+        ) UpMap.empty sys
+    in
+     let rec mk_binop op l = match l with
+         [] -> assert false
+       | [e] -> e
+       | hd::tl -> Corelang.mkpredef_call hd.expr_loc op [hd; mk_binop op tl]
+    in
+    let gl_as_expr gl =
+      let gl = Guards.elements gl in
+      let export (e,b) = if b then e else Corelang.push_negations ~neg:true e in 
+      match gl with
+        [] -> []
+      | [e] -> [export e]
+      | _ ->
+         [mk_binop "&&"
+            (List.map export gl)]
+    in
+    let rec clean_disj disj =
+      match disj with
+      | [] | [_] -> [] 
+      | _::_::_ -> (
+        (* First basic version: producing a DNF One can later, (1)
+           simplify it with z3, or (2) build the compact tree with
+           maximum shared subexpression (and simplify it with z3) *)
+        let elems = List.fold_left (fun accu gl -> (gl_as_expr gl) @ accu) [] disj in
+        let or_expr = mk_binop "||" elems in
+        [or_expr]
+
+
+         (* TODO disj*)
+      (* get the item that occurs in most case *)
+      (* List.fold_left (fun accu s ->
+       *     List.fold_left (fun accu (e,b) ->
+       *         if List.mem_assoc (e.expr_tag, b)
+       *       ) accu (Guards.elements s)
+       *   ) [] disj *)
+
+      )
+    in
+    Format.eprintf "Map: %i elements@." (UpMap.cardinal map);
+    UpMap.fold (fun up (common, disj) accu ->
+        Format.eprintf
+          "Guards:@.shared: [%a]@.disj: [@[<v 0>%a@ ]@]@.Updates: %a@."
+          Guards.pp_short common
+          (fprintf_list ~sep:";@ " Guards.pp_long) disj
+          UpMap.pp up;
+        let disj = clean_disj disj in
+        let guard_expr = (gl_as_expr common)@disj in
+        
+        ((match guard_expr with
+         | [] -> None
+         | _ -> Some (mk_binop "&&" guard_expr)), up)::accu
+      ) map []
+    
+  in
+  process sw_init, process sw_sys
