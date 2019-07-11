@@ -78,7 +78,7 @@ AS_IF([ocamlfind query yojson >/dev/null 2>&1],
 
 # Seal
 AC_MSG_CHECKING(seal library (optional))
-AS_IF([ocamlfind query seal >/dev/null 2>&1],
+AS_IF([ocamlfind query seal >/dev/null 2>&1; echo 1],
     [seal=yes; AC_MSG_RESULT(yes)],[seal=no; AC_MSG_RESULT(no)],
 )
 AS_IF([test "x$seal" = "xyes"], [
@@ -274,12 +274,6 @@ AC_MSG_NOTICE(********    Plugins    ********)
   fi
 AC_MSG_NOTICE(********   Verifiers    ********)
 
-  if (test "x$seal" = "xyes"); then
-      AC_MSG_NOTICE([Seal   enabled])
-  else
-      AC_MSG_NOTICE([Seal   disabled. Require Seal library])
-  fi
-
   if (test "x$z3" = xyes  -a "x$enable_z3" != xno); then
       AC_MSG_NOTICE([Zustre enabled])
       AC_MSG_WARN(Z3 shared lib (libz3.so) has to be available in the LD_LIBRARY_PATH (DYLD_LIBRARY_PATH in OSX).)
@@ -289,6 +283,13 @@ AC_MSG_NOTICE(********   Verifiers    ********)
 else
       AC_MSG_NOTICE([Zustre disabled. Require Z3 ocaml library])
   fi
+
+if (test "x$seal" = "xyes" -a "x$z3" = xyes  -a "x$enable_z3" != xno); then
+      AC_MSG_NOTICE([Seal   enabled])
+  else
+      AC_MSG_NOTICE([Seal   disabled. Require Z3 library])
+  fi
+
 
   if (test "x$tiny" = xyes); then
       AC_MSG_NOTICE([Tiny   enabled])
