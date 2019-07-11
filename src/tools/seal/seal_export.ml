@@ -65,7 +65,30 @@ let to_lustre m sw_init sw_step init_out update_out =
   let e_step = process_sw (Corelang.add_pre_expr vl) sw_step in
   let e_init_out = process_sw (fun x -> x) init_out in
   let e_update_out = process_sw (Corelang.add_pre_expr vl) update_out in
-  let loc = Location.dummy_loc in 
+  let loc = Location.dummy_loc in
+  (* Build the contract: guarentee output = orig_node(input) *)
+  let expr_of_vars vl = 
+    Corelang.expr_of_expr_list loc
+      (List.map Corelang.expr_of_vdecl vl)
+  in
+  let input_e = expr_of_vars  copy_nd.node_inputs in
+  let output_e = expr_of_vars  copy_nd.node_outputs in
+  let call_orig_e =
+    Corelang.mkexpr loc (Expr_appl (orig_nd.node_id, input_e , None)) in 
+  let args = Corelang.mkexpr loc (Expr_tuple([output_e; call_orig_e])) in
+  let eq_expr = (Corelang.mkexpr loc (Expr_appl ("=", args, None))) in
+  let contract = {
+      consts = [];
+      locals = [];
+      stmts = [];
+      assume = [];
+      guarantees = [Corelang.mkeexpr loc eq_expr];
+      modes = [];
+      imports = [];
+      spec_loc = loc;              
+     
+    }
+  in
   { copy_nd with
     node_id = copy_nd.node_id ^ "_seal";
     node_locals = m.mmemory;
@@ -79,7 +102,9 @@ let to_lustre m sw_init sw_step init_out update_out =
                       eq_lhs = List.map (fun v -> v.var_id) copy_nd.node_outputs; 
                       eq_rhs = Corelang.mkexpr loc (Expr_arrow(e_init_out, e_update_out))
                     };
-                 ]
+                 ];
+    node_spec = Some (Contract contract);
+                 
 (*
                    il faut mettre un pre devant chaque memoire dans les updates comme dans les gardes par contre pas besoin de mettre de pre devant les entrees, ni dans les updates, ni dans les gardes
 
