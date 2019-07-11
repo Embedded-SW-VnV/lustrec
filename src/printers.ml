@@ -75,7 +75,10 @@ let rec pp_struct_const_field fmt (label, c) =
 and pp_const fmt c = 
   match c with
     | Const_int i -> pp_print_int fmt i
-    | Const_real (c, e, s) -> pp_print_string fmt s (*if e = 0 then pp_print_int fmt c else if e < 0 then Format.fprintf fmt "%ie%i" c (-e) else Format.fprintf fmt "%ie-%i" c e *)
+    | Const_real (c, e, s) -> fprintf fmt "%s%s"
+                                s
+                                (if String.get s (-1 + String.length s) = '.' then "0" else "")
+    (*if e = 0 then pp_print_int fmt c else if e < 0 then Format.fprintf fmt "%ie%i" c (-e) else Format.fprintf fmt "%ie-%i" c e *)
     (* | Const_float r -> pp_print_float fmt r *)
     | Const_tag  t -> pp_print_string fmt t
     | Const_array ca -> fprintf fmt "[%a]" (Utils.fprintf_list ~sep:"," pp_const) ca
@@ -360,7 +363,7 @@ let pp_contract fmt nd =
 let pp_spec_as_comment fmt (inl, outl, spec) =
   match spec with
   | Contract c -> (* should have been processed by now *)
-     fprintf fmt "@[<hov 2>(*@@ ";
+     fprintf fmt "@[<hov 2>(*@@ contract@ ";
      pp_spec fmt c;
      fprintf fmt "@]*)@ "
      
