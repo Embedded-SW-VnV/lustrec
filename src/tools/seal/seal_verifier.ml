@@ -34,7 +34,7 @@ let active = ref false
            
 (* Select the appropriate node, should have been inlined already and
    extract update/output functions. *)
-let seal_run basename prog machines =
+let seal_run ~basename prog machines =
   let node_name =
     match !Options.main_node with
     | "" -> (
@@ -99,7 +99,8 @@ let seal_run basename prog machines =
     );
   let new_node = Seal_export.to_lustre m sw_init sw_sys init_out update_out in  
   Format.eprintf "%a@." Printers.pp_node new_node;
-  let output_file = basename ^ "_seal.lus" in
+  let output_file = !Options.dest_dir ^ "/" ^ basename ^ "_seal.lus" in
+  Format.eprintf "%s@." output_file;
   let new_top = Corelang.mktop_decl Location.dummy_loc output_file false (Node new_node) in
 
   let out = open_out output_file in

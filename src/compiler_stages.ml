@@ -195,8 +195,9 @@ let stage1 params prog dirname basename extension =
   
   (* Compatibility with Lusi *)
   (* If compiling a lusi, generate the lusic. If this is a lus file, Check the existence of a lusi (Lustre Interface file) *)
-  compile_source_to_header
-    prog !Global.type_env !Global.clock_env dirname basename extension;
+  if !Options.compile_header then
+    compile_source_to_header
+      prog !Global.type_env !Global.clock_env dirname basename extension;
 
 
   let prog =

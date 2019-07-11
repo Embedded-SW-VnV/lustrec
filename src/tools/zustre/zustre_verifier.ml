@@ -158,7 +158,7 @@ module Verifier =
 
       Z3.Fixedpoint.set_parameters !fp fp_params
       
-    let run basename prog machines =
+    let run ~basename prog machines =
       let machines = Machine_code_common.arrow_machine::machines in
       let machines = preprocess machines in
       setup_solver ();

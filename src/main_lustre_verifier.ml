@@ -43,7 +43,7 @@ we have multiple "backends"
 *)
 let rec verify dirname basename extension =
   let source_name = dirname ^ "/" ^ basename ^ extension in
-
+  Options.compile_header := false; (* to avoid producing .h / .lusic *)
   Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 0>");
   decr Options.verbose_level;
 

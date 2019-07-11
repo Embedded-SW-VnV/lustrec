@@ -34,6 +34,7 @@ let const_unfold = ref false
 let mpfr = ref false
 let mpfr_prec = ref 100
 let print_dec_types = ref false
+let compile_header = ref true
 
 (* Option to select the expected behavior of integer division: Euclidian or
    C. Default C !!! *)
