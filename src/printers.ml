@@ -352,7 +352,7 @@ let node_as_contract nd =
 let pp_contract fmt nd =    
   
   let c = node_as_contract nd in
-  fprintf fmt "@[<v 2>(*@@ contract %s(%a) returns (%a);@ "
+  fprintf fmt "@[<v 2>(*@contract %s(%a) returns (%a);@ "
     nd.node_id
     pp_node_args nd.node_inputs
     pp_node_args nd.node_outputs;
