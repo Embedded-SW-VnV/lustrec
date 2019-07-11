@@ -99,6 +99,13 @@ let seal_run basename prog machines =
     );
   let new_node = Seal_export.to_lustre m sw_init sw_sys init_out update_out in  
   Format.eprintf "%a@." Printers.pp_node new_node;
+  let output_file = basename ^ "_seal.lus" in
+  let new_top = Corelang.mktop_decl Location.dummy_loc output_file false (Node new_node) in
+
+  let out = open_out output_file in
+  let fmt = Format.formatter_of_out_channel out in
+  Format.fprintf fmt "%a@." 
+    Printers.pp_prog  (prog@[new_top]);
   ()
   
 module Verifier =
