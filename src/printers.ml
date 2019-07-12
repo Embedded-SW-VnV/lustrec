@@ -179,7 +179,7 @@ and pp_s_function fmt expr_ann =
 
 and pp_expr_annot fmt expr_ann =
   let pp_annot fmt (kwds, ee) =
-    fprintf fmt "(*! %a: %a; *)"
+    fprintf fmt "(*!%a: %a; *)"
       pp_annot_key kwds
       pp_eexpr ee
   in
