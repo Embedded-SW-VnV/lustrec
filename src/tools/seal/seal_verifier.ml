@@ -3,7 +3,11 @@ open Seal_extract
 open Seal_utils
 
 let active = ref false
+let seal_export = ref None
 
+let set_export s = match s with
+  | "lustre" | "lus" | "m" | "matlab" -> seal_export := Some s
+  | _ -> (Format.eprintf "Unrecognized seal export: %s@.@?" s; exit 1)
 (* TODO
 
    - build the output function: for the moment we slice the node with
@@ -97,23 +101,20 @@ let seal_run ~basename prog machines =
       Format.fprintf fmt "@[<v 3>Step:@ %a@]@]@ "
         pp_res  sw_sys
     );
-  let new_node = Seal_export.to_lustre m sw_init sw_sys init_out update_out in  
-  Format.eprintf "%a@." Printers.pp_node new_node;
-  let output_file = !Options.dest_dir ^ "/" ^ basename ^ "_seal.lus" in
-  Format.eprintf "%s@." output_file;
-  let new_top = Corelang.mktop_decl Location.dummy_loc output_file false (Node new_node) in
-
-  let out = open_out output_file in
-  let fmt = Format.formatter_of_out_channel out in
-  Format.fprintf fmt "%a@." 
-    Printers.pp_prog  (prog@[new_top]);
+  let _ = match !seal_export with
+    | Some "lustre" | Some "lus" ->
+       Seal_export.to_lustre basename prog m sw_init sw_sys init_out update_out  
+    | Some "matlab" | Some "m" -> assert false (* TODO *)
+    | Some _ -> assert false 
+    | None -> ()
+  in
   ()
   
 module Verifier =
   (struct
     include VerifierType.Default
     let name = "seal"
-    let options = []
+    let options = ["-export", Arg.String set_export, "seal export option (lustre, matlab)"]
     let activate () =
       active := true;
       Options.global_inline := true
