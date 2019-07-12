@@ -363,7 +363,7 @@ let pp_contract fmt nd =
 let pp_spec_as_comment fmt (inl, outl, spec) =
   match spec with
   | Contract c -> (* should have been processed by now *)
-     fprintf fmt "@[<hov 2>(*@@ contract@ ";
+     fprintf fmt "@[<hov 2>(*@contract@ ";
      pp_spec fmt c;
      fprintf fmt "@]*)@ "
      
@@ -371,7 +371,7 @@ let pp_spec_as_comment fmt (inl, outl, spec) =
                       original information with the computed one in
                       nd. *)
      let pp_l = fprintf_list ~sep:"," pp_var_name in
-     fprintf fmt "@[<hov 2>(*@@ contract import %s(%a) returns (%a); @]*)@ "
+     fprintf fmt "@[<hov 2>(*@contract import %s(%a) returns (%a); @]*)@ "
        name
        pp_l inl
        pp_l outl

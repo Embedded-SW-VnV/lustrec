@@ -6,7 +6,7 @@
 open Lustre_types
 open Machine_code_types
 
-let verbose = false
+let verbose = true
             
 let to_lustre m sw_init sw_step init_out update_out =
   let orig_nd = m.mname in
