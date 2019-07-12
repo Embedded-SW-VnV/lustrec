@@ -101,8 +101,11 @@ let sw_to_lustre m sw_init sw_step init_out update_out =
 
   
 let to_lustre basename prog m sw_init sw_step init_out update_out =
+  let loc = Location.dummy_loc in
   let new_node, orig_nd = sw_to_lustre m sw_init sw_step init_out update_out in
-  
+  Global.type_env := Typing.type_node !Global.type_env new_node loc;
+  Global.clock_env := Clock_calculus.clock_node !Global.clock_env loc new_node;
+
   (* Format.eprintf "%a@." Printers.pp_node new_node; *)
 
   (* Main output *)
@@ -110,7 +113,7 @@ let to_lustre basename prog m sw_init sw_step init_out update_out =
   let new_top =
     Corelang.mktop_decl Location.dummy_loc output_file false (Node new_node)
   in
-let out = open_out output_file in
+  let out = open_out output_file in
   let fmt = Format.formatter_of_out_channel out in
   Format.fprintf fmt "%a@." Printers.pp_prog  [new_top];
 
