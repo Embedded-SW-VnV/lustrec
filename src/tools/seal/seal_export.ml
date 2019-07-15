@@ -28,9 +28,21 @@ let sw_to_lustre m sw_init sw_step init_out update_out =
   in
  *)
   
-  let rec process_sw f_e sw =
+  let process_sw vars f_e sw =
     let process_branch g_opt up =
-      let el = List.map (fun (v,e) -> f_e e) up in
+      let el = List.map (fun (v,e) -> v, f_e e) up in
+      (* Sorting list of elements, according to vars, safety check to
+         ensure that no variable is forgotten. *)
+      let el, forgotten = List.fold_right (fun v (res, remaining) ->
+                   let vid = v.var_id in
+                   if List.mem_assoc vid remaining then
+                     ((List.assoc vid remaining)::res),
+                     (List.remove_assoc vid remaining)
+                   else
+                     assert false (* Missing variable v in list *)
+                            ) vars ([], el)
+      in
+      assert (forgotten = []);
       let loc = (List.hd el).expr_loc in
       let new_e = Corelang.mkexpr loc (Expr_tuple el) in
       match g_opt with
@@ -46,7 +58,8 @@ let sw_to_lustre m sw_init sw_step init_out update_out =
          in
          Some g, new_e, loc
     in
-    match sw with
+    let rec process_sw f_e sw = 
+      match sw with
     | [] -> assert false
     | [g_opt,up] -> ((* last case, no need to guard it *)
       let _, up_e, _ = process_branch g_opt up in
@@ -59,12 +72,14 @@ let sw_to_lustre m sw_init sw_step init_out update_out =
        | Some g ->
           let tl_e = process_sw f_e tl in
           Corelang.mkexpr loc (Expr_ite (g, up_e, tl_e)) 
+    in
+    process_sw f_e sw
   in
     
-  let e_init = process_sw (fun x -> x) sw_init in
-  let e_step = process_sw (Corelang.add_pre_expr vl) sw_step in
-  let e_init_out = process_sw (fun x -> x) init_out in
-  let e_update_out = process_sw (Corelang.add_pre_expr vl) update_out in
+  let e_init = process_sw m.mmemory (fun x -> x) sw_init in
+  let e_step = process_sw m.mmemory (Corelang.add_pre_expr vl) sw_step in
+  let e_init_out = process_sw copy_nd.node_outputs (fun x -> x) init_out in
+  let e_update_out = process_sw  copy_nd.node_outputs (Corelang.add_pre_expr vl) update_out in
   let loc = Location.dummy_loc in
   let new_nd =
     { copy_nd with

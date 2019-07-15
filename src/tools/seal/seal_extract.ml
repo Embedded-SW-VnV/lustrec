@@ -774,12 +774,13 @@ let rec build_switch_sys
           prefix
         :
           ((expr * bool) list * (ident * expr) list ) list =
-  Format.eprintf "Build_switch with %a@."
-    (Utils.fprintf_list ~sep:",@ "
-       (fun fmt (id, gel) -> Format.fprintf fmt "%s -> [@[<v 0>%a@ ]@]"
-                               id
-                               pp_mdefs gel))
-    mem_defs;
+  if !debug then
+    Format.eprintf "Build_switch with %a@."
+      (Utils.fprintf_list ~sep:",@ "
+         (fun fmt (id, gel) -> Format.fprintf fmt "%s -> [@[<v 0>%a@ ]@]"
+                                 id
+                                 pp_mdefs gel))
+      mem_defs;
   (* if all mem_defs have empty guards, we are done, return prefix,
      mem_defs expr.
 
@@ -1157,13 +1158,14 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
 
       )
     in
-    Format.eprintf "Map: %i elements@." (UpMap.cardinal map);
+    if !debug then Format.eprintf "Map: %i elements@." (UpMap.cardinal map);
     UpMap.fold (fun up (common, disj) accu ->
-        Format.eprintf
-          "Guards:@.shared: [%a]@.disj: [@[<v 0>%a@ ]@]@.Updates: %a@."
-          Guards.pp_short common
-          (fprintf_list ~sep:";@ " Guards.pp_long) disj
-          UpMap.pp up;
+        if !debug then
+          Format.eprintf
+            "Guards:@.shared: [%a]@.disj: [@[<v 0>%a@ ]@]@.Updates: %a@."
+            Guards.pp_short common
+            (fprintf_list ~sep:";@ " Guards.pp_long) disj
+            UpMap.pp up;
         let disj = clean_disj disj in
         let guard_expr = (gl_as_expr common)@disj in
         
