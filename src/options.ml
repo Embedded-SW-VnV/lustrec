@@ -58,9 +58,14 @@ let nb_mutants = ref 1000
 let gen_mcdc = ref false
 let no_mutation_suffix = ref false
 
+(* Algebraic loops unrolling *)
 let solve_al = ref false
 let al_nb_max = ref 15
-  
+
+(* Printer options *)
+let kind2_print = ref false
+                    
+                  
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

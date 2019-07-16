@@ -348,17 +348,20 @@ let node_as_contract nd =
       stmts = nd.node_stmts @ c.stmts;
     }
   )
-  
+
+(* Printing top contract as comments in regular output and as contract
+   in kind2 *)
 let pp_contract fmt nd =    
-  
-  let c = node_as_contract nd in
-  fprintf fmt "@[<v 2>(*@contract %s(%a) returns (%a);@ "
+   let c = node_as_contract nd in
+  fprintf fmt "@[<v 2>%scontract %s(%a) returns (%a);@ "
+    (if !Options.kind2_print then "" else "(*@")
     nd.node_id
     pp_node_args nd.node_inputs
     pp_node_args nd.node_outputs;
   fprintf fmt "@[<v 2>let@ ";
   pp_spec fmt c;
-  fprintf fmt "@]@ tel@ @]*)@ "        
+  fprintf fmt "@]@ tel@ @]%s@ "
+  (if !Options.kind2_print then "" else "*)")
     
 let pp_spec_as_comment fmt (inl, outl, spec) =
   match spec with
