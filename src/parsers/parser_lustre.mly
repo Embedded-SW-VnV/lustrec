@@ -144,10 +144,13 @@ POINT DIV path_ident { "./" ^ $3 }
 | DIV path_ident { "/" ^ $2 }
 | file_ident { $1 }
 
+tag_bool:
+  | TRUE    { tag_true }
+  | FALSE   { tag_false }
+
 tag_ident:
   UIDENT  { $1 }
-| TRUE    { tag_true }
-| FALSE   { tag_false }
+  | tag_bool { $1 }
 
 node_ident:
   UIDENT { $1 }
@@ -474,7 +477,12 @@ expr:
 /* | FLOAT {mkexpr (Expr_const (Const_float $1))}*/
 /* Idents or type enum tags */
 | IDENT { mkexpr (Expr_ident $1) }
-| tag_ident { mkexpr (Expr_ident $1) (*(Expr_const (Const_tag $1))*) }
+| UIDENT { mkexpr (Expr_ident $1) (* TODO we will differenciate enum constants from variables later *) }
+| tag_bool {
+	(* on sept 2014, X chenged the Const to 
+	mkexpr (Expr_ident $1)
+	reverted back to const on july 2019 *)
+	mkexpr (Expr_const (Const_tag $1)) }
 | LPAR ANNOT expr RPAR
     {update_expr_annot (get_current_node ()) $3 $2}
 | LPAR expr RPAR

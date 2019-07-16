@@ -785,10 +785,10 @@ let rec build_switch_sys
       in
       (* Special cases to avoid useless computations: true, false conditions *)
       match elem.expr_desc with
-      | Expr_ident "true"  ->   build_switch_sys pos prefix
+      (*| Expr_ident "true"  ->   build_switch_sys pos prefix *)
       | Expr_const (Const_tag tag) when tag = Corelang.tag_true
         ->   build_switch_sys pos prefix
-      | Expr_ident "false" ->   build_switch_sys neg prefix
+      (*| Expr_ident "false" ->   build_switch_sys neg prefix *)
       | Expr_const (Const_tag tag) when tag = Corelang.tag_false 
         ->   build_switch_sys neg prefix
       | _ -> (* Regular case *)
