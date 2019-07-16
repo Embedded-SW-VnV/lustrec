@@ -6,46 +6,9 @@ open Zustre_data (* Access to Z3 context *)
 
 (* Switched system extraction: expression are memoized *)
 (*let expr_mem = Hashtbl.create 13*)
-             
-type element = IsInit | Expr of expr
-                              
-type guard = (element * bool) list
-type guarded_expr = guard * element
-type mdef_t = guarded_expr list
-
-let pp_elem fmt e =
-  match e with
-  | IsInit -> Format.fprintf fmt "init"
-  | Expr e -> Format.fprintf fmt "%a" Printers.pp_expr e 
-
-let pp_guard_list fmt gl =
-  (fprintf_list ~sep:"; "
-     (fun fmt (e,b) -> if b then pp_elem fmt e else Format.fprintf fmt "not(%a)" pp_elem e)) fmt gl
-  
-let pp_guard_expr fmt (gl,e) =
-  Format.fprintf fmt "%a -> %a"
-    pp_guard_list  gl
-    pp_elem e
-
-let pp_mdefs fmt gel = fprintf_list ~sep:"@ " pp_guard_expr fmt gel
-
-  
+    
 let add_init defs vid =
   Hashtbl.add defs vid [[], IsInit]
-
-let deelem e =  match e with
-    Expr e -> e
-  | IsInit -> assert false (* Wasn't expecting isinit here: we are building values! *)
-
-let is_eq_elem elem elem' =
-  match elem, elem' with
-  | IsInit, IsInit -> true
-  | Expr e, Expr e' -> e = e' (*
-     Corelang.is_eq_expr e e' *)
-  | _ -> false
-
-let select_elem elem (gelem, _) =
-  is_eq_elem elem gelem
 
 
 (**************************************************************)
@@ -325,19 +288,20 @@ let implies =
     Hashtbl.find ze_implies_hash (ze1_uid, ze2_uid)
   else
     begin
-      if !debug then (
-        Format.eprintf "Checking implication: %s => %s? "
+      if !seal_debug then (
+        report ~level:6 (fun fmt -> Format.fprintf fmt "Checking implication: %s => %s?@ "
           (Z3.Expr.to_string ze1) (Z3.Expr.to_string ze2)
-      ); 
+      )); 
       let solver = Z3.Solver.mk_simple_solver !ctx in
       let tgt = Z3.Boolean.mk_not !ctx (Z3.Boolean.mk_implies !ctx ze1 ze2) in
       let res =
         try
           let status_res = Z3.Solver.check solver [tgt] in
           match status_res with
-          | Z3.Solver.UNSATISFIABLE -> if !debug then Format.eprintf "Valid!@."; 
+          | Z3.Solver.UNSATISFIABLE -> if !seal_debug then
+                                         report ~level:6 (fun fmt -> Format.fprintf fmt "Valid!@ "); 
              true
-          | _ -> if !debug then Format.eprintf "not proved valid@."; 
+          | _ -> if !seal_debug then report ~level:6 (fun fmt -> Format.fprintf fmt "not proved valid@ "); 
              false
         with Zustre_common.UnknownFunction(id, msg) -> (
           report ~level:1 msg;
@@ -376,14 +340,14 @@ let rec simplify zl =
       tl
   )
   
-let check_sat ?(just_check=false) (l:guard) : bool * guard =
+let check_sat ?(just_check=false) (l: elem_boolexpr guard) : bool * (elem_boolexpr guard) =
   (* Syntactic simplification *)
   if false then
-    Format.eprintf "Before simplify: %a@." pp_guard_list l; 
+    Format.eprintf "Before simplify: %a@." (pp_guard_list pp_elem) l; 
   let l = simplify_neg_guard l in
   if false then (
-    Format.eprintf "After simplify: %a@." pp_guard_list l; 
-    Format.eprintf "@[<v 2>Z3 check sat: [%a]@ " pp_guard_list l;
+    Format.eprintf "After simplify: %a@." (pp_guard_list pp_elem) l; 
+    Format.eprintf "@[<v 2>Z3 check sat: [%a]@ " (pp_guard_list pp_elem)l;
   );
   let solver = Z3.Solver.mk_simple_solver !ctx in
   try (
@@ -589,7 +553,7 @@ let concatenate_ge gel1 posneg gel2 =
 (* Rewrite the expression expr, replacing any occurence of a variable
    by its definition.
 *)
-let rec rewrite defs expr : guarded_expr list =
+let rec rewrite defs expr : elem_guarded_expr list =
   let rewrite = rewrite defs in
   let res =
     match expr.expr_desc with
@@ -623,7 +587,7 @@ let rec rewrite defs expr : guarded_expr list =
        (* Each expr is associated to its flatten guarded expr list *)
        let gell = List.map rewrite el in
        (* Computing all combinations: we obtain a list of guarded tuple *)
-       let rec aux gell : (guard * expr list) list =
+       let rec aux gell : (elem_boolexpr guard * expr list) list =
          match gell with
          | [] -> assert false (* Not happening *)
          | [gel] -> List.map (fun (g,e) -> g, [deelem e]) gel
@@ -635,7 +599,7 @@ let rec rewrite defs expr : guarded_expr list =
                     fun accu (gl, minituple) ->
                     let is_compat, guard_comb = combine_guards g gl in
                     if is_compat then
-                      let new_gt : guard * expr list = (guard_comb, (deelem e)::minituple) in
+                      let new_gt : elem_boolexpr guard * expr list = (guard_comb, (deelem e)::minituple) in
                       new_gt::accu
                     else
                       accu
@@ -677,7 +641,7 @@ and add_def defs vid expr =
 returns the same list of ge splited into the ones where the guard is true and the ones where it is false. In both lists the associated ge do not mention that guard anymore.
 
 When a given ge doesn't mention positively or negatively such guards, it is duplicated in both lists *)
-let split_mdefs elem (mdefs: guarded_expr list) =
+let split_mdefs elem (mdefs: elem_guarded_expr list) =
   List.fold_left (
       fun (selected, left_out)
           ((guards, expr) as ge) ->
@@ -696,7 +660,7 @@ let split_mdefs elem (mdefs: guarded_expr list) =
       | _ -> (
         Format.eprintf "@.Spliting list on elem %a.@.List:%a@."
           pp_elem elem
-          pp_mdefs mdefs;
+          (pp_mdefs pp_elem) mdefs;
         assert false (* more then one element selected. Should
                           not happen , or trival dead code like if
                               x then if not x then dead code *)
@@ -705,9 +669,9 @@ let split_mdefs elem (mdefs: guarded_expr list) =
     
 let split_mem_defs
       (elem: element)
-      (mem_defs: (ident * guarded_expr list) list)
+      (mem_defs: (ident * elem_guarded_expr list) list)
       :
-      ((ident * mdef_t) list) * ((ident * mdef_t) list)
+      ((ident * elem_guarded_expr mdef_t) list) * ((ident * elem_guarded_expr mdef_t) list)
   
   =
   List.fold_right (fun (m,mdefs)
@@ -770,23 +734,24 @@ let rec pick_guard mem_defs : expr option =
 (* Transform a list of variable * guarded exprs into a list of guarded pairs (variable, expressions)
 *)
 let rec build_switch_sys
-          (mem_defs : (Utils.ident * guarded_expr list) list )
+          (mem_defs : (Utils.ident * elem_guarded_expr list) list )
           prefix
         :
           ((expr * bool) list * (ident * expr) list ) list =
-  if !debug then
-    Format.eprintf "Build_switch with %a@."
+  if !seal_debug then
+    report ~level:4 (fun fmt -> Format.fprintf fmt "@[<v 2>Build_switch with@ %a@]@."
       (Utils.fprintf_list ~sep:",@ "
-         (fun fmt (id, gel) -> Format.fprintf fmt "%s -> [@[<v 0>%a@ ]@]"
+         (fun fmt (id, gel) -> Format.fprintf fmt "%s -> [@[<v 0>%a]@]"
                                  id
-                                 pp_mdefs gel))
-      mem_defs;
+                                 (pp_mdefs pp_elem) gel))
+      mem_defs);
   (* if all mem_defs have empty guards, we are done, return prefix,
      mem_defs expr.
 
      otherwise pick a guard in one of the mem, eg (g, b) then for each
      other mem, one need to select the same guard g with the same
      status b, *)
+  let res =
   if List.for_all (fun (m,mdefs) ->
          (* All defs are unguarded *)
          match mdefs with
@@ -810,8 +775,9 @@ let rec build_switch_sys
     (* Picking a guard *)
     let elem_opt : expr option = pick_guard mem_defs in
     match elem_opt with
-      None -> []
+      None -> assert false (* Otherwise the first case should have matched *)
     | Some elem -> (
+      report ~level:4 (fun fmt -> Format.fprintf fmt "selecting guard %a@." Printers.pp_expr elem);
       let pos, neg =
         split_mem_defs
           (Expr elem)
@@ -844,12 +810,25 @@ let rec build_switch_sys
          let pos_prefix = (elem, true)::prefix in
          let neg_prefix = (elem, false)::prefix in
          let ok_pos, pos_prefix = clean pos_prefix in         
-         let ok_neg, neg_prefix = clean neg_prefix in         
-         (if ok_pos then build_switch_sys pos pos_prefix else [])
-         @
-           (if ok_neg then build_switch_sys neg neg_prefix else [])
+         let ok_neg, neg_prefix = clean neg_prefix in
+         report ~level:4 (fun fmt -> Format.fprintf fmt "Enforcing %a@." Printers.pp_expr elem);
+         let ok_l = if ok_pos then build_switch_sys pos pos_prefix else [] in
+         report ~level:4 (fun fmt -> Format.fprintf fmt "Enforcing not(%a)@." Printers.pp_expr elem);
+         let nok_l = if ok_neg then build_switch_sys neg neg_prefix else [] in
+         ok_l @ nok_l
     )
-
+  in
+    if !seal_debug then (
+      report ~level:4 (fun fmt ->
+          Format.fprintf fmt
+            "@[<v 2>===> @[%t@ @]@]@ @]@ "
+            (fun fmt -> List.iter (fun (gl,up) ->
+                            Format.fprintf fmt "[@[%a@]] -> (%a)@ "
+                              (pp_guard_list Printers.pp_expr) gl pp_up up) res);
+          
+    ));
+    res
+  
 
       
 (* Take a normalized node and extract a list of switches: (cond,
@@ -863,7 +842,7 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
   let eqs, auts = Corelang.get_node_eqs nd in
   assert (auts = []); (* Automata should be expanded by now *)
   let sorted_eqs = Scheduling.sort_equations_from_schedule eqs schedule in
-  let defs : (ident,  guarded_expr list) Hashtbl.t = Hashtbl.create 13 in
+  let defs : (ident,  elem_guarded_expr list) Hashtbl.t = Hashtbl.create 13 in
   let add_def = add_def defs in
 
   let vars = Corelang.get_node_vars nd in
@@ -910,15 +889,15 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
                  Format.fprintf fmt "Output variable %s@." vid);
              add_def vid eq.eq_rhs;
              accu_mems, (vid, rewrite defs eq.eq_rhs)::accu_outputs
-          
+             
            )
            else
              (
-             report ~level:3 (fun fmt ->
-                 Format.fprintf fmt "Registering variable %s@." vid);
-             add_def vid eq.eq_rhs;
-             accu_mems, accu_outputs
-           )
+               report ~level:3 (fun fmt ->
+                   Format.fprintf fmt "Registering variable %s@." vid);
+               add_def vid eq.eq_rhs;
+               accu_mems, accu_outputs
+             )
         | _ -> assert false (* should have been removed by normalization *)
       ) ([], []) sorted_eqs
   in
@@ -929,14 +908,14 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
   report ~level:3
     (fun fmt ->
       Format.fprintf fmt
-        "@[<v 0>%a@]@ "
+        "@[<v 0>%a@]@."
         (Utils.fprintf_list ~sep:"@ "
            (fun fmt (m,mdefs) ->
              Format.fprintf fmt
                "%s -> [@[<v 0>%a@] ]@ "
                m
                (Utils.fprintf_list ~sep:"@ "
-                  pp_guard_expr) mdefs
+                  (pp_guard_expr pp_elem)) mdefs
         ))
         mem_defs);
   (* Format.eprintf "Split init@."; *)
@@ -949,38 +928,46 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
   report ~level:3
     (fun fmt ->
       Format.fprintf fmt
-        "@[<v 0>Init:@ %a@ Step@ %a@]@ "
+        "@[<v 0>Init:@ %a@]@."
         (Utils.fprintf_list ~sep:"@ "
            (fun fmt (m,mdefs) ->
              Format.fprintf fmt
                "%s -> @[<v 0>[%a@] ]@ "
                m
                (Utils.fprintf_list ~sep:"@ "
-                  pp_guard_expr) mdefs
+                  (pp_guard_expr pp_elem)) mdefs
         ))
-        init_defs
+        init_defs);
+  report ~level:3
+    (fun fmt ->
+      Format.fprintf fmt
+        "@[<v 0>Step:@ %a@]@."
         (Utils.fprintf_list ~sep:"@ "
            (fun fmt (m,mdefs) ->
              Format.fprintf fmt
                "%s -> @[<v 0>[%a@] ]@ "
                m
                (Utils.fprintf_list ~sep:"@ "
-                  pp_guard_expr) mdefs
+                  (pp_guard_expr pp_elem)) mdefs
         ))
         update_defs);
   (* Format.eprintf "Build init@."; *)
-
+  report ~level:4 (fun fmt -> Format.fprintf fmt "Build init@.");
   let sw_init= 
     build_switch_sys init_defs []
   in
   (* Format.eprintf "Build step@."; *)
+  report ~level:4 (fun fmt -> Format.fprintf fmt "Build step@.");
   let sw_sys =
     build_switch_sys update_defs []
   in
 
+  report ~level:4 (fun fmt -> Format.fprintf fmt "Build init out@.");
   let init_out =
     build_switch_sys init_out []
   in
+  report ~level:4 (fun fmt -> Format.fprintf fmt "Build step out@.");
+
   let update_out =
     build_switch_sys update_out []
   in
@@ -991,11 +978,6 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
   let update_out = clean_sys update_out in
 
   (* Some additional checks *)
-  let pp_gl pp_expr =
-    fprintf_list ~sep:", " (fun fmt (e,b) -> Format.fprintf fmt "%s%a" (if b then "" else "NOT ") pp_expr e)
-  in
-  let pp_gl_short = pp_gl (fun fmt e -> Format.fprintf fmt "%i" e.Lustre_types.expr_tag) in
-  let pp_up fmt up = List.iter (fun (id,e) -> Format.fprintf fmt "%s->%i; " id e.expr_tag) up in
   
   if false then
     begin
@@ -1070,36 +1052,18 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
   
 
   (* Iter through the elements and gather them by updates *)
-  let module UpMap =
-    struct
-      include Map.Make (
-                  struct
-                    type t = (ident * expr) list
-                    let compare l1 l2 =
-                      let proj l = List.map (fun (s,e) -> s, e.expr_tag) l in
-                      compare (proj l1) (proj l2) 
-                  end)
-      let pp = pp_up 
-    end
-  in
-  let module Guards = struct
-      include Set.Make (
-                  struct
-                    type t = (expr * bool) 
-                    let compare l1 l2 =
-                      let proj (e,b) = e.expr_tag, b in
-                      compare (proj l1) (proj l2) 
-                  end)
-      let pp_short fmt s = pp_gl_short fmt (elements s)
-      let pp_long fmt s = pp_gl Printers.pp_expr fmt (elements s)
-    end
-  in
   let process sys =
     (* The map will associate to each update up the pair (set, set
        list) where set is the share guards and set list a list of
        disjunctive guards. Each set represents a conjunction of
        expressions. *)
-    let map = 
+    report ~level:3 (fun fmt -> Format.fprintf fmt "%t@."
+                                  (fun fmt -> List.iter (fun (gl,up) ->
+                                                  Format.fprintf fmt "[@[%a@]] -> (%a)@ "
+                                                    (pp_guard_list Printers.pp_expr) gl pp_up up) sw_init));
+    
+    (* We perform multiple pass to avoid errors *)
+    let map =
       List.fold_left (fun map (gl,up) ->
           (* creating a new set to describe gl *)
           let new_set =
@@ -1110,69 +1074,95 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
           in
           (* updating the map with up -> new_set *)
           if UpMap.mem up map then
-            let (shared, disj) = UpMap.find up map in
-            let new_shared = Guards.inter shared new_set in
-            let remaining_shared = Guards.diff shared new_shared in
-            let remaining_new_set = Guards.diff new_set new_shared in
-            (* Adding remaining_shared to all elements of disj *)
-            let disj' = List.map (fun gs -> Guards.union remaining_shared gs) disj in
-            UpMap.add up (new_shared, remaining_new_set::disj') map
+            let guard_set = UpMap.find up map in
+            UpMap.add up (new_set::guard_set) map
           else
-            UpMap.add up (new_set, []) map
+            UpMap.add up [new_set] map
         ) UpMap.empty sys
     in
-     let rec mk_binop op l = match l with
-         [] -> assert false
-       | [e] -> e
-       | hd::tl -> Corelang.mkpredef_call hd.expr_loc op [hd; mk_binop op tl]
+    (* Processing the set of guards leading to the same update: return
+       conj, disj with conf is a set of guards, and disj a DNF, ie a
+       list of set of guards *)
+    let map =
+      UpMap.map (
+          fun guards ->
+          match guards with
+          | [] -> Guards.empty, [] (* Nothing *)
+          | [s]-> s, [] (* basic case *)
+          | hd::tl ->
+             let shared = List.fold_left (fun shared s -> Guards.inter shared s) hd tl in
+             let remaining = List.map (fun s -> Guards.diff s shared) guards in
+             (* If one of them is empty, we can remove the others, otherwise keep them *)
+             if List.exists Guards.is_empty remaining then
+               shared, []
+             else
+               shared, remaining
+        ) map
     in
-    let gl_as_expr gl =
-      let gl = Guards.elements gl in
-      let export (e,b) = if b then e else Corelang.push_negations ~neg:true e in 
-      match gl with
-        [] -> []
-      | [e] -> [export e]
-      | _ ->
-         [mk_binop "&&"
-            (List.map export gl)]
-    in
-    let rec clean_disj disj =
-      match disj with
-      | [] | [_] -> [] 
-      | _::_::_ -> (
-        (* First basic version: producing a DNF One can later, (1)
+  let rec mk_binop op l = match l with
+      [] -> assert false
+    | [e] -> e
+    | hd::tl -> Corelang.mkpredef_call hd.expr_loc op [hd; mk_binop op tl]
+  in
+  let gl_as_expr gl =
+    let gl = Guards.elements gl in
+    let export (e,b) = if b then e else Corelang.push_negations ~neg:true e in 
+    match gl with
+      [] -> []
+    | [e] -> [export e]
+    | _ ->
+       [mk_binop "&&"
+          (List.map export gl)]
+  in
+  let rec clean_disj disj =
+    match disj with
+    | [] -> []
+    | [_] -> assert false (* A disjunction was a single case can be ignored *) 
+    | _::_::_ -> (
+      (* First basic version: producing a DNF One can later, (1)
            simplify it with z3, or (2) build the compact tree with
            maximum shared subexpression (and simplify it with z3) *)
-        let elems = List.fold_left (fun accu gl -> (gl_as_expr gl) @ accu) [] disj in
-        let or_expr = mk_binop "||" elems in
-        [or_expr]
+      let elems = List.fold_left (fun accu gl -> (gl_as_expr gl) @ accu) [] disj in
+      let or_expr = mk_binop "||" elems in
+      [or_expr]
 
 
-         (* TODO disj*)
-      (* get the item that occurs in most case *)
-      (* List.fold_left (fun accu s ->
-       *     List.fold_left (fun accu (e,b) ->
-       *         if List.mem_assoc (e.expr_tag, b)
-       *       ) accu (Guards.elements s)
-       *   ) [] disj *)
+    (* TODO disj*)
+    (* get the item that occurs in most case *)
+    (* List.fold_left (fun accu s ->
+     *     List.fold_left (fun accu (e,b) ->
+     *         if List.mem_assoc (e.expr_tag, b)
+     *       ) accu (Guards.elements s)
+     *   ) [] disj *)
 
-      )
-    in
-    if !debug then Format.eprintf "Map: %i elements@." (UpMap.cardinal map);
-    UpMap.fold (fun up (common, disj) accu ->
-        if !debug then
-          Format.eprintf
-            "Guards:@.shared: [%a]@.disj: [@[<v 0>%a@ ]@]@.Updates: %a@."
-            Guards.pp_short common
-            (fprintf_list ~sep:";@ " Guards.pp_long) disj
-            UpMap.pp up;
-        let disj = clean_disj disj in
-        let guard_expr = (gl_as_expr common)@disj in
-        
-        ((match guard_expr with
-         | [] -> None
-         | _ -> Some (mk_binop "&&" guard_expr)), up)::accu
-      ) map []
-    
+    )
   in
-  process sw_init, process sw_sys, process init_out, process update_out
+  if !seal_debug then Format.eprintf "Map: %i elements@ " (UpMap.cardinal map);
+  UpMap.fold (fun up (common, disj) accu ->
+      if !seal_debug then
+        Format.eprintf
+          "Guards:@.shared: [%a]@.disj: [@[<v 0>%a@ ]@]@.Updates: %a@."
+          Guards.pp_short common
+          (fprintf_list ~sep:";@ " Guards.pp_long) disj
+          UpMap.pp up;
+      let disj = clean_disj disj in
+      let guard_expr = (gl_as_expr common)@disj in
+      
+      ((match guard_expr with
+        | [] -> None 
+        | _ -> Some (mk_binop "&&" guard_expr)), up)::accu
+    ) map []
+  
+    in
+    
+    
+    
+    report ~level:3 (fun fmt -> Format.fprintf fmt "Process sw_init:@.");
+    let sw_init = process sw_init in
+    report ~level:3 (fun fmt -> Format.fprintf fmt "Process sw_sys:@.");
+    let sw_sys = process sw_sys in
+    report ~level:3 (fun fmt -> Format.fprintf fmt "Process init_out:@.");
+    let init_out = process init_out in
+    report ~level:3 (fun fmt -> Format.fprintf fmt "Process update_out:@.");
+    let update_out = process update_out in
+    sw_init , sw_sys, init_out, update_out

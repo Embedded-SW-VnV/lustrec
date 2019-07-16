@@ -114,7 +114,12 @@ module Verifier =
   (struct
     include VerifierType.Default
     let name = "seal"
-    let options = ["-export", Arg.String set_export, "seal export option (lustre, matlab)"]
+    let options =
+      [
+        "-export", Arg.String set_export, "seal export option (lustre, matlab)";
+        "-debug", Arg.Set seal_debug, "seal debug"
+
+      ]
     let activate () =
       active := true;
       Options.global_inline := true
