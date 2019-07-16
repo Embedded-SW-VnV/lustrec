@@ -398,7 +398,7 @@ let translate_decl nd sch =
   (* Format.eprintf "ok1@.@?"; *)
   let schedule = sch.Scheduling_type.schedule in
   (* Format.eprintf "ok2@.@?"; *)
-  let sorted_eqs = Scheduling.sort_equations_from_schedule eqs schedule in
+  let sorted_eqs, unused = Scheduling.sort_equations_from_schedule eqs schedule in
   (* Format.eprintf "ok3@.locals=%a@.inout:%a@?"
    *   VSet.pp locals
    *   VSet.pp inout_vars
@@ -407,8 +407,12 @@ let translate_decl nd sch =
   let ctx, ctx0_s = translate_core (assert_instrs@sorted_eqs) locals inout_vars in
   
   (* Format.eprintf "ok4@.@?"; *)
-  
- 
+
+  (* Removing computed memories from locals. We also removed unused variables. *)
+  let updated_locals =
+    let l = VSet.elements (VSet.diff locals ctx.m) in
+    List.fold_left (fun res v -> if List.mem v.var_id unused then res else v::res) [] l
+  in
   let mmap = Utils.IMap.elements ctx.j in
   {
     mname = nd;
@@ -421,8 +425,7 @@ let translate_decl nd sch =
     mstep = {
         step_inputs = nd.node_inputs;
         step_outputs = nd.node_outputs;
-        step_locals = (* Removing computed memories from locals *)
-          VSet.elements (VSet.diff locals ctx.m);
+        step_locals = updated_locals;
         step_checks = List.map (fun d -> d.Dimension.dim_loc,
                                          translate_expr env 
                                            (expr_of_dimension d))

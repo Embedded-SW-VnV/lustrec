@@ -61,7 +61,7 @@ let seal_run ~basename prog machines =
   (* Format.eprintf "Mems: %a@." (Utils.fprintf_list ~sep:"; " Printers.pp_var) mems; *)
   let msch = Utils.desome m.msch in
   (* Format.eprintf "graph: %a@." Causality.pp_dep_graph deps; *)
-  let sliced_nd = slice_node mems msch nd in
+  let sliced_nd = slice_node (mems@nd.node_outputs) msch nd in
   (* Format.eprintf "Sliced Node %a@." Printers.pp_node sliced_nd; *)
   report ~level:3 (fun fmt -> Format.fprintf fmt "Node sliced@.");
 

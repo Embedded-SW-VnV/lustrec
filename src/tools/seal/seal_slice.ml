@@ -130,10 +130,11 @@ let slice_node vars_to_keep msch nd =
   (* Split tuples while sorting eqs *)
   let eqs, auts = Corelang.get_node_eqs nd in
   assert (auts = []); (* Automata should be expanded by now *)
-  let sorted_eqs = Scheduling.sort_equations_from_schedule
+  let sorted_eqs, unused = Scheduling.sort_equations_from_schedule
                      eqs
-                     msch.Scheduling_type.schedule in
-
+                     msch.Scheduling_type.schedule 
+  in
+  let locals = List.filter (fun v -> not (List.mem v.var_id unused)) locals in
   report ~level:3 (fun fmt -> Format.fprintf fmt "Scheduled node@.");
 
   let stmts =

@@ -250,7 +250,7 @@ let pp_warning_unused fmt node_schs =
    node_schs
 
 
-   (* Sort eqs according to schedule *)
+(* Sort eqs according to schedule *)
 (* Sort the set of equations of node [nd] according
    to the computed schedule [sch]
 *)
@@ -273,12 +273,26 @@ let sort_equations_from_schedule eqs sch =
       sch
   in
   begin
-    if List.length remainder > 0 then (
-      Format.eprintf "Equations not used are@.%a@.Full equation set is:@.%a@.@?"
-		     Printers.pp_node_eqs remainder
-      		     Printers.pp_node_eqs eqs;
-      assert false);
-    List.rev eqs_rev
+    let eqs = List.rev eqs_rev in 
+    let unused =
+      if List.length remainder > 0 then (
+        Log.report ~level:3 (fun fmt -> Format.fprintf fmt
+                                       "[Warning] Equations not used are@ %a@ Full equation set is:@ %a@ "
+		                       Printers.pp_node_eqs remainder
+      		                     Printers.pp_node_eqs eqs
+          );
+        let vars = List.fold_left (fun accu eq -> eq.eq_lhs @ accu) [] remainder in
+        Log.report ~level:1 (fun fmt -> Format.fprintf fmt
+                                      "[Warning] Unused variables: %a@ "
+                                      (fprintf_list ~sep:", " Format.pp_print_string)
+                                  vars
+          );
+        vars
+      )
+      else
+        []
+    in
+    eqs, unused
   end
 
 (* Local Variables: *)

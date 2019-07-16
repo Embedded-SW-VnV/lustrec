@@ -841,11 +841,13 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
   let schedule = nd_report.Scheduling_type.schedule in
   let eqs, auts = Corelang.get_node_eqs nd in
   assert (auts = []); (* Automata should be expanded by now *)
-  let sorted_eqs = Scheduling.sort_equations_from_schedule eqs schedule in
+  let sorted_eqs, unused = Scheduling.sort_equations_from_schedule eqs schedule in
   let defs : (ident,  elem_guarded_expr list) Hashtbl.t = Hashtbl.create 13 in
   let add_def = add_def defs in
 
   let vars = Corelang.get_node_vars nd in
+  (* Filtering out unused vars *)
+  let vars = List.filter (fun v -> not (List.mem v.var_id unused)) vars in
   (* Registering all locals variables as Z3 predicates. Will be use to
      simplify the expansion *) 
   let _ =
