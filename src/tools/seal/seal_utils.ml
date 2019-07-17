@@ -63,18 +63,22 @@ let pp_sys fmt sw = List.iter (fun (gl,up) ->
                         | Some gl ->
                            Format.fprintf fmt "[@[%a@]] -> (%a)@ "
                              Printers.pp_expr gl pp_up up) sw
-                  
+let pp_all_defs =
+  (Utils.fprintf_list ~sep:",@ "
+     (fun fmt (id, gel) -> Format.fprintf fmt "%s -> [@[<v 0>%a]@]"
+                             id
+                             (pp_mdefs pp_elem) gel))              
 module UpMap =
-  struct
-    include Map.Make (
-                struct
-                  type t = (ident * expr) list
-                  let compare l1 l2 =
-                    let proj l = List.map (fun (s,e) -> s, e.expr_tag) l in
-                    compare (proj l1) (proj l2) 
-                end)
-    let pp = pp_up 
-  end
+      struct
+        include Map.Make (
+                    struct
+                      type t = (ident * expr) list
+                      let compare l1 l2 =
+                        let proj l = List.map (fun (s,e) -> s, e.expr_tag) l in
+                        compare (proj l1) (proj l2) 
+                    end)
+        let pp = pp_up 
+      end
     
 module Guards = struct
   include Set.Make (
@@ -88,5 +92,4 @@ module Guards = struct
   let pp_long fmt s = pp_gl Printers.pp_expr fmt (elements s)
 end
                   
-                  
-
+        

@@ -549,10 +549,31 @@ let concatenate_ge gel1 posneg gel2 =
       ) ([], true) gel2
   in
   not all_invalid, l
-     
-(* Rewrite the expression expr, replacing any occurence of a variable
+
+(* Transform the guard expressions ge = [gl1, e1; gl2, e2;...] as
+   [gl1, e1=id; gl2, e2=id; ...]  *)
+let mk_ge_eq_id ge id =
+  List.map
+    (fun (gl, g_e) ->
+      gl,
+      if id = "true" then
+        g_e
+      else
+        match g_e with
+        | Expr g_e ->
+           if id = "false" then
+             Expr (Corelang.push_negations ~neg:true g_e)
+           else  
+             let loc = g_e.expr_loc in
+             Expr(Corelang.mk_eq loc
+                    g_e
+                    (Corelang.expr_of_ident id loc))
+        | _ -> assert false
+    )  ge 
+
+    (* Rewrite the expression expr, replacing any occurence of a variable
    by its definition.
-*)
+     *)
 let rec rewrite defs expr : elem_guarded_expr list =
   let rewrite = rewrite defs in
   let res =
@@ -578,10 +599,24 @@ let rec rewrite defs expr : elem_guarded_expr list =
        let ok_else, g_else = concatenate_ge g false e2 in
        (if ok_then then g_then else [])@
          (if ok_else then g_else else [])
-    | Expr_merge (g, branches) ->
-       assert false (* TODO: deal with merges *)
-      
-    | Expr_when (e, _, _) -> rewrite e
+    | Expr_merge (g_id, branches) ->
+       if Hashtbl.mem defs g_id then
+         let g = Hashtbl.find defs g_id in
+         (* Format.eprintf "Expr_merge %s = %a@." g_id (pp_mdefs pp_elem) g ; *)
+         List.fold_left (fun accu (id, e) ->
+             let g = mk_ge_eq_id g id in
+             let e = rewrite e in
+             let ok, g_eq_id = concatenate_ge g true e in
+             if ok then g_eq_id@accu else accu
+           ) [] branches
+       else
+         assert false (* g should be defined already *)
+    | Expr_when (e, id, l) ->
+       let e = rewrite e in
+       let id_def = Hashtbl.find defs id in
+       let clock = mk_ge_eq_id id_def l in
+       let ok, new_ge = concatenate_ge clock true e in
+       if ok then new_ge else []
     | Expr_arrow _ -> [[], IsInit] (* At this point the only arrow should be true -> false *)
     | Expr_tuple el ->
        (* Each expr is associated to its flatten guarded expr list *)
@@ -628,7 +663,13 @@ let rec rewrite defs expr : elem_guarded_expr list =
    *        pp_guard_expr) res; *)
   res
 and add_def defs vid expr =
+  (* Format.eprintf "Add_def: %s = %a@."
+   *   vid
+   *   Printers.pp_expr expr; *)
   let vid_defs = rewrite defs expr in
+  (* Format.eprintf "-> @[<v 0>%a@]@."
+   *   (Utils.fprintf_list ~sep:"@ "
+   *      (pp_guard_expr pp_elem)) vid_defs;   *)
   (* Format.eprintf "Add_def: %s = %a@. -> @[<v 0>%a@]@."
    *     vid
    *     Printers.pp_expr expr
@@ -740,11 +781,8 @@ let rec build_switch_sys
           ((expr * bool) list * (ident * expr) list ) list =
   if !seal_debug then
     report ~level:4 (fun fmt -> Format.fprintf fmt "@[<v 2>Build_switch with@ %a@]@."
-      (Utils.fprintf_list ~sep:",@ "
-         (fun fmt (id, gel) -> Format.fprintf fmt "%s -> [@[<v 0>%a]@]"
-                                 id
-                                 (pp_mdefs pp_elem) gel))
-      mem_defs);
+                                  pp_all_defs
+                                  mem_defs);
   (* if all mem_defs have empty guards, we are done, return prefix,
      mem_defs expr.
 
@@ -755,7 +793,9 @@ let rec build_switch_sys
   if List.for_all (fun (m,mdefs) ->
          (* All defs are unguarded *)
          match mdefs with
-         | [[], _] -> true
+         | [[], _] -> true (* Regular unguarded expression *)
+         | [] -> true (* A unbalanced definition of the memory. Here
+                         we have m_{k+1} -> m_k *)
          | _ -> false
        ) mem_defs
   then
@@ -769,13 +809,17 @@ let rec build_switch_sys
               | _ -> assert false (* No IsInit expression *)
             in
             m,e
+         | [] -> m, Corelang.expr_of_ident m Location.dummy_loc
          | _ -> assert false
        ) mem_defs]
   else
     (* Picking a guard *)
     let elem_opt : expr option = pick_guard mem_defs in
     match elem_opt with
-      None -> assert false (* Otherwise the first case should have matched *)
+      None -> (
+       Format.eprintf "Issues picking guard in mem_defs: %a@." pp_all_defs mem_defs;
+       assert false (* Otherwise the first case should have matched *)
+    )
     | Some elem -> (
       report ~level:4 (fun fmt -> Format.fprintf fmt "selecting guard %a@." Printers.pp_expr elem);
       let pos, neg =

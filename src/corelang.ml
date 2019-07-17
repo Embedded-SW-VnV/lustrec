@@ -1408,7 +1408,12 @@ let rec add_pre_expr vars e =
     | _ -> assert false (* no array, array access, power or merge/when yet *)
   in
   mkexpr e.expr_loc desc
-   
+
+
+        
+let mk_eq l e1 e2 =
+  mkpredef_call l "=" [e1; e2]
+      
     (* Local Variables: *)
     (* compile-command:"make -C .." *)
     (* End: *)

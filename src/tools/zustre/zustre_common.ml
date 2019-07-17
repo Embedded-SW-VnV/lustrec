@@ -54,7 +54,7 @@ let real_sort = Z3.Arithmetic.Real.mk_sort !ctx
 
 let get_const_sort = Hashtbl.find const_sorts 
 let get_sort_elems = Hashtbl.find sort_elems
-let get_tag_sort = Hashtbl.find const_tags
+let get_tag_sort id = try Hashtbl.find const_tags id with _ -> Format.eprintf "Unable to find sort for tag=%s@." id; assert false
   
 
   

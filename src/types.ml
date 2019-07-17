@@ -168,7 +168,7 @@ and print_ty_param pp_basic fmt ty =
     fprintf fmt "_%s" (name_of_type ty.tid)
   | Tbasic t -> pp_basic fmt t
   | Tclock t ->
-    fprintf fmt "%a clock" print_ty t
+    fprintf fmt "%a%s" print_ty t (if !Options.kind2_print then "" else " clock")
   | Tstatic (d, t) ->
     fprintf fmt "(%a:%a)" Dimension.pp_dimension d print_ty t
   | Tconst t ->
@@ -204,7 +204,7 @@ and print_node_ty fmt ty =
   end
   | Tbasic t -> BasicT.pp fmt t
   | Tclock t ->
-    fprintf fmt "%a clock" print_node_ty t
+    fprintf fmt "%a%s" print_node_ty t (if !Options.kind2_print then "" else " clock")
   | Tstatic (_, t) ->
     fprintf fmt "%a" print_node_ty t
   | Tconst t ->

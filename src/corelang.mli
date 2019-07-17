@@ -200,6 +200,8 @@ val eq_has_arrows: eq -> bool
 val push_negations: ?neg:bool -> expr -> expr
 
 val add_pre_expr: ident list -> expr -> expr
-                                            (* Local Variables: *)
+
+val mk_eq: Location.t -> expr -> expr -> expr 
+(* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)
