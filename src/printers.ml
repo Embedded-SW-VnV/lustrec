@@ -128,7 +128,17 @@ and pp_handlers fmt hl =
 and pp_app fmt id e r =
   match r with
   | None -> pp_call fmt id e
-  | Some c -> fprintf fmt "%t every (%a)" (fun fmt -> pp_call fmt id e) pp_expr c 
+  | Some c ->
+     if !Options.kind2_print &&
+          not (List.mem id Basic_library.internal_funs) then
+       (* We only translate calls to nodes in kind2. The other may be
+          rejected by Kind2 *)
+       fprintf fmt "(restart %s every (%a)) (%a)"
+         id
+         pp_expr c
+         pp_expr e
+     else
+       fprintf fmt "%t every (%a)" (fun fmt -> pp_call fmt id e) pp_expr c 
 
 and pp_call fmt id e =
   match id, e.expr_desc with
