@@ -76,31 +76,43 @@ let process_sw vars f_e sw =
 let sw_to_lustre m sw_init sw_step init_out update_out =
   let orig_nd = m.mname in
   let copy_nd = orig_nd (*Corelang.copy_node orig_nd *) in
-  let vl = (* memories *)
+  let vl = (* vl are memories *)
     match sw_init with
-    | [] -> assert false
-    | (gl, up)::_ -> List.map (fun (v,_) -> v) up
-  in    
-  let e_init = process_sw m.mmemory (fun x -> x) sw_init in
-  let e_step = process_sw m.mmemory (Corelang.add_pre_expr vl) sw_step in
-  let e_init_out = process_sw copy_nd.node_outputs (fun x -> x) init_out in
-  let e_update_out = process_sw  copy_nd.node_outputs (Corelang.add_pre_expr vl) update_out in
+    | [] -> [] (* the system is stateless. Returning an empty list
+                  shall do the job *) 
+          
+    | (gl, up)::_ ->
+       List.map (fun (v,_) -> v) up
+  in
   let loc = Location.dummy_loc in
+  let mem_eq =
+    if m.mmemory = [] then
+      []
+    else
+      let e_init = process_sw m.mmemory (fun x -> x) sw_init in
+      let e_step = process_sw m.mmemory (Corelang.add_pre_expr vl) sw_step in
+      [Eq
+         { eq_loc = loc;
+           eq_lhs = vl; 
+           eq_rhs = Corelang.mkexpr loc (Expr_arrow(e_init, e_step))
+      }]
+  in
+  let output_eq =
+    let e_init_out = process_sw copy_nd.node_outputs (fun x -> x) init_out in
+    let e_update_out = process_sw  copy_nd.node_outputs (Corelang.add_pre_expr vl) update_out in
+    [ 
+      Eq
+        { eq_loc = loc;
+          eq_lhs = List.map (fun v -> v.var_id) copy_nd.node_outputs; 
+          eq_rhs = Corelang.mkexpr loc (Expr_arrow(e_init_out, e_update_out))
+        };
+    ]
+  in
   let new_nd =
     { copy_nd with
-    node_id = copy_nd.node_id ^ "_seal";
-    node_locals = m.mmemory;
-    node_stmts = [Eq
-                    { eq_loc = loc;
-                      eq_lhs = vl; 
-                      eq_rhs = Corelang.mkexpr loc (Expr_arrow(e_init, e_step))
-                    };
-                 Eq
-                    { eq_loc = loc;
-                      eq_lhs = List.map (fun v -> v.var_id) copy_nd.node_outputs; 
-                      eq_rhs = Corelang.mkexpr loc (Expr_arrow(e_init_out, e_update_out))
-                    };
-                 ];
+      node_id = copy_nd.node_id ^ "_seal";
+      node_locals = m.mmemory;
+      node_stmts = mem_eq @ output_eq;
     }
   in
   new_nd, orig_nd
