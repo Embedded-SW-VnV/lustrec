@@ -359,7 +359,10 @@ let rec print_ck_suffix fmt ck =
   | Cvar 
   | Cunivar    -> ()
   | Con (ck,c,l) ->
-    fprintf fmt "%a when %s(%a)" print_ck_suffix ck l print_carrier c
+     if !Options.kind2_print then
+       print_ck_suffix fmt ck
+     else
+       fprintf fmt "%a when %s(%a)" print_ck_suffix ck l print_carrier c
   | Clink ck' ->
     print_ck_suffix fmt ck'
   | Ccarrying (cr,ck') ->
