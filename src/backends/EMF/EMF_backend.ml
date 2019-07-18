@@ -468,7 +468,6 @@ let pp_machine fmt m =
       pp_emf_vars_decl m.mstep.step_locals;
     fprintf fmt "\"mems\": [%a],@ "
       pp_emf_vars_decl m.mmemory;
-    
     fprintf fmt "\"original_name\": \"%s\",@ " m.mname.node_id;
     fprintf fmt "\"instrs\": {@[<v 0> %a@]@ },@ "
       (pp_emf_instrs m) instrs;
@@ -504,10 +503,10 @@ let pp_emf_imported_node fmt top =
       pp_emf_vars_decl ind.nodei_inputs;
     fprintf fmt "\"outputs\": [%a],@ "
       pp_emf_vars_decl ind.nodei_outputs;
-    fprintf fmt "\"original_name\": \"%s\",@ " ind.nodei_id;
-    (match ind.nodei_spec with None -> ()
+    fprintf fmt "\"original_name\": \"%s\"" ind.nodei_id;
+    (match ind.nodei_spec with None -> fprintf fmt "@ "
                              | Some (Contract _) -> assert false (* should have been processed *)
-                             | Some (NodeSpec id) -> fprintf fmt "\"coco_contract\": %s" id
+                             | Some (NodeSpec id) -> fprintf fmt ",@ \"coco_contract\": %s" id
     );
     fprintf fmt "@]@ }"
   with Unhandled msg -> (
