@@ -111,7 +111,16 @@ let rec pp_expr fmt expr =
     | Expr_arrow (e1, e2) -> fprintf fmt "(%a -> %a)" pp_expr e1 pp_expr e2
     | Expr_fby (e1, e2) -> fprintf fmt "%a fby %a" pp_expr e1 pp_expr e2
     | Expr_pre e -> fprintf fmt "pre %a" pp_expr e
-    | Expr_when (e, id, l) -> fprintf fmt "%a when %s(%s)" pp_expr e l id
+    | Expr_when (e, id, l) ->
+       if !Options.kind2_print then
+         if l = "true" then 
+         fprintf fmt "%a when %s" pp_expr e id
+         else if l = "false" then
+           fprintf fmt "%a when not(%s)" pp_expr e id
+         else
+           fprintf fmt "%a when (%s=%s)" pp_expr e l id
+     else
+         fprintf fmt "%a when %s(%s)" pp_expr e l id
     | Expr_merge (id, hl) -> 
       fprintf fmt "merge %s %a" id pp_handlers hl
     | Expr_appl (id, e, r) -> pp_app fmt id e r
