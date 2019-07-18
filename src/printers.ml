@@ -95,60 +95,113 @@ let pp_annot_key fmt kwds =
   | [x] -> pp_print_string fmt x
   | _ -> fprintf fmt "/%a/" (fprintf_list ~sep:"/" pp_print_string) kwds
 
+let pp_kind2_when fmt (id, l) =
+  if l = "true" then 
+    fprintf fmt "%s" id
+  else if l = "false" then
+    fprintf fmt "not(%s)" id
+  else
+    fprintf fmt "(%s=%s)" l id
+       
+  
 let rec pp_expr fmt expr =
   (match expr.expr_annot with 
-  | None -> fprintf fmt "%t" 
-  | Some ann -> fprintf fmt "@[(%a %t)@]" pp_expr_annot ann)
+   | None -> fprintf fmt "%t" 
+   | Some ann -> fprintf fmt "@[(%a %t)@]" pp_expr_annot ann)
     (fun fmt -> 
       match expr.expr_desc with
-    | Expr_const c -> pp_const fmt c
-    | Expr_ident id -> fprintf fmt "%s" id
-    | Expr_array a -> fprintf fmt "[%a]" pp_tuple a
-    | Expr_access (a, d) -> fprintf fmt "%a[%a]" pp_expr a Dimension.pp_dimension d
-    | Expr_power (a, d) -> fprintf fmt "(%a^%a)" pp_expr a Dimension.pp_dimension d
-    | Expr_tuple el -> fprintf fmt "(%a)" pp_tuple el
-    | Expr_ite (c, t, e) -> fprintf fmt "@[<hov 1>(if %a then@ @[<hov 2>%a@]@ else@ @[<hov 2>%a@]@])" pp_expr c pp_expr t pp_expr e
-    | Expr_arrow (e1, e2) -> fprintf fmt "(%a -> %a)" pp_expr e1 pp_expr e2
-    | Expr_fby (e1, e2) -> fprintf fmt "%a fby %a" pp_expr e1 pp_expr e2
-    | Expr_pre e -> fprintf fmt "pre %a" pp_expr e
-    | Expr_when (e, id, l) ->
-       if !Options.kind2_print then
-         if l = "true" then 
-         fprintf fmt "%a when %s" pp_expr e id
-         else if l = "false" then
-           fprintf fmt "%a when not(%s)" pp_expr e id
+      | Expr_const c -> pp_const fmt c
+      | Expr_ident id -> fprintf fmt "%s" id
+      | Expr_array a -> fprintf fmt "[%a]" pp_tuple a
+      | Expr_access (a, d) -> fprintf fmt "%a[%a]" pp_expr a Dimension.pp_dimension d
+      | Expr_power (a, d) -> fprintf fmt "(%a^%a)" pp_expr a Dimension.pp_dimension d
+      | Expr_tuple el -> fprintf fmt "(%a)" pp_tuple el
+      | Expr_ite (c, t, e) -> fprintf fmt "@[<hov 1>(if %a then@ @[<hov 2>%a@]@ else@ @[<hov 2>%a@]@])" pp_expr c pp_expr t pp_expr e
+      | Expr_arrow (e1, e2) -> fprintf fmt "(%a -> %a)" pp_expr e1 pp_expr e2
+      | Expr_fby (e1, e2) -> fprintf fmt "%a fby %a" pp_expr e1 pp_expr e2
+      | Expr_pre e -> fprintf fmt "pre %a" pp_expr e
+      | Expr_when (e, id, l) ->
+         if !Options.kind2_print then
+           fprintf fmt "%a when %a" pp_expr e pp_kind2_when (l, id)
          else
-           fprintf fmt "%a when (%s=%s)" pp_expr e l id
-     else
-         fprintf fmt "%a when %s(%s)" pp_expr e l id
-    | Expr_merge (id, hl) -> 
-      fprintf fmt "merge %s %a" id pp_handlers hl
-    | Expr_appl (id, e, r) -> pp_app fmt id e r
+           fprintf fmt "%a when %s(%s)" pp_expr e l id
+      | Expr_merge (id, hl) -> 
+         fprintf fmt "merge %s %a" id pp_handlers hl
+      | Expr_appl (id, e, r) -> pp_app fmt id e r
     )
 and pp_tuple fmt el =
- fprintf_list ~sep:"," pp_expr fmt el
+  fprintf_list ~sep:"," pp_expr fmt el
 
 and pp_handler fmt (t, h) =
- fprintf fmt "(%s -> %a)" t pp_expr h
+  fprintf fmt "(%s -> %a)" t pp_expr h
 
 and pp_handlers fmt hl =
- fprintf_list ~sep:" " pp_handler fmt hl
+  fprintf_list ~sep:" " pp_handler fmt hl
 
 and pp_app fmt id e r =
-  match r with
-  | None -> pp_call fmt id e
-  | Some c ->
-     if !Options.kind2_print &&
-          not (List.mem id Basic_library.internal_funs) then
-       (* We only translate calls to nodes in kind2. The other may be
+  if !Options.kind2_print &&
+       not (List.mem id Basic_library.internal_funs) then
+    (* We only translate calls to nodes in kind2. The other may be
           rejected by Kind2 *)
-       fprintf fmt "(restart %s every (%a)) (%a)"
-         id
-         pp_expr c
-         pp_expr e
-     else
-       fprintf fmt "%t every (%a)" (fun fmt -> pp_call fmt id e) pp_expr c 
+    ( (* Small local function to extract the first layer of when constructs *)
+      let rec un_when_ed_expr e =
+        match e.expr_desc with
+          Expr_when (e,i,l) -> (Some (i,l)), e
+        | Expr_tuple el -> (
+          let un_when_ed_el = List.map un_when_ed_expr el in
+          if List.length un_when_ed_el < 1 then
+            assert false; (* tuple should have at least one element*)
+          let init_when =
+            fst (List.hd un_when_ed_el)
+          in
+          let common_when =
+            List.fold_left (fun accu (new_opt,_) ->
+                match accu, new_opt with
+                | Some c1, Some c2 ->
+                   if c1 = c2 then
+                     Some c1
+                   else
+                     assert false  (* should not be clocked *)
+                | None, None -> None
+                | _ -> assert false (* If this is not even, there
+                                       should be a clocking problem*)
+              ) init_when (List.tl un_when_ed_el)
+          in
+          match common_when with
+          | None -> None, e
+          | Some _ -> common_when, { e with expr_desc =
+                                              Expr_tuple (List.map snd un_when_ed_el) } 
+        )
+        | _ -> None, e
+      in
+      let when_expr, unwhen_ed_e = un_when_ed_expr e in
+      match r, when_expr with
+      | None, None -> pp_call fmt id e
+      | None, Some w ->
+         fprintf fmt "(activate %s every (%a)) (%a)"
+           id
+           pp_kind2_when w
+           pp_expr e
+      | Some r, None ->
+         fprintf fmt "(restart %s every (%a)) (%a)"
+           id
+           pp_expr r
+           pp_expr e
+      | Some r, Some w ->
+         fprintf fmt "(activate %s every (%a) restart every (%a)) (%a)"
+           id
+           pp_kind2_when w
+           pp_expr r
+           pp_expr e
+    )
 
+  else (
+    match r with
+    | None -> pp_call fmt id e
+    | Some c ->
+       fprintf fmt "%t every (%a)" (fun fmt -> pp_call fmt id e) pp_expr c 
+  )
+  
 and pp_call fmt id e =
   match id, e.expr_desc with
   | "+", Expr_tuple([e1;e2]) -> fprintf fmt "(%a + %a)" pp_expr e1 pp_expr e2
@@ -178,21 +231,21 @@ and pp_eexpr fmt e =
     pp_expr e.eexpr_qfexpr
 
 and  pp_sf_value fmt e =
-   fprintf fmt "%a"
-     (* (Utils.fprintf_list ~sep:"; " pp_quantifiers) e.eexpr_quantifiers *)
-     (* (fun fmt -> match e.eexpr_quantifiers *)
-     (*             with [] -> () *)
-     (*                | _ -> fprintf fmt ";") *)
-     pp_expr e.eexpr_qfexpr
+  fprintf fmt "%a"
+    (* (Utils.fprintf_list ~sep:"; " pp_quantifiers) e.eexpr_quantifiers *)
+    (* (fun fmt -> match e.eexpr_quantifiers *)
+    (*             with [] -> () *)
+    (*                | _ -> fprintf fmt ";") *)
+    pp_expr e.eexpr_qfexpr
 
 and pp_s_function fmt expr_ann =
   let pp_annot fmt (kwds, ee) =
     fprintf fmt " %t : %a"
-                   (fun fmt -> match kwds with
-                               | [] -> assert false
-                               | [x] -> pp_print_string fmt x
-                               | _ -> fprintf fmt "%a" (fprintf_list ~sep:"/" pp_print_string) kwds)
-                   pp_sf_value ee
+      (fun fmt -> match kwds with
+                  | [] -> assert false
+                  | [x] -> pp_print_string fmt x
+                  | _ -> fprintf fmt "%a" (fprintf_list ~sep:"/" pp_print_string) kwds)
+      pp_sf_value ee
   in
   fprintf_list ~sep:"@ " pp_annot fmt expr_ann.annots
 
