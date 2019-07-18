@@ -20,6 +20,7 @@ let is_init_name = "__is_init"
 
 let const_defs = Hashtbl.create 13
 let is_const id = Hashtbl.mem const_defs id
+let is_enum_const id = Hashtbl.mem Zustre_data.const_tags id  
 let get_const id = Hashtbl.find const_defs id
                  
 (* expressions are only basic constructs here, no more ite, tuples,
@@ -106,25 +107,30 @@ let expr_to_z3_expr, zexpr_to_expr =
             let z3e = Zustre_common.horn_const_to_expr c in
             add_expr e z3e;
             z3e
-        )
-        else (
-          let fdecl_id = Zustre_common.get_fdecl id in
-          let z3e = Z3.Expr.mk_const_f !ctx fdecl_id in
-          add_expr e z3e;
-          z3e
+          )
+          else if is_enum_const id then (
+            let z3e = Zustre_common.horn_tag_to_expr id in
+            add_expr e z3e;
+            z3e
+          )
+          else (
+            let fdecl_id = Zustre_common.get_fdecl id in
+            let z3e = Z3.Expr.mk_const_f !ctx fdecl_id in
+            add_expr e z3e;
+            z3e
           )
         )
-      | Expr_appl (id,args, None) (* no reset *) ->
-         let z3e = Zustre_common.horn_basic_app id e2ze (Corelang.expr_list_of_expr args) in
-         add_expr e z3e;
-         z3e
-      | Expr_tuple [e] ->
-         let z3e = e2ze e in
-         add_expr e z3e;
-         z3e
-      | _ -> ( match e.expr_desc with Expr_tuple _ -> Format.eprintf "tuple e2ze(%a)@.@?" Printers.pp_expr e
-                                    | _ -> Format.eprintf "e2ze(%a)@.@?" Printers.pp_expr e)
-                 ; assert false
+        | Expr_appl (id,args, None) (* no reset *) ->
+           let z3e = Zustre_common.horn_basic_app id e2ze (Corelang.expr_list_of_expr args) in
+           add_expr e z3e;
+           z3e
+        | Expr_tuple [e] ->
+           let z3e = e2ze e in
+           add_expr e z3e;
+           z3e
+        | _ -> ( match e.expr_desc with Expr_tuple _ -> Format.eprintf "tuple e2ze(%a)@.@?" Printers.pp_expr e
+                                      | _ -> Format.eprintf "e2ze(%a)@.@?" Printers.pp_expr e)
+             ; assert false
       in
       res
     )
@@ -827,6 +833,13 @@ let rec build_switch_sys
           (Expr elem)
           mem_defs
       in
+  (*    Format.eprintf "Selected item %a in@.%a@.POS=%a@.NEG=%a@."
+        Printers.pp_expr elem
+        pp_all_defs mem_defs
+        pp_all_defs pos
+        pp_all_defs neg
+        ;
+   *)
       (* Special cases to avoid useless computations: true, false conditions *)
       match elem.expr_desc with
       (*| Expr_ident "true"  ->   build_switch_sys pos prefix *)
@@ -893,7 +906,8 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
   (* Filtering out unused vars *)
   let vars = List.filter (fun v -> not (List.mem v.var_id unused)) vars in
   (* Registering all locals variables as Z3 predicates. Will be use to
-     simplify the expansion *) 
+     simplify the expansion *)
+  Zustre_common.decl_sorts (); 
   let _ =
     List.iter (fun v ->
         let fdecl = Z3.FuncDecl.mk_func_decl_s
