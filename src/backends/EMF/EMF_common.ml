@@ -102,7 +102,7 @@ let rec pp_concrete_type dec_t infered_t fmt =
   match dec_t with
   | Tydec_any -> (* Dynamical built variable. No declared type. Shall
                     use the infered one. *)
-     fprintf fmt "{ \"kind\": %a }" pp_infered_type infered_t
+     pp_infered_type fmt infered_t
   | Tydec_int -> fprintf fmt "{ \"kind\": \"int\" }" (* !Options.int_type *)
   | Tydec_real -> fprintf fmt "{ \"kind\": \"real\" }" (* !Options.real_type *)
   (* TODO we could add more concrete types here if they were available in
@@ -170,9 +170,9 @@ and pp_tag_type id typ inf fmt =
 and pp_infered_type fmt t =
   (* Shall only be used for variable types that were not properly declared. Ie generated at compile time. *)
   let open Types in
-  if is_bool_type t  then fprintf fmt "\"bool\"" else
-    if is_int_type t then fprintf fmt "\"int\"" else (* !Options.int_type *)
-      if is_real_type t then fprintf fmt "\"real\"" else (* !Options.real_type *)
+  if is_bool_type t  then fprintf fmt "{ \"kind\": \"bool\" }" else
+    if is_int_type t then fprintf fmt "{ \"kind\": \"int\" }" else (* !Options.int_type *)
+      if is_real_type t then fprintf fmt "{ \"kind\": \"real\" }" else (* !Options.real_type *)
         match t.tdesc with
         | Tclock t ->
            pp_infered_type fmt t
@@ -186,8 +186,12 @@ and pp_infered_type fmt t =
            in
            pp_tag_type id typ t fmt
         | Tlink ty -> 
-           pp_infered_type fmt ty 
-        | _ -> eprintf "unhandled type: %a@." Types.print_node_ty t; assert false
+           pp_infered_type fmt ty
+        | Tarray (dim, base_t) ->
+           fprintf fmt "{ \"kind\": \"array\", \"base_type\": %a, \"dim\": %a }"
+             pp_infered_type base_t
+             pp_emf_dim dim
+    | _ -> eprintf "unhandled type: %a@." Types.print_node_ty t; assert false
 
 (*let pp_cst_type fmt v =
   match v.value_desc with
@@ -286,7 +290,7 @@ let pp_emf_cst c inf fmt =
   )
   
 (* Print a value: either a constant or a variable value *)
-let pp_emf_cst_or_var m fmt v =
+let rec pp_emf_cst_or_var m fmt v =
   match v.value_desc with
   | Cst c -> pp_emf_cst c v.value_type fmt 
   | Var v -> (
@@ -296,10 +300,24 @@ let pp_emf_cst_or_var m fmt v =
     fprintf fmt "\"datatype\": %a@ " pp_var_type v;
     fprintf fmt "@]}"
   )
-  | _ -> eprintf "Not of cst or var: %a@." (pp_val m) v ; assert false (* Invalid argument *)
+  | Array vl -> (
+     fprintf fmt "{@[\"type\": \"array\",@ \"value\": @[[%a@]],@ "
+      (pp_emf_cst_or_var_list m) vl;
+     fprintf fmt "@]}"
+  )
+  | Access (arr, idx) -> (
+      fprintf fmt "{@[\"type\": \"array access\",@ \"array\": @[[%a@]],@ \"idx\": @[[%a@]],@ "
+      (pp_emf_cst_or_var m) arr (pp_emf_cst_or_var m) idx;
+     fprintf fmt "@]}"
+  )
+  | Power (v,nb) ->(
+      fprintf fmt "{@[\"type\": \"power\",@ \"expr\": @[[%a@]],@ \"nb\": @[[%a@]],@ "
+      (pp_emf_cst_or_var m) v (pp_emf_cst_or_var m) nb;
+     fprintf fmt "@]}"
+  )
+  | Fun _ -> eprintf "Fun expression should have been normalized: %a@." (pp_val m) v ; assert false (* Invalid argument *)
 
-
-let pp_emf_cst_or_var_list m =
+and pp_emf_cst_or_var_list m =
   Utils.fprintf_list ~sep:",@ " (pp_emf_cst_or_var m)
 
 (* Printer lustre expr and eexpr *)
