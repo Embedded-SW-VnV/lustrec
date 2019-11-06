@@ -1369,8 +1369,9 @@ let rec push_negations ?(neg=false) e =
              
       | _ -> assert false                     
     )
-    | Expr_const _
-      | Expr_ident _ -> if neg then
+    | Expr_const c -> if neg then map (Expr_const (const_negation c)) else e
+    | Expr_ident _ -> 
+       if neg then
                          mkpredef_call e.expr_loc "not" [e]
                        else
                          e
