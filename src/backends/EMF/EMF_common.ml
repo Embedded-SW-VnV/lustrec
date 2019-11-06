@@ -384,8 +384,13 @@ let pp_emf_const fmt v =
 let pp_emf_consts = pp_emf_list pp_emf_const
                   
 let pp_emf_eexpr fmt ee =
-  fprintf fmt "{@[<hov 0>\"quantifiers\": \"%a\",@ \"qfexpr\": @[%a@]@] }"
-    (Utils.fprintf_list ~sep:"; " Printers.pp_quantifiers) ee.eexpr_quantifiers
+  fprintf fmt "{@[<hov 0>%t\"quantifiers\": \"%a\",@ \"qfexpr\": @[%a@]@] }"
+    (fun fmt -> match ee.eexpr_name with
+                | None -> ()
+                | Some name -> Format.fprintf fmt "\"name\": \"%s\",@ " name
+    )
+    (Utils.fprintf_list ~sep:"; " Printers.pp_quantifiers)
+    ee.eexpr_quantifiers
     pp_emf_expr ee.eexpr_qfexpr
 
 let pp_emf_eexprs = pp_emf_list pp_emf_eexpr
