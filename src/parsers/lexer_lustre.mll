@@ -119,9 +119,9 @@ rule token = parse
 | blank +
     {token lexbuf}
 | ((['0'-'9']+ as l)  '.' (['0'-'9']* as r) ('E'|'e') (('+'|'-')? ['0'-'9']+ as exp)) as s
-    {REAL (Num.num_of_string (l^r), String.length r + -1 * int_of_string exp , s)}
+    {REAL (Real.create (l^r) (String.length r + -1 * int_of_string exp) s)}
 | ((['0'-'9']+ as l) '.' (['0'-'9']* as r)) as s
-    {REAL (Num.num_of_string (l^r), String.length r, s)}
+    {REAL (Real.create (l^r) (String.length r) s)}
 | ['0'-'9']+ 
     {INT (int_of_string (Lexing.lexeme lexbuf)) }
 | "tel." {TEL}

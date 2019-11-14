@@ -56,12 +56,12 @@ let rec verify dirname basename extension =
   let module Verifier = (val verifier : VerifierType.S) in
 
   decr Options.verbose_level;
+  let params = Verifier.get_normalization_params () in
   (* Normalizing it *)
   let prog, dependencies = 
     Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>.. Phase 1 : Normalisation@,");
     try
       incr Options.verbose_level;
-      let params = Verifier.get_normalization_params () in
       decr Options.verbose_level;
       Compiler_stages.stage1 params prog dirname basename extension
     with Compiler_stages.StopPhase1 prog -> (
@@ -73,8 +73,8 @@ let rec verify dirname basename extension =
 
   Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>.. Phase 2 : Machines generation@,");
 
-  let machine_code = 
-    Compiler_stages.stage2 prog 
+  let prog, machine_code = 
+    Compiler_stages.stage2 params prog 
   in
 
   Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ ");

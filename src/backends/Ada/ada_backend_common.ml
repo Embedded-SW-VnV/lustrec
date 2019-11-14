@@ -124,7 +124,7 @@ let pp_type fmt typ =
 **)
 let default_ada_cst cst_typ = match cst_typ with
   | Types.Basic.Tint  -> Const_int 0
-  | Types.Basic.Treal -> Const_real (Num.num_of_int 0, 0, "0.0")
+  | Types.Basic.Treal -> Const_real Real.zero
   | Types.Basic.Tbool -> Const_tag tag_false
   | _ -> assert false
 
@@ -200,8 +200,7 @@ let pp_ada_tag fmt t =
 let pp_ada_const fmt c =
   match c with
   | Const_int i                     -> pp_print_int fmt i
-  | Const_real (c, e, s)            ->
-      fprintf fmt "%s.0*1.0e-%i" (Num.string_of_num c) e
+  | Const_real r                    -> Real.pp_ada fmt r
   | Const_tag t                     -> pp_ada_tag fmt t
   | Const_string _ | Const_modeid _ ->
     (Format.eprintf

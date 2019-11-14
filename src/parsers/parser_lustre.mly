@@ -54,7 +54,7 @@ let rec fby expr n init =
 %}
 
 %token <int> INT
-%token <Num.num * int * string> REAL
+%token <Real.t> REAL
 
 %token <string> STRING
 %token AUTOMATON STATE UNTIL UNLESS RESTART RESUME 
@@ -470,7 +470,7 @@ dim_list:
 expr:
 /* constants */
   INT {mkexpr (Expr_const (Const_int $1))}
-| REAL {let c,e,s = $1 in mkexpr (Expr_const (Const_real (c,e,s)))}
+| REAL {mkexpr (Expr_const (Const_real $1))}
 | STRING {mkexpr (Expr_const (Const_string $1))}
 | COLCOL IDENT {mkexpr (Expr_const (Const_modeid $2))} 
     
@@ -606,11 +606,11 @@ signed_const_struct:
 
 signed_const:
   INT {Const_int $1}
-| REAL {let c,e,s =$1 in Const_real (c,e,s)}
+| REAL {Const_real $1}
 /* | FLOAT {Const_float $1} */
 | tag_ident {Const_tag $1}
 | MINUS INT {Const_int (-1 * $2)}
-| MINUS REAL {let c,e,s = $2 in Const_real (Num.minus_num c, e, "-" ^ s)}
+| MINUS REAL {Const_real (Real.uminus $2)}
 /* | MINUS FLOAT {Const_float (-1. *. $2)} */
 | LCUR signed_const_struct RCUR { Const_struct $2 }
 | LBRACKET signed_const_array RBRACKET { Const_array $2 }

@@ -80,8 +80,8 @@ let rec compile dirname basename extension =
 
   Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>.. Phase 2 : Machines generation@,");
 
-  let machine_code = 
-    Compiler_stages.stage2 prog 
+  let prog, machine_code = 
+    Compiler_stages.stage2 params prog 
   in
 
   Log.report ~level:3 (fun fmt -> fprintf fmt ".. Generated machines:@ %a@ " Machine_code_common.pp_machines machine_code);

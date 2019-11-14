@@ -169,8 +169,8 @@ and print_ty_param pp_basic fmt ty =
   | Tbasic t -> pp_basic fmt t
   | Tclock t ->
     fprintf fmt "%a%s" print_ty t (if !Options.kind2_print then "" else " clock")
-  | Tstatic (d, t) ->
-    fprintf fmt "(%a:%a)" Dimension.pp_dimension d print_ty t
+  | Tstatic (d, t) -> print_ty fmt t
+                        (* fprintf fmt "(%a:%a)" Dimension.pp_dimension d print_ty t *)
   | Tconst t ->
     fprintf fmt "%s" t
   | Tarrow (ty1,ty2) ->

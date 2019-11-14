@@ -188,7 +188,7 @@ let rdm_mutate_real r =
     let eshift = 10. ** (float_of_int shift) in
     let i = Random.int (1 + bound * (int_of_float eshift)) in
     let f = float_of_int i /. eshift in
-    (Num.num_of_int i, shift, string_of_float f)
+    Real.create (string_of_int i) shift (string_of_float f)
   else 
     r
 
@@ -224,7 +224,7 @@ let rdm_mutate_pre orig_expr =
 let rdm_mutate_const_value c =
   match c with
   | Const_int i -> Const_int (rdm_mutate_int i)
-  | Const_real (n, i, s) -> let (n', i', s') = rdm_mutate_real (n, i, s) in Const_real (n', i', s')
+  | Const_real r -> Const_real (rdm_mutate_real r)
   | Const_array _
   | Const_string _
   | Const_modeid _

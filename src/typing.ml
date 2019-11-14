@@ -259,8 +259,8 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
 	       else (fun c -> None) in
 	     begin
 	       unif t1' t2';
-	       Dimension.eval Basic_library.eval_env eval_const e1;
-	       Dimension.eval Basic_library.eval_env eval_const e2;
+	       Dimension.eval Basic_library.eval_dim_env eval_const e1;
+	       Dimension.eval Basic_library.eval_dim_env eval_const e2;
 	       Dimension.unify ~semi:semi e1 e2;
 	     end
           (* Special cases for machine_types. Rules to unify static types infered
@@ -359,7 +359,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
 	     then dimension_of_expr arg
 	     else Dimension.mkdim_var () in
            let eval_const id = (* Types. *)get_static_value (Env.lookup_value (fst env) id) in
-           Dimension.eval Basic_library.eval_env eval_const d;
+           Dimension.eval Basic_library.eval_dim_env eval_const d;
            let real_static_type = (* Type_predef. *)type_static d ((* Types. *)dynamic_type targ) in
            (match (* Types. *)get_static_value targ with
             | None    -> ()
@@ -477,7 +477,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
         | Expr_power (e1, d) ->
            let eval_const id = (* Types. *)get_static_value (Env.lookup_value (fst env) id) in
            type_subtyping_arg env in_main true (expr_of_dimension d) (* Type_predef. *)type_int;
-           Dimension.eval Basic_library.eval_env eval_const d;
+           Dimension.eval Basic_library.eval_dim_env eval_const d;
            let ty_elt = type_appl env in_main expr.expr_loc const "uminus" [e1] in
            let ty = (* Type_predef. *)type_array d ty_elt in
            expr.expr_type <- Expr_type_hub.export ty;
@@ -637,7 +637,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       let type_dim d =
         begin
           type_subtyping_arg (env, vd_env) false true (expr_of_dimension d) (* Type_predef. *)type_int;
-          Dimension.eval Basic_library.eval_env eval_const d;
+          Dimension.eval Basic_library.eval_dim_env eval_const d;
         end in
       let ty = type_coretype type_dim vdecl.var_dec_type.ty_dec_desc in
 

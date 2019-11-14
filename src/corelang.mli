@@ -70,8 +70,6 @@ val is_clock_dec_type: type_dec_desc -> bool
 val get_repr_type: type_dec_desc -> type_dec_desc
 val is_user_type: type_dec_desc -> bool
 val coretype_equal: type_dec_desc -> type_dec_desc -> bool
-val tag_true: label
-val tag_false: label
 val tag_default: label
 val tag_table: (label, top_decl) Hashtbl.t
 val field_table: (label, top_decl) Hashtbl.t
@@ -190,9 +188,6 @@ val mk_fresh_var: (ident * var_decl list) -> Location.t -> Types.type_expr ->  C
 
 val find_eq: ident list -> eq list -> eq * eq list
 
-(* Extract a num to describe a real constant *)
-val cst_real_to_num: Num.num -> int -> Num.num
-
 val get_expr_calls: top_decl list -> expr -> Utils.ISet.t
 
 val eq_has_arrows: eq -> bool
@@ -202,6 +197,10 @@ val push_negations: ?neg:bool -> expr -> expr
 val add_pre_expr: ident list -> expr -> expr
 
 val mk_eq: Location.t -> expr -> expr -> expr 
-(* Local Variables: *)
+
+(* Simple transformations: eg computation over constants *)
+val partial_eval: expr -> expr
+
+  (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

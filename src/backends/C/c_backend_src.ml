@@ -130,7 +130,7 @@ let pp_suffix m fmt loop_vars =
 let rec pp_c_const_suffix var_type fmt c =
   match c with
     | Const_int i          -> pp_print_int fmt i
-    | Const_real (_, _, s) -> pp_print_string fmt s
+    | Const_real r         -> Real.pp fmt r
     | Const_tag t          -> pp_c_tag fmt t
     | Const_array ca       -> let var_type = Types.array_element_type var_type in
                               fprintf fmt "(%a[]){%a }" (pp_c_type "") var_type (Utils.fprintf_list ~sep:", " (pp_c_const_suffix var_type)) ca

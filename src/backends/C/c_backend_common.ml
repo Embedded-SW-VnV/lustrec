@@ -226,7 +226,7 @@ let pp_c_tag fmt t =
 let rec pp_c_const fmt c =
   match c with
     | Const_int i     -> pp_print_int fmt i
-    | Const_real (c,e,s)-> pp_print_string fmt s (* Format.fprintf fmt "%ie%i" c e*)
+    | Const_real r -> Real.pp fmt r
     (* | Const_float r   -> pp_print_float fmt r *)
     | Const_tag t     -> pp_c_tag fmt t
     | Const_array ca  -> fprintf fmt "{%a }" (Utils.fprintf_list ~sep:", " pp_c_const) ca

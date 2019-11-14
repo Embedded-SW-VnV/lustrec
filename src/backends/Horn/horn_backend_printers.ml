@@ -42,7 +42,7 @@ let pp_horn_tag fmt t =
 let rec pp_horn_const fmt c =
   match c with
     | Const_int i    -> pp_print_int fmt i
-    | Const_real (_,_,s)   -> pp_print_string fmt s
+    | Const_real r   -> Real.pp fmt r
     | Const_tag t    -> pp_horn_tag fmt t
     | _              -> assert false
 

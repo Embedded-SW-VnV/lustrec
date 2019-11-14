@@ -404,8 +404,6 @@ let rec coretype_equal ty1 ty2 =
   | _                                  -> false
   in ((*Format.eprintf "coretype_equal %a %a = %B@." Printers.pp_var_type_dec_desc ty1 Printers.pp_var_type_dec_desc ty2 res;*) res)
 
-let tag_true = "true"
-let tag_false = "false"
 let tag_default = "default"
 
 let const_is_bool c =
@@ -579,17 +577,11 @@ let rec dimension_of_expr expr =
 let sort_handlers hl =
  List.sort (fun (t, _) (t', _) -> compare t t') hl
 
-let num_10 = Num.num_of_int 10
-
-let cst_real_to_num n i =
-  Num.(n // (num_10 **/ (num_of_int i)))
-
+  
 let rec is_eq_const c1 c2 =
   match c1, c2 with
-  | Const_real (n1, i1, _), Const_real (n2, i2, _)
-    -> let n1 = cst_real_to_num n1 i1 in
-       let n2 = cst_real_to_num n2 i2 in
-	    Num.eq_num n1 n2
+  | Const_real r1, Const_real r2
+    -> Real.eq r1 r1 
   | Const_struct lcl1, Const_struct lcl2
     -> List.length lcl1 = List.length lcl2
     && List.for_all2 (fun (l1, c1) (l2, c2) -> l1 = l2 && is_eq_const c1 c2) lcl1 lcl2
@@ -1414,7 +1406,48 @@ let rec add_pre_expr vars e =
         
 let mk_eq l e1 e2 =
   mkpredef_call l "=" [e1; e2]
-      
+
+
+let rec partial_eval e =
+  let pa = partial_eval in
+  let edesc =
+    match e.expr_desc with
+    | Expr_const _ -> e.expr_desc 
+    | Expr_ident id -> e.expr_desc
+    | Expr_ite (g,t,e) -> (
+       let g, t, e = pa g, pa t, pa e in
+       match g.expr_desc with
+       | Expr_const (Const_tag tag) when (tag = tag_true) -> t.expr_desc
+       | Expr_const (Const_tag tag) when (tag = tag_false) -> e.expr_desc
+       | _ -> Expr_ite (g, t, e)
+    )
+    | Expr_tuple t ->
+       Expr_tuple (List.map pa t)
+    | Expr_arrow (e1, e2) ->
+       Expr_arrow (pa e1, pa e2) 
+    | Expr_fby (e1, e2) ->
+       Expr_fby (pa e1, pa e2)
+    | Expr_pre e ->
+       Expr_pre (pa e)
+    | Expr_appl (op, args, opt) ->
+       let args = pa args in
+       if Basic_library.is_expr_internal_fun e then
+         Basic_library.partial_eval op args opt
+       else
+         Expr_appl (op, pa e, opt)
+    | Expr_array el ->
+       Expr_array (List.map pa el)
+    | Expr_access (e, d) ->
+       Expr_access (pa e, d)
+    | Expr_power (e, d) ->
+       Expr_power (pa e, d)
+    | Expr_when (e, id, l) ->
+       Expr_when (pa e, id, l)
+    | Expr_merge (id, gl) -> 
+       Expr_merge(id, List.map (fun (l, e) -> l, pa e) gl)
+  in
+  { e with expr_desc = edesc }
+
     (* Local Variables: *)
     (* compile-command:"make -C .." *)
     (* End: *)

@@ -48,7 +48,7 @@ and clock_dec_desc =
 
 type constant =
   | Const_int of int
-  | Const_real of Num.num * int * string (* (a, b, c) means a * 10^-b. c is the original string *)
+  | Const_real of Real.t
   | Const_array of constant list
   | Const_tag of label
   | Const_string of string (* used only for annotations *)
@@ -254,6 +254,8 @@ type spec_types =
   | LocalContract of contract_desc
   | TopContract of top_decl list
 
+let tag_true = "true"
+let tag_false = "false"
 
 
 (* Local Variables: *)

@@ -260,7 +260,7 @@ let sort_equations_from_schedule eqs sch =
   	(Utils.fprintf_list ~sep:" ; " pp_eq_schedule) sch);
   let split_eqs = Splitting.tuple_split_eq_list eqs in
   (* Flatten schedule *)
-  let sch = List.fold_right (fun vl res -> (List.map (fun v -> [v]) vl)@res) sch [] in
+   let sch = List.fold_right (fun vl res -> (List.map (fun v -> [v]) vl)@res) sch [] in 
   let eqs_rev, remainder =
     List.fold_left
       (fun (accu, node_eqs_remainder) vl ->

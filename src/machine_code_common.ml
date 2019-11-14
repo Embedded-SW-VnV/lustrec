@@ -299,7 +299,7 @@ let type_of_value_appl f args =
 let rec value_of_dimension m dim =
   match dim.Dimension.dim_desc with
   | Dimension.Dbool b         ->
-     mk_val (Cst (Const_tag (if b then Corelang.tag_true else Corelang.tag_false))) Type_predef.type_bool
+     mk_val (Cst (Const_tag (if b then tag_true else tag_false))) Type_predef.type_bool
   | Dimension.Dint i          ->
      mk_val (Cst (Const_int i)) Type_predef.type_int
   | Dimension.Dident v        -> value_of_ident dim.Dimension.dim_loc m v
@@ -315,8 +315,8 @@ let rec value_of_dimension m dim =
 
 let rec dimension_of_value value =
   match value.value_desc with
-  | Cst (Const_tag t) when t = Corelang.tag_true  -> Dimension.mkdim_bool  Location.dummy_loc true
-  | Cst (Const_tag t) when t = Corelang.tag_false -> Dimension.mkdim_bool  Location.dummy_loc false
+  | Cst (Const_tag t) when t = tag_true  -> Dimension.mkdim_bool  Location.dummy_loc true
+  | Cst (Const_tag t) when t = tag_false -> Dimension.mkdim_bool  Location.dummy_loc false
   | Cst (Const_int i)                             -> Dimension.mkdim_int   Location.dummy_loc i
   | Var v                                         -> Dimension.mkdim_ident Location.dummy_loc v.var_id
   | Fun (f, args)                                 -> Dimension.mkdim_appl  Location.dummy_loc f (List.map dimension_of_value args)
