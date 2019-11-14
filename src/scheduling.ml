@@ -255,14 +255,17 @@ let pp_warning_unused fmt node_schs =
    to the computed schedule [sch]
 *)
 let sort_equations_from_schedule eqs sch =
-  (* Format.eprintf "%s schedule: %a@." *)
-  (* 		 nd.node_id *)
-  (* 		 (Utils.fprintf_list ~sep:" ; " Scheduling.pp_eq_schedule) sch; *)
+  Log.report ~level:10 (fun fmt ->
+      Format.fprintf fmt "schedule: %a@."
+  	(Utils.fprintf_list ~sep:" ; " pp_eq_schedule) sch);
   let split_eqs = Splitting.tuple_split_eq_list eqs in
+  (* Flatten schedule *)
+  let sch = List.fold_right (fun vl res -> (List.map (fun v -> [v]) vl)@res) sch [] in
   let eqs_rev, remainder =
     List.fold_left
       (fun (accu, node_eqs_remainder) vl ->
-       if List.exists (fun eq -> List.exists (fun v -> List.mem v eq.eq_lhs) vl) accu
+        (* For each variable in vl, there should exists the equations in accu *)
+       if List.for_all (fun v -> List.exists (fun eq -> List.mem v eq.eq_lhs) accu) vl
        then
 	 (accu, node_eqs_remainder)
        else
