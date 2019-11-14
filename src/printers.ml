@@ -13,6 +13,16 @@ open Lustre_types
 open Format
 open Utils
 
+let kind2_language_cst =
+  [ "initial" ]
+  
+let kind2_protect id =
+  if List.mem id kind2_language_cst then
+    "_KIND2_PROTECT_" ^ id
+  else
+    id
+  
+   
 (* Prints [v] as [pp_fun] would do, but adds a backslash at each end of line,
    following the C convention for multiple lines macro *)
 let pp_as_c_macro pp_fun fmt v =
@@ -46,7 +56,9 @@ and pp_var_type_dec_desc fmt tdesc =
 let pp_var_type_dec fmt ty =
   pp_var_type_dec_desc fmt ty.ty_dec_desc
 
-let pp_var_name fmt id = fprintf fmt "%s" id.var_id
+let pp_var_name fmt id =
+  fprintf fmt "%s" (if !Options.kind2_print then kind2_protect id.var_id else id.var_id) 
+
 let pp_var_type fmt id =
   if !Options.print_dec_types then
     pp_var_type_dec fmt id.var_dec_type
@@ -59,7 +71,7 @@ let pp_eq_lhs = fprintf_list ~sep:", " pp_print_string
 let pp_var fmt id =
   fprintf fmt "%s%s: %a"
     (if id.var_dec_const then "const " else "")
-    id.var_id
+    (if !Options.kind2_print then kind2_protect id.var_id else id.var_id)
     pp_var_type id
 
 let pp_vars fmt vars =
@@ -75,9 +87,7 @@ let rec pp_struct_const_field fmt (label, c) =
 and pp_const fmt c = 
   match c with
     | Const_int i -> pp_print_int fmt i
-    | Const_real (c, e, s) -> fprintf fmt "%s%s"
-                                s
-                                (if String.get s (-1 + String.length s) = '.' then "0" else "")
+    | Const_real r -> Real.pp fmt r
     (*if e = 0 then pp_print_int fmt c else if e < 0 then Format.fprintf fmt "%ie%i" c (-e) else Format.fprintf fmt "%ie-%i" c e *)
     (* | Const_float r -> pp_print_float fmt r *)
     | Const_tag  t -> pp_print_string fmt t
@@ -111,7 +121,10 @@ let rec pp_expr fmt expr =
     (fun fmt -> 
       match expr.expr_desc with
       | Expr_const c -> pp_const fmt c
-      | Expr_ident id -> fprintf fmt "%s" id
+      | Expr_ident id ->
+         fprintf fmt "%s"
+           (if !Options.kind2_print then kind2_protect id else id)
+
       | Expr_array a -> fprintf fmt "[%a]" pp_tuple a
       | Expr_access (a, d) -> fprintf fmt "%a[%a]" pp_expr a Dimension.pp_dimension d
       | Expr_power (a, d) -> fprintf fmt "(%a^%a)" pp_expr a Dimension.pp_dimension d
@@ -276,7 +289,7 @@ let pp_node_var fmt id =
   begin
     fprintf fmt "%s%s: %a%a"
       (if id.var_dec_const then "const " else "")
-      id.var_id
+      (if !Options.kind2_print then kind2_protect id.var_id else id.var_id)
       pp_var_type id
       pp_var_clock id;
     match id.var_dec_value with
