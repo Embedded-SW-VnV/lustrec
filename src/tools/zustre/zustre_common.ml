@@ -194,9 +194,9 @@ let horn_var_to_expr v =
 
   (* Used to print boolean constants *)
 let horn_tag_to_expr t =
-  if t = Corelang.tag_true then
+  if t = tag_true then
     Z3.Boolean.mk_true !ctx
-  else if t = Corelang.tag_false then
+  else if t = tag_false then
     Z3.Boolean.mk_false !ctx
   else
     (* Finding the associated sort *)
@@ -215,7 +215,7 @@ let horn_tag_to_expr t =
 let rec horn_const_to_expr c =
   match c with
     | Const_int i    -> Z3.Arithmetic.Integer.mk_numeral_i !ctx i
-    | Const_real (_,_,s)   -> Z3.Arithmetic.Real.mk_numeral_s !ctx s
+    | Const_real r  -> Z3.Arithmetic.Real.mk_numeral_s !ctx (Real.to_string r)
     | Const_tag t    -> horn_tag_to_expr t
     | _              -> assert false
 
@@ -350,6 +350,10 @@ let horn_basic_app i val_to_expr vl =
        (val_to_expr v1)
        (val_to_expr v2)
 
+  | "int_to_real", [v1] ->
+     Z3.Arithmetic.Integer.mk_int2real
+       !ctx
+       (val_to_expr v1)
 
     
   (* | _, [v1; v2] ->      Z3.Boolean.mk_and

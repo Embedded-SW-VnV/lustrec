@@ -52,7 +52,15 @@ let seal_run ~basename prog machines =
         machines; 
       exit 1
     )
-    | s -> s
+    | s -> ( (* should have been addessed before *)
+      match Machine_code_common.get_machine_opt machines s with
+      | None -> begin
+          Global.main_node := s;
+          Format.eprintf "Code generation error: %a@." Error.pp_error_msg Error.Main_not_found;
+          raise (Corelang.Error (Location.dummy_loc, Error.Main_not_found))
+        end
+      | Some _ -> s
+    )
   in
   let m = Machine_code_common.get_machine machines node_name in
   let nd = m.mname in
@@ -62,7 +70,7 @@ let seal_run ~basename prog machines =
   let msch = Utils.desome m.msch in
   (* Format.eprintf "graph: %a@." Causality.pp_dep_graph deps; *)
   let sliced_nd = slice_node (mems@nd.node_outputs) msch nd in
-  (* Format.eprintf "Sliced Node %a@." Printers.pp_node sliced_nd; *)
+  if false then Format.eprintf "Sliced Node %a@." Printers.pp_node sliced_nd;
   report ~level:3 (fun fmt -> Format.fprintf fmt "Node sliced@.");
 
   let consts = Corelang.(List.map const_of_top (get_consts prog)) in
@@ -96,10 +104,18 @@ let seal_run ~basename prog machines =
   report ~level:1 (fun fmt ->
       (*let pp_res = pp_res (fun fmt e -> Format.fprintf fmt "%i" e.Lustre_types.expr_tag)  in*)
        let pp_res = pp_res Printers.pp_expr in
-      Format.fprintf fmt "@[<v 0>@[<v 3>Init:@ %a@]@ "
+      Format.fprintf fmt "DynSys:@ @[<v 0>@[<v 3>Init:@ %a@]@ "
         pp_res  sw_init;
       Format.fprintf fmt "@[<v 3>Step:@ %a@]@]@ "
         pp_res  sw_sys
+    );
+  report ~level:1 (fun fmt ->
+      (*let pp_res = pp_res (fun fmt e -> Format.fprintf fmt "%i" e.Lustre_types.expr_tag)  in*)
+       let pp_res = pp_res Printers.pp_expr in
+      Format.fprintf fmt "Output:@ @[<v 0>@[<v 3>Init:@ %a@]@ "
+        pp_res  init_out;
+      Format.fprintf fmt "@[<v 3>Step:@ %a@]@]@ "
+        pp_res  update_out
     );
   let _ = match !seal_export with
     | Some "lustre" | Some "lus" ->
@@ -122,7 +138,10 @@ module Verifier =
       ]
     let activate () =
       active := true;
-      Options.global_inline := true
+      Options.global_inline := true;
+      Options.optimization := 0;
+      Options.const_unfold := true;
+      ()
       
     let is_active () = !active
     let run = seal_run

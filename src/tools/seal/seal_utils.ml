@@ -43,8 +43,7 @@ let deelem e =  match e with
 let is_eq_elem elem elem' =
   match elem, elem' with
   | IsInit, IsInit -> true
-  | Expr e, Expr e' -> e = e' (*
-     Corelang.is_eq_expr e e' *)
+  | Expr e, Expr e' -> Corelang.is_eq_expr e e' 
   | _ -> false
 
 let select_elem elem (gelem, _) =

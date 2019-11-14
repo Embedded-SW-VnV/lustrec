@@ -166,7 +166,7 @@ let expr_to_z3_expr, zexpr_to_expr =
                 Location.dummy_loc
                 (Expr_const
                    (Const_real
-                      (num, 0, s)))
+                      (Real.create_num num s)))
             else if Z3.Arithmetic.is_int ze then
               mkexpr
                 Location.dummy_loc
@@ -355,6 +355,7 @@ let check_sat ?(just_check=false) (l: elem_boolexpr guard) : bool * (elem_boolex
     Format.eprintf "After simplify: %a@." (pp_guard_list pp_elem) l; 
     Format.eprintf "@[<v 2>Z3 check sat: [%a]@ " (pp_guard_list pp_elem)l;
   );
+  
   let solver = Z3.Solver.mk_simple_solver !ctx in
   try (
     let zl =
@@ -456,7 +457,9 @@ let combine_guards ?(fresh=None) gl1 gl2 =
   (* Filtering out trivial cases. More semantics ones would have to be
      addressed later *)
   let check_sat e = (* temp function before we clean the original one *)
+    (* Format.eprintf "CheckSAT? %a@." (pp_guard_list pp_elem) e; *)
     let ok, _ = check_sat e in
+    (* Format.eprintf "CheckSAT DONE@."; *)
     ok
   in
   let implies (e1,pn1) (e2,pn2) =
@@ -580,15 +583,20 @@ let mk_ge_eq_id ge id =
     (* Rewrite the expression expr, replacing any occurence of a variable
    by its definition.
      *)
-let rec rewrite defs expr : elem_guarded_expr list =
+let rec rewrite defs expr : elem_guarded_expr list =   
   let rewrite = rewrite defs in
   let res =
     match expr.expr_desc with
     | Expr_appl (id, args, None) ->
        let args = rewrite args in
        List.map (fun (guards, e) ->
-           guards,
-           Expr (Corelang.mkexpr expr.expr_loc (Expr_appl(id, deelem e, None)))
+       let new_e =
+         Corelang.mkexpr
+           expr.expr_loc
+           (Expr_appl(id, deelem e, None))
+       in
+       guards,
+       Expr (Corelang.partial_eval new_e) 
          ) args 
     | Expr_const _  -> [[], Expr expr]
     | Expr_ident id ->
@@ -640,7 +648,8 @@ let rec rewrite defs expr : elem_guarded_expr list =
                     fun accu (gl, minituple) ->
                     let is_compat, guard_comb = combine_guards g gl in
                     if is_compat then
-                      let new_gt : elem_boolexpr guard * expr list = (guard_comb, (deelem e)::minituple) in
+                      let new_gt : elem_boolexpr guard * expr list =
+                        (guard_comb, (deelem e)::minituple) in
                       new_gt::accu
                     else
                       accu
@@ -655,7 +664,7 @@ let rec rewrite defs expr : elem_guarded_expr list =
          gtuples
     | Expr_fby _
       | Expr_appl _
-                  (* Should be removed by mormalization and inlining *)
+                  (* Should be removed by normalization and inlining *)
       -> Format.eprintf "Pb expr: %a@.@?" Printers.pp_expr expr; assert false
     | Expr_array _ | Expr_access _ | Expr_power _
                                                 (* Arrays not handled here yet *)
@@ -668,6 +677,7 @@ let rec rewrite defs expr : elem_guarded_expr list =
    *   (Utils.fprintf_list ~sep:"@ "
    *        pp_guard_expr) res; *)
   res
+  
 and add_def defs vid expr =
   (* Format.eprintf "Add_def: %s = %a@."
    *   vid
@@ -676,13 +686,15 @@ and add_def defs vid expr =
   (* Format.eprintf "-> @[<v 0>%a@]@."
    *   (Utils.fprintf_list ~sep:"@ "
    *      (pp_guard_expr pp_elem)) vid_defs;   *)
-  (* Format.eprintf "Add_def: %s = %a@. -> @[<v 0>%a@]@."
-   *     vid
-   *     Printers.pp_expr expr
-   *     (
-   *       (Utils.fprintf_list ~sep:"@ "
-   *          pp_guard_expr)) vid_defs;  *)
-  Hashtbl.add defs vid vid_defs
+  report ~level:6 (fun fmt -> Format.fprintf fmt  "Add_def: %s = %a@. -> @[<v 0>%a@]@."
+      vid
+      Printers.pp_expr expr
+      
+      (
+        (Utils.fprintf_list ~sep:"@ "
+           (pp_guard_expr pp_elem))) vid_defs);
+  Hashtbl.add defs vid vid_defs;
+  vid_defs
 
 (* Takes a list of guarded exprs (ge) and a guard
 returns the same list of ge splited into the ones where the guard is true and the ones where it is false. In both lists the associated ge do not mention that guard anymore.
@@ -843,10 +855,10 @@ let rec build_switch_sys
       (* Special cases to avoid useless computations: true, false conditions *)
       match elem.expr_desc with
       (*| Expr_ident "true"  ->   build_switch_sys pos prefix *)
-      | Expr_const (Const_tag tag) when tag = Corelang.tag_true
+      | Expr_const (Const_tag tag) when tag = tag_true
         ->   build_switch_sys pos prefix
       (*| Expr_ident "false" ->   build_switch_sys neg prefix *)
-      | Expr_const (Const_tag tag) when tag = Corelang.tag_false 
+      | Expr_const (Const_tag tag) when tag = tag_false 
         ->   build_switch_sys neg prefix
       | _ -> (* Regular case *)
          (* let _ = (
@@ -923,6 +935,10 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
     List.iter (fun c -> Hashtbl.add const_defs c.const_id c.const_value) consts
   in
 
+  report ~level:4 (fun fmt -> Format.fprintf fmt "Computing definitions for equations@.%a@."
+                            Printers.pp_node_eqs sorted_eqs
+    );
+  
   
   (* Registering node equations: identifying mem definitions and
      storing others in the "defs" hashtbl.
@@ -941,21 +957,28 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
                | Expr_pre def_m ->
                   report ~level:3 (fun fmt ->
                       Format.fprintf fmt "Preparing mem %s@." vid);
-                  (vid, rewrite defs def_m)::accu_mems, accu_outputs
+                  let def_vid = rewrite defs def_m in
+                  report ~level:4 (fun fmt ->
+                      Format.fprintf fmt "%s = %a@." vid
+ (
+        (Utils.fprintf_list ~sep:"@ "
+           (pp_guard_expr pp_elem))) 
+                        def_vid);
+                  (vid, def_vid)::accu_mems, accu_outputs
                | _ -> assert false
              ) 
            else if List.exists (fun v -> v.var_id = vid) nd.node_outputs then (
              report ~level:3 (fun fmt ->
                  Format.fprintf fmt "Output variable %s@." vid);
-             add_def vid eq.eq_rhs;
-             accu_mems, (vid, rewrite defs eq.eq_rhs)::accu_outputs
+             let def_vid = add_def vid eq.eq_rhs in
+             accu_mems, (vid, def_vid)::accu_outputs
              
            )
            else
              (
                report ~level:3 (fun fmt ->
                    Format.fprintf fmt "Registering variable %s@." vid);
-               add_def vid eq.eq_rhs;
+               let _ = add_def vid eq.eq_rhs in
                accu_mems, accu_outputs
              )
         | _ -> assert false (* should have been removed by normalization *)
@@ -1200,11 +1223,11 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
   if !seal_debug then Format.eprintf "Map: %i elements@ " (UpMap.cardinal map);
   UpMap.fold (fun up (common, disj) accu ->
       if !seal_debug then
-        Format.eprintf
+        report ~level:6 (fun fmt -> Format.fprintf fmt 
           "Guards:@.shared: [%a]@.disj: [@[<v 0>%a@ ]@]@.Updates: %a@."
           Guards.pp_short common
           (fprintf_list ~sep:";@ " Guards.pp_long) disj
-          UpMap.pp up;
+          UpMap.pp up);
       let disj = clean_disj disj in
       let guard_expr = (gl_as_expr common)@disj in
       
