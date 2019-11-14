@@ -81,10 +81,24 @@ let stage1 params prog dirname basename extension =
   let prog = SortProg.sort prog in
   Log.report ~level:3 (fun fmt ->
       Format.fprintf fmt "@[<v 0>Contracts resolved:@ %a@ @]@ " Printers.pp_prog prog);
+
+  (* Consolidating main node *)
+  let _ =
+    match !Options.main_node with
+    | "" -> ()
+    | main_node -> (
+      Global.main_node := main_node;
+      try
+        ignore (Corelang.node_from_name main_node)
+      with Not_found -> (
+        Format.eprintf "Code generation error: %a@." Error.pp_error_msg Error.Main_not_found;
+        raise (Corelang.Error (Location.dummy_loc, Error.Main_not_found))
+    ))
+  in
   
   (* Perform inlining before any analysis *)
   let orig, prog =
-    if !Options.global_inline && !Options.main_node <> "" then
+    if !Options.global_inline && !Global.main_node <> "" then
       (if !Options.witnesses then prog else []),
       Inliner.global_inline basename prog
     else (* if !Option.has_local_inline *)
@@ -117,18 +131,18 @@ let stage1 params prog dirname basename extension =
   (* Optimization of prog:
      - Unfold consts
      - eliminate trivial expressions
-  *)
-  (*
-    let prog =
+   *)
+  
+  let prog =
     if !Options.const_unfold || !Options.optimization >= 5 then
-    begin
-    Log.report ~level:1 (fun fmt -> fprintf fmt ".. eliminating constants and aliases@,");
-    Optimize_prog.prog_unfold_consts prog
-    end
+      begin
+        Log.report ~level:1 (fun fmt -> fprintf fmt ".. eliminating constants and aliases@,");
+        Optimize_prog.prog_unfold_consts prog
+      end
     else
-    prog
-    in
-  *)
+      prog
+  in
+  
   (* Delay calculus *)
   (* TO BE DONE LATER (Xavier)
      if(!Options.delay_calculus)
@@ -143,16 +157,16 @@ let stage1 params prog dirname basename extension =
      Utils.track_exception ();
      raise exc
      end;
-  *)
+   *)
 
   (* Creating destination directory if needed *)
   create_dest_dir ();
-     
+  
   Typing.uneval_prog_generics prog;
   Clock_calculus.uneval_prog_generics prog;
 
 
-(* Disabling witness option. Could but reactivated later
+  (* Disabling witness option. Could but reactivated later
   if !Options.global_inline && !Options.main_node <> "" && !Options.witnesses then
     begin
       let orig = Corelang.copy_prog orig in
@@ -167,7 +181,7 @@ let stage1 params prog dirname basename extension =
 	!Options.main_node
 	orig prog type_env clock_env
     end;
-*)
+   *)
 
   (* Computes and stores generic calls for each node,
      only useful for ANSI C90 compliant generic node compilation *)
@@ -228,7 +242,7 @@ let stage1 params prog dirname basename extension =
 
 
     (* from source to machine code, with optimization *)
-let stage2 prog =
+let stage2 params prog =
   (* Computation of node equation scheduling. It also breaks dependency cycles
      and warns about unused input or memory variables *)
   Log.report ~level:1 (fun fmt -> fprintf fmt ".. @[<v 2>scheduling@ ");
@@ -258,7 +272,7 @@ let stage2 prog =
   Log.report ~level:3 (fun fmt -> fprintf fmt ".. generated machines (unoptimized):@ %a@ " Machine_code_common.pp_machines machine_code);
 
   (* Optimize machine code *)
-  Optimize_machine.optimize prog node_schs machine_code
+  Optimize_machine.optimize params prog node_schs machine_code
 
 
 (* printing code *)
