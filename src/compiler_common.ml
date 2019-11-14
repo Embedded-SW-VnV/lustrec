@@ -191,7 +191,7 @@ let check_compatibility (prog, computed_types_env, computed_clocks_env) (header,
 let resolve_contracts prog =
   (* Bind a fresh node with a new name according to existing nodes and freshly binded contract node. Clean the contract to remove the stmts  *)
   let process_contract new_contracts c =
-    Format.eprintf "Process contract@.";
+    (* Format.eprintf "Process contract@."; *)
     (* Resolve first the imports *)
     let stmts, locals, c =
       List.fold_left (
@@ -205,7 +205,7 @@ let resolve_contracts prog =
              Last the contracts elements are replaced with the renamed vars and merged with c contract.
            *)
           let name = import.import_nodeid in
-          Format.eprintf "Process contract import %s@." name;
+          (* Format.eprintf "Process contract import %s@." name; *)
           let loc = import.import_loc in
           try
             let imp_nd = get_node name new_contracts in (* Get the contract node in process contracts *)
@@ -264,7 +264,7 @@ let resolve_contracts prog =
       | ImportedNode ind -> ind.nodei_id, ind.nodei_spec, ind.nodei_inputs, ind.nodei_outputs
       | _ -> assert false
     in
-    Format.eprintf "Process contract new node for node %s@." id;
+    (* Format.eprintf "Process contract new node for node %s@." id; *)
 
     let stmts, locals, c =
       match spec with
