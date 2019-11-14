@@ -14,6 +14,9 @@ open Lustre_types
 open Corelang
 open Format
 
+(* To update thank to some command line options *)
+let debug = ref false
+          
 (** Normalisation iters through the AST of expressions and bind fresh definition
     when some criteria are met. This creation of fresh definition is performed by
     the function mk_expr_alias_opt when the alias argument is on.
@@ -146,7 +149,9 @@ let mk_expr_alias (parentid, vars) (defs, vars) expr =
 (* Create an alias for [expr], if [expr] is not already an alias (i.e. an ident)
    and [opt] is true *)
 let mk_expr_alias_opt opt norm_ctx (defs, vars) expr =
-(*Format.eprintf "mk_expr_alias_opt %B %a %a %a@." opt Printers.pp_expr expr Types.print_ty expr.expr_type Clocks.print_ck expr.expr_clock;*)
+  if !debug then
+    Log.report ~plugin:"normalization" ~level:2
+      (fun fmt -> Format.fprintf  fmt "mk_expr_alias_opt %B %a %a %a@." opt Printers.pp_expr expr Types.print_ty expr.expr_type Clocks.print_ck expr.expr_clock);
   match expr.expr_desc with
   | Expr_ident alias ->
     (defs, vars), expr
