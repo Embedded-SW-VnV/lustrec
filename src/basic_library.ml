@@ -84,7 +84,7 @@ let delay_env =
 
 module VE = Env
 
-let eval_env =
+let eval_dim_env =
   let defs = [
     "uminus", (function [Dint a] -> Dint (-a)           | _ -> assert false);
     "not", (function [Dbool b] -> Dbool (not b)         | _ -> assert false);
@@ -160,7 +160,128 @@ let is_stateless_fun x =
 (*     | _, [v1; v2] -> Format.fprintf fmt "(%a %s %a)" pp_val v1 i pp_val v2 *)
 (*     | _ -> (Format.eprintf "internal error: Basic_library.pp_java %s@." i; assert false) *)
 
-
-(* Local Variables: *)
-(* compile-command:"make -C .." *)
-(* End: *)
+let rec partial_eval op e opt =
+  let open Lustre_types in
+  let is_zero e =
+    match e.expr_desc with
+    | Expr_const (Const_int 0) -> true
+    | Expr_const (Const_real r) when Real.is_zero r -> true
+    | _ -> false
+  in
+  let is_one e =
+    match e.expr_desc with
+    | Expr_const (Const_int 1) -> true
+    | Expr_const (Const_real r) when Real.is_one r -> true
+    | _ -> false
+  in
+  let is_true, is_false =
+    let is_tag t e = e.expr_desc = Expr_const (Const_tag t) in
+    is_tag tag_true, is_tag tag_false
+  in
+  let int_arith_op, real_arith_op=
+    let assoc op=
+      match op with
+      | "+" -> (+), Real.add
+      | "-" -> (-), Real.minus
+      | "*" -> ( * ), Real.times
+      | "/" -> (/), Real.div
+      | "mod" -> (mod), (fun _ _ -> assert false)
+      | _ -> assert false  
+    in
+    (fun op -> fst(assoc op)), (fun op -> snd(assoc op))
+  in
+  let int_rel_op, real_rel_op =
+    let assoc op =
+      match op with
+      | "<" -> (<), Real.lt
+      |">" -> (>), Real.gt
+      |"<="-> (<=), Real.le
+      | ">=" -> (>=), Real.ge
+      |"!=" -> (!=), Real.diseq
+      |"=" -> (=), Real.eq
+      | _ -> assert false
+    in
+    (fun op -> fst(assoc op)), (fun op -> snd(assoc op))
+  in
+  let eval_bool_fun op e1 e2  =
+    let s2b s = if s= tag_true then true else if s=tag_false then false else assert false in
+    let e1, e2 = s2b e1, s2b e2 in
+    let r =
+      match op with
+      "&&" -> e1 && e2
+    | "||" -> e1 || e2
+    | "xor" -> (e1 && e2) || ((not e1) && (not e2)) 
+    | "impl" -> (not e1) || e2
+    | "equi" -> ((not e1) || e2) && ((not e2) || e1)
+    | _ -> assert false
+    in
+    if r then Const_tag tag_true else Const_tag tag_false
+    in
+  let is_const e =
+    match e.expr_desc with Expr_const _ -> true | _ -> false
+  in
+  let deconst e =
+    match e.expr_desc with
+    | Expr_const c -> c
+    | _ -> assert false
+  in
+  match op, (match  e.expr_desc with Expr_tuple el -> el | _ -> [e]) with
+  | _, el when List.for_all is_const el -> (
+    let new_cst = 
+      match op, List.map deconst el with
+      | ("+"|"-"|"*"|"/"|"mod"), [Const_int c1; Const_int c2] ->
+          Const_int (int_arith_op op c1 c2)
+      | ("+"|"-"|"*"|"/"), [Const_real c1; Const_real c2] ->
+         Const_real (real_arith_op op c1 c2)
+      | "uminus", [Const_int c] -> Const_int (-c)
+      | "uminus", [Const_real c] -> Const_real (Real.uminus c)
+      | rel_fun, [Const_int c1; Const_int c2]
+           when List.mem rel_fun rel_funs ->
+         if int_rel_op op c1 c2 then
+           Const_tag tag_true
+         else
+           Const_tag tag_false
+      | rel_fun, [Const_real c1; Const_real c2]
+           when List.mem rel_fun rel_funs ->
+         if real_rel_op op c1 c2 then
+           Const_tag tag_true
+         else
+           Const_tag tag_false
+      | "not", [Const_tag c] -> Const_tag( if c = tag_true then tag_false else if c = tag_false then tag_true else assert false)
+      | bool_fun, [Const_tag c1; Const_tag c2]
+           when List.mem bool_fun bool_funs ->
+         eval_bool_fun bool_fun c1 c2 
+      | _ -> assert false
+    in
+    Expr_const new_cst 
+  )       
+  | op, el -> ( (* at least one of the arguments is non constant *)
+    match op, el with
+    | "+", [e0; e] when is_zero e0 ->
+       e.expr_desc
+    | "+", [e; e0] when is_zero e0 ->
+       e.expr_desc
+    | "-", [e; e0] when is_zero e0 ->
+       e.expr_desc
+    | "-", [e0; e] when is_zero e0 ->
+       Expr_appl("uminus", e, None)
+    | ("*"|"/"), [e0; e] when is_zero e0 -> e0.expr_desc
+    | "*", [e; e0] when is_zero e0 -> e0.expr_desc
+    | "*", [e1; e] when is_one e1 -> e.expr_desc
+    | "/", [e; e1] when is_one e1 -> e.expr_desc
+    | "&&", [efalse; _] when is_false efalse ->
+       Expr_const (Const_tag tag_false)
+    | "&&", [_; efalse] when is_false efalse ->
+       Expr_const (Const_tag tag_false)
+    | "||", [etrue; _] when is_true etrue ->
+       Expr_const (Const_tag tag_true)
+    | "||", [_; etrue] when is_true etrue ->
+       Expr_const (Const_tag tag_true)
+    | "impl", [efalse; _] when is_false efalse ->
+       Expr_const (Const_tag tag_true)
+    | _ ->
+       Expr_appl(op, e, opt)
+                               )
+                  (* Local Variables: *)
+                  (* compile-command:"make -C .." *)
+                  (* End: *)
