@@ -48,7 +48,10 @@ let rec eliminate m elim instr =
 and eliminate_expr m elim expr =
   let eliminate_expr = eliminate_expr m in
   match expr.value_desc with
-  | Var v -> if is_memory m v then expr else (try IMap.find v.var_id elim with Not_found -> expr)
+  | Var v -> if is_memory m v then
+               expr
+             else
+               (try IMap.find v.var_id elim with Not_found -> expr)
   | Fun (id, vl) -> {expr with value_desc = Fun (id, List.map (eliminate_expr elim) vl)}
   | Array(vl) -> {expr with value_desc = Array(List.map (eliminate_expr elim) vl)}
   | Access(v1, v2) -> { expr with value_desc = Access(eliminate_expr elim v1, eliminate_expr elim v2)}
@@ -192,21 +195,27 @@ let rec instrs_unfold m fanin elim instrs =
     List.fold_left (fun (elim, instrs) instr ->
       (* each subexpression in instr that could be rewritten by the elim set is
 	 rewritten *)
-      let instr = eliminate m elim instr in
+      let instr = eliminate m (IMap.map fst elim) instr in
       (* if instr is a simple local assign, then (a) elim is simplified with it (b) it
 	 is stored as the elim set *)
       instr_unfold m fanin instrs elim instr
     ) (elim, []) instrs
   in elim, List.rev rev_instrs
 
-and instr_unfold m fanin instrs elim instr =
+and instr_unfold m fanin instrs (elim:(value_t * eq) IMap.t) instr =
 (*  Format.eprintf "SHOULD WE STORE THE EXPRESSION IN INSTR %a TO ELIMINATE IT@." pp_instr instr;*)
   match get_instr_desc instr with
   (* Simple cases*)
   | MStep([v], id, vl) when Basic_library.is_value_internal_fun (mk_val (Fun (id, vl)) v.var_type)
     -> instr_unfold m fanin instrs elim (update_instr_desc instr (MLocalAssign (v, mk_val (Fun (id, vl)) v.var_type)))
   | MLocalAssign(v, expr) when unfoldable_assign fanin v expr
-    -> (IMap.add v.var_id expr elim, instrs)
+    ->
+     let new_eq =
+       Corelang.mkeq
+         (desome instr.lustre_eq).eq_loc
+         ([v.var_id], (desome instr.lustre_eq).eq_rhs)
+     in
+     (IMap.add v.var_id (expr, new_eq )  elim, instrs)
   | MBranch(g, hl) when false
     -> let elim_branches = List.map (fun (h, l) -> (h, instrs_unfold m fanin elim l)) hl in
        let (elim, branches) =
@@ -240,8 +249,14 @@ let machine_unfold fanin elim machine =
   let elim_consts, mconst = instrs_unfold machine fanin elim machine.mconst in
   let elim_vars, instrs = instrs_unfold machine fanin elim_consts machine.mstep.step_instrs in
   let instrs = simplify_instrs_offset machine instrs in
-  let checks = List.map (fun (loc, check) -> loc, eliminate_expr machine elim_vars check) machine.mstep.step_checks in
+  let checks = List.map
+                 (fun (loc, check) ->
+                   loc,
+                   eliminate_expr machine (IMap.map fst elim_vars) check
+                 ) machine.mstep.step_checks
+  in
   let locals = List.filter (fun v -> not (IMap.mem v.var_id elim_vars)) machine.mstep.step_locals in
+  let elim_consts = IMap.map fst elim_consts in
   let minstances = List.map (static_call_unfold elim_consts) machine.minstances in
   let mcalls = List.map (static_call_unfold elim_consts) machine.mcalls
   in
@@ -342,15 +357,15 @@ let subst_instr m subst instrs instr =
     (* Registering the instr_v as instr'_v while replacing *)
     match instr_v.value_desc with
     | Var v ->
-       if not (is_memory m v) then
+       let instr'_v = get_assign_lhs instr' in
+         if not (is_memory m v) then
          (* The current instruction defines a local variables, ie not
             memory, we can just record the relationship and continue
           *)
-         IMap.add v.var_id (get_assign_lhs instr') subst, instrs
+         IMap.add v.var_id instr'_v subst, instrs
        else  (
          (* The current instruction defines a memory. We need to keep
             the definition, simplified *)
-         let instr'_v = get_assign_lhs instr' in
          (match instr'_v.value_desc with
           | Var v' ->
              if not (is_memory m v') then
@@ -583,9 +598,80 @@ let machines_fusion prog =
   List.map machine_fusion prog
 
 
+(* Additional function to modify the prog according to removed variables map *)
+
+let elim_prog_variables prog removed_table =
+  List.map (
+      fun t ->
+      match t.top_decl_desc with
+        Node nd ->
+         if IMap.mem nd.node_id removed_table then
+           let nd_elim_map = IMap.find nd.node_id removed_table in
+           (* Iterating through the elim map to compute
+              - the list of variables to remove
+              - the associated list of lustre definitions x = expr to
+                be used when removing these variables *)
+           let vars_to_replace, defs = (* Recovering vid from node locals *)
+             IMap.fold (fun v (_,eq) (accu_locals, accu_defs) ->
+                 let locals =
+                   (List.find (fun v' -> v'.var_id = v) nd.node_locals)::accu_locals in
+                 (* xxx let new_eq = { eq_lhs = [v]; eq_rhs = e; eq_loc = e.expr_loc } in *)
+                 let defs = eq::accu_defs in
+                 locals, defs
+               ) nd_elim_map ([], [])
+           in
+            
+           let new_locals, new_stmts =
+             List.fold_right (fun stmt (locals, res_stmts) ->
+                 match stmt with
+                   Aut _ -> assert false (* should be processed by now *)
+                 | Eq eq -> (
+                   match eq.eq_lhs with
+                   | [] -> assert false (* shall not happen *)
+                   | _::_::_ ->
+                      (* When more than one lhs we just keep the
+                         equation and do not delete it *)
+                      locals, stmt::res_stmts
+                   | [lhs] -> 
+                      if List.exists (fun v -> v.var_id = lhs) vars_to_replace then 
+                        (* We remove the def *)
+                        List.filter (fun l -> l.var_id != lhs) locals,
+                        res_stmts
+                      else (* We keep it but modify any use of an eliminatend var *)
+                        let eq_rhs' = substitute_expr vars_to_replace defs eq.eq_rhs in 
+                        locals,
+                        (Eq { eq with eq_rhs = eq_rhs' })::res_stmts
+                        
+                 )
+               ) nd.node_stmts (nd.node_locals,[])
+           in
+           let nd' = { nd with
+                       node_locals = new_locals;
+                       node_stmts = new_stmts;
+                     }
+           in
+           { t with top_decl_desc = Node nd' }
+         else
+           t
+      | _ -> t
+    ) prog
+
 (*** Main function ***)
-    
-let optimize prog node_schs machine_code =
+
+(* 
+This functions produces an optimzed prog * machines
+It 
+1- eliminates common sub-expressions (TODO how is this different from normalization?)
+2- inline constants and eliminate duplicated variables 
+3- try to reuse variables whenever possible
+
+When item (2) identified eliminated variables, the initial prog is modified, its normalized recomputed, as well as its scheduling, before regenerating the machines.
+
+The function returns both the (possibly updated) prog as well as the machines 
+
+
+*)
+let optimize params prog node_schs machine_code =
   let machine_code =
     if !Options.optimization >= 4 (* && !Options.output <> "horn" *) then
       begin
@@ -599,21 +685,49 @@ let optimize prog node_schs machine_code =
       machine_code
   in
   (* Optimize machine code *)
-  let machine_code, removed_table = 
+  let prog, machine_code, removed_table = 
     if !Options.optimization >= 2
        && !Options.output <> "emf" (*&& !Options.output <> "horn"*)
     then
       begin
-	Log.report ~level:1 (fun fmt -> Format.fprintf fmt 
-	  ".. machines optimization: const. inlining (partial eval. with const)@,");
-	let machine_code, removed_table = machines_unfold (Corelang.get_consts prog) node_schs machine_code in
-	Log.report ~level:3 (fun fmt -> Format.fprintf fmt "\t@[Eliminated constants: @[%a@]@]@ "
-	  (pp_imap (pp_elim empty_machine)) removed_table);
-	Log.report ~level:3 (fun fmt -> Format.fprintf fmt ".. generated machines (const inlining):@ %a@ "pp_machines machine_code);	
-	machine_code, removed_table
+	Log.report ~level:1
+          (fun fmt ->
+            Format.fprintf fmt 
+	      ".. machines optimization: const. inlining (partial eval. with const)@,");
+	let machine_code, removed_table =
+          machines_unfold (Corelang.get_consts prog) node_schs machine_code in
+(* xxx remettre 	Log.report ~level:3
+          (fun fmt ->
+            Format.fprintf fmt "\t@[Eliminated constants: @[%a@]@]@ "
+	      (pp_imap (fun fmt m -> pp_elim empty_machine fmt ((* IMap.map fst  *)m))) removed_table); *)
+	Log.report ~level:3
+          (fun fmt ->
+            Format.fprintf fmt
+              ".. generated machines (const inlining):@ %a@ "
+              pp_machines machine_code);
+	(* If variables were eliminated, relaunch the
+           normalization/machine generation *)
+        if IMap.is_empty removed_table then
+	  (* stopping here, no need to reupdate the prog *)
+          prog, machine_code, removed_table
+        else (
+          let prog = elim_prog_variables prog removed_table in
+          (* Mini stage1 *)
+          let prog = Normalization.normalize_prog params prog in
+          let prog = SortProg.sort_nodes_locals prog in
+          (* Mini stage2: note that we do not protect against
+             alg. loop since this should have been handled before *)
+          let prog, node_schs = Scheduling.schedule_prog prog in
+          let machine_code = Machine_code.translate_prog prog node_schs in
+	  (* Mini stage2 machine optimiation *)
+          let machine_code, removed_table =
+            machines_unfold (Corelang.get_consts prog) node_schs machine_code in
+	  prog, machine_code, removed_table
+        )
+
       end
     else
-      machine_code, IMap.empty
+      prog, machine_code, IMap.empty
   in  
   (* Optimize machine code *)
   let machine_code =
@@ -629,9 +743,9 @@ let optimize prog node_schs machine_code =
   in
   
 
-   List.rev machine_code  
-    
-    
-(* Local Variables: *)
-(* compile-command:"make -C .." *)
-(* End: *)
+  prog, List.rev machine_code  
+          
+          
+                 (* Local Variables: *)
+                 (* compile-command:"make -C .." *)
+                 (* End: *)
