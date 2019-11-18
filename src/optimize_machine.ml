@@ -631,7 +631,8 @@ let elim_prog_variables prog removed_table =
                    | _::_::_ ->
                       (* When more than one lhs we just keep the
                          equation and do not delete it *)
-                      locals, stmt::res_stmts
+                      let eq_rhs' = substitute_expr vars_to_replace defs eq.eq_rhs in
+                      locals, (Eq { eq with eq_rhs = eq_rhs' })::res_stmts
                    | [lhs] -> 
                       if List.exists (fun v -> v.var_id = lhs) vars_to_replace then 
                         (* We remove the def *)
@@ -696,16 +697,16 @@ let optimize params prog node_schs machine_code =
 	      ".. machines optimization: const. inlining (partial eval. with const)@,");
 	let machine_code, removed_table =
           machines_unfold (Corelang.get_consts prog) node_schs machine_code in
-(* xxx remettre 	Log.report ~level:3
+	Log.report ~level:3
           (fun fmt ->
-            Format.fprintf fmt "\t@[Eliminated constants: @[%a@]@]@ "
-	      (pp_imap (fun fmt m -> pp_elim empty_machine fmt ((* IMap.map fst  *)m))) removed_table); *)
+            Format.fprintf fmt "\t@[Eliminated flows: @[%a@]@]@ "
+	      (pp_imap (fun fmt m -> pp_elim empty_machine fmt (IMap.map fst m))) removed_table); 
 	Log.report ~level:3
           (fun fmt ->
             Format.fprintf fmt
               ".. generated machines (const inlining):@ %a@ "
               pp_machines machine_code);
-	(* If variables were eliminated, relaunch the
+        (* If variables were eliminated, relaunch the
            normalization/machine generation *)
         if IMap.is_empty removed_table then
 	  (* stopping here, no need to reupdate the prog *)
