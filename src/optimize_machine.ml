@@ -208,8 +208,8 @@ and instr_unfold m fanin instrs (elim:(value_t * eq) IMap.t) instr =
   (* Simple cases*)
   | MStep([v], id, vl) when Basic_library.is_value_internal_fun (mk_val (Fun (id, vl)) v.var_type)
     -> instr_unfold m fanin instrs elim (update_instr_desc instr (MLocalAssign (v, mk_val (Fun (id, vl)) v.var_type)))
-  | MLocalAssign(v, expr) when unfoldable_assign fanin v expr
-    ->
+  | MLocalAssign(v, expr) when not (is_clock_dec_type v.var_dec_type.ty_dec_desc) && unfoldable_assign fanin v expr
+    -> (* we don't eliminate clock definitions *)
      let new_eq =
        Corelang.mkeq
          (desome instr.lustre_eq).eq_loc
@@ -245,7 +245,7 @@ let static_call_unfold elim (inst, (n, args)) =
     
 *)
 let machine_unfold fanin elim machine =
-  (*Log.report ~level:1 (fun fmt -> Format.fprintf fmt "machine_unfold %a@." pp_elim elim);*)
+  Log.report ~level:3 (fun fmt -> Format.fprintf fmt "machine_unfold %s %a@." machine.mname.node_id (pp_elim machine) (IMap.map fst elim)); 
   let elim_consts, mconst = instrs_unfold machine fanin elim machine.mconst in
   let elim_vars, instrs = instrs_unfold machine fanin elim_consts machine.mstep.step_instrs in
   let instrs = simplify_instrs_offset machine instrs in
@@ -276,9 +276,14 @@ let machine_unfold fanin elim machine =
 
 let instr_of_const top_const =
   let const = const_of_top top_const in
-  let vdecl = mkvar_decl Location.dummy_loc (const.const_id, mktyp Location.dummy_loc Tydec_any, mkclock Location.dummy_loc Ckdec_any, true, None, None) in
-  let vdecl = { vdecl with var_type = const.const_type }
-  in mkinstr (MLocalAssign (vdecl, mk_val (Cst const.const_value) vdecl.var_type))
+  let loc = const.const_loc in
+  let id = const.const_id in
+  let vdecl = mkvar_decl loc (id, mktyp Location.dummy_loc Tydec_any, mkclock loc Ckdec_any, true, None, None) in
+  let vdecl = { vdecl with var_type = const.const_type } in
+  let lustre_eq = mkeq loc ([const.const_id], mkexpr loc (Expr_const const.const_value)) in
+  mkinstr
+    ~lustre_eq:lustre_eq 
+    (MLocalAssign (vdecl, mk_val (Cst const.const_value) vdecl.var_type))
 
 (* We do not perform this optimization on contract nodes since there
    is not explicit dependence btw variables and their use in
@@ -288,7 +293,7 @@ let machines_unfold consts node_schs machines =
       let is_contract = match m.mspec with Some (Contract _) -> true | _ -> false in
       if is_contract then
         m::machines, removed
-      else
+      else 
         let fanin = (IMap.find m.mname.node_id node_schs).Scheduling_type.fanin_table in
         let elim_consts, _ = instrs_unfold m fanin IMap.empty (List.map instr_of_const consts) in
         let (m, removed_m) =  machine_unfold fanin elim_consts m in
@@ -346,7 +351,7 @@ and substitute_expr subst expr =
    Then substitute this expression with the first assigned var
 *)
 let subst_instr m subst instrs instr =
-  (*Format.eprintf "subst instr: %a@." Machine_code.pp_instr instr;*)
+  (* Format.eprintf "subst instr: %a@." (pp_instr m) instr; *)
   let instr = eliminate m subst instr in
   let instr_v = get_assign_lhs instr in  
   let instr_e = get_assign_rhs instr in
@@ -614,7 +619,15 @@ let elim_prog_variables prog removed_table =
            let vars_to_replace, defs = (* Recovering vid from node locals *)
              IMap.fold (fun v (_,eq) (accu_locals, accu_defs) ->
                  let locals =
-                   (List.find (fun v' -> v'.var_id = v) nd.node_locals)::accu_locals in
+                   try
+                     (List.find (fun v' -> v'.var_id = v) nd.node_locals)::accu_locals
+                   with Not_found -> accu_locals (* Variable v shall
+                                                    be a global
+                                                    constant, we do no
+                                                    need to eliminate
+                                                    it from the locals
+                                                    *)
+                 in
                  (* xxx let new_eq = { eq_lhs = [v]; eq_rhs = e; eq_loc = e.expr_loc } in *)
                  let defs = eq::accu_defs in
                  locals, defs
@@ -697,7 +710,7 @@ let optimize params prog node_schs machine_code =
 	      ".. machines optimization: const. inlining (partial eval. with const)@,");
 	let machine_code, removed_table =
           machines_unfold (Corelang.get_consts prog) node_schs machine_code in
-	Log.report ~level:3
+  Log.report ~level:3
           (fun fmt ->
             Format.fprintf fmt "\t@[Eliminated flows: @[%a@]@]@ "
 	      (pp_imap (fun fmt m -> pp_elim empty_machine fmt (IMap.map fst m))) removed_table); 
