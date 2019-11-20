@@ -1117,7 +1117,7 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
            
       in
       check_dup_up [] sw_sys;
-      let sw_sys =
+      let _ (* sw_sys *) =
         List.sort (fun (gl1, _) (gl2, _) ->
             let glid gl = List.map (fun (e,_) -> e.expr_tag) gl in
             

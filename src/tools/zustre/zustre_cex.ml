@@ -153,7 +153,7 @@ let build_cex machine machines decl_err =
   (*   if !debug then *)
   (*     Format.eprintf "FP help: %s@." (Z3.Fixedpoint.get_help !fp); *)
 
-  let stats_entries =   Z3.Statistics.get_entries stats in
+  (*  let _ (*stats_entries*) =   Z3.Statistics.get_entries stats in *)
   (* List.iter (fun e -> Format.eprintf "%s@.@?" *)
   (*   (Z3.Statistics.Entry.to_string e) *)
     

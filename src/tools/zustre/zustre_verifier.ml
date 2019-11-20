@@ -167,7 +167,7 @@ module Verifier =
       (* TODO
 	 load deps: cf print_dep in horn_backend.ml
 
-      *)
+      
       if false then (
 	
 	let queries = Z3.Fixedpoint.parse_file !fp "nstep.smt2" in
@@ -232,7 +232,11 @@ module Verifier =
 
 	()	
       )
-      else (
+      else 
+
+       *)
+
+      (
 	
 	
 	decl_sorts ();

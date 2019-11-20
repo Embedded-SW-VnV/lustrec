@@ -650,7 +650,8 @@ let rec instr_to_exprs machines reset_instances (m: machine_t) instr : Z3.Expr.e
     List.fold_left (fun (instrs, resets) b ->
       let b_instrs, b_resets = branch_to_expr b in
       instrs@b_instrs, resets@b_resets 
-    ) ([], reset_instances) hl 
+      ) ([], reset_instances) hl
+  | MSpec _ -> assert false
 
 and instrs_to_expr machines reset_instances m instrs = 
   let instr_to_exprs rs i = instr_to_exprs machines rs m i in
@@ -728,10 +729,11 @@ let add_rule ?(dont_touch=[]) vars  expr =
 	(fun accu e ->  FDSet.union accu (get_expr_vars e))
 	FDSet.empty (Z3.Expr.get_args e)
   in
+  (* Unsed variable. Coul;d be reintroduced 
   let extracted_vars = FDSet.elements (FDSet.diff (get_expr_vars expr) (FDSet.of_list dont_touch)) in
   let extracted_sorts = List.map Z3.FuncDecl.get_range extracted_vars in
   let extracted_symbols = List.map Z3.FuncDecl.get_name extracted_vars in
-
+   *)
   if !debug then (
     Format.eprintf "Declaring rule: %s with variables @[<v 0>@ [%a@ ]@]@ @."
       (Z3.Expr.to_string expr)
@@ -939,7 +941,7 @@ let decl_machine machines m =
 
 
 (* Debug functions *)
-
+(*
 let rec extract_expr_fds e =
   (* Format.eprintf "@[<v 2>Extracting fundecls from expr %s@ " *)
   (*   (Z3.Expr.to_string e); *)
@@ -984,7 +986,7 @@ let rec extract_expr_fds e =
   in
   (* Format.eprintf "@]@ " *)
   ()      
-
+ *)
 (* Local Variables: *)
 (* compile-command:"make -C ../.." *)
 (* End: *)
