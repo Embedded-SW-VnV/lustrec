@@ -301,17 +301,17 @@ let rec pp_emf_cst_or_var m fmt v =
     fprintf fmt "@]}"
   )
   | Array vl -> (
-     fprintf fmt "{@[\"type\": \"array\",@ \"value\": @[[%a@]],@ "
+     fprintf fmt "{@[\"type\": \"array\",@ \"value\": @[[%a@]]@ "
       (pp_emf_cst_or_var_list m) vl;
      fprintf fmt "@]}"
   )
   | Access (arr, idx) -> (
-      fprintf fmt "{@[\"type\": \"array access\",@ \"array\": @[[%a@]],@ \"idx\": @[[%a@]],@ "
+      fprintf fmt "{@[\"type\": \"array access\",@ \"array\": @[[%a@]],@ \"idx\": @[[%a@]]@ "
       (pp_emf_cst_or_var m) arr (pp_emf_cst_or_var m) idx;
      fprintf fmt "@]}"
   )
   | Power (v,nb) ->(
-      fprintf fmt "{@[\"type\": \"power\",@ \"expr\": @[[%a@]],@ \"nb\": @[[%a@]],@ "
+      fprintf fmt "{@[\"type\": \"power\",@ \"expr\": @[[%a@]],@ \"nb\": @[[%a@]]@ "
       (pp_emf_cst_or_var m) v (pp_emf_cst_or_var m) nb;
      fprintf fmt "@]}"
   )
