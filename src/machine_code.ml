@@ -77,7 +77,7 @@ let translate_ident env id =
         let typ = (typedef_of_top (Hashtbl.find Corelang.tag_table id)).tydef_id in
         mk_val (Cst (Const_tag id)) (Type_predef.type_const typ)
       with Not_found -> (Format.eprintf
-                           "internal error: Machine_code.translate_ident %s"
+                           "internal error: Machine_code.translate_ident %s@.@?"
                            id;
                          assert false)
 

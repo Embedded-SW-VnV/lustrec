@@ -237,7 +237,7 @@ let resolve_contracts prog =
             let stmts = in_assigns :: out_assigns :: imp_nd.node_stmts @ stmts in
             let c = merge_contracts c imp_c in
             stmts, locals, c 
-          with Not_found -> Format.eprintf "Where is contract %s@.@?" name; assert false; raise (Error (loc, (Error.Unbound_symbol ("contract " ^ name))))
+          with Not_found -> Format.eprintf "Where is contract %s@.@?" name; raise (Error (loc, (Error.Unbound_symbol ("contract " ^ name))))
 
          
         ) ([], c.consts@c.locals, c) c.imports

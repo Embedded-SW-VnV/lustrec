@@ -533,6 +533,7 @@ let call_of_expr expr =
 (* Conversion from dimension expr to standard expr, for the purpose of printing, typing, etc... *)
 let rec expr_of_dimension dim =
   let open Dimension in
+  let expr =
   match dim.dim_desc with
  | Dbool b        ->
      mkexpr dim.dim_loc (Expr_const (const_of_bool b))
@@ -548,7 +549,12 @@ let rec expr_of_dimension dim =
  | Dvar
  | Dunivar          -> (Format.eprintf "internal error: Corelang.expr_of_dimension %a@." Dimension.pp_dimension dim;
 			assert false)
-
+  in
+  { expr
+  with
+    expr_type = Types.new_ty Types.type_int;
+  }
+  
 let dimension_of_const loc const =
   let open Dimension in
  match const with
