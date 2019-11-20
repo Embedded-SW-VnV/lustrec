@@ -115,11 +115,11 @@ struct
       | Some m -> List.map (fun x-> pp_var_decl (build_pp_var_decl AdaNoMode (Some (true, false, [], [])) x)) m.mmemory
     in
     let ghost_private = memories in
-    
+    (* Commented since not used. Could be reinjected in the code 
     let vars_spec = match m_spec_opt with
       | None -> []
       | Some m_spec -> List.map (build_pp_var_decl AdaNoMode (Some (true, false, [], []))) (m_spec.mmemory)
-    in
+    in *)
     let vars = List.map (build_pp_var_decl AdaNoMode None) m.mmemory in
     let states = List.map (build_pp_state_decl_from_subinstance AdaNoMode None) typed_instances in
     let var_lists =
