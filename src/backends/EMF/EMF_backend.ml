@@ -282,7 +282,7 @@ let rec pp_emf_instr m fmt i =
 	    fun_id
 	    (pp_emf_cst_or_var_list m) vl
 	)	 
-	| Array _ | Access _ | Power _ -> assert false (* No array expression allowed yet *)
+	| Array _ | Access _ | Power _ 
 	| Cst _ 
 	| Var _ -> (
 	  fprintf fmt "\"kind\": \"local_assign\",@ \"lhs\": \"%a\",@ \"rhs\": %a"

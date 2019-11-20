@@ -119,6 +119,8 @@ rule token = parse
   | '=' {EQ}
   | '(' {LPAR}
   | ')' {RPAR}
+  | '[' {LBRACKET}
+  | ']' {RBRACKET}
   | ';' {SCOL}
   | ':' {COL}
   | ',' {COMMA}
