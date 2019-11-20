@@ -13,6 +13,14 @@ open Utils
 open Lustre_types
 open Corelang
 
+let name_dependency loc (local, dep) ext =
+  try
+    Options_management.name_dependency (local, dep) ext 
+  with Not_found ->
+    (* Error.pp_error loc (fun fmt -> Format.fprintf fmt "Unknown library %s" dep); *)
+    raise (Error (loc, Error.Unknown_library dep))
+
+  
 let add_symbol loc msg hashtbl name value =
  if Hashtbl.mem hashtbl name
  then raise (Error (loc, Error.Already_bound_symbol msg))
@@ -141,13 +149,13 @@ let get_lusic decl =
   | Open (local, dep) -> (
     let loc = decl.top_decl_loc in
     let extension = ".lusic" in 
-    let basename = Options_management.name_dependency (local, dep) extension in
+    let basename = name_dependency loc (local, dep) extension in
     try
       let lusic = Lusic.read_lusic basename extension in
       Lusic.check_obsolete lusic basename;
       lusic
     with
-    | Sys_error msg ->
+    | Sys_error _  ->
        raise (Error (loc, Error.Unknown_library basename))
   )
   | _ -> assert false (* should not happen *)
@@ -180,77 +188,84 @@ let get_envs_from_top_decls header =
   | ImportedNode nd -> not nd.nodei_stateless 
   | _ -> false
 
-let rec load_rec ~is_header accu program =
-  List.fold_left (fun ((accu_prog, accu_dep, typ_env, clk_env) as accu) decl ->
-      (* Precompute the updated envs, will not be used in the Open case *)
-      let typ_env', clk_env' = get_envs_from_top_decl (typ_env, clk_env) decl in
-      match decl.top_decl_desc with
-      | Open (local, dep) ->
-         (* loading the dep *)
-         let basename = Options_management.name_dependency (local, dep) ".lusic" in
-         if List.exists
-              (fun dep -> basename = Options_management.name_dependency (dep.local, dep.name) ".lusic")
-              accu_dep
-         then
-           (* Library already imported. Just skip *)
-           accu
-         else (
-           Log.report ~level:1 (fun fmt -> Format.fprintf fmt "@ .. Library %s@ " basename);
-           let lusic = get_lusic decl in
-           (* Recursive call with accumulator on lusic *)
-           let (accu_prog, accu_dep, typ_env, clk_env) =
-             load_rec ~is_header:true accu lusic.Lusic.contents in
-           (* Building the dep *)
-           let is_stateful = List.exists is_stateful lusic.Lusic.contents in
-           let new_dep = { local = local;
-                           name = dep;
-                           content = lusic.Lusic.contents;
-                           is_stateful = is_stateful } in
-           
-           (* Returning the prog while keeping the Open, the deps with the new
+  let rec load_rec ~is_header accu program =
+    List.fold_left (fun ((accu_prog, accu_dep, typ_env, clk_env) as accu) decl ->
+        (* Precompute the updated envs, will not be used in the Open case *)
+        let typ_env', clk_env' = get_envs_from_top_decl (typ_env, clk_env) decl in
+        match decl.top_decl_desc with
+        | Open (local, dep) -> (
+          (* loading the dep *)
+          try
+            let basename = name_dependency decl.top_decl_loc (local, dep) ".lusic" in
+            if List.exists
+                 (fun dep -> basename = name_dependency decl.top_decl_loc  (dep.local, dep.name) ".lusic")
+                 accu_dep
+            then
+              (* Library already imported. Just skip *)
+              accu
+            else (
+              Log.report ~level:1 (fun fmt -> Format.fprintf fmt "@ .. Library %s@ " basename);
+              let lusic = get_lusic decl in
+              (* Recursive call with accumulator on lusic *)
+              let (accu_prog, accu_dep, typ_env, clk_env) =
+                load_rec ~is_header:true accu lusic.Lusic.contents in
+              (* Building the dep *)
+              let is_stateful = List.exists is_stateful lusic.Lusic.contents in
+              let new_dep = { local = local;
+                              name = dep;
+                              content = lusic.Lusic.contents;
+                              is_stateful = is_stateful } in
+              
+              (* Returning the prog while keeping the Open, the deps with the new
             elements and the updated envs *)
-           decl::accu_prog, (new_dep::accu_dep), typ_env, clk_env
-         )
-      | Include name ->
-         let basename = Options_management.name_dependency (true, name) "" in
-         if Filename.check_suffix basename ".lus" then
-           let include_src = Compiler_common.parse basename ".lus" in
-           let (accu_prog, accu_dep, typ_env, clk_env) =
-             load_rec ~is_header:false accu include_src
-           in
-           decl::accu_prog, accu_dep, typ_env, clk_env
-         else
-           raise (Error (decl.top_decl_loc, LoadError("include requires a lustre file")))
-   
-      | Node nd ->
-         if is_header then
-           raise (Error(decl.top_decl_loc,
-                        LoadError ("node " ^ nd.node_id ^ " declared in a header file")))  
-         else (
-           (* Registering node *)
-           add_node nd.node_id decl;
-           (* Updating the type/clock env *)
-           decl::accu_prog, accu_dep, typ_env', clk_env'                   
-         )
-        
-      | ImportedNode ind ->
-         if is_header then (
-           add_imported_node ind.nodei_id decl;
-           decl::accu_prog, accu_dep, typ_env', clk_env'                   
-         )
-         else
-           raise (Error(decl.top_decl_loc,
-                        LoadError ("imported node " ^ ind.nodei_id ^
-                                     " declared in a regular Lustre file")))  
-      | Const c -> (
-        add_const is_header c.const_id decl;
-        decl::accu_prog, accu_dep, typ_env', clk_env' 
-      )
-      | TypeDef tdef -> (
-        add_type is_header tdef.tydef_id decl;
-        decl::accu_prog, accu_dep, typ_env', clk_env'
-      )
-    ) accu program
+              decl::accu_prog, (new_dep::accu_dep), typ_env, clk_env
+            )
+          with
+          | Not_found ->
+             let loc = decl.top_decl_loc in
+             Error.pp_error loc (fun fmt -> Format.fprintf fmt "Unknown library %s" dep);
+             raise (Error (loc, Error.Unknown_library dep (*basename*)))
+        )
+        | Include name ->
+           let basename = name_dependency decl.top_decl_loc (true, name) "" in
+           if Filename.check_suffix basename ".lus" then
+             let include_src = Compiler_common.parse basename ".lus" in
+             let (accu_prog, accu_dep, typ_env, clk_env) =
+               load_rec ~is_header:false accu include_src
+             in
+             decl::accu_prog, accu_dep, typ_env, clk_env
+           else
+             raise (Error (decl.top_decl_loc, LoadError("include requires a lustre file")))
+           
+        | Node nd ->
+           if is_header then
+             raise (Error(decl.top_decl_loc,
+                          LoadError ("node " ^ nd.node_id ^ " declared in a header file")))  
+           else (
+             (* Registering node *)
+             add_node nd.node_id decl;
+             (* Updating the type/clock env *)
+             decl::accu_prog, accu_dep, typ_env', clk_env'                   
+           )
+          
+        | ImportedNode ind ->
+           if is_header then (
+             add_imported_node ind.nodei_id decl;
+             decl::accu_prog, accu_dep, typ_env', clk_env'                   
+           )
+           else
+             raise (Error(decl.top_decl_loc,
+                          LoadError ("imported node " ^ ind.nodei_id ^
+                                       " declared in a regular Lustre file")))  
+        | Const c -> (
+          add_const is_header c.const_id decl;
+          decl::accu_prog, accu_dep, typ_env', clk_env' 
+        )
+        | TypeDef tdef -> (
+          add_type is_header tdef.tydef_id decl;
+          decl::accu_prog, accu_dep, typ_env', clk_env'
+        )
+      ) accu program
 
 (* Iterates through lusi definitions and records them in the hashtbl. Open instructions are evaluated and update these hashtbl as well. node_table/type/table/consts_table *)
 let load ~is_header program =
@@ -267,8 +282,11 @@ let load ~is_header program =
     List.rev prog, List.rev deps, (typ_env, clk_env)
   with
     Corelang.Error (loc, err) as exc -> (
-    Format.eprintf "Import error: %a%a@."
+    (* Format.eprintf "Import error: %a%a@."
+     *   Error.pp_error_msg err
+     *   Location.pp_loc loc; *)
+    Format.eprintf "Import error: %a@."
       Error.pp_error_msg err
-      Location.pp_loc loc;
+      ;
     raise exc
   );;

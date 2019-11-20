@@ -314,9 +314,7 @@ let node_inputs td =
 
 let node_from_name id =
       Hashtbl.find node_table id
-  (* with Not_found -> (Format.eprintf "Unable to find any node named %s@ @?" id;
-   *       	     assert false) *)
-
+      
 let update_node id top =
   Hashtbl.replace node_table id top
 

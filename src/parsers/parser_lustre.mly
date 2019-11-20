@@ -16,6 +16,7 @@ open Corelang
 open Dimension
 open Parse
 
+   
 let get_loc () = Location.symbol_rloc ()
 
 let mkident x = x, get_loc ()
@@ -705,7 +706,7 @@ cdecl:
       (fun itf -> 
        let c = mktop_decl itf (Const {
 				   const_id = $1;
-				   const_loc = Location.symbol_rloc ();
+				   const_loc = get_loc ();
 				   const_type = Types.new_var ();
 				   const_value = $3})
        in

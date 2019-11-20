@@ -34,8 +34,16 @@ let rec check_expr expr =
   | Expr_when (e', i, l)-> check_expr e'
   | Expr_merge (i, hl) -> List.for_all (fun (t, h) -> check_expr h) hl 
   | Expr_appl (i, e', i') ->
-    check_expr e' &&
-      (Basic_library.is_stateless_fun i || check_node (node_from_name i))
+     check_expr e' &&
+       (Basic_library.is_stateless_fun i || (
+          try
+            check_node (node_from_name i)
+          with Not_found ->
+            let loc = expr.expr_loc in
+            Error.pp_error loc (fun fmt -> Format.fprintf fmt "Unable to find node %s in expression %a" i Printers.pp_expr expr);
+            raise (Corelang.Error (loc, Error.Unbound_symbol i))
+        ))
+  
 and compute_node nd = (* returns true iff the node is stateless.*)
   let eqs, aut = get_node_eqs nd in
   aut = [] && (* A node containinig an automaton will be stateful *)

@@ -36,23 +36,20 @@ let init lexbuf fname =
   }
 
 let shift_pos pos1 pos2 =
-  assert (pos1.Lexing.pos_fname = pos2.Lexing.pos_fname);
+  (* Format.eprintf "Shift pos %s by pos %s@." pos1.Lexing.pos_fname pos2.Lexing.pos_fname;
+   * assert (pos1.Lexing.pos_fname = pos2.Lexing.pos_fname); *)
   {Lexing.pos_fname = pos1.Lexing.pos_fname;
-    Lexing.pos_lnum = pos1.Lexing.pos_lnum + pos2.Lexing.pos_lnum;
+    Lexing.pos_lnum = pos1.Lexing.pos_lnum + pos2.Lexing.pos_lnum -1;
+
+    (* New try *)
+    Lexing.pos_bol = pos2.Lexing.pos_bol;
+    Lexing.pos_cnum = pos2.Lexing.pos_cnum;
+    (*
     Lexing.pos_bol = pos1.Lexing.pos_bol + pos2.Lexing.pos_bol;
     Lexing.pos_cnum =if pos2.Lexing.pos_lnum = 1 then pos1.Lexing.pos_cnum + pos2.Lexing.pos_cnum else pos2.Lexing.pos_cnum
-  }
+     *)
+}
 
-let shift loc1 loc2 =
-  {loc_start = shift_pos loc1.loc_start loc2.loc_start;
-    loc_end  = shift_pos loc1.loc_start loc2.loc_end
-  }
-    
-let symbol_rloc () = 
-  {
-    loc_start = Parsing.symbol_start_pos ();
-    loc_end = Parsing.symbol_end_pos ()
-  }
     
 
 open Format
@@ -93,13 +90,57 @@ let pp_loc fmt loc =
   let (start_char, end_char) =
     if start_char < 0 then (0,1) else (start_char, end_char)
   in
-  Format.fprintf fmt "File \"%s\", line %i, characters %i-%i:" filename line start_char end_char
+  Format.fprintf fmt "File \"%s\", line %i, characters %i-%i:" filename line start_char end_char;
+  (* Format.fprintf fmt "@.loc1=(%i,%i,%i) loc2=(%i,%i,%i)@."
+   *   loc.loc_start.Lexing.pos_lnum
+   *   loc.loc_start.Lexing.pos_bol
+   *   loc.loc_start.Lexing.pos_cnum
+   *   loc.loc_end.Lexing.pos_lnum
+   *   loc.loc_end.Lexing.pos_bol
+   *   loc.loc_end.Lexing.pos_cnum;
+   *    () *)
 
+  ()
+  
 let pp_c_loc fmt loc =
   let filename = loc.loc_start.Lexing.pos_fname in
   let line = loc.loc_start.Lexing.pos_lnum in
   Format.fprintf fmt "#line %i \"%s\"" line filename
 
-(* Local Variables: *)
-(* compile-command:"make -C .." *)
-(* End: *)
+let shift loc1 loc2 =
+  let new_loc = 
+    {loc_start = shift_pos loc1.loc_start loc2.loc_start;
+     loc_end  = shift_pos loc1.loc_start loc2.loc_end
+    }
+  in
+  (* Format.eprintf "loc1: %a@.loc2: %a@.nloc: %a@."
+   *   pp_loc loc1
+   *   pp_loc loc2
+   *   pp_loc new_loc
+   * ; *)
+  new_loc
+
+let loc_pile = ref []
+let push_loc l =
+  loc_pile := l::!loc_pile
+let pop_loc () = loc_pile := List.tl !loc_pile
+  
+let symbol_rloc () =
+  let curr_loc =
+  {
+    loc_start = Parsing.symbol_start_pos ();
+    loc_end = Parsing.symbol_end_pos ()
+  }
+  in
+
+  let res =
+    if List.length !loc_pile > 0 then
+    shift (List.hd !loc_pile) curr_loc
+  else
+    curr_loc
+  in
+  (* Format.eprintf "Loc: %a@." pp_loc res; *)
+  res
+    (* Local Variables: *)
+    (* compile-command:"make -C .." *)
+    (* End: *)
