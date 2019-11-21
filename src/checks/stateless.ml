@@ -41,7 +41,7 @@ let rec check_expr expr =
           with Not_found ->
             let loc = expr.expr_loc in
             Error.pp_error loc (fun fmt -> Format.fprintf fmt "Unable to find node %s in expression %a" i Printers.pp_expr expr);
-            raise (Corelang.Error (loc, Error.Unbound_symbol i))
+            raise (Error.Error (loc, Error.Unbound_symbol i))
         ))
   
 and compute_node nd = (* returns true iff the node is stateless.*)

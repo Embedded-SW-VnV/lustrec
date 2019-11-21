@@ -18,7 +18,7 @@ let check_main () =
   if !Options.main_node = "" then
     begin
       eprintf "Code generation error: %a@." Error.pp_error_msg Error.No_main_specified;
-      raise (Error (Location.dummy_loc, Error.No_main_specified))
+      raise (Error.Error (Location.dummy_loc, Error.No_main_specified))
     end
 
 let create_dest_dir () =
@@ -59,7 +59,7 @@ let parse filename extension =
     | (Parse.Error err) as exc -> 
        Parse.report_error err;
        raise exc
-    | Corelang.Error (loc, err) as exc -> (
+    | Error.Error (loc, err) as exc -> (
       eprintf "Parsing error: %a%a@."
         Error.pp_error_msg err
         Location.pp_loc loc;
@@ -74,7 +74,7 @@ let expand_automata decls =
   Log.report ~level:1 (fun fmt -> fprintf fmt ".. expanding automata@ ");
   try
     Automata.expand_decls decls
-  with (Corelang.Error (loc, err)) as exc ->
+  with (Error.Error (loc, err)) as exc ->
     eprintf "Automata error: %a%a@."
       Error.pp_error_msg err
       Location.pp_loc loc;
@@ -237,7 +237,7 @@ let resolve_contracts prog =
             let stmts = in_assigns :: out_assigns :: imp_nd.node_stmts @ stmts in
             let c = merge_contracts c imp_c in
             stmts, locals, c 
-          with Not_found -> Format.eprintf "Where is contract %s@.@?" name; raise (Error (loc, (Error.Unbound_symbol ("contract " ^ name))))
+          with Not_found -> Format.eprintf "Where is contract %s@.@?" name; raise (Error.Error (loc, (Error.Unbound_symbol ("contract " ^ name))))
 
          
         ) ([], c.consts@c.locals, c) c.imports

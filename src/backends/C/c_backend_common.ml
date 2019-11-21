@@ -762,7 +762,7 @@ let print_get_inputs fmt m =
 	Format.eprintf "Code generation error: %a%a@."
 	  Error.pp_error_msg Error.Main_wrong_kind
 	  Location.pp_loc v'.var_loc;
-	raise (Error (v'.var_loc, Error.Main_wrong_kind))
+	raise (Error.Error (v'.var_loc, Error.Main_wrong_kind))
       end
   in
   Utils.List.iteri2 (fun idx v' v ->

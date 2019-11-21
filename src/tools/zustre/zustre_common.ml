@@ -697,6 +697,8 @@ let add_rule ?(dont_touch=[]) vars  expr =
 				      let hash = Hashtbl.hash
   end)
   in
+(* Fonction seems unused 
+
   let rec get_expr_vars e =
     let open Utils in
     let nb_args = Z3.Expr.get_num_args e in
@@ -729,6 +731,7 @@ let add_rule ?(dont_touch=[]) vars  expr =
 	(fun accu e ->  FDSet.union accu (get_expr_vars e))
 	FDSet.empty (Z3.Expr.get_args e)
   in
+ *)
   (* Unsed variable. Coul;d be reintroduced 
   let extracted_vars = FDSet.elements (FDSet.diff (get_expr_vars expr) (FDSet.of_list dont_touch)) in
   let extracted_sorts = List.map Z3.FuncDecl.get_range extracted_vars in

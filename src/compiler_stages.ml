@@ -92,7 +92,7 @@ let stage1 params prog dirname basename extension =
         ignore (Corelang.node_from_name main_node)
       with Not_found -> (
         Format.eprintf "Code generation error: %a@." Error.pp_error_msg Error.Main_not_found;
-        raise (Corelang.Error (Location.dummy_loc, Error.Main_not_found))
+        raise (Error.Error (Location.dummy_loc, Error.Main_not_found))
     ))
   in
   

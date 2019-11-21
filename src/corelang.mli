@@ -12,7 +12,6 @@
 
 open Lustre_types
 
-exception Error of Location.t * Error.error_kind
 module VSet: sig
   include Set.S
   val pp: Format.formatter -> t -> unit 

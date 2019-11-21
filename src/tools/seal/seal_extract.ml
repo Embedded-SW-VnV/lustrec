@@ -3,7 +3,9 @@ open Utils
 open Seal_utils			
 open Zustre_data (* Access to Z3 context *)
    
-
+let _ =
+  Z3.Params.update_param_value !ctx "timeout" "10000"
+  
 (* Switched system extraction: expression are memoized *)
 (*let expr_mem = Hashtbl.create 13*)
     
@@ -373,8 +375,10 @@ let check_sat ?(just_check=false) (l: elem_boolexpr guard) : bool * (elem_boolex
     in
     if false then Format.eprintf "Z3 exprs1: [%a]@ " (fprintf_list ~sep:",@ " (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))) zl; 
     let zl = simplify zl in
-        if false then Format.eprintf "Z3 exprs2: [%a]@ " (fprintf_list ~sep:",@ " (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))) zl; 
+    if false then Format.eprintf "Z3 exprs2: [%a]@ " (fprintf_list ~sep:",@ " (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))) zl; 
+    (* Format.eprintf "Calling Z3@."; *)
     let status_res = Z3.Solver.check solver zl in
+    (* Format.eprintf "Z3 done@."; *)
      if false then Format.eprintf "Z3 status: %s@ @]@. " (Z3.Solver.string_of_status status_res); 
     match status_res with
     | Z3.Solver.UNSATISFIABLE -> false, []
@@ -675,7 +679,7 @@ let rec rewrite defs expr : elem_guarded_expr list =
   (* Format.eprintf "Rewriting %a as [@[<v 0>%a@]]@ "
    *   Printers.pp_expr expr
    *   (Utils.fprintf_list ~sep:"@ "
-   *        pp_guard_expr) res; *)
+   *        (pp_guard_expr pp_elem)) res; *)
   res
   
 and add_def defs vid expr =
@@ -685,7 +689,7 @@ and add_def defs vid expr =
   let vid_defs = rewrite defs expr in
   (* Format.eprintf "-> @[<v 0>%a@]@."
    *   (Utils.fprintf_list ~sep:"@ "
-   *      (pp_guard_expr pp_elem)) vid_defs;   *)
+   *      (pp_guard_expr pp_elem)) vid_defs; *)
   report ~level:6 (fun fmt -> Format.fprintf fmt  "Add_def: %s = %a@. -> @[<v 0>%a@]@."
       vid
       Printers.pp_expr expr
@@ -845,6 +849,8 @@ let rec build_switch_sys
           (Expr elem)
           mem_defs
       in
+      report ~level:4 (fun fmt -> Format.fprintf fmt "split by guard done@.");
+      
   (*    Format.eprintf "Selected item %a in@.%a@.POS=%a@.NEG=%a@."
         Printers.pp_expr elem
         pp_all_defs mem_defs
@@ -861,6 +867,7 @@ let rec build_switch_sys
       | Expr_const (Const_tag tag) when tag = tag_false 
         ->   build_switch_sys neg prefix
       | _ -> (* Regular case *)
+         report ~level:4 (fun fmt -> Format.fprintf fmt "Building both children branches@."); 
          (* let _ = (
           *     Format.eprintf "Expr is %a@." Printers.pp_expr elem;
           *     match elem.expr_desc with
@@ -872,14 +879,21 @@ let rec build_switch_sys
           * in *)
          let clean l =
            let l = List.map (fun (e,b) -> (Expr e), b) l in
+           report ~level:4 (fun fmt -> Format.fprintf fmt "Checking satisfiability of %a@."
+                                     (pp_guard_list pp_elem) l
+             );
            let ok, l = check_sat l in
            let l = List.map (fun (e,b) -> deelem e, b) l in
            ok, l
          in
          let pos_prefix = (elem, true)::prefix in
          let neg_prefix = (elem, false)::prefix in
+         report ~level:4 (fun fmt -> Format.fprintf fmt "Cleaning branches ...@."); 
          let ok_pos, pos_prefix = clean pos_prefix in         
+         report ~level:4 (fun fmt -> Format.fprintf fmt "Cleaning branche pos done@."); 
          let ok_neg, neg_prefix = clean neg_prefix in
+         report ~level:4 (fun fmt -> Format.fprintf fmt "Cleaning branche neg done@."); 
+         report ~level:4 (fun fmt -> Format.fprintf fmt "Cleaning branches done@."); 
          report ~level:4 (fun fmt -> Format.fprintf fmt "Enforcing %a@." Printers.pp_expr elem);
          let ok_l = if ok_pos then build_switch_sys pos pos_prefix else [] in
          report ~level:4 (fun fmt -> Format.fprintf fmt "Enforcing not(%a)@." Printers.pp_expr elem);
@@ -946,6 +960,7 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
      Each assign is stored in a hash tbl as list of guarded
      expressions. The memory definition is also "rewritten" as such a
      list of guarded assigns.  *)
+  report ~level:1 (fun fmt -> Format.fprintf fmt "registering all definitions in guarded form ...@.");
   let mem_defs, output_defs =
     List.fold_left (fun (accu_mems, accu_outputs) eq ->
         match eq.eq_lhs with
@@ -984,6 +999,7 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
         | _ -> assert false (* should have been removed by normalization *)
       ) ([], []) sorted_eqs
   in
+  report ~level:1 (fun fmt -> Format.fprintf fmt "registering all definitions done@.");
 
   
   report ~level:2 (fun fmt -> Format.fprintf fmt "Printing out (guarded) memories definitions (may takes time)@.");
@@ -1035,30 +1051,35 @@ let node_as_switched_sys consts (mems:var_decl list) nd =
         ))
         update_defs);
   (* Format.eprintf "Build init@."; *)
-  report ~level:4 (fun fmt -> Format.fprintf fmt "Build init@.");
+  
+  report ~level:1 (fun fmt -> Format.fprintf fmt "init/step as a switched system ...@.");
   let sw_init= 
     build_switch_sys init_defs []
   in
   (* Format.eprintf "Build step@."; *)
-  report ~level:4 (fun fmt -> Format.fprintf fmt "Build step@.");
   let sw_sys =
     build_switch_sys update_defs []
   in
+  report ~level:1 (fun fmt -> Format.fprintf fmt "init/step as a switched system ... done@.");
 
-  report ~level:4 (fun fmt -> Format.fprintf fmt "Build init out@.");
+  report ~level:1 (fun fmt -> Format.fprintf fmt "output function as a switched system ...@.");
   let init_out =
     build_switch_sys init_out []
   in
-  report ~level:4 (fun fmt -> Format.fprintf fmt "Build step out@.");
+  (* report ~level:1 (fun fmt -> Format.fprintf fmt "Build step out@."); *)
 
   let update_out =
     build_switch_sys update_out []
   in
+  report ~level:1 (fun fmt -> Format.fprintf fmt "output function as a switched system ... done@.");
+
+  report ~level:1 (fun fmt -> Format.fprintf fmt "removing dead branches and merging remaining ...@.");
 
   let sw_init = clean_sys sw_init in
   let sw_sys = clean_sys sw_sys in
   let init_out = clean_sys init_out in
   let update_out = clean_sys update_out in
+  report ~level:1 (fun fmt -> Format.fprintf fmt "removing dead branches and merging remaining ... done@.");
 
   (* Some additional checks *)
   

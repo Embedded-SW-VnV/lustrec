@@ -373,7 +373,7 @@ let analyze cpt prog =
       (* We stop with unresolved AL *)(* TODO create a report *)
       (* Printing the report on stderr *)
       Format.eprintf "%a" pp_report report;
-      raise (Corelang.Error (Location.dummy_loc, Error.AlgebraicLoop))
+      raise (Error.Error (Location.dummy_loc, Error.AlgebraicLoop))
     )
   in
   (* Printing the report on stderr *)

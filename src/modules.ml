@@ -18,17 +18,17 @@ let name_dependency loc (local, dep) ext =
     Options_management.name_dependency (local, dep) ext 
   with Not_found ->
     (* Error.pp_error loc (fun fmt -> Format.fprintf fmt "Unknown library %s" dep); *)
-    raise (Error (loc, Error.Unknown_library dep))
+    raise (Error.Error (loc, Error.Unknown_library dep))
 
   
 let add_symbol loc msg hashtbl name value =
  if Hashtbl.mem hashtbl name
- then raise (Error (loc, Error.Already_bound_symbol msg))
+ then raise (Error.Error (loc, Error.Already_bound_symbol msg))
  else Hashtbl.add hashtbl name value
 
 let check_symbol loc msg hashtbl name =
  if not (Hashtbl.mem hashtbl name)
- then raise (Error (loc, Error.Unbound_symbol msg))
+ then raise (Error.Error (loc, Error.Unbound_symbol msg))
  else ()
 
 
@@ -42,7 +42,7 @@ let add_imported_node name value =
     let itf = value.top_decl_itf in
     match value'.top_decl_desc, value.top_decl_desc with
     | Node _        , ImportedNode _  when owner = owner' && itf' && (not itf) -> update_node name value
-    | ImportedNode _, ImportedNode _            -> raise (Error (value.top_decl_loc, Error.Already_bound_symbol ("node " ^ name)))
+    | ImportedNode _, ImportedNode _            -> raise (Error.Error (value.top_decl_loc, Error.Already_bound_symbol ("node " ^ name)))
     | _                                         -> assert false
   with
     Not_found                                   -> update_node name value
@@ -57,7 +57,7 @@ let add_node name value =
     let itf = value.top_decl_itf in
     match value'.top_decl_desc, value.top_decl_desc with
     | ImportedNode _, Node _          when owner = owner' && itf' && (not itf) -> ()
-    | Node _        , Node _                    -> raise (Error (value.top_decl_loc, Error.Already_bound_symbol ("node " ^ name)))
+    | Node _        , Node _                    -> raise (Error.Error (value.top_decl_loc, Error.Already_bound_symbol ("node " ^ name)))
     | _                                         -> assert false
   with
     Not_found                                   -> update_node name value
@@ -65,12 +65,12 @@ let add_node name value =
 
 let add_tag loc name typ =
   if Hashtbl.mem tag_table name then
-    raise (Error (loc, Error.Already_bound_symbol ("enum tag " ^ name)))
+    raise (Error.Error (loc, Error.Already_bound_symbol ("enum tag " ^ name)))
   else Hashtbl.add tag_table name typ
 
 let add_field loc name typ =
   if Hashtbl.mem field_table name then
-    raise (Error (loc, Error.Already_bound_symbol ("struct field " ^ name)))
+    raise (Error.Error (loc, Error.Already_bound_symbol ("struct field " ^ name)))
   else Hashtbl.add field_table name typ
 
 let import_typedef name tydef =
@@ -84,7 +84,7 @@ let import_typedef name tydef =
     | Tydec_clock ty      -> import ty
     | Tydec_const c       ->
        if not (Hashtbl.mem type_table (Tydec_const c))
-       then raise (Error (loc, Error.Unbound_symbol ("type " ^ c)))
+       then raise (Error.Error (loc, Error.Unbound_symbol ("type " ^ c)))
        else ()
     | Tydec_array (c, ty) -> import ty
     | _                   -> ()
@@ -100,13 +100,13 @@ let add_type itf name value =
     let itf = value.top_decl_itf in
     match value'.top_decl_desc, value.top_decl_desc with
     | TypeDef ty', TypeDef ty when coretype_equal ty'.tydef_desc ty.tydef_desc && owner' = owner && itf' && (not itf) -> ()
-    | TypeDef ty', TypeDef ty -> raise (Error (value.top_decl_loc, Error.Already_bound_symbol ("type " ^ name)))
+    | TypeDef ty', TypeDef ty -> raise (Error.Error (value.top_decl_loc, Error.Already_bound_symbol ("type " ^ name)))
     | _       -> assert false
   with Not_found -> (import_typedef name value; Hashtbl.add type_table (Tydec_const name) value)
 
 let check_type loc name =
  if not (Hashtbl.mem type_table (Tydec_const name))
- then raise (Error (loc, Error.Unbound_symbol ("type " ^ name)))
+ then raise (Error.Error (loc, Error.Unbound_symbol ("type " ^ name)))
  else ()
 
 let add_const itf name value =
@@ -118,7 +118,7 @@ let add_const itf name value =
     let itf = value.top_decl_itf in
     match value'.top_decl_desc, value.top_decl_desc with
     | Const c', Const c when c.const_value = c'.const_value && owner' = owner && itf' && (not itf) -> ()
-    | Const c', Const c -> raise (Error (value.top_decl_loc, Error.Already_bound_symbol ("const " ^ name)))
+    | Const c', Const c -> raise (Error.Error (value.top_decl_loc, Error.Already_bound_symbol ("const " ^ name)))
     | _       -> assert false
   with Not_found -> Hashtbl.add consts_table name value
 
@@ -156,7 +156,7 @@ let get_lusic decl =
       lusic
     with
     | Sys_error _  ->
-       raise (Error (loc, Error.Unknown_library basename))
+       raise (Error.Error (loc, Error.Unknown_library basename))
   )
   | _ -> assert false (* should not happen *)
 
@@ -224,7 +224,7 @@ let get_envs_from_top_decls header =
           | Not_found ->
              let loc = decl.top_decl_loc in
              Error.pp_error loc (fun fmt -> Format.fprintf fmt "Unknown library %s" dep);
-             raise (Error (loc, Error.Unknown_library dep (*basename*)))
+             raise (Error.Error (loc, Error.Unknown_library dep (*basename*)))
         )
         | Include name ->
            let basename = name_dependency decl.top_decl_loc (true, name) "" in
@@ -235,11 +235,11 @@ let get_envs_from_top_decls header =
              in
              decl::accu_prog, accu_dep, typ_env, clk_env
            else
-             raise (Error (decl.top_decl_loc, LoadError("include requires a lustre file")))
+             raise (Error.Error (decl.top_decl_loc, LoadError("include requires a lustre file")))
            
         | Node nd ->
            if is_header then
-             raise (Error(decl.top_decl_loc,
+             raise (Error.Error(decl.top_decl_loc,
                           LoadError ("node " ^ nd.node_id ^ " declared in a header file")))  
            else (
              (* Registering node *)
@@ -254,7 +254,7 @@ let get_envs_from_top_decls header =
              decl::accu_prog, accu_dep, typ_env', clk_env'                   
            )
            else
-             raise (Error(decl.top_decl_loc,
+             raise (Error.Error(decl.top_decl_loc,
                           LoadError ("imported node " ^ ind.nodei_id ^
                                        " declared in a regular Lustre file")))  
         | Const c -> (
@@ -281,7 +281,7 @@ let load ~is_header program =
     in
     List.rev prog, List.rev deps, (typ_env, clk_env)
   with
-    Corelang.Error (loc, err) as exc -> (
+    Error.Error (loc, err) as exc -> (
     (* Format.eprintf "Import error: %a%a@."
      *   Error.pp_error_msg err
      *   Location.pp_loc loc; *)

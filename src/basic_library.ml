@@ -247,11 +247,25 @@ let rec partial_eval op e opt =
            Const_tag tag_true
          else
            Const_tag tag_false
+      | "=", [Const_tag t1; Const_tag t2]
+             ->
+         if t1 = t2 then
+           Const_tag tag_true
+         else
+           Const_tag tag_false
+      | "!=", [Const_tag t1; Const_tag t2]
+             ->
+         if t1 = t2 then
+           Const_tag tag_false
+         else
+           Const_tag tag_true
       | "not", [Const_tag c] -> Const_tag( if c = tag_true then tag_false else if c = tag_false then tag_true else assert false)
       | bool_fun, [Const_tag c1; Const_tag c2]
            when List.mem bool_fun bool_funs ->
          eval_bool_fun bool_fun c1 c2 
-      | _ -> assert false
+      | _ -> let loc= e.expr_loc in
+             let err =Error.Unbound_symbol (op ^ (string_of_bool (List.mem op rel_funs)) ^ " in basic library") in
+             raise (Error.Error (loc, err))
     in
     Expr_const new_cst 
   )       
@@ -285,3 +299,9 @@ let rec partial_eval op e opt =
                   (* Local Variables: *)
                   (* compile-command:"make -C .." *)
                   (* End: *)
+
+
+let _ =
+  (* Loading environement *)
+  Global.type_env := type_env;
+  Global.clock_env := clock_env

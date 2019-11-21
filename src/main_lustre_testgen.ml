@@ -191,7 +191,7 @@ let _ =
   with
   | Parse.Error _
   | Types.Error (_,_) | Clocks.Error (_,_)
-  | Corelang.Error _ (*| Task_set.Error _*)
+  | Error.Error _ (*| Task_set.Error _*)
   | Causality.Error _ -> exit 1
   | Sys_error msg -> (eprintf "Failure: %s@." msg)
   | exc -> (track_exception (); raise exc)

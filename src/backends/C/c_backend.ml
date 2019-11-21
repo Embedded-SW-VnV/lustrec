@@ -54,7 +54,7 @@ let gen_files funs basename prog machines dependencies =
     | None -> begin
       Global.main_node := main_node;
       Format.eprintf "Code generation error: %a@." Error.pp_error_msg Error.Main_not_found;
-      raise (Corelang.Error (Location.dummy_loc, Error.Main_not_found))
+      raise (Error.Error (Location.dummy_loc, Error.Main_not_found))
     end
     | Some m -> begin
       let source_main_file = (if !Options.cpp then destname ^ "_main.cpp" else destname ^ "_main.c") in (* Could be changed *)
@@ -76,7 +76,7 @@ let gen_files funs basename prog machines dependencies =
     | None -> begin
       Global.main_node := mauve;
       Format.eprintf "Code generation error: %a@." Error.pp_error_msg Error.Main_not_found;
-      raise (Corelang.Error (Location.dummy_loc, Error.Main_not_found))
+      raise (Error.Error (Location.dummy_loc, Error.Main_not_found))
     end
     | Some m -> begin
       let source_mauve_file = destname ^ "_mauve.hpp" in

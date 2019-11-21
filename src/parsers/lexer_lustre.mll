@@ -91,7 +91,6 @@ let make_annot lexbuf s =
   with LexerLustreSpec.Error loc -> raise (Parse.Error (Location.shift orig_loc loc, Parse.Annot_error s))
 
 let make_spec orig_loc lexbuf s = 
-  Format.eprintf "make spec loc %a" Location.pp_loc orig_loc;
   try
     Location.push_loc orig_loc;	
     let ns = LexerLustreSpec.spec s in

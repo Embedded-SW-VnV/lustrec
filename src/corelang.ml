@@ -15,8 +15,6 @@ open Machine_code_types
 (*open Dimension*)
 
 
-exception Error of Location.t * Error.error_kind
-
 module VDeclModule =
 struct (* Node module *)
   type t = var_decl
@@ -1438,7 +1436,7 @@ let rec partial_eval e =
        if Basic_library.is_expr_internal_fun e then
          Basic_library.partial_eval op args opt
        else
-         Expr_appl (op, pa e, opt)
+         Expr_appl (op, args, opt)
     | Expr_array el ->
        Expr_array (List.map pa el)
     | Expr_access (e, d) ->

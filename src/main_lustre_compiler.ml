@@ -140,7 +140,7 @@ let _ =
   with
   | Parse.Error _
   | Types.Error (_,_) | Clocks.Error (_,_) -> exit 1
-  | Corelang.Error (loc , kind) (*| Task_set.Error _*) ->
+  | Error.Error (loc , kind) (*| Task_set.Error _*) ->
      Error.pp_error loc (fun fmt -> Error.pp_error_msg fmt kind);
      exit (Error.return_code kind)
   (* | Causality.Error _  -> exit (Error.return_code Error.AlgebraicLoop) *)

@@ -155,7 +155,7 @@ let translate_to_ada basename prog machines dependencies =
     match Machine_code_common.get_machine_opt filtered_machines main_node with
     | None -> begin
       Format.eprintf "Ada Code generation error: %a@." Error.pp_error_msg Error.Main_not_found;
-      raise (Corelang.Error (Location.dummy_loc, Error.Main_not_found))
+      raise (Error.Error (Location.dummy_loc, Error.Main_not_found))
     end
     | Some m -> Some m
   )) in
