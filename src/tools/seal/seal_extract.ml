@@ -3,8 +3,6 @@ open Utils
 open Seal_utils			
 open Zustre_data (* Access to Z3 context *)
    
-let _ =
-  Z3.Params.update_param_value !ctx "timeout" "10000"
   
 (* Switched system extraction: expression are memoized *)
 (*let expr_mem = Hashtbl.create 13*)
@@ -918,6 +916,9 @@ let rec build_switch_sys
    update) meaning "if cond then update" where update shall define all
    node memories. Everything as to be expressed over inputs or memories, intermediate variables are removed through inlining *)
 let node_as_switched_sys consts (mems:var_decl list) nd =
+   Z3.Params.update_param_value !ctx "timeout" "10000";
+
+ 
   (* rescheduling node: has been scheduled already, no need to protect
      the call to schedule_node *)
   let nd_report = Scheduling.schedule_node nd in
