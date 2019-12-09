@@ -1329,7 +1329,16 @@ let get_node name prog =
 let rec push_negations ?(neg=false) e =
   let res =
     let pn = push_negations in
-    let map desc = mkexpr e.expr_loc desc in
+    let map desc =
+      (* Keeping clock and type info *)
+      let new_e = mkexpr e.expr_loc desc in
+      {
+        new_e
+      with
+        expr_type = e.expr_type;
+        expr_clock = e.expr_clock
+      }
+    in
     match e.expr_desc with
     | Expr_ite (g,t,e) ->
        if neg then
@@ -1402,7 +1411,11 @@ let rec add_pre_expr vars e =
          e.expr_desc
     | _ -> assert false (* no array, array access, power or merge/when yet *)
   in
-  mkexpr e.expr_loc desc
+  let new_e = mkexpr e.expr_loc desc in
+  { new_e with
+    expr_type = e.expr_type;
+    expr_clock = e.expr_clock
+  }
 
 
         
