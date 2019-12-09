@@ -16,6 +16,8 @@ open Corelang
 open Normalization
 open Machine_code_common
 
+let report = Log.report ~plugin:"MPFR"
+           
 let mpfr_module = mktop (Open(false, "mpfr_lustre"))
 let cpt_fresh = ref 0
   
@@ -99,6 +101,14 @@ let base_inject_op id =
   | "!="     -> "MPFRNeq"
   (* Conv functions *)
   | "int_to_real" -> "MPFRint_to_real"
+  | "real_to_int" -> "MPFRreal_to_int"
+  | "_floor" -> "MPFRfloor"        
+  | "_ceil" -> "MPFRceil"        
+  | "_round" -> "MPFRround"        
+  | "_Floor" -> "MPFRFloor"        
+  | "_Ceiling" -> "MPFRCeiling"        
+  | "_Round" -> "MPFRRound"        
+       
   (* Math library functions *)
   | "acos" -> "MPFRacos"
   | "acosh" -> "MPFRacosh"
@@ -128,7 +138,7 @@ let base_inject_op id =
   | _        -> raise Not_found
 
 let inject_op id =
-  Format.eprintf "trying to inject mpfr into function %s@." id;
+  report ~level:3 (fun fmt -> Format.fprintf fmt "trying to inject mpfr into function %s@." id);
   try
     base_inject_op id
   with Not_found -> id

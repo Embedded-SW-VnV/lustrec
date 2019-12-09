@@ -723,13 +723,16 @@ let print_put_var fmt file_suffix name var_type var_id =
     pp_file fmt "i" var_id
   )
   else if Types.is_real_type unclocked_t then
-    let _ =
-      if !Options.mpfr then
-        fprintf fmt "_put_double(\"%s\", mpfr_get_d(%s, %s), %i);@ " name var_id (Mpfr.mpfr_rnd ()) !Options.print_prec_double
-      else
-        fprintf fmt "_put_double(\"%s\", %s, %i);@ " name var_id !Options.print_prec_double
-    in
-    pp_file fmt ".*f" ((string_of_int !Options.print_prec_double) ^ ", " ^ var_id)
+    
+      if !Options.mpfr then (
+        fprintf fmt "_put_double(\"%s\", mpfr_get_d(%s, %s), %i);@ " name var_id (Mpfr.mpfr_rnd ()) !Options.print_prec_double;
+        pp_file fmt ".*f" ((string_of_int !Options.print_prec_double) ^ ", mpfr_get_d(" ^ var_id ^ ", MPFR_RNDN)")
+      )
+      else (
+        fprintf fmt "_put_double(\"%s\", %s, %i);@ " name var_id !Options.print_prec_double;
+        pp_file fmt ".*f" ((string_of_int !Options.print_prec_double) ^ ", " ^ var_id)
+      )
+    
   else
     (Format.eprintf "Impossible to print the _put_xx for type %a@.@?" Types.print_ty var_type; assert false)
 

@@ -101,6 +101,54 @@ void MPFRint_to_real_step (int i, mpfr_t out)
 {
   mpfr_set_si(out, i, MPFR_RNDN);
 }
+
+void MPFRreal_to_int_step (mpfr_t in1, int *out)
+{
+  *out = mpfr_get_sj (in1, MPFR_RNDN); 
+}
+
+void MPFRFloor (mpfr_t in1, int *out)
+{
+  mpfr_t tmp;
+  int prec;
+  mpfr_init (tmp); // would be better to avoid local init  
+  prec = mpfr_get_prec (in1);
+  mpfr_set_prec(tmp, prec);
+
+  mpfr_floor(tmp, in1);
+  *out = mpfr_get_sj (tmp, MPFR_RNDN);
+
+  mpfr_clear(tmp);
+}
+
+void MPFRCeiling (mpfr_t in1, int *out)
+{
+  mpfr_t tmp;
+  int prec;
+  mpfr_init (tmp); // would be better to avoid local init  
+  prec = mpfr_get_prec (in1);
+  mpfr_set_prec(tmp, prec);
+  
+  mpfr_ceil(tmp, in1);
+  *out = mpfr_get_sj (tmp, MPFR_RNDN);
+
+  mpfr_clear(tmp);
+}
+
+void MPFRRound (mpfr_t in1, int *out)
+{
+  mpfr_t tmp;
+  int prec;
+  mpfr_init (tmp); // would be better to avoid local init  
+  prec = mpfr_get_prec (in1);
+  mpfr_set_prec(tmp, prec);
+  
+  mpfr_round(tmp, in1);
+  *out = mpfr_get_sj (tmp, MPFR_RNDN);
+
+  mpfr_clear(tmp);
+}
+
 // functions of lustrec_math
 void MPFRacos_step (mpfr_t i, 
                              mpfr_t out
