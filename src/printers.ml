@@ -118,7 +118,8 @@ let rec pp_expr fmt expr =
   (match expr.expr_annot with 
    | None -> fprintf fmt "%t" 
    | Some ann -> fprintf fmt "@[(%a %t)@]" pp_expr_annot ann)
-    (fun fmt -> 
+    (fun fmt ->
+      let pp fmt = 
       match expr.expr_desc with
       | Expr_const c -> pp_const fmt c
       | Expr_ident id ->
@@ -141,6 +142,12 @@ let rec pp_expr fmt expr =
       | Expr_merge (id, hl) -> 
          fprintf fmt "merge %s %a" id pp_handlers hl
       | Expr_appl (id, e, r) -> pp_app fmt id e r
+      in
+      if false (* extra debug *)
+      then
+        Format.fprintf fmt "%t: %a" pp Types.print_ty expr.expr_type 
+      else
+        pp fmt
     )
 and pp_tuple fmt el =
   fprintf_list ~sep:"," pp_expr fmt el
@@ -269,7 +276,7 @@ and pp_expr_annot fmt expr_ann =
       pp_eexpr ee
   in
   fprintf_list ~sep:"@ " pp_annot fmt expr_ann.annots
-
+ 
 
 let pp_asserts fmt asserts =
   match asserts with 
