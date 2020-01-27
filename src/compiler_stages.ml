@@ -205,7 +205,8 @@ let stage1 params prog dirname basename extension =
   (* Normalization phase *)
   Log.report ~level:1 (fun fmt -> fprintf fmt ".. normalization@,");
   let prog = Normalization.normalize_prog params prog in
-  Log.report ~level:2 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog prog);
+  Log.report ~level:2 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog_short prog);
+  Log.report ~level:3  (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog prog);
   
   (* Compatibility with Lusi *)
   (* If compiling a lusi, generate the lusic. If this is a lus file, Check the existence of a lusi (Lustre Interface file) *)
@@ -226,7 +227,7 @@ let stage1 params prog dirname basename extension =
 	Log.report ~level:1 (fun fmt -> fprintf fmt ".. keeping floating-point numbers@,");
 	prog
       end in
-  Log.report ~level:2 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog prog);
+  Log.report ~level:3 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog prog);
 
   (* Checking array accesses *)
   if !Options.check then

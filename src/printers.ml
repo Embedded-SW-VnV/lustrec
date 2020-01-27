@@ -471,12 +471,14 @@ let pp_spec_as_comment fmt (inl, outl, spec) =
        pp_l inl
        pp_l outl
      
-              
+let pp_node_vs_function fmt nd =
+  fprintf fmt "%s" (if nd.node_dec_stateless then "function" else "node")
+  
 let pp_node fmt nd =
   fprintf fmt "@[<v 0>";
   (* Prototype *)
-  fprintf fmt  "%s @[<hov 0>%s (@[%a)@]@ returns (@[%a)@]@]@ "
-    (if nd.node_dec_stateless then "function" else "node")
+  fprintf fmt  "%a @[<hov 0>%s (@[%a)@]@ returns (@[%a)@]@]@ "
+    pp_node_vs_function nd
     nd.node_id
     pp_node_args nd.node_inputs
     pp_node_args nd.node_outputs;
@@ -557,7 +559,7 @@ let pp_decl fmt decl =
   | Include s -> fprintf fmt "include \"%s\"" s
   | TypeDef tdef -> fprintf fmt "%a" pp_typedef tdef
   
-let pp_prog fmt prog =
+let pp_prog pp_decl fmt prog =
   (* we first print types: the function SortProg.sort could do the job but ut
      introduces a cyclic dependance *)
 
@@ -572,13 +574,18 @@ let pp_prog fmt prog =
 (* Gives a short overview of model content. Do not print all node content *)
 let pp_short_decl fmt decl =
   match decl.top_decl_desc with
-  | Node nd -> fprintf fmt "node %s@ " nd.node_id
+  | Node nd -> fprintf fmt "%a %s@ "
+                 pp_node_vs_function nd
+                 nd.node_id
   | ImportedNode ind -> fprintf fmt "imported node %s" ind.nodei_id
   | Const c -> fprintf fmt "const %a@ " pp_const_decl c
   | Include s -> fprintf fmt "include \"%s\"" s
   | Open (local, s) -> if local then fprintf fmt "#open \"%s\"@ " s else fprintf fmt "#open <%s>@ " s
   | TypeDef tdef -> fprintf fmt "type %s;@ " tdef.tydef_id
-  
+
+let pp_prog_short = pp_prog pp_short_decl
+let pp_prog = pp_prog pp_decl
+            
 let pp_lusi fmt decl = 
   match decl.top_decl_desc with
   | ImportedNode ind -> fprintf fmt "%a;@ " pp_imported_node ind

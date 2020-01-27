@@ -22,19 +22,20 @@ exception Error of Location.t * error
 let rec check_expr expr =
   match expr.expr_desc with
   | Expr_const _ 
-  | Expr_ident _ -> true
+    | Expr_ident _ -> true
   | Expr_tuple el
-  | Expr_array el -> List.for_all check_expr el
+    | Expr_array el -> List.for_all check_expr el
   | Expr_access (e1, _)
-  | Expr_power (e1, _) -> check_expr e1
+    | Expr_power (e1, _) -> check_expr e1
   | Expr_ite (c, t, e) -> check_expr c && check_expr t && check_expr e
   | Expr_arrow _
-  | Expr_fby _
-  | Expr_pre _ -> false
+    | Expr_fby _
+    | Expr_pre _ -> false
   | Expr_when (e', i, l)-> check_expr e'
   | Expr_merge (i, hl) -> List.for_all (fun (t, h) -> check_expr h) hl 
   | Expr_appl (i, e', i') ->
-     check_expr e' &&
+     let reset_opt = (match i' with None -> true | Some e'' -> check_expr e'') in
+     let stateless_node =
        (Basic_library.is_stateless_fun i || (
           try
             check_node (node_from_name i)
@@ -42,24 +43,30 @@ let rec check_expr expr =
             let loc = expr.expr_loc in
             Error.pp_error loc (fun fmt -> Format.fprintf fmt "Unable to find node %s in expression %a" i Printers.pp_expr expr);
             raise (Error.Error (loc, Error.Unbound_symbol i))
-        ))
-  
+       ))
+     in
+     (* Warning message when trying to reset a stateless node *)
+     if stateless_node && not reset_opt then
+       Error.pp_warning expr.expr_loc (fun fmt -> Format.fprintf fmt "Trying to reset call the stateless node or op %s" i)
+     ;
+     check_expr e' && reset_opt && stateless_node
+     
 and compute_node nd = (* returns true iff the node is stateless.*)
   let eqs, aut = get_node_eqs nd in
   aut = [] && (* A node containinig an automaton will be stateful *)
-      List.for_all (fun eq -> check_expr eq.eq_rhs) eqs
+    List.for_all (fun eq -> check_expr eq.eq_rhs) eqs
 and check_node td =
   match td.top_decl_desc with 
   | Node nd         -> (
     match nd.node_stateless with
     | None     -> 
-      begin
-	let stateless = compute_node nd in
-	nd.node_stateless <- Some stateless;
-	if nd.node_dec_stateless && (not stateless)
-	then raise (Error (td.top_decl_loc, Stateful_kwd nd.node_id))
-	else (nd.node_dec_stateless <- stateless; stateless)
-      end
+       begin
+	 let stateless = compute_node nd in
+	 nd.node_stateless <- Some stateless;
+	 if nd.node_dec_stateless && (not stateless)
+	 then raise (Error (td.top_decl_loc, Stateful_kwd nd.node_id))
+	 else (nd.node_dec_stateless <- stateless; stateless)
+       end
     | Some stl -> stl)
   | ImportedNode nd ->
      begin
