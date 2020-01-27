@@ -65,6 +65,11 @@ let rec verify dirname basename extension =
       decr Options.verbose_level;
       Compiler_stages.stage1 params prog dirname basename extension
     with Compiler_stages.StopPhase1 prog -> (
+      if !Options.print_nodes then (
+        Format.printf "%a@.@?" Printers.pp_node_list prog;
+        exit 0
+      )
+      else
         assert false
     )
   in

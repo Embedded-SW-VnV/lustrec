@@ -29,6 +29,7 @@ let global_inline = ref false
 let witnesses = ref false
 let optimization = ref 2
 let lusi = ref false
+let print_nodes = ref false
 let print_reuse = ref false
 let const_unfold = ref false
 let mpfr = ref false

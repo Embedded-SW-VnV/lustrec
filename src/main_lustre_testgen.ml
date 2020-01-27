@@ -46,8 +46,19 @@ let testgen_source dirname basename extension =
   (* Parsing source *)
   let prog = parse source_name extension in
   let params = Backends.get_normalization_params () in
-  let prog, dependencies = Compiler_stages.stage1 params prog dirname basename extension in
-
+  let prog, dependencies =
+    try
+      Compiler_stages.stage1 params prog dirname basename extension 
+   with Compiler_stages.StopPhase1 prog -> (
+      if !Options.print_nodes then (
+        Format.printf "%a@.@?" Printers.pp_node_list prog;
+        exit 0
+      )
+      else
+        assert false
+    )
+ in
+  
   (* Two cases
      - generation of coverage conditions
      - generation of mutants: a number of mutated lustre files 

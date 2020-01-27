@@ -92,6 +92,7 @@ let common_options =
     "-node", Arg.Set_string main_node, "specifies the \x1b[4mmain\x1b[0m node";
     "-print-types", Arg.Set print_types, "prints node types";
     "-print-clocks", Arg.Set print_clocks, "prints node clocks";
+    "-print-nodes",  Arg.Set print_nodes, "prints node list";
     "-algebraic-loop-solve", Arg.Set solve_al, "try to solve algebraic loops";
     "-algebraic-loop-max", Arg.Set_int al_nb_max, "try to solve \x1b[4mnb\x1b[0m number of algebraic loops  <default: 15>";
     "-kind2", Arg.Set kind2_print, "active kind2 output";

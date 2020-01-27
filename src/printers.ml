@@ -601,6 +601,17 @@ let pp_offset fmt offset =
   | Index i -> fprintf fmt "[%a]" Dimension.pp_dimension i
   | Field f -> fprintf fmt ".%s" f
 
+let pp_node_list fmt prog =
+  Format.fprintf fmt "@[<h 2>%a@]"
+    (fprintf_list
+       ~sep:"@ "
+       (fun fmt decl ->
+         match decl.top_decl_desc with
+         | Node nd -> Format.fprintf fmt "%s" nd.node_id
+         | _ -> ()
+    ))
+    prog
+    
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

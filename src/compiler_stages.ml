@@ -123,7 +123,7 @@ let stage1 params prog dirname basename extension =
 
 
   (* Generating a .lusi header file only *)
-  if !Options.lusi then
+  if !Options.lusi || !Options.print_nodes then
     (* We stop here the processing and produce the current prog. It will be
        exported as a lusi *)
     raise (StopPhase1 prog);

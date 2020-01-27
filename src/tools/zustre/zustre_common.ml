@@ -5,7 +5,9 @@ open Format
 (* open Horn_backend_common
  * open Horn_backend *)
 open Zustre_data
-
+  
+let report = Log.report ~plugin:"z3 interface"
+           
 module HBC = Horn_backend_common
 let node_name = HBC.node_name
 
@@ -111,7 +113,7 @@ let register_fdecl id fd = Hashtbl.add decls id fd
 let get_fdecl id =
   try
     Hashtbl.find decls id
-  with Not_found -> (Format.eprintf "Unable to find func_decl %s@.@?" id; raise Not_found)
+  with Not_found -> (report ~level:3 (fun fmt -> Format.fprintf fmt  "Unable to find func_decl %s@.@?" id); raise Not_found)
 
 let pp_fdecls fmt =
   Format.fprintf fmt "Registered fdecls: @[%a@]@ "
@@ -122,6 +124,13 @@ let decl_var id =
   (* Format.eprintf "Declaring var %s@." id.var_id; *)
   let fdecl = Z3.FuncDecl.mk_func_decl_s !ctx id.var_id [] (type_to_sort id.var_type) in
   register_fdecl id.var_id fdecl;
+  fdecl
+
+(* Declaring the function used in expr *) 
+let decl_fun op args typ =
+  let args = List.map type_to_sort args in
+  let fdecl = Z3.FuncDecl.mk_func_decl_s !ctx op args (type_to_sort typ) in
+  register_fdecl op fdecl;
   fdecl
 
 let idx_sort = int_sort
@@ -242,133 +251,107 @@ let rec horn_default_val t =
 
 (* Conversion of basic library functions *)
     
-let horn_basic_app i val_to_expr vl =
+let horn_basic_app i vl (vltyp, typ) =
   match i, vl with
-  | "ite", [v1; v2; v3] ->
-     Z3.Boolean.mk_ite
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
-       (val_to_expr v3)
-
-  | "uminus", [v] ->
-     Z3.Arithmetic.mk_unary_minus
-       !ctx
-       (val_to_expr v)
+  | "ite", [v1; v2; v3] ->  Z3.Boolean.mk_ite !ctx v1 v2 v3
+  | "uminus", [v] ->    Z3.Arithmetic.mk_unary_minus
+       !ctx v
   | "not", [v] ->
      Z3.Boolean.mk_not
-       !ctx
-       (val_to_expr v)
+       !ctx v
   | "=", [v1; v2] ->
      Z3.Boolean.mk_eq
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
+       !ctx v1 v2
   | "&&", [v1; v2] ->
      Z3.Boolean.mk_and
        !ctx
-       [val_to_expr v1;
-        val_to_expr v2]
+       [v1; v2]
   | "||", [v1; v2] ->
           Z3.Boolean.mk_or
        !ctx
-       [val_to_expr v1;
-        val_to_expr v2]
+       [v1;
+         v2]
 
   | "impl", [v1; v2] ->
      Z3.Boolean.mk_implies
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
+       !ctx v1 v2
  | "mod", [v1; v2] ->
           Z3.Arithmetic.Integer.mk_mod
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
+       !ctx v1 v2
   | "equi", [v1; v2] ->
           Z3.Boolean.mk_eq
        !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
+       v1 v2
   | "xor", [v1; v2] ->
           Z3.Boolean.mk_xor
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
+       !ctx v1 v2
   | "!=", [v1; v2] ->
      Z3.Boolean.mk_not
        !ctx
        (
          Z3.Boolean.mk_eq
-           !ctx
-           (val_to_expr v1)
-           (val_to_expr v2)
+           !ctx v1 v2
        )
   | "/", [v1; v2] ->
      Z3.Arithmetic.mk_div
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
+       !ctx v1 v2
 
   | "+", [v1; v2] ->
      Z3.Arithmetic.mk_add
        !ctx
-       [val_to_expr v1; val_to_expr v2]
-
+       [v1; v2]
   | "-", [v1; v2] ->
      Z3.Arithmetic.mk_sub
        !ctx
-       [val_to_expr v1 ; val_to_expr v2]
+       [v1 ;  v2]
        
   | "*", [v1; v2] ->
      Z3.Arithmetic.mk_mul
        !ctx
-       [val_to_expr v1; val_to_expr v2]
+       [ v1;  v2]
 
 
   | "<", [v1; v2] ->
      Z3.Arithmetic.mk_lt
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
-
+       !ctx v1 v2
   | "<=", [v1; v2] ->
      Z3.Arithmetic.mk_le
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
-
+       !ctx v1 v2
   | ">", [v1; v2] ->
      Z3.Arithmetic.mk_gt
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
-
+       !ctx v1 v2
   | ">=", [v1; v2] ->
      Z3.Arithmetic.mk_ge
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
-
+       !ctx v1 v2
   | "int_to_real", [v1] ->
      Z3.Arithmetic.Integer.mk_int2real
-       !ctx
-       (val_to_expr v1)
-
+       !ctx v1
+  | _ ->
+     let fd =
+       try
+         get_fdecl i
+       with Not_found -> begin
+           report ~level:3 (fun fmt -> Format.fprintf fmt "Registering function %s as uninterpreted function in Z3@.%s: (%a) -> %a" i i (Utils.fprintf_list ~sep:"," Types.print_ty) vltyp Types.print_ty typ); 
+           decl_fun i vltyp typ
+         end
+     in
+     Z3.FuncDecl.apply fd vl
     
+     
   (* | _, [v1; v2] ->      Z3.Boolean.mk_and
    *      !ctx
    *      (val_to_expr v1)
    *      (val_to_expr v2)
    * 
    *      Format.fprintf fmt "(%s %a %a)" i val_to_exprr v1 val_to_expr v2 *)
-  | _ -> (
-    let msg fmt = Format.fprintf fmt
-                    "internal error: zustre unkown function %s (nb args = %i)@."
-                    i (List.length vl)
-    in
-    raise (UnknownFunction(i, msg))
-  )
+
+(* | _ -> (
+ *     let msg fmt = Format.fprintf fmt
+ *                     "internal error: zustre unkown function %s (nb args = %i)@."
+ *                     i (List.length vl)
+ *     in
+ *     raise (UnknownFunction(i, msg))
+ *   ) *)
 
            
 (* Convert a value expression [v], with internal function calls only.  [pp_var]
@@ -376,6 +359,7 @@ let horn_basic_app i val_to_expr vl =
    may be added for array variables
 *)
 let rec horn_val_to_expr ?(is_lhs=false) m self v =
+  (* Format.eprintf "h_v2e %a@." (Machine_code_common.pp_val m) v ; *)
   match v.value_desc with
   | Cst c       -> horn_const_to_expr c
 
@@ -425,7 +409,7 @@ let rec horn_val_to_expr ?(is_lhs=false) m self v =
          (rename_machine
             self
             v)
-  | Fun (n, vl)   -> horn_basic_app n (horn_val_to_expr m self) vl
+  | Fun (n, vl)   -> horn_basic_app n (List.map (horn_val_to_expr m self) vl) (List.map (fun v -> v.value_type) vl, v.value_type)
 
 let no_reset_to_exprs machines m i =
   let (n,_) = List.assoc i m.minstances in

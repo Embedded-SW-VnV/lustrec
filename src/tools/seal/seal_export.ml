@@ -62,7 +62,7 @@ let process_sw vars f_e sw =
        match g_opt with
        | None -> (
          Format.eprintf "SEAL issue: process_sw with %a"
-           pp_sys sw
+           (pp_sys Printers.pp_expr) sw
        ;
          assert false (* How could this happen anyway ? *)
        )
@@ -117,10 +117,33 @@ let sw_to_lustre m sw_init sw_step init_out update_out =
   in
   new_nd, orig_nd
 
+    
+let funsw_to_lustre m update_out =
+  let orig_nd = m.mname in
+  let copy_nd = orig_nd (*Corelang.copy_node orig_nd *) in
+  let output_eq =
+    let e_update_out = process_sw copy_nd.node_outputs  (fun x -> x) update_out in
+    [ 
+      Eq
+        { eq_loc = Location.dummy_loc;
+          eq_lhs = List.map (fun v -> v.var_id) copy_nd.node_outputs; 
+          eq_rhs = e_update_out
+        };
+    ]
+  in
+  let new_nd =
+    { copy_nd with
+      node_id = copy_nd.node_id ^ "_seal";
+      node_locals = [];
+      node_stmts = output_eq;
+    }
+  in
+  new_nd, orig_nd
   
-let to_lustre basename prog m sw_init sw_step init_out update_out =
+  
+
+let to_lustre basename prog new_node orig_node =
   let loc = Location.dummy_loc in
-  let new_node, orig_nd = sw_to_lustre m sw_init sw_step init_out update_out in
   Global.type_env := Typing.type_node !Global.type_env new_node loc;
   Global.clock_env := Clock_calculus.clock_node !Global.clock_env loc new_node;
 
@@ -139,8 +162,17 @@ let to_lustre basename prog m sw_init sw_step init_out update_out =
   let output_file_verif = !Options.dest_dir ^ "/" ^ basename ^ "_seal_verif.lus" in
   let out_verif = open_out output_file_verif in
   let fmt_verif = Format.formatter_of_out_channel out_verif in
-  let check_nd = Lustre_utils.check_eq new_node orig_nd in
+  let check_nd = Lustre_utils.check_eq new_node orig_node in
   let check_top =
     Corelang.mktop_decl Location.dummy_loc output_file_verif false (Node check_nd)
   in
-  Format.fprintf fmt_verif "%a@." Printers.pp_prog  (prog@[new_top;check_top]);
+  Format.fprintf fmt_verif "%a@." Printers.pp_prog  (prog@[new_top;check_top])
+  
+let node_to_lustre basename prog m sw_init sw_step init_out update_out =
+  let new_node, orig_nd = sw_to_lustre m sw_init sw_step init_out update_out in
+  to_lustre basename prog new_node orig_nd
+
+let fun_to_lustre basename prog m update_out =
+  let new_node, orig_nd = funsw_to_lustre m update_out in
+  to_lustre basename prog new_node orig_nd
+

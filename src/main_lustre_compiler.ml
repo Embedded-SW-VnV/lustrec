@@ -47,7 +47,7 @@ let rec compile dirname basename extension =
 
   (* Parsing source *)
   let prog = parse source_name extension in
-
+  
   let prog =
     if !Options.mpfr &&
          extension = ".lus" (* trying to avoid the injection of the module for lusi files *) 
@@ -71,6 +71,10 @@ let rec compile dirname basename extension =
 	  Log.report ~level:1 (fun fmt -> fprintf fmt ".. done !@ @]@.");
 	  exit 0
 	end
+      else if !Options.print_nodes then (
+        Format.printf "%a@.@?" Printers.pp_node_list prog;
+        exit 0
+      )
       else
         assert false
     )

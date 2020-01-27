@@ -1,13 +1,3 @@
-open Seal_slice
-open Seal_extract
-open Seal_utils
-
-let active = ref false
-let seal_export = ref None
-
-let set_export s = match s with
-  | "lustre" | "lus" | "m" | "matlab" -> seal_export := Some s
-  | _ -> (Format.eprintf "Unrecognized seal export: %s@.@?" s; exit 1)
 (* TODO
 
    - build the output function: for the moment we slice the node with
@@ -35,6 +25,18 @@ let set_export s = match s with
        the property to prove
      
  *)
+
+
+open Seal_slice
+open Seal_extract
+open Seal_utils
+
+let active = ref false
+let seal_export = ref None
+
+let set_export s = match s with
+  | "lustre" | "lus" | "m" | "matlab" -> seal_export := Some s
+  | _ -> (Format.eprintf "Unrecognized seal export: %s@.@?" s; exit 1)
            
 (* Select the appropriate node, should have been inlined already and
    extract update/output functions. *)
@@ -64,73 +66,73 @@ let seal_run ~basename prog machines =
   in
   let m = Machine_code_common.get_machine machines node_name in
   let nd = m.mname in
-  (* Format.eprintf "Node %a@." Printers.pp_node nd; *)
   let mems = m.mmemory in
+
   report ~level:1 (fun fmt -> Format.fprintf fmt "Node %s compiled: %i memories@." nd.node_id (List.length mems));
-  (* Format.eprintf "Mems: %a@." (Utils.fprintf_list ~sep:"; " Printers.pp_var) mems; *)
+
+  (* Slicing node *)
   let msch = Utils.desome m.msch in
-  (* Format.eprintf "graph: %a@." Causality.pp_dep_graph deps; *)
   let sliced_nd = slice_node (mems@nd.node_outputs) msch nd in
-  if false then Format.eprintf "Sliced Node %a@." Printers.pp_node sliced_nd;
   report ~level:3 (fun fmt -> Format.fprintf fmt "Node sliced@.");
+  report ~level:10 (fun fmt -> Format.fprintf fmt "Sliced Node %a@." Printers.pp_node sliced_nd);
 
   let consts = Corelang.(List.map const_of_top (get_consts prog)) in
-  let sw_init, sw_sys, init_out, update_out = node_as_switched_sys consts mems sliced_nd in
-  let pp_res pp_expr =
-    (Utils.fprintf_list ~sep:"@ "
-       (fun fmt (g, up) ->
-         Format.fprintf fmt "@[<v 2>[%t]:@ %a@]"
-           (fun fmt -> match g with None -> () | Some g -> pp_expr fmt g)
-           
-           (* (Utils.fprintf_list ~sep:"; "
-            *    (fun fmt (e,b) ->
-            *      if b then pp_expr fmt e
-            *      else Format.fprintf fmt "not(%a)"
-            *             pp_expr e)) gel *)
-           (Utils.fprintf_list ~sep:";@ "
-              (fun fmt (id, e) ->
-                Format.fprintf fmt "%s = @[<hov 0>%a@]"
-                  id
-                  pp_expr e)) up
-    ))
-  in
-  report ~level:1 (
-      fun fmt -> Format.fprintf fmt
-                   "%i memories, %i init, %i step switch cases@."
-                   (List.length mems)
-                   (List.length sw_init)
-                   (List.length sw_sys)
-               
-    );
-  report ~level:1 (fun fmt ->
-      (*let pp_res = pp_res (fun fmt e -> Format.fprintf fmt "%i" e.Lustre_types.expr_tag)  in*)
-       let pp_res = pp_res Printers.pp_expr in
-      Format.fprintf fmt "DynSys:@ @[<v 0>@[<v 3>Init:@ %a@]@ "
-        pp_res  sw_init;
-      Format.fprintf fmt "@[<v 3>Step:@ %a@]@]@."
-        pp_res  sw_sys
-    );
 
+  let pp_sys = pp_sys Printers.pp_expr in
+  if List.length mems = 0 then
+    begin (* A stateless node = a function ! *)
+      
+      let update_out = fun_as_switched_sys consts sliced_nd in
 
-                
- report ~level:1 (fun fmt ->
-      (*let pp_res = pp_res (fun fmt e -> Format.fprintf fmt "%i" e.Lustre_types.expr_tag)  in*)
-       let pp_res = pp_res Printers.pp_expr in
-      Format.fprintf fmt "Output (%i init, %i step switch cases):@ @[<v 0>@[<v 3>Init:@ %a@]@ "
-             (List.length init_out)
-                   (List.length update_out)
-                   pp_res  init_out;
-      Format.fprintf fmt "@[<v 3>Step:@ %a@]@]@."
-        pp_res  update_out
-    );
-  let _ = match !seal_export with
-    | Some "lustre" | Some "lus" ->
-       Seal_export.to_lustre basename prog m sw_init sw_sys init_out update_out  
-    | Some "matlab" | Some "m" -> assert false (* TODO *)
-    | Some _ -> assert false 
-    | None -> ()
-  in
-  ()
+      report ~level:1 (fun fmt ->
+          Format.fprintf fmt
+            "Output (%i step switch cases):@ @[<v 0>%a@]@."
+            (List.length update_out)
+            pp_sys update_out
+        );
+      
+      let _ = match !seal_export with
+        | Some "lustre" | Some "lus" ->
+           Seal_export.fun_to_lustre basename prog m update_out  
+        | Some "matlab" | Some "m" -> assert false (* TODO *)
+        | Some _ -> assert false 
+        | None -> ()
+      in
+      ()
+    end
+  else
+    begin (* A stateful node *)
+
+      let sw_init, sw_sys, init_out, update_out = node_as_switched_sys consts mems sliced_nd in
+
+      report ~level:1 (fun fmt ->
+          Format.fprintf fmt
+            "DynSys: (%i memories, %i init, %i step switch cases)@ @[<v 0>@[<v 3>Init:@ %a@]@ @[<v 3>Step:@ %a@]@]@."
+            (List.length mems)
+            (List.length sw_init)
+            (List.length sw_sys)
+            pp_sys  sw_init
+            pp_sys  sw_sys
+        );
+      
+      report ~level:1 (fun fmt ->
+          Format.fprintf fmt
+            "Output (%i init, %i step switch cases):@ @[<v 0>@[<v 3>Init:@ %a@]@ @[<v 3>Step:@ %a@]@]@."
+            (List.length init_out)
+            (List.length update_out)
+            pp_sys  init_out
+            pp_sys  update_out
+        );
+      
+      let _ = match !seal_export with
+        | Some "lustre" | Some "lus" ->
+           Seal_export.node_to_lustre basename prog m sw_init sw_sys init_out update_out  
+        | Some "matlab" | Some "m" -> assert false (* TODO *)
+        | Some _ -> assert false 
+        | None -> ()
+      in
+      ()
+    end
   
 module Verifier =
   (struct
@@ -151,7 +153,7 @@ module Verifier =
       
     let is_active () = !active
     let run = seal_run
-      
-                    
+            
+            
   end: VerifierType.S)
     

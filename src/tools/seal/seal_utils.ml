@@ -28,13 +28,20 @@ let pp_guard_list pp_elem fmt gl =
      (fun fmt (e,b) -> if b then pp_elem fmt e else Format.fprintf fmt "not(%a)" pp_elem e)) fmt gl
   
 let pp_guard_expr pp_elem  fmt (gl,e) =
-  Format.fprintf fmt "@[%a@] -> @[<hov 2>%a@]"
+  Format.fprintf fmt "@[<v 2>@[%a@] ->@ @[<hov 2>%a@]@]"
     (pp_guard_list pp_elem) gl
     pp_elem e
 
 let pp_mdefs pp_elem fmt gel = fprintf_list ~sep:"@ " (pp_guard_expr pp_elem) fmt gel
 
-                             
+let pp_assign_map pp_elem =
+  fprintf_list ~sep:"@ "
+    (fun fmt (m, mdefs) ->
+      Format.fprintf fmt
+        "%s -> @[<v 0>[%a@] ]@ "
+        m
+        (pp_mdefs pp_elem) mdefs
+    )
   
 let deelem e =  match e with
     Expr e -> e
@@ -53,15 +60,25 @@ let pp_gl pp_expr =
   fprintf_list ~sep:", " (fun fmt (e,b) -> Format.fprintf fmt "%s%a" (if b then "" else "NOT ") pp_expr e)
   
 let pp_gl_short = pp_gl (fun fmt e -> Format.fprintf fmt "%i" e.Lustre_types.expr_tag) 
-let pp_up fmt up = List.iter (fun (id,e) -> Format.fprintf fmt "%s->%i; " id e.expr_tag) up 
 
-let pp_sys fmt sw = List.iter (fun (gl,up) ->
-                        match gl with
-                        | None ->
-                           pp_up fmt up
-                        | Some gl ->
-                           Format.fprintf fmt "[@[%a@]] -> (%a)@ "
-                             Printers.pp_expr gl pp_up up) sw
+let pp_up pp_elem fmt up =
+  fprintf_list ~sep:"@ "
+    (fun fmt (id,e) -> Format.fprintf fmt "%s == %a;@ " id pp_elem e)
+    fmt
+    up 
+
+let pp_sys pp_elem fmt sw =
+  fprintf_list ~sep:"@ "
+    (fun fmt (gl,up) ->
+      match gl with
+      | None ->
+         (pp_up pp_elem) fmt up
+      | Some gl ->
+         Format.fprintf fmt "@[<v 2>[@[%a@]]:@ %a@]"
+           Printers.pp_expr gl (pp_up pp_elem) up)
+    fmt
+    sw
+  
 let pp_all_defs =
   (Utils.fprintf_list ~sep:",@ "
      (fun fmt (id, gel) -> Format.fprintf fmt "%s -> [@[<v 0>%a]@]"
@@ -76,7 +93,7 @@ module UpMap =
                         let proj l = List.map (fun (s,e) -> s, e.expr_tag) l in
                         compare (proj l1) (proj l2) 
                     end)
-        let pp = pp_up 
+        let pp = pp_up Printers.pp_expr 
       end
     
 module Guards = struct
