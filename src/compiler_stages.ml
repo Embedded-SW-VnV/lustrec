@@ -2,6 +2,7 @@ open Format
 open Utils
 open Compiler_common
 open Lustre_types
+module Mpfr = Lustrec_mpfr
 
 exception StopPhase1 of program_t
 

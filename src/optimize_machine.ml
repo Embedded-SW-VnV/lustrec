@@ -16,6 +16,7 @@ open Corelang
 open Causality
 open Machine_code_common
 open Dimension
+module Mpfr = Lustrec_mpfr
 
 
 let pp_elim m fmt elim =

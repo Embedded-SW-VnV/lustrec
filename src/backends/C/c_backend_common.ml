@@ -14,7 +14,7 @@ open Lustre_types
 open Corelang
 open Machine_code_types
 (*open Machine_code_common*)
-
+module Mpfr = Lustrec_mpfr
 
 let print_version fmt =
   Format.fprintf fmt 

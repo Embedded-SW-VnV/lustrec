@@ -16,6 +16,16 @@ let to_num (c, e, s) =
   let num_10 = Num.num_of_int 10 in
   Num.(c // (num_10 **/ (num_of_int e)))
 
+let rec to_q (c, e, s) =
+  if e = 0 then
+        Q.of_string (Num.string_of_num c)
+  else
+    if e > 0 then Q.div (to_q (c,e-1,s)) (Q.of_int 10)
+    else (* if exp<0 then *)
+      Q.mul
+        (to_q (c,e+1,s))
+        (Q.of_int 10)
+
 let to_string (_, _, s) = s
                         
 let eq r1 r2 =

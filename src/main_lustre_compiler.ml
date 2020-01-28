@@ -52,7 +52,7 @@ let rec compile dirname basename extension =
     if !Options.mpfr &&
          extension = ".lus" (* trying to avoid the injection of the module for lusi files *) 
     then
-      Mpfr.mpfr_module::prog
+      Lustrec_mpfr.mpfr_module::prog
     else
       prog
   in

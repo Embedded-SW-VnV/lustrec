@@ -18,6 +18,7 @@ val eq: t -> t -> bool
 val diseq: t -> t -> bool
   
 val to_num: t -> Num.num
+val to_q: t -> Q.t
 val to_string: t -> string
 val eq: t -> t -> bool
 val zero: t
