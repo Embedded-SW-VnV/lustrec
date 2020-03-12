@@ -121,6 +121,7 @@ let eq_equiv eq_equiv_hash =
 
 let schedule_node n =
   (* let node_vars = get_node_vars n in *)
+  Log.report ~level:5 (fun fmt -> Format.fprintf fmt "scheduling node %s@," n.node_id);
   let eq_equiv = eq_equiv (ExprDep.node_eq_equiv n) in
 
   let n', g = global_dependency n in

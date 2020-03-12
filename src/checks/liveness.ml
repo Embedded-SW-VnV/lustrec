@@ -49,16 +49,18 @@ let pp_fanin fmt fanin =
 (* computes the cone of influence of a given [var] wrt a dependency graph [g].
 *)
 let cone_of_influence g var =
- (*Format.printf "coi: %s@." var;*)
+  (*Format.printf "DEBUG coi: %s@." var;*)
  let frontier = ref (ISet.add var ISet.empty) in
+ let explored = ref ISet.empty in
  let coi = ref ISet.empty in
  while not (ISet.is_empty !frontier)
  do
    let head = ISet.min_elt !frontier in
-   (*Format.printf "head: %s@." head;*)
+   (*Format.printf "DEBUG head: %s@." head;*)
    frontier := ISet.remove head !frontier;
+   explored := ISet.add head !explored;
    if ExprDep.is_read_var head then coi := ISet.add (ExprDep.undo_read_var head) !coi;
-   List.iter (fun s -> frontier := ISet.add s !frontier) (IdentDepGraph.succ g head);
+   List.iter (fun s -> if not (ISet.mem s !explored) then frontier := ISet.add s !frontier) (IdentDepGraph.succ g head);
  done;
  !coi
 
