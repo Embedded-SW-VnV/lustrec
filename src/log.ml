@@ -13,9 +13,9 @@ let report ?plugin:(modulename="") ?(verbose_level=Options.verbose_level) ~level
 if !verbose_level >= level then
   begin
     if modulename="" then
-      Format.eprintf "%t" p
+      Format.eprintf "%t@?" p
     else
-      Format.eprintf "[%s] @[%t@]" modulename p
+      Format.eprintf "[%s] @[%t@]@?" modulename p
   end
 
 (* Local Variables: *)
