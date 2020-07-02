@@ -2,7 +2,7 @@
 module Ast = Tiny.Ast
 
 
-let lloc_to_tloc loc = Tiny.Location.dummy (*TODO*)
+let lloc_to_tloc loc = Tiny.Location.dummy () (*TODO*)
                      
 let tloc_to_lloc loc = Location.dummy_loc (*TODO*)
 
@@ -34,7 +34,7 @@ let rec real_to_q man exp =
 
 let instr_loc i =
   match i.Machine_code_types.lustre_eq with
-  | None -> Tiny.Location.dummy
+  | None -> Tiny.Location.dummy ()
   | Some eq -> lloc_to_tloc eq.eq_loc
              
 let rec lval_to_texpr loc _val =
@@ -191,7 +191,7 @@ let rec read_vars loc bounds_inputs vl =
        )
   
 let machine_to_ast bounds_input m =
-  let loc = Tiny.Location.dummy in
+  let loc = Tiny.Location.dummy () in
   let read_vars = read_vars loc bounds_input m.Machine_code_types.mstep.step_inputs in
   let ast_loop_first = machine_body_to_ast true m in
   let ast_loop_run = machine_body_to_ast false m in
