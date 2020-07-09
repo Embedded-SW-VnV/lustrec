@@ -1,9 +1,28 @@
 
 let active = ref false
 let tiny_debug = ref false
+let tiny_help = ref false
+let descending = ref 1
+let unrolling = ref 0
 
-    
+
+              
+let quiet () = Tiny.Report.verbosity := 0
+             
+let print_tiny_help () =
+  let open Format in
+  Format.eprintf "@[Tiny verifier plugin produces a simple imperative code \
+          output for the provided main node, inlining all calls. This \
+          code can then be analyzed using tiny analyzer options.@]";
+  Format.eprintf "@.@?";
+  flush stdout
+
+  
 let tiny_run ~basename prog machines =
+  if !tiny_help then (
+    let _ = print_tiny_help () in
+    exit 0
+  );
   let node_name =
     match !Options.main_node with
     | "" -> (
@@ -39,7 +58,20 @@ let tiny_run ~basename prog machines =
   
    Format.printf "%a@." Tiny.Ast.fprint_stm ast; 
 
-  ()
+   let dom =
+     let open Tiny.Load_domains in
+     prepare_domains (List.map get_domain !domains)
+   in
+   let results = Tiny.Analyze.analyze dom !descending !unrolling env ast in
+   let module Results = (val results: Tiny.Analyze.Results) in
+   let module Dom = Results.Dom in
+   let module PrintResults = Tiny.PrintResults.Make (Dom) in
+   let m = Results.results in
+   (* if !Tiny.Report.verbosity > 1 then *)
+   PrintResults.print m ast None (* no !output_file *);
+        (* else PrintResults.print_invariants m ast !output_file *)
+
+   ()
   
   
 module Verifier =
@@ -48,7 +80,47 @@ module Verifier =
     let name = "tiny"
     let options =
       [
-        "-debug", Arg.Set tiny_debug, "tiny debug"
+        "-debug", Arg.Set tiny_debug, "tiny debug";
+        ("-abstract-domain", Arg.String Tiny.Load_domains.decl_domain,
+         "<domain>  Use abstract domain <domain> " ^ Tiny.Domains.available_domains_str);
+        (* ("-a", Arg.String Tiny.Load_domains.decl_domain,
+         *  "<domain>  Use abstract domain <domain> " ^ Tiny.Domains.available_domains_str); *)
+        ("-param", Arg.String Tiny.Load_domains.set_param,
+         "<p>  Send <p> to the abstract domain, syntax <dom>:<p> can be used \
+          to target the (sub)domain <dom>");
+        (* ("-p", Arg.String Tiny.Load_domains.set_param,
+         *  "<p>  Send <p> to the abstract domain, syntax <dom>:<p> can be used \
+         *   to target the (sub)domain <dom>"); *)
+        ("-help-domain", Arg.String Tiny.Load_domains.help_domain,
+         "<domain>  Print params of <domain>");
+        (* ("-h", Arg.String Tiny.Load_domains.help_domain, "<domain>  Print params of <domain>"); *)
+        (* ("--compile", Arg.Set compile_mode, " Compilation mode: compile to C");
+      ("-c", Arg.Set compile_mode,             " Compilation mode: compile to C");*)
+        
+        ("-quiet", Arg.Unit quiet, " Quiet mode");
+        (* ("-q", Arg.Unit quiet, " Quiet mode"); *)
+        ("-verbose", Arg.Set_int Tiny.Report.verbosity,
+         "<n>  Verbosity level (default is 1)");
+        (* ("-v", Arg.Set_int Tiny.Report.verbosity, "<n>  Verbosity level (default is 1)"); *)
+  (*      ("--output", Arg.String set_output_file,
+         "<filename> Output results to file <filename> (default is \
+          standard ouput)");
+        ("-o", Arg.String set_output_file,
+         "<filename>  Output results to file <filename> (default is standard ouput)");
+   *)
+        ("-descending", Arg.Set_int descending,
+         "<n>  Perform <n> descending iterations after fixpoint of a loop \
+          is reached (default is 1)");
+        (* ("-d", Arg.Set_int descending,
+         *  "<n>  Perform <n> descending iterations after fixpoint of a loop \
+         * is reached (default is 1)"); *)
+      ("-unrolling", Arg.Set_int unrolling,
+       "<n>  Unroll loops <n> times before computing fixpoint (default is 0)");
+      (* (\* ("-u", Arg.Set_int unrolling,
+       *  *  "<n>  Unroll loops <n> times before computing fixpoint (default is 0)"); *\) *)
+       "-help", Arg.Set tiny_help, "tiny help and usage";
+        
+      
       ]
       
     let activate () =
