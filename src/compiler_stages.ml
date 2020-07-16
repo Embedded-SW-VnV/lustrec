@@ -272,6 +272,15 @@ let stage3 prog machine_code dependencies basename extension =
 	 (* alloc_header_file source_lib_file source_main_file makefile_file *)
 	 basename prog machine_code dependencies
      end
+(*
+  |  "acsl", ".lus" -> 
+     begin
+       Log.report ~level:1 (fun fmt -> fprintf fmt ".. ACSL annotations generation@,");
+       ACSL_backend.translate_to_acsl
+	 (* alloc_header_file source_lib_file source_main_file makefile_file *)
+	 basename prog machine_code dependencies
+     end
+*)
   |  "C", _ -> 
       begin
       	Log.report ~level:1 (fun fmt -> fprintf fmt ".. no C code generation for lusi@,");
