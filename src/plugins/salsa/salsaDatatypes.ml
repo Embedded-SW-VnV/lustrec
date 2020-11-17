@@ -116,8 +116,8 @@ struct
     | LT.Const_real r -> (* TODO: this is incorrect. We should rather
 				  compute the error associated to the float *)
        (* let f = float_of_string s in *)
-       let n = Real.to_num r in
-       Salsa.Builder.mk_cst (Salsa.Float.Domain.inject_num n)
+       let n = Real.to_q r in
+       Salsa.Builder.mk_cst (Salsa.Float.Domain.inject_q n)
        
        (* let r = Salsa.Prelude.r_of_f_aux r in *)
        (* Salsa.Builder.mk_cst (Float.Domain.nnew r r) *)

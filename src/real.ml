@@ -1,5 +1,5 @@
 (* (a, b, c) means a * 10^-b. c is the original string *)
-type t = Num.num * int * string 
+type t = Q.t * int * string 
 
 let pp fmt (c, e, s) =
     Format.fprintf fmt "%s%s"
@@ -7,18 +7,21 @@ let pp fmt (c, e, s) =
       (if String.get s (-1 + String.length s) = '.' then "0" else "")
 
 let pp_ada fmt (c, e, s) =
-  Format.fprintf fmt "%s.0*1.0e-%i" (Num.string_of_num c) e
+  Format.fprintf fmt "%s.0*1.0e-%i" (Q.to_string c) e
   
-let create m e s = Num.num_of_string m, e, s
-let create_num n s = n, 0, s
+let create m e s = Q.of_string m, e, s
+
+let create_q q s = q, 0, s
                    
+(*
 let to_num (c, e, s) =
   let num_10 = Num.num_of_int 10 in
   Num.(c // (num_10 **/ (num_of_int e)))
-
+ *)
+                 
 let rec to_q (c, e, s) =
   if e = 0 then
-        Q.of_string (Num.string_of_num c)
+    c
   else
     if e > 0 then Q.div (to_q (c,e-1,s)) (Q.of_int 10)
     else (* if exp<0 then *)
@@ -26,10 +29,12 @@ let rec to_q (c, e, s) =
         (to_q (c,e+1,s))
         (Q.of_int 10)
 
+let to_num = to_q
+           
 let to_string (_, _, s) = s
                         
 let eq r1 r2 =
-  Num.eq_num (to_num r1) (to_num r2)
+  Q.equal (to_q r1) (to_q r2)
   
   
 let num_binop op r1 r2 =
@@ -38,23 +43,23 @@ let num_binop op r1 r2 =
   
 let arith_binop op r1 r2 =
   let r = num_binop op r1 r2 in
-  create_num r (Num.string_of_num r)
+  create_q r (Q.to_string r)
   
-let add   = arith_binop (Num.(+/))
-let minus = arith_binop (Num.(-/))
-let times = arith_binop (Num.( */))
-let div   = arith_binop (Num.(//)) 
+let add   = arith_binop Q.add
+let minus = arith_binop Q.sub
+let times = arith_binop Q.mul
+let div   = arith_binop Q.div 
 
-let uminus (c, e, s) = Num.minus_num c, e, "-" ^ s
+let uminus (c, e, s) = Q.neg c, e, "-" ^ s
 
-let lt = num_binop (Num.(</))
-let le = num_binop (Num.(<=/))
-let gt = num_binop (Num.(>/))
-let ge = num_binop (Num.(>=/))
-let diseq = num_binop (Num.(<>/))
-let eq = num_binop (Num.(=/))
+let lt = num_binop (Q.(<))
+let le = num_binop (Q.(<=))
+let gt = num_binop (Q.(>))
+let ge = num_binop (Q.(>=))
+let diseq = num_binop (Q.(<>))
+let eq = num_binop (Q.(=))
 
-let zero = Num.num_of_int 0, 0, "0.0"
+let zero = Q.zero, 0, "0.0"
 
-let is_zero r = Num.eq_num (to_num r) (Num.num_of_int 0)
-let is_one r = Num.eq_num (to_num r) (Num.num_of_int 1)
+let is_zero r = Q.equal (to_num r) Q.zero
+let is_one r = Q.equal (to_num r) Q.one

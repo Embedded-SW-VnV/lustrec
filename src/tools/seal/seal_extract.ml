@@ -165,19 +165,22 @@ let expr_to_z3_expr, zexpr_to_expr =
         if Z3.Expr.is_numeral ze then
           let e =
             if Z3.Arithmetic.is_real ze then
-              let num =  Num.num_of_ratio (Z3.Arithmetic.Real.get_ratio ze) in
               let s = Z3.Arithmetic.Real.numeral_to_string ze in
+              (* Use to return a Num.ratio. Now Q.t *)
+              let ratio = Z3.Arithmetic.Real.get_ratio ze in
+              (*let num =  Num.num_of_ratio ratio in
+              let real = Real.create_num num s in*)
+              let real = Real.create_q ratio s in
               mkexpr
                 Location.dummy_loc
                 (Expr_const
-                   (Const_real
-                      (Real.create_num num s)))
+                   (Const_real real))
             else if Z3.Arithmetic.is_int ze then
               mkexpr
                 Location.dummy_loc
                 (Expr_const
-                   (Const_int
-                      (Big_int.int_of_big_int (Z3.Arithmetic.Integer.get_big_int ze))))
+                   (Const_int 
+                      (Z.to_int (Z3.Arithmetic.Integer.get_big_int ze))))
             else if Z3.Expr.is_const ze then
               match Z3.Expr.to_string ze with
               | "true" -> mkexpr Location.dummy_loc

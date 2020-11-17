@@ -210,7 +210,7 @@ let pp_var_type fmt v =
     
 (******** Other print functions *)
 
-let pp_emf_list ?(eol:('a, formatter, unit) Pervasives.format="") pp fmt l =
+let pp_emf_list ?(eol:('a, formatter, unit) Stdlib.format="") pp fmt l =
   match l with
     [] -> ()
   | _ -> fprintf fmt "@[";
