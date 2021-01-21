@@ -1,0 +1,131 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+bindir=@bindir@
+datarootdir = ${prefix}/share
+includedir = ${prefix}/include
+
+LUSI_LIBS=include/lustrec_math.lusi include/simulink_math_fcn.lusi include/conv.lusi
+LUSI_MPFR_LIB=include/mpfr_lustre.lusi
+LOCAL_BINDIR=bin
+LOCAL_DOCDIR=doc/manual
+BIN_TARGETS = lustrec lustret lustrev @lustresf_target@
+
+DEFAULT_TEST_TARGET=COMPIL_LUS\|MAKE\|BIN\|DIFF
+DEFAULT_EXCLUDE_TEST=LUSTRET
+
+all: $(BIN_TARGETS)
+
+lustrec:
+	@echo Compiling binary lustrec
+	@make -C src lustrec
+
+lustret:
+	@echo Compiling binary lustret
+	@make -C src lustret
+
+lustrev:
+	@echo Compiling binary lustrev
+	@make -C src lustrev
+
+lustrei:
+	@echo Compiling binary lustrei
+	@make -C src lustrei
+
+@lustresf@
+
+configure: configure.ac
+	@echo configure.ac has changed relaunching autoconf
+	@autoconf
+
+Makefile: Makefile.in config.status configure
+	@echo Makefile.in has changed relaunching autoconf
+	@./config.status --recheck
+
+doc:
+	@echo Generating doc
+	@make -C src doc
+
+dot: doc
+	@make -C src dot
+
+clean: clean-lusic
+	@make -C src clean
+
+dist-src-clean: clean
+	@rm -f config.log config.status include/*.lusic include/lustrec_math.h include/simulink_math_fcn.h include/conv.h include/mpfr_lustre.h
+	@rm -f Makefile ./src/Makefile ./src/pluginList.ml ./src/version.ml ./src/_tags ./src/ocaml_utils.ml
+
+DIST_ARCHIVE_NAME=lustrec-$(shell $(LOCAL_BINDIR)/lustrec -version | grep version | cut -d, -f 2 | sed -e "s/ version //" -e "s/ (/-/" -e "s/ /-/" -e "s/\//-/" -e "s/)//")-src.tar.gz
+
+dist-gzip: $(LOCAL_BINDIR)/lustrec dist-src-clean
+	@rm -f $(shell ls ../*lustrec*src*tar.gz)
+	@tar zcvf ../$(DIST_ARCHIVE_NAME) -C .. --exclude-vcs --exclude=Makefile  --exclude=$(LOCAL_BINDIR) $(shell basename $(PWD))
+	@echo "Source distribution built: ../$(DIST_ARCHIVE_NAME)"
+
+dist-clean: dist-src-clean
+	@rm -f configure Makefile opam share/FindLustre.cmake
+
+%.lusic: %.lusi
+	@echo Compiling $<
+	@$(LOCAL_BINDIR)/lustrec -verbose 0 -I include -d include $<
+
+clean-lusic:
+	@rm -f $(LUSI_LIBS:%.lusi=%.lusic)
+	@rm -f $(LUSI_MPFR_LIB:%.lusi=%.lusic)
+
+compile-lusi: $(LUSI_LIBS:%.lusi=%.lusic)
+
+compile-mpfr-lusi: $(LUSI_MPFR_LIB)
+	@echo Compiling $<
+	@$(LOCAL_BINDIR)/lustrec -verbose 0 -mpfr 1 -d include $<
+
+install-include: compile-lusi compile-mpfr-lusi
+	install -m 0655 include/* ${includedir}/lustrec
+
+install-base: clean-lusic
+	mkdir -p ${bindir}
+	for x in $(BIN_TARGETS); do install -m 0755 $(LOCAL_BINDIR)/$$x ${bindir}; done
+	mkdir -p ${datarootdir}
+	install -m 0655 share/*.cmake ${datarootdir}
+	mkdir -p ${includedir}/lustrec
+	install -m 0655 include/* ${includedir}/lustrec
+
+install: install-base install-include
+
+uninstall:
+	rm -Rf ${includedir}/lustrec
+	rm -Rf ${datarootdir}/share/FindLustre.cmake
+	for x in $(BIN_TARGETS); do rm -f ${bindir}/$$x; done
+
+test-config: ${bindir}/lustrec
+	if @PATH_TO_TESTS_DEFINED@; then \
+	  mkdir -p test; \
+	  cd test; \
+	  cmake -DLUSTRE_PATH_HINT=${bindir} -DSUBPROJ=@CDASHSUBPROJ@ ../@PATH_TO_TESTS@; \
+	fi
+
+test-no-submit: test-config
+	cd test; ctest -M Experimental -T Start -T Update -T Configure -T Build -T Test -R ${DEFAULT_TEST_TARGET} -E ${DEFAULT_EXCLUDE_TEST}
+
+test-submit: test-config
+	cd test; ctest -M Experimental -T Submit -R ${DEFAULT_TEST_TARGET} -E ${DEFAULT_EXCLUDE_TEST}
+
+
+test: test-config
+	cd test; ctest -D Experimental -R ${DEFAULT_TEST_TARGET} -E ${DEFAULT_EXCLUDE_TEST}
+
+
+test-full-no-submit: test-config
+	cd test; ctest -M Experimental -T Start -T Update -T Configure -T Build -T Test
+
+test-full-submit: test-config
+	cd test; ctest -M Experimental -T Submit
+
+test-full: test-config
+	cd test; ctest -D Experimental
+
+tests:
+	@echo Launching tests
+	@make -C src tests
+
+.PHONY: all compile-lusi doc dot lustrec lustrec.odocl clean install dist-clean tests
