@@ -35,6 +35,7 @@ true: bin_annot, color(always)
 <**/*.native> or <**/*.ml{,i}>         : package(num)
 <**/*.native> or <**/*.ml{,i}>         : package(ocamlgraph)
 <**/*verifier.native> or <**/*.ml{,i}> : package(yojson)
+<**/*verifier.native>: thread
 
 <**/*.native>                   : use_str
 <**/main_lustre_compiler.native>: package(unix)
