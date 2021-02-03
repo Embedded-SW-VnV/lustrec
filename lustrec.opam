@@ -14,8 +14,13 @@ homepage: "https://cavale.enseeiht.fr/redmine/projects/lustrec/"
 bug-reports: "https://cavale.enseeiht.fr/redmine/projects/lustrec/issues"
 depends: [
   "dune" {>= "2.8"}
+  "ocamlgraph"
+  "menhir"
+  "zarith"
+  "dune-site"
   "odoc" {with-doc}
 ]
+depopts: ["z3" "yojson"]
 build: [
   ["dune" "subst"] {dev}
   [
