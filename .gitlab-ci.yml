@@ -5,7 +5,7 @@
 
 # The versions of the compiler to test the project against.
 .build-matrix:
-  parallel:
+  # parallel:
     # https://docs.gitlab.com/ee/ci/yaml/README.html#parallel-matrix-jobs
     matrix:
     # - OCAML_COMPILER: "4.00.1"
@@ -20,7 +20,7 @@
     # - OCAML_COMPILER: "4.08.1"
     # - OCAML_COMPILER: "4.09.1"
     # - OCAML_COMPILER: "4.10.0"
-    - OCAML_COMPILER: "4.11.1"
+    OCAML_COMPILER: "4.11.1"
 
 variables:
   CLEAN_OPAM_CACHE: "false"
