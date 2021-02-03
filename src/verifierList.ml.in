@@ -1,6 +1,0 @@
-let verifiers =
-  [
-    @LUSTREV_SEAL@
-    @LUSTREV_ZUSTRE@
-    @LUSTREV_TINY@
-  ]

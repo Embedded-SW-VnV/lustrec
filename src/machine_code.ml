@@ -227,12 +227,12 @@ let translate_eq env ctx eq =
   match eq.eq_lhs, eq.eq_rhs.expr_desc with
   | [x], Expr_arrow (e1, e2)                     ->
      let var_x = env.get_var x in
-     let o = new_instance Arrow.arrow_top_decl eq.eq_rhs.expr_tag in
+     let o = new_instance (Arrow.arrow_top_decl ()) eq.eq_rhs.expr_tag in
      let c1 = translate_expr e1 in
      let c2 = translate_expr e2 in
      { ctx with
        si = mkinstr (MReset o) :: ctx.si;
-       j = Utils.IMap.add o (Arrow.arrow_top_decl, []) ctx.j;
+       j = Utils.IMap.add o (Arrow.arrow_top_decl (), []) ctx.j;
        s = (control_on_clock
               eq.eq_rhs.expr_clock
               (mkinstr ?lustre_eq:(Some eq) (MStep ([var_x], o, [c1;c2])))

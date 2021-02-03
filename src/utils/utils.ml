@@ -428,7 +428,6 @@ let get_date () =
   Format.flush_str_formatter ()
 
 
-                           
                            (* Local Variables: *)
                            (* compile-command:"make -C .." *)
                            (* End: *)

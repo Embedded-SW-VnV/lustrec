@@ -7,7 +7,7 @@
      - Evaluator module
  *)
 
-  let _main_ _ = 
+  let _main_ _ = function
     | Eval ->
      let module Model = (val model) in
      let module T = CPS_transformer.Evaluator in

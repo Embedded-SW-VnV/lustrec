@@ -52,7 +52,8 @@ let search_lib_path (local, full_file_name) =
   in
   match name with
   | None ->
-     Format.eprintf "Unable to find library %s in paths %a@.@?" full_file_name (Utils.fprintf_list ~sep:", " Format.pp_print_string) paths;
+    Format.eprintf "Unable to find library %s in paths %a@.@?" full_file_name
+      (Utils.fprintf_list ~sep:", " Format.pp_print_string) paths;
      raise Not_found
   | Some s -> s
 

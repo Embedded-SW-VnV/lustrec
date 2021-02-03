@@ -10,14 +10,22 @@ LustreC is a modular compiler of Lustre code into C and Horn Clauses.
 
 # Dependencies
 On a fresh ubuntu/debian-like install
-> apt-get install opam libmpfr-dev
+ ```
+ apt-get install opam libmpfr-dev
+ ```
 Get a fresh version of ocaml
-> opam switch 4.06.1
+ ```
+opam switch create 4.06.1
+ ```
 Install some dependencies
-> opam install depext ocamlgraph mlmpfr num cmdliner fmt logs yojson menhir
+ ```
+opam install depext ocamlgraph mlmpfr num cmdliner fmt logs yojson menhir
+ ```
 In OSX, some issues with Z3, please pin the following version:
-> opam pin add z3 4.8.1
-> opam install z3
+ ```
+opam pin add z3 4.8.1
+opam install z3
+ ```
 # Build
 ```
 > autoconf

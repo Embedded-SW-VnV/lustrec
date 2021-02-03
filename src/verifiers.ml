@@ -2,6 +2,8 @@ open Lustre_types
 
 open VerifierList
 
+let () = Sites.Plugins.Verifiers.load_all ()
+
 let active = ref None
            
 let options () = 
@@ -10,7 +12,7 @@ let options () =
       List.map (fun m ->
 	let module M = (val m : VerifierType.S) in
 	(M.name, M.activate, M.options)
-      ) verifiers
+      ) (verifiers ())
     ))
   
 let verifier_list verifiers =
@@ -31,10 +33,10 @@ let get_active () =
                m::found
              else
                found
-           ) [] verifiers
+           ) [] (verifiers ())
        in
        match found with
-       | [] -> raise (Sys_error ("Please select one verifier in " ^ verifier_list verifiers))
+       | [] -> raise (Sys_error ("Please select one verifier in " ^ verifier_list (verifiers ())))
        | [m] -> active := Some m; m
        | _ -> raise (Sys_error ("Too many selected verifiers: " ^ verifier_list found))
      end

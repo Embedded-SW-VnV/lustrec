@@ -1,4 +1,3 @@
-
 let number = "@PACKAGE_VERSION@-@GITBRANCH@"
 
 let codename ="@VERSION_CODENAME@"

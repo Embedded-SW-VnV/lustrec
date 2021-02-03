@@ -1,0 +1,13 @@
+(include_subdirs no)
+
+(library
+ (name salsa_plugin)
+ (public_name lustrec.salsa_plugin)
+ (libraries lustrec_interface plugin_register salsa)
+ (optional))
+
+(plugin
+ (name salsa_plugin)
+ (libraries lustrec.salsa_plugin)
+ (site (lustrec plugins))
+ (optional))

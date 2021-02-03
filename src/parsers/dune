@@ -1,0 +1,12 @@
+; (include_subdirs no)
+
+; (library
+;  (name parse)
+;  (package lustrec)
+;  (wrapped false)
+;  (libraries lustre_types corelang automata))
+
+(menhir
+ (modules parser_lustre))
+
+(ocamllex lexerLustreSpec lexer_lustre)

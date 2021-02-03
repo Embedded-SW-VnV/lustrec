@@ -54,3 +54,7 @@ module Plugin =
   
   
  end: PluginType.S)
+
+let () =
+  PluginList.registered := (module Plugin : PluginType.S) ::
+                           !PluginList.registered

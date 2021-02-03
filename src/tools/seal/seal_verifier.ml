@@ -157,3 +157,6 @@ module Verifier =
             
   end: VerifierType.S)
     
+let () =
+  VerifierList.registered := (module Verifier : VerifierType.S) ::
+                             !VerifierList.registered

@@ -2,6 +2,7 @@ open Lustre_types
 
 open PluginList
 
+let () = Sites.Plugins.Plugins.load_all ()
 
 let options () = 
   List.flatten (
@@ -9,37 +10,37 @@ let options () =
       List.map (fun m ->
 	let module M = (val m : PluginType.S) in
 	(M.name, M.activate, M.usage, M.options)
-      ) plugins
+      ) (plugins ())
     ))
 
 let init () =
   List.iter (fun m ->
       let module M = (val m : PluginType.S) in
       M.init ()
-    ) plugins
+    ) (plugins ())
   
 let check_force_stateful () =
   List.exists (fun m ->
 	let module M = (val m : PluginType.S) in
 	M.check_force_stateful ()
-  ) plugins
+  ) (plugins ())
 
 let refine_machine_code prog machine_code =
   List.fold_left (fun accu m ->
     let module M = (val m : PluginType.S) in
     M.refine_machine_code prog accu
-  ) machine_code plugins
+  ) machine_code (plugins ())
 
 
 let c_backend_main_loop_body_prefix basename mname fmt () = 
   List.iter (fun (m: (module PluginType.S)) -> 
     let module M = (val m : PluginType.S) in
-    M.c_backend_main_loop_body_prefix basename mname fmt ()) plugins
+    M.c_backend_main_loop_body_prefix basename mname fmt ()) (plugins ())
 
 let c_backend_main_loop_body_suffix fmt () = 
   List.iter (fun (m: (module PluginType.S)) -> 
     let module M = (val m : PluginType.S) in
-    M.c_backend_main_loop_body_suffix fmt ()) plugins
+    M.c_backend_main_loop_body_suffix fmt ()) (plugins ())
 
 (* Specific treatment of annotations when inlining, specific of declared plugins *)
 

@@ -9,8 +9,6 @@
 (*                                                                  *)
 (********************************************************************)
 open Format
-open Lustre_types
-open Corelang
 
 type error =
   | Undefined_token of string

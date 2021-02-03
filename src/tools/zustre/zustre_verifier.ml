@@ -264,7 +264,12 @@ module Verifier =
 	
 
 	    end: VerifierType.S)
-    
+
+
+let () =
+  VerifierList.registered := (module Verifier : VerifierType.S) ::
+                             !VerifierList.registered
+
 (* Local Variables: *)
 (* compile-command:"make -C ../.. lustrev" *)
 (* End: *)

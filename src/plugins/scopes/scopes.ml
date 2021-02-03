@@ -422,7 +422,10 @@ module Plugin : (
 
 
 end
-    
+
+let () =
+  PluginList.registered := (module Plugin : PluginType.S) ::
+                           !PluginList.registered
 (* Local Variables: *)
 (* compile-command:"make -C ../.." *)
 (* End: *)
