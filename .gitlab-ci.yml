@@ -7,7 +7,7 @@
 .build-matrix:
   # parallel:
     # https://docs.gitlab.com/ee/ci/yaml/README.html#parallel-matrix-jobs
-    matrix:
+    # matrix:
     # - OCAML_COMPILER: "4.00.1"
     # - OCAML_COMPILER: "4.01.0"
     # - OCAML_COMPILER: "4.02.1"
@@ -20,7 +20,8 @@
     # - OCAML_COMPILER: "4.08.1"
     # - OCAML_COMPILER: "4.09.1"
     # - OCAML_COMPILER: "4.10.0"
-    OCAML_COMPILER: "4.11.1"
+    variables:
+      OCAML_COMPILER: "4.11.1"
 
 variables:
   CLEAN_OPAM_CACHE: "false"
