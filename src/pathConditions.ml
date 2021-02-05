@@ -1,7 +1,6 @@
 open Lustre_types 
 open Corelang
 open Log
-open Format
 
 module IdSet = Set.Make (struct type t = expr * int let compare = compare end)
 
@@ -30,7 +29,7 @@ let rel_op = ["="; "!="; "<"; "<="; ">" ; ">=" ]
    fmt "pre "; print_pre fmt (nb_pre-1) )
 *)
   
-let rec mk_pre n e =
+let mk_pre n e =
   if n <= 0 then
     e
   else
@@ -141,7 +140,7 @@ let rec compute_neg_expr cpt_pre (expr: Lustre_types.expr) =
      vl, List.map
            (fun (v, negv) -> (v, { expr with expr_desc = Expr_pre negv } )) e'
 
-  | Expr_appl (op_name, args, r) when List.mem op_name rel_op -> 
+  | Expr_appl (op_name, _, _) when List.mem op_name rel_op ->
      [], [(expr, cpt_pre), mkpredef_call expr.expr_loc "not" [expr]]
 
   | Expr_appl (op_name, args, r) ->
@@ -205,7 +204,7 @@ let rec mcdc_expr cpt_pre expr =
   | Expr_pre e ->
      let vl = mcdc_expr (cpt_pre+1) e in
      vl
-  | Expr_appl (f, args, r) ->
+  | Expr_appl (_, args, _) ->
      let vl = mcdc_expr cpt_pre args in
      vl
   | _ -> []
@@ -222,7 +221,7 @@ let mcdc_node_eq eq =
   let vl =
     match eq.eq_lhs, Types.is_bool_type eq.eq_rhs.expr_type, (Types.repr eq.eq_rhs.expr_type).Types.tdesc, eq.eq_rhs.expr_desc with
     | [lhs], true, _, _ -> gen_mcdc_cond_var lhs eq.eq_rhs 
-    | _::_, false, Types.Ttuple tl, Expr_tuple rhs ->
+    | _::_, false, Types.Ttuple _, Expr_tuple rhs ->
        (* We iterate trough pairs, but accumulate variables aside. The resulting
 	  expression shall remain a tuple defintion *)
        let vl = List.fold_right2 (fun lhs rhs accu ->
@@ -240,7 +239,7 @@ let mcdc_node_eq eq =
 let mcdc_node_stmt stmt =
   match stmt with
   | Eq eq -> let vl = mcdc_node_eq eq in vl
-  | Aut aut -> assert false
+  | Aut _ -> assert false
 
 let mcdc_top_decl td = 
   match td.top_decl_desc with

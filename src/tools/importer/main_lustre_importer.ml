@@ -16,9 +16,8 @@ open Vhdl_test
 open Yojson.Safe
 open Vhdl_deriving_yojson
 open Vhdl_json_lib
-open Printf
 
-let _ =
+let () =
 (*
   (* Load model with Yojson *)
   let json = xx in

@@ -11,7 +11,6 @@
 
 open Format
 open Lustre_types
-open Corelang
 
 let pp_dep fmt dep =
   Format.fprintf fmt "%b, %s, {%a}, %b"

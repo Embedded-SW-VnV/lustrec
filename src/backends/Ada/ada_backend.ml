@@ -13,7 +13,6 @@ open Format
 open Machine_code_types
 
 open Misc_lustre_function
-open Ada_printer
 open Ada_backend_common
 
 let indent_size = 2
@@ -71,7 +70,7 @@ let get_typed_submachines machines m =
 let extract_contract machines m =
   let rec find_submachine_from_ident ident = function
     | [] -> raise Not_found
-    | h::t when h.mname.node_id = ident -> h
+    | h::_ when h.mname.node_id = ident -> h
     | _::t -> find_submachine_from_ident ident t
   in
   let extract_ident eexpr =
@@ -119,18 +118,16 @@ let extract_contract machines m =
 (** Main function of the Ada backend. It calls all the subfunction creating all
 the file and fill them with Ada code representing the machines list given.
    @param basename name of the lustre file
-   @param prog useless
    @param prog list of machines to translate
-   @param dependencies useless
 **)
-let translate_to_ada basename prog machines dependencies =
+let translate_to_ada basename machines =
   let module Ads = Ada_backend_ads.Main in
   let module Adb = Ada_backend_adb.Main in
   let module Wrapper = Ada_backend_wrapper.Main in
 
   let is_real_machine m =
     match m.mspec with
-      | Some (Contract x) -> false
+      | Some (Contract _) -> false
       | _ -> true
   in
 
@@ -176,10 +173,22 @@ let translate_to_ada basename prog machines dependencies =
   (match main_machine with
     | None -> ()
     | Some machine ->
-        write_file destname pp_main_filename (Wrapper.pp_main_adb (get_typed_submachines filtered_machines machine)) machine;
-        write_file destname (Wrapper.pp_project_name (basename^"_exe")) (Wrapper.pp_project_file filtered_machines basename) main_machine);
-  write_file destname Wrapper.pp_project_configuration_name Wrapper.pp_project_configuration_file basename;
-  write_file destname (Wrapper.pp_project_name (basename^"_lib")) (Wrapper.pp_project_file filtered_machines basename) None;
+      write_file destname
+        pp_main_filename
+        (Wrapper.pp_main_adb (*get_typed_submachines filtered_machines machine*))
+        machine;
+      write_file destname
+        (fun fmt _ -> Wrapper.pp_project_name (basename^"_exe") fmt)
+        (Wrapper.pp_project_file filtered_machines basename)
+        main_machine);
+  write_file destname
+    Wrapper.pp_project_configuration_name
+    (fun fmt _ -> Wrapper.pp_project_configuration_file fmt)
+    basename;
+  write_file destname
+    (fun fmt _ -> Wrapper.pp_project_name (basename^"_lib") fmt)
+    (Wrapper.pp_project_file filtered_machines basename)
+    None;
 
 
 (* Local Variables: *)

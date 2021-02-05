@@ -1,5 +1,4 @@
 open Lustre_types
-open Utils
 
 (* This module is used to load lusic files when open(ing) modules in
    lustre/lusi sources *)

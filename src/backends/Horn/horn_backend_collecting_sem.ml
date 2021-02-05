@@ -17,7 +17,6 @@
 
 open Format
 open Lustre_types
-open Corelang
 open Machine_code_types
 
 open Horn_backend_common
@@ -102,7 +101,7 @@ let collecting_semantics machines fmt node machine =
     (Utils.fprintf_list ~sep:" " (pp_horn_var machine)) main_memory_next
 
 
-let check_prop machines fmt node machine =
+let check_prop machines fmt machine =
   let main_output =
     rename_machine_list machine.mname.node_id machine.mstep.step_outputs
   in
@@ -179,7 +178,7 @@ let cex_computation machines fmt node machine =
     (Utils.fprintf_list ~sep:" " (pp_horn_var machine)) (step_vars machines machine)
     (Utils.fprintf_list ~sep:" " (pp_horn_var machine)) cex_memory_next
 
-let get_cex machines fmt node machine =
+let get_cex machines fmt machine =
     let cex_input =
      rename_machine_list machine.mname.node_id machine.mstep.step_inputs
     in

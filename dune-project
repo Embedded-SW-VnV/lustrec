@@ -28,5 +28,12 @@
     of Simulink models. Within CocoSim, the Lustre language is used as an \
     intermediate representation and relies mainly on lustrec to produce code \
     or verification artifacts.")
- (depends ocamlgraph menhir zarith dune-site)
- (depopts z3 yojson))
+ (depends
+    ocamlgraph
+    menhir
+    zarith
+    yojson
+    ppx_deriving_yojson
+    ; cmdliner
+    dune-site)
+ (depopts z3))

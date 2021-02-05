@@ -31,8 +31,8 @@ let rec check_expr expr =
   | Expr_arrow _
     | Expr_fby _
     | Expr_pre _ -> false
-  | Expr_when (e', i, l)-> check_expr e'
-  | Expr_merge (i, hl) -> List.for_all (fun (t, h) -> check_expr h) hl 
+  | Expr_when (e', _, _)-> check_expr e'
+  | Expr_merge (_, hl) -> List.for_all (fun (_, h) -> check_expr h) hl
   | Expr_appl (i, e', i') ->
      let reset_opt = (match i' with None -> true | Some e'' -> check_expr e'') in
      let stateless_node =

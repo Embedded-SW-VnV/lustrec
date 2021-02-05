@@ -192,12 +192,14 @@ let mk_contract_var id is_const type_opt expr loc =
     let v = mkvar_decl loc (id, typ, mkclock loc Ckdec_any, is_const, None, None) in
     let eq = mkeq loc ([id], expr) in 
     { empty_contract with locals = [v]; stmts = [Eq eq]; spec_loc = loc; }
-let eexpr_add_name eexpr name =
-  {eexpr with eexpr_name = match name with "" -> None | _ -> Some name}
-let mk_contract_guarantees ?(name="") eexpr =
+
+let eexpr_add_name eexpr eexpr_name =
+  { eexpr with eexpr_name }
+
+let mk_contract_guarantees name eexpr =
   { empty_contract with guarantees = [eexpr_add_name eexpr name]; spec_loc = eexpr.eexpr_loc }
 
-let mk_contract_assume ?(name="") eexpr =
+let mk_contract_assume name eexpr =
   { empty_contract with assume = [eexpr_add_name eexpr name]; spec_loc = eexpr.eexpr_loc }
 
 let mk_contract_mode id rl el loc =
@@ -255,7 +257,7 @@ let update_expr_annot node_id e annot =
   e
 
 
-let mkinstr ?lustre_expr ?lustre_eq i =
+let mkinstr ?lustre_eq i =
   {
     instr_desc = i;
     (* lustre_expr = lustre_expr; *)
@@ -318,8 +320,8 @@ let update_node id top =
 
 let is_imported_node td =
   match td.top_decl_desc with 
-  | Node nd         -> false
-  | ImportedNode nd -> true
+  | Node _         -> false
+  | ImportedNode _ -> true
   | _ -> assert false
 
 let is_node_contract nd =
@@ -582,7 +584,7 @@ let sort_handlers hl =
   
 let rec is_eq_const c1 c2 =
   match c1, c2 with
-  | Const_real r1, Const_real r2
+  | Const_real r1, Const_real _
     -> Real.eq r1 r1 
   | Const_struct lcl1, Const_struct lcl2
     -> List.length lcl1 = List.length lcl2
@@ -650,7 +652,7 @@ let get_node_eqs =
       end)
 
 let get_node_eq id node =
-  let eqs, auts = get_node_eqs node in
+  let eqs, _ = get_node_eqs node in
   try
     List.find (fun eq -> List.mem id eq.eq_lhs) eqs
   with
@@ -757,7 +759,7 @@ let rec rename_static rename cty =
  | Tydec_struct fl       -> Tydec_struct (List.map (fun (f, cty) -> f, rename_static rename cty) fl)
  | _                      -> cty
 
-let rec rename_carrier rename cck =
+let rename_carrier rename cck =
  match cck with
  | Ckdec_bool cl -> Ckdec_bool (List.map (fun (c, l) -> rename c, l) cl)
  | _             -> cck
@@ -807,14 +809,14 @@ let rec rename_carrier rename cck =
    | Expr_appl (i, e', i') -> 
      Expr_appl (f_node i, re e', Utils.option_map re i')
    
- let rename_var f_node f_var v = {
+ let rename_var f_var v = {
      (copy_var_decl v) with
      var_id = f_var v.var_id;
      var_type = v.var_type;
      var_clock = v.var_clock;
  } 
 
- let rename_vars f_node f_var = List.map (rename_var f_node f_var) 
+ let rename_vars f_var = List.map (rename_var f_var)
 
  let rec rename_eq f_node f_var eq = { eq with
    eq_lhs = List.map f_var eq.eq_lhs; 
@@ -828,7 +830,7 @@ let rec rename_carrier rename cck =
    hand_until = List.map (
      fun (l,e,b,id) -> l, rename_expr f_node f_var e, b, f_var id
    ) h.hand_until;
-   hand_locals = rename_vars f_node f_var h.hand_locals;
+   hand_locals = rename_vars f_var h.hand_locals;
    hand_stmts = rename_stmts f_node f_var h.hand_stmts;
    hand_annots = rename_annots f_node f_var h.hand_annots;
    
@@ -853,7 +855,7 @@ and rename_eexpr f_node f_var ee =
    { ee with
      eexpr_tag = Utils.new_tag ();
      eexpr_qfexpr = rename_expr f_node f_var ee.eexpr_qfexpr;
-     eexpr_quantifiers = List.map (fun (typ,vdecls) -> typ, rename_vars f_node f_var vdecls) ee.eexpr_quantifiers;
+     eexpr_quantifiers = List.map (fun (typ,vdecls) -> typ, rename_vars f_var vdecls) ee.eexpr_quantifiers;
    }
 and rename_mode f_node f_var m =
   let rename_ee = rename_eexpr f_node f_var in
@@ -879,7 +881,7 @@ and rename_mode f_node f_var m =
      else
        x
    in
-   let rename_var = rename_var f_node f_var in
+   let rename_var = rename_var f_var in
    let rename_vars = List.map rename_var in
    let rename_expr = rename_expr f_node f_var in
    let rename_eexpr = rename_eexpr f_node f_var in
@@ -1104,7 +1106,7 @@ let rec substitute_expr vars_to_replace defs e =
 
   }
   
- let rec expr_to_eexpr  expr =
+ let expr_to_eexpr  expr =
    { eexpr_tag = expr.expr_tag;
      eexpr_qfexpr = expr;
      eexpr_quantifiers = [];
@@ -1159,7 +1161,7 @@ let rec get_expr_calls nodes e =
    | Expr_arrow (e1, e2) 
    | Expr_fby (e1, e2) -> Utils.ISet.union (get_calls e1) (get_calls e2)
    | Expr_merge (_, hl) -> List.fold_left (fun accu (_, h) -> Utils.ISet.union accu (get_calls h)) Utils.ISet.empty  hl
-   | Expr_appl (i, e', i') -> 
+   | Expr_appl (i, e', _) ->
      if Basic_library.is_expr_internal_fun e then 
        (get_calls e') 
      else
@@ -1216,30 +1218,30 @@ let get_expr_vars e =
   in
   get_expr_vars Utils.ISet.empty e 
 
-let rec expr_has_arrows e =
-  expr_desc_has_arrows e.expr_desc
-and expr_desc_has_arrows expr_desc =
-  match expr_desc with
-  | Expr_const _ 
-  | Expr_ident _ -> false
-  | Expr_tuple el
-  | Expr_array el -> List.exists expr_has_arrows el
-  | Expr_pre e1 
-  | Expr_when (e1, _, _) 
-  | Expr_access (e1, _) 
-  | Expr_power (e1, _) -> expr_has_arrows e1
-  | Expr_ite (c, t, e) -> List.exists expr_has_arrows [c; t; e]
-  | Expr_arrow (e1, e2) 
-  | Expr_fby (e1, e2) -> true
-  | Expr_merge (_, hl) -> List.exists (fun (_, h) -> expr_has_arrows h) hl
-  | Expr_appl (i, e', i') -> expr_has_arrows e'
-
-and eq_has_arrows eq =
-  expr_has_arrows eq.eq_rhs
-and aut_has_arrows aut = List.exists (fun h -> List.exists (fun stmt -> match stmt with Eq eq -> eq_has_arrows eq | Aut aut' -> aut_has_arrows aut') h.hand_stmts ) aut.aut_handlers 
-and node_has_arrows node =
-  let eqs, auts = get_node_eqs node in
-  List.exists (fun eq -> eq_has_arrows eq) eqs || List.exists (fun aut -> aut_has_arrows aut) auts
+(* let rec expr_has_arrows e =
+ *   expr_desc_has_arrows e.expr_desc
+ * and expr_desc_has_arrows expr_desc =
+ *   match expr_desc with
+ *   | Expr_const _
+ *   | Expr_ident _ -> false
+ *   | Expr_tuple el
+ *   | Expr_array el -> List.exists expr_has_arrows el
+ *   | Expr_pre e1
+ *   | Expr_when (e1, _, _)
+ *   | Expr_access (e1, _)
+ *   | Expr_power (e1, _) -> expr_has_arrows e1
+ *   | Expr_ite (c, t, e) -> List.exists expr_has_arrows [c; t; e]
+ *   | Expr_arrow _
+ *   | Expr_fby _ -> true
+ *   | Expr_merge (_, hl) -> List.exists (fun (_, h) -> expr_has_arrows h) hl
+ *   | Expr_appl (_, e', _) -> expr_has_arrows e'
+ *
+ * and eq_has_arrows eq =
+ *   expr_has_arrows eq.eq_rhs
+ * and aut_has_arrows aut = List.exists (fun h -> List.exists (fun stmt -> match stmt with Eq eq -> eq_has_arrows eq | Aut aut' -> aut_has_arrows aut') h.hand_stmts ) aut.aut_handlers
+ * and node_has_arrows node =
+ *   let eqs, auts = get_node_eqs node in
+ *   List.exists (fun eq -> eq_has_arrows eq) eqs || List.exists (fun aut -> aut_has_arrows aut) auts *)
 
 
 
@@ -1378,7 +1380,7 @@ let rec push_negations ?(neg=false) e =
                          mkpredef_call e.expr_loc "not" [e]
                        else
                          e
-    | Expr_appl (op,_,_) -> 
+    | Expr_appl _ ->
        if neg then
          mkpredef_call e.expr_loc "not" [e]
        else
@@ -1428,7 +1430,7 @@ let rec partial_eval e =
   let edesc =
     match e.expr_desc with
     | Expr_const _ -> e.expr_desc 
-    | Expr_ident id -> e.expr_desc
+    | Expr_ident _ -> e.expr_desc
     | Expr_ite (g,t,e) -> (
        let g, t, e = pa g, pa t, pa e in
        match g.expr_desc with

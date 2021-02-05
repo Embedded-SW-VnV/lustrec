@@ -33,12 +33,10 @@ let fold = IMap.fold
    overwrites definitions in x by definitions in y *)
 let overwrite x y =
   IMap.merge (
-    fun k _old _new -> match _new with
+    fun _ _old _new -> match _new with
       | Some _ -> _new
       | _ -> _old
   ) x y
-
-open Format
 
 let pp_env pp_fun fmt env =
   let (lid,lty) = list_of_imap env in

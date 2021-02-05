@@ -194,7 +194,7 @@ and pp_app fmt id e r =
         )
         | _ -> None, e
       in
-      let when_expr, unwhen_ed_e = un_when_ed_expr e in
+      let when_expr, _ = un_when_ed_expr e in
       match r, when_expr with
       | None, None -> pp_call fmt id e
       | None, Some w ->
@@ -397,7 +397,7 @@ let pp_spec_eq fmt eq =
 let pp_spec_stmt fmt stmt =
   match stmt with
   | Eq eq -> pp_spec_eq fmt eq
-  | Aut aut -> assert false (* Not supported yet *)
+  | Aut _ -> assert false (* Not supported yet *)
              
   
 let pp_spec fmt spec =

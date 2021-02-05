@@ -73,11 +73,11 @@ end
 
     
 let pp_resolution fmt resolution =
-  fprintf_list ~sep:"@ " (fun fmt (eq, tag) ->
+  fprintf_list ~sep:"@ " (fun fmt (eq, _) ->
     Format.fprintf fmt "inlining: %a" Printers.pp_node_eq eq
   ) fmt resolution
   
-let al_is_solved (_, als) = List.for_all (fun (vars, calls, status) -> status) als
+let al_is_solved (_, als) = List.for_all (fun (_, _, status) -> status) als
   
 (**********************************************************************)
 (* Functions to access or toggle the local inlining feature of a call *)
@@ -172,10 +172,10 @@ let fast_stages_processing prog =
 let rec solving_node max_inlines prog nd existing_al partitions =
   (* let pp_calls = pp_calls nd in *)
   (* For each partition, we identify the original one *)
-  let rerun, max_inlines, al = List.fold_left (fun (rerun, inlines, al) part ->
+  let rerun, max_inlines, al = List.fold_left (fun (rerun, _, _) part ->
     let part_vars = ISet.of_list part in 
     (* Useful functions to filter list of elements *)
-    let match_al (vars, calls, status) =
+    let match_al (vars, _, _) =
       not (ISet.is_empty (ISet.inter (ISet.of_list vars) part_vars)) in
     (* Identifying previous alarms that could be associated to current conflict *)
     let matched, non_matched = List.partition match_al existing_al in
@@ -187,7 +187,7 @@ let rec solving_node max_inlines prog nd existing_al partitions =
 		hope so! *)
 	 assert false
     in
-    let match_previous (eq, expr, fun_id) =
+    let match_previous (_, expr, _) =
       List.exists
 	(fun (_, expr', _) -> expr'.expr_tag = expr.expr_tag)
 	previous_calls
@@ -216,7 +216,7 @@ let rec solving_node max_inlines prog nd existing_al partitions =
       List.partition (fun (_, expr, _) -> is_expr_inlined nd expr) calls in
     (* Inlining the first uninlined call *)
     match possible_resolution with
-    | (fun_id, expr, eq)::_ -> ((* One could inline expr *)
+    | (fun_id, expr, _)::_ -> ((* One could inline expr *)
       Log.report ~level:2 (fun fmt-> Format.fprintf fmt "inlining call to %s@ " fun_id); 
       (* Forcing the expr to be inlined *)
       let _ = inline_expr nd expr in
@@ -227,7 +227,7 @@ let rec solving_node max_inlines prog nd existing_al partitions =
       max_inlines - 1,
       (
 	part,
-	List.map (fun ((eq, expr2, fcn_name) as call)->  call, (expr2.expr_tag = expr.expr_tag)) calls,
+	List.map (fun ((_, expr2, _) as call)->  call, (expr2.expr_tag = expr.expr_tag)) calls,
 	true (* TODO was false. Should be put it true and expect a final
 		scheduling to change it to false in case of failure ? *) (*
 									   Status is nok, LA is unsolved yet *)
@@ -239,7 +239,7 @@ let rec solving_node max_inlines prog nd existing_al partitions =
       max_inlines,
       (
 	part, (* initial list of troublesogme variables *)
-	List.map (fun ((eq, expr, fcn_name) as call) ->  call, false) calls,
+	List.map (fun call ->  call, false) calls,
 	false (* Status is nok, LA is unsolved *)
       )::non_matched 
 	
@@ -308,14 +308,14 @@ let clean_al prog : program_t * bool * report =
 
 
 (* (ident list * (ident * expr* bool) list * bool) *)
-let pp_al nd fmt (partition, calls, status) =
+let pp_al nd fmt (partition, calls, _) =
   let open Format in
   fprintf fmt "@[<v 0>";
   fprintf fmt "variables in the alg. loop: @[<hov 0>%a@]@ "
     (fprintf_list ~sep:",@ " pp_print_string) partition;
   fprintf fmt "@ involved node calls: @[<v 0>%a@]@ "
     (fprintf_list ~sep:",@ "
-       (fun fmt ((funid, expr, eq), status) ->
+       (fun fmt ((funid, expr, _), status) ->
 	 fprintf fmt "%s" funid;
 	 if status && is_expr_inlined nd expr then fprintf fmt " (inlining it solves the alg. loop)";
        )
@@ -335,7 +335,7 @@ let pp_al nd fmt (partition, calls, status) =
 let pp_report fmt report =
   let open Format in
   fprintf_list ~sep:"@."
-    (fun fmt (nd, als) ->
+    (fun _ (nd, als) ->
       let top = Corelang.node_from_name (nd.node_id) in
       let pp =
 	if not !Options.solve_al || List.exists (fun (_,_,valid) -> not valid) als then

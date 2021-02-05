@@ -118,7 +118,7 @@ let pp_machines fmt ml =
 let rec is_const_value v =
   match v.value_desc with
   | Cst _          -> true
-  | Fun (id, args) -> Basic_library.is_value_internal_fun v && List.for_all is_const_value args
+  | Fun (_, args) -> Basic_library.is_value_internal_fun v && List.for_all is_const_value args
   | _              -> false
 
 (* Returns the declared stateless status and the computed one. *)
@@ -130,8 +130,8 @@ let get_stateless_status m =
 
 let is_stateless m = m.minstances = [] && m.mmemory = []
 
-let is_input m id =
-  List.exists (fun o -> o.var_id = id.var_id) m.mstep.step_inputs
+(* let is_input m id =
+ *   List.exists (fun o -> o.var_id = id.var_id) m.mstep.step_inputs *)
 
 let is_output m id =
   List.exists (fun o -> o.var_id = id.var_id) m.mstep.step_outputs
@@ -336,7 +336,7 @@ and join_guards inst1 insts2 =
  match get_instr_desc inst1, List.map get_instr_desc insts2 with
  | _                   , []                               ->
    [inst1]
- | MBranch (x1, hl1), MBranch (x2, hl2) :: q when x1 = x2 ->
+ | MBranch (x1, hl1), MBranch (x2, hl2) :: _ when x1 = x2 ->
     mkinstr
       (* TODO on pourrait uniquement concatener les lustres de inst1 et hd(inst2) *)
       (MBranch (x1, join_branches (sort_handlers hl1) (sort_handlers hl2)))

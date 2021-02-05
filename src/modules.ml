@@ -21,15 +21,15 @@ let name_dependency loc (local, dep) ext =
     raise (Error.Error (loc, Error.Unknown_library dep))
 
   
-let add_symbol loc msg hashtbl name value =
- if Hashtbl.mem hashtbl name
- then raise (Error.Error (loc, Error.Already_bound_symbol msg))
- else Hashtbl.add hashtbl name value
+(* let add_symbol loc msg hashtbl name value =
+ *  if Hashtbl.mem hashtbl name
+ *  then raise (Error.Error (loc, Error.Already_bound_symbol msg))
+ *  else Hashtbl.add hashtbl name value *)
 
-let check_symbol loc msg hashtbl name =
- if not (Hashtbl.mem hashtbl name)
- then raise (Error.Error (loc, Error.Unbound_symbol msg))
- else ()
+(* let check_symbol loc msg hashtbl name =
+ *  if not (Hashtbl.mem hashtbl name)
+ *  then raise (Error.Error (loc, Error.Unbound_symbol msg))
+ *  else () *)
 
 
 let add_imported_node name value =
@@ -73,7 +73,7 @@ let add_field loc name typ =
     raise (Error.Error (loc, Error.Already_bound_symbol ("struct field " ^ name)))
   else Hashtbl.add field_table name typ
 
-let import_typedef name tydef =
+let import_typedef tydef =
   let loc = tydef.top_decl_loc in
   let rec import ty =
     match ty with
@@ -86,11 +86,11 @@ let import_typedef name tydef =
        if not (Hashtbl.mem type_table (Tydec_const c))
        then raise (Error.Error (loc, Error.Unbound_symbol ("type " ^ c)))
        else ()
-    | Tydec_array (c, ty) -> import ty
+    | Tydec_array (_, ty) -> import ty
     | _                   -> ()
   in import ((typedef_of_top tydef).tydef_desc)
 
-let add_type itf name value =
+let add_type _itf name value =
 (*Format.eprintf "Modules.add_type %B %s %a (owner=%s)@." itf name Printers.pp_typedef (typedef_of_top value) value.top_decl_owner;*)
   try
     let value' = Hashtbl.find type_table (Tydec_const name) in
@@ -100,16 +100,16 @@ let add_type itf name value =
     let itf = value.top_decl_itf in
     match value'.top_decl_desc, value.top_decl_desc with
     | TypeDef ty', TypeDef ty when coretype_equal ty'.tydef_desc ty.tydef_desc && owner' = owner && itf' && (not itf) -> ()
-    | TypeDef ty', TypeDef ty -> raise (Error.Error (value.top_decl_loc, Error.Already_bound_symbol ("type " ^ name)))
+    | TypeDef _, TypeDef _ -> raise (Error.Error (value.top_decl_loc, Error.Already_bound_symbol ("type " ^ name)))
     | _       -> assert false
-  with Not_found -> (import_typedef name value; Hashtbl.add type_table (Tydec_const name) value)
+  with Not_found -> (import_typedef value; Hashtbl.add type_table (Tydec_const name) value)
 
-let check_type loc name =
- if not (Hashtbl.mem type_table (Tydec_const name))
- then raise (Error.Error (loc, Error.Unbound_symbol ("type " ^ name)))
- else ()
+(* let check_type loc name =
+ *  if not (Hashtbl.mem type_table (Tydec_const name))
+ *  then raise (Error.Error (loc, Error.Unbound_symbol ("type " ^ name)))
+ *  else () *)
 
-let add_const itf name value =
+let add_const name value =
   try
     let value' = Hashtbl.find consts_table name in
     let owner' = value'.top_decl_owner in
@@ -118,7 +118,7 @@ let add_const itf name value =
     let itf = value.top_decl_itf in
     match value'.top_decl_desc, value.top_decl_desc with
     | Const c', Const c when c.const_value = c'.const_value && owner' = owner && itf' && (not itf) -> ()
-    | Const c', Const c -> raise (Error.Error (value.top_decl_loc, Error.Already_bound_symbol ("const " ^ name)))
+    | Const _, Const _ -> raise (Error.Error (value.top_decl_loc, Error.Already_bound_symbol ("const " ^ name)))
     | _       -> assert false
   with Not_found -> Hashtbl.add consts_table name value
 
@@ -165,8 +165,8 @@ let get_envs_from_const const_decl (ty_env, ck_env) =
   (Env.add_value ty_env const_decl.const_id const_decl.const_type,
    Env.add_value ck_env const_decl.const_id (Clocks.new_var true))
 
-let get_envs_from_consts const_decls (ty_env, ck_env) =
-  List.fold_right get_envs_from_const const_decls (ty_env, ck_env)
+(* let get_envs_from_consts const_decls (ty_env, ck_env) =
+ *   List.fold_right get_envs_from_const const_decls (ty_env, ck_env) *)
 
 let rec get_envs_from_top_decl (ty_env, ck_env) top_decl =
   match top_decl.top_decl_desc with
@@ -258,7 +258,7 @@ let get_envs_from_top_decls header =
                           LoadError ("imported node " ^ ind.nodei_id ^
                                        " declared in a regular Lustre file")))  
         | Const c -> (
-          add_const is_header c.const_id decl;
+          add_const c.const_id decl;
           decl::accu_prog, accu_dep, typ_env', clk_env' 
         )
         | TypeDef tdef -> (
@@ -281,7 +281,7 @@ let load ~is_header program =
     in
     List.rev prog, List.rev deps, (typ_env, clk_env)
   with
-    Error.Error (loc, err) as exc -> (
+    Error.Error (_, err) as exc -> (
     (* Format.eprintf "Import error: %a%a@."
      *   Error.pp_error_msg err
      *   Location.pp_loc loc; *)

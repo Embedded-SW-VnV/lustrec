@@ -1,7 +1,6 @@
 open Lustre_types
 open Machine_code_types
 open Machine_code_common
-open Format
 (* open Horn_backend_common
  * open Horn_backend *)
 open Zustre_data
@@ -87,8 +86,8 @@ let rec type_to_sort t =
   match (Types.repr t).Types.tdesc with
   | Types.Tconst ty       -> get_const_sort ty
   | Types.Tclock t        -> type_to_sort t
-  | Types.Tarray(dim,ty)   -> Z3.Z3Array.mk_sort !ctx int_sort (type_to_sort ty)
-  | Types.Tstatic(d, ty)-> type_to_sort ty
+  | Types.Tarray(_, ty)   -> Z3.Z3Array.mk_sort !ctx int_sort (type_to_sort ty)
+  | Types.Tstatic(_, ty)  -> type_to_sort ty
   | Types.Tarrow _
   | _                     -> Format.eprintf "internal error: pp_type %a@."
                                Types.print_ty t; assert false
@@ -221,7 +220,7 @@ let horn_tag_to_expr t =
     match res with None -> assert false | Some s -> s
     
 (* Prints a constant value *)
-let rec horn_const_to_expr c =
+let horn_const_to_expr c =
   match c with
     | Const_int i    -> Z3.Arithmetic.Integer.mk_numeral_i !ctx i
     | Const_real r  -> Z3.Arithmetic.Real.mk_numeral_s !ctx (Real.to_string r)
@@ -234,7 +233,7 @@ let rec horn_const_to_expr c =
    [2;7] is defined as (store (store (0) 1 7) 0 2) where 0 is this default value
    for the type integer (arrays).
 *)
-let rec horn_default_val t =
+let horn_default_val t =
   let t = Types.dynamic_type t in
   if Types.is_bool_type t  then Z3.Boolean.mk_true !ctx else
   if Types.is_int_type t then Z3.Arithmetic.Integer.mk_numeral_i !ctx 0 else 
@@ -397,7 +396,7 @@ let rec horn_val_to_expr ?(is_lhs=false) m self v =
 
   (* Code specific for arrays *)
     
-  | Power (v, n)  -> assert false
+  | Power _  -> assert false
   | Var v    ->
      if is_memory m v then
        if Types.is_array_type v.var_type
@@ -524,7 +523,7 @@ let instance_call_to_exprs machines reset_instances m i inputs outputs =
           [stmt1; stmt2]
 	end
 
-	| node_name_n ->
+	| _ ->
            let expr = 
              Z3.Expr.mk_app
                !ctx
@@ -600,7 +599,7 @@ let rec instr_to_exprs machines reset_instances (m: machine_t) instr : Z3.Expr.e
       m 
       (mk_val (Var i) i.var_type) v,
     reset_instances
-  | MStep ([i0], i, vl) when Basic_library.is_internal_fun i (List.map (fun v -> v.value_type) vl) ->
+  | MStep ([_], i, vl) when Basic_library.is_internal_fun i (List.map (fun v -> v.value_type) vl) ->
     assert false (* This should not happen anymore *)
   | MStep (il, i, vl) ->
     (* if reset instance, just print the call over mem_m , otherwise declare mem_m =
@@ -676,10 +675,11 @@ let add_rule ?(dont_touch=[]) vars  expr =
   (* let symbols = (List.map (fun id -> Z3.FuncDecl.get_name (get_fdecl id.var_id)) vars) in *)
   
   (* New code: we extract vars from expr *)
-  let module FDSet = Set.Make (struct type t = Z3.FuncDecl.func_decl
-				      let compare = compare
-				      let hash = Hashtbl.hash
-  end)
+  let module FDSet = Set.Make (struct
+      type t = Z3.FuncDecl.func_decl
+	  let compare = compare
+	  (* let hash = Hashtbl.hash *)
+    end)
   in
 (* Fonction seems unused 
 
@@ -752,7 +752,7 @@ let add_rule ?(dont_touch=[]) vars  expr =
 (********************************************************)
     
 let machine_reset machines m =
-  let locals = local_memory_vars machines m in
+  let locals = local_memory_vars m in
   
   (* print "x_m = x_c" for each local memory *)
   let mid_mem_def =
@@ -810,7 +810,7 @@ let decl_machine machines m =
       let _ =
         List.map decl_var
       	  (
-      	    (inout_vars machines m)@
+      	    (inout_vars m)@
       	      (rename_current_list (full_memory_vars machines m)) @
       	      (rename_mid_list (full_memory_vars machines m)) @
       	      (rename_next_list (full_memory_vars machines m)) @
@@ -823,7 +823,7 @@ let decl_machine machines m =
 	    Format.eprintf "Declaring a stateless machine: %s@." m.mname.node_id;
 
 	  (* Declaring single predicate *)
-	  let vars = inout_vars machines m in
+	  let vars = inout_vars m in
 	  let vars_types = List.map (fun v -> type_to_sort v.var_type) vars in
 	  let _ = decl_rel (machine_stateless_name m.mname.node_id) vars_types in
 	  

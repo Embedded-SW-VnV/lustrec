@@ -10,12 +10,10 @@
 (********************************************************************)
 
 open Format
-open Log
 open Compiler_common
 
 open Utils
-open Lustre_types
- 
+
 
 let usage = "Usage: lustrev [options] \x1b[4msource file\x1b[0m"
 
@@ -41,7 +39,7 @@ we have multiple "backends"
   shall be provided with ranges for inputs or local variables (memories)
   
 *)
-let rec verify dirname basename extension =
+let verify dirname basename extension =
   let source_name = dirname ^ "/" ^ basename ^ extension in
   Options.compile_header := false; (* to avoid producing .h / .lusic *)
   Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 0>");
@@ -58,7 +56,7 @@ let rec verify dirname basename extension =
   decr Options.verbose_level;
   let params = Verifier.get_normalization_params () in
   (* Normalizing it *)
-  let prog, dependencies = 
+  let prog, _ =
     Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>.. Phase 1 : Normalisation@,");
     try
       incr Options.verbose_level;
@@ -101,7 +99,7 @@ let rec verify dirname basename extension =
 
   (*assert (dependencies = []); (* Do not handle deps yet *)*)
   incr Options.verbose_level;
-  Verifier.run basename prog machine_code;
+  Verifier.run ~basename prog machine_code;
   begin
     decr Options.verbose_level;
     Log.report ~level:1 (fun fmt -> fprintf fmt ".. done !@ ");

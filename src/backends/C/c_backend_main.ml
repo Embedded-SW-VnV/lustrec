@@ -11,7 +11,6 @@
 
 open Lustre_types
 open Machine_code_types
-open Corelang
 open Machine_code_common
 open Format
 open C_backend_common
@@ -206,7 +205,7 @@ let print_main_header fmt =
   fprintf fmt (if !Options.cpp then "#include <stdio.h>@.#include <unistd.h>@.#include \"%s/io_frontend.hpp\"@." else "#include <stdio.h>@.#include <unistd.h>@.#include <string.h>@.#include \"%s/io_frontend.h\"@.")
     (Options_management.core_dependency "io_frontend")
 
-let print_main_c main_fmt main_machine basename prog machines _ (*dependencies*) =
+let print_main_c main_fmt main_machine basename _prog _machines _dependencies =
   print_main_header main_fmt;
   fprintf main_fmt "#include <stdlib.h>@.#include <assert.h>@.";
   print_import_alloc_prototype main_fmt {local=true; name=basename; content=[]; is_stateful=true} (* assuming it is stateful*) ;

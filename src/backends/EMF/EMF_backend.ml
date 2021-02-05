@@ -118,7 +118,7 @@ let fprintf_list = Utils.fprintf_list
    -> false *)
 let is_arrow_fun m i =
   match Corelang.get_instr_desc i with
-  | MStep ([var], i, vl) ->
+  | MStep ([_], i, vl) ->
      (
        try
 	 let name = (get_node_def i m).node_id in
@@ -166,7 +166,7 @@ let get_instr_id fmt i =
   match Corelang.get_instr_desc i with
   | MLocalAssign(lhs,_) | MStateAssign (lhs, _) -> pp_var_name fmt lhs
   | MReset i | MNoReset i -> fprintf fmt "%s" (reset_name i)
-  | MBranch (g, _) -> incr branch_cpt; fprintf fmt "branch_%i" !branch_cpt
+  | MBranch _ -> incr branch_cpt; fprintf fmt "branch_%i" !branch_cpt
   | MStep (outs, id, _) ->
      print_protect fmt 
        (fun fmt -> fprintf fmt "%a_%s" (fprintf_list ~sep:"_" pp_var_name) outs id)
@@ -260,7 +260,7 @@ let merge_branches instrs =
   in
   let sorting_branches b1 b2 =
     match Corelang.get_instr_desc b1, Corelang.get_instr_desc b2 with
-    | MBranch(g1, hl1), MBranch(g2, hl) ->
+    | MBranch(g1, _), MBranch(g2, _) ->
        compare g1 g2
     | _ -> assert false
   in

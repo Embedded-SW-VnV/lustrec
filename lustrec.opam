@@ -17,10 +17,12 @@ depends: [
   "ocamlgraph"
   "menhir"
   "zarith"
+  "yojson"
+  "ppx_deriving_yojson"
   "dune-site"
   "odoc" {with-doc}
 ]
-depopts: ["z3" "yojson"]
+depopts: ["z3"]
 build: [
   ["dune" "subst"] {dev}
   [

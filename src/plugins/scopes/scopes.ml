@@ -94,7 +94,7 @@ let rec get_path prog machines node id_list accu =
     let instance = 
       List.find 
 	(fun i -> match get_instr_desc i with 
-	          | MStep(p, o, _) -> List.exists find_var p 
+	          | MStep(p, _, _) -> List.exists find_var p
 	          | _ -> false
 	) 
 	e_machine.mstep.step_instrs 
@@ -186,13 +186,13 @@ let extract_scopes_defs scopes =
   in
   scopes_vars
   
-let pp_scopes_files basename mname fmt scopes =
+let pp_scopes_files _basename _mname fmt scopes =
   let scopes_vars = extract_scopes_defs scopes in
   List.iteri (fun idx  _(*(id, (var_path, var))*)  ->
       C_backend_common.pp_file_decl fmt "out_scopes" idx)
     scopes_vars;
   Format.fprintf fmt "@[<v 2>if (traces) {@ ";
-  List.iteri (fun idx  (id, (var_path, var))  ->
+  List.iteri (fun idx  (id, (_, var))  ->
       let file = C_backend_common.pp_file_open fmt "out_scopes" idx in
       Format.fprintf fmt
         "fprintf(%s, \"# scope: %s\\n\");@ "
@@ -266,7 +266,7 @@ let rec is_valid_path path nodename prog machines =
 	     (* ; *)
 	     res
 	     
-  | inst::nodename::path' -> (* We use the scopes computed on the prog artifact *)
+  | _::nodename::path' -> (* We use the scopes computed on the prog artifact *)
      (* Format.eprintf "Path is %a@ Local scopes: @[<v>%a@ @]@."  *)
      (* 	(Utils.fprintf_list ~sep:"." Format.pp_print_string) path *)
      (* 	(Utils.fprintf_list ~sep:";@ " *)

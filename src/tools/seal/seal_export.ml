@@ -81,7 +81,7 @@ let sw_to_lustre m sw_init sw_step init_out update_out =
     | [] -> [] (* the system is stateless. Returning an empty list
                   shall do the job *) 
           
-    | (gl, up)::_ ->
+    | (_, up)::_ ->
        List.map (fun (v,_) -> v) up
   in
   let loc = Location.dummy_loc in

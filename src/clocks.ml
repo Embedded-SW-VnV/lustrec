@@ -124,12 +124,12 @@ let new_carrier_name () =
 
 let rec repr =
   function
-      {cdesc=Clink ck'} ->
+      {cdesc=Clink ck'; _} ->
         repr ck'
     | ck -> ck
 
 let rec carrier_repr =
-  function {carrier_desc = Carry_link cr'} -> carrier_repr cr'
+  function {carrier_desc = Carry_link cr'; _} -> carrier_repr cr'
     | cr -> cr
 
 
@@ -217,7 +217,7 @@ let rec is_polymorphic ck =
 (** [constrained_vars_of_clock ck] returns the clock variables subject
     to sub-typing constraints appearing in clock [ck]. Removes duplicates *)
 (* Used mainly for debug, non-linear complexity. *)
-let rec constrained_vars_of_clock ck =
+let constrained_vars_of_clock ck =
   let rec aux vars ck =
     match ck.cdesc with
     | Cvar -> vars
@@ -253,12 +253,12 @@ let rec root ck =
   | Carrow _ | Ctuple _ -> failwith "Internal error root"
 
 (* Returns the branch of clock [ck] in its clock tree *)
-let rec branch ck =
+let branch ck =
   let rec branch ck acc =
     match (repr ck).cdesc with
     | Ccarrying (_, ck) -> branch ck acc
     | Con (ck, cr, l)   -> branch ck ((cr, l) :: acc)
-    | Ctuple (ck::_)    -> branch ck acc
+    | Ctuple (ck::_)     -> branch ck acc
     | Ctuple _
     | Carrow _          -> assert false
     | _                 -> acc
@@ -365,7 +365,7 @@ let rec print_ck_suffix fmt ck =
        fprintf fmt "%a when %s(%a)" print_ck_suffix ck l print_carrier c
   | Clink ck' ->
     print_ck_suffix fmt ck'
-  | Ccarrying (cr,ck') ->
+  | Ccarrying (_, ck') ->
     fprintf fmt "%a" print_ck_suffix ck'
 
 

@@ -19,7 +19,7 @@ let get_conjuncts e =
   else
     [e]
 
-let build_cex machine machines decl_err =
+let build_cex machine machines _decl_err =
   (* Recovering associated top machine (to build full traces) and property *) 
   (* TODO: for example extract top node and ok prop. We may have multiple
      MAIN/ERR loaded at the same time. Each of them should be assocaited with a
@@ -46,7 +46,7 @@ let build_cex machine machines decl_err =
   let nb_outputs = List.length inputs in
   let nb_mems = List.length (full_memory_vars machines machine) in
   
-  let main, funs =
+  let main, _ =
     List.fold_left (fun (main, funs) conj ->
     (* Filtering out non MAIN decls *)
     let func_decl = Z3.Expr.get_func_decl conj in
@@ -90,7 +90,7 @@ let build_cex machine machines decl_err =
 
    (* We recover the Zustre XML format, projecting each cex on each input/output
       signal *)
-  let in_signals, out_signals =
+  let in_signals, _ =
     List.fold_right (
       fun (id, (sigs_in, sigs_out)) (res_sigs_in, res_sigs_out) ->
 	let add l1 l2 = List.map2 (fun e1 e2 -> fst e2, ((id, e1)::(snd e2))) l1 l2 in
@@ -158,7 +158,7 @@ let build_cex machine machines decl_err =
   (*   (Z3.Statistics.Entry.to_string e) *)
     
   (* ) stats_entries; *)
-  let json : Yojson.json =
+  let json : Yojson.t =
     `Assoc [
       "Results",
       `Assoc [

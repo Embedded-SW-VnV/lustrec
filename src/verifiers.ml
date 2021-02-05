@@ -1,5 +1,3 @@
-open Lustre_types
-
 open VerifierList
 
 let () = Sites.Plugins.Verifiers.load_all ()

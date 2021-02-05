@@ -158,7 +158,7 @@ let pp_prefix_rev fmt prefix =
     (List.rev prefix)
       
 
-let traces_file fmt basename prog machines =
+let traces_file fmt machines =
   fprintf fmt "<?xml version=\"1.0\"?>@.";
   fprintf fmt "<Traces xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">@.";
   fprintf fmt "@[<v 5>@ %a@ @]@."
@@ -195,13 +195,13 @@ let traces_file fmt basename prog machines =
 	(Utils.fprintf_list ~sep:" | " pp_var) init_local_vars
 	(Utils.fprintf_list ~sep:" | "  (fun fmt id -> pp_type fmt id.var_type)) init_local_vars
 	(fun fmt -> match memories_next with [] -> () | _ -> fprintf fmt "")
-	(Utils.fprintf_list ~sep:" | " (fun fmt (prefix, ee) -> fprintf fmt "%a" pp_xml_expr ee)) memories_next;
+	(Utils.fprintf_list ~sep:" | " (fun fmt (_, ee) -> fprintf fmt "%a" pp_xml_expr ee)) memories_next;
 
       fprintf fmt "<localStep name=\"%a\" type=\"%a\">%t%a</localStep>@ "
 	(Utils.fprintf_list ~sep:" | " pp_var) step_local_vars
 	(Utils.fprintf_list ~sep:" | "  (fun fmt id -> pp_type fmt id.var_type)) step_local_vars
 	(fun fmt -> match memories_old with [] -> () | _ -> fprintf fmt "")
-	(Utils.fprintf_list ~sep:" | " (fun fmt (prefix,ee) -> fprintf fmt "(%a)"
+	(Utils.fprintf_list ~sep:" | " (fun fmt (_,ee) -> fprintf fmt "(%a)"
           pp_xml_expr ee)) (memories_old);
 
       let arrow_vars = arrow_vars machines m in

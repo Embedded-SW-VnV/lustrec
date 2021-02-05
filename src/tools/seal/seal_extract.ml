@@ -53,12 +53,12 @@ let mem_expr e =
 let mem_zexpr ze =
   Hashtbl.mem ze_hash ze
 let get_zexpr e =
-  let eref, uid = List.find (fun (e',_) -> Corelang.is_eq_expr e e') !expr_hash in
+  let _, uid = List.find (fun (e',_) -> Corelang.is_eq_expr e e') !expr_hash in
   (* Format.eprintf "found expr=%a id=%i@." Printers.pp_expr eref eref.expr_tag; *)
   Hashtbl.find e_hash uid
 let get_expr ze =
   let uid = Hashtbl.find ze_hash ze in
-  let e,_ = List.find (fun (e,t) -> t = uid) !expr_hash in
+  let e,_ = List.find (fun (_, t) -> t = uid) !expr_hash in
   e
   
 let neg_ze z3e = Z3.Boolean.mk_not !ctx z3e 
@@ -317,7 +317,7 @@ let implies =
              true
           | _ -> if !seal_debug then report ~level:6 (fun fmt -> Format.fprintf fmt "not proved valid@ "); 
              false
-        with Zustre_common.UnknownFunction(id, msg) -> (
+        with Zustre_common.UnknownFunction(_, msg) -> (
           report ~level:1 msg;
           false
         )
@@ -411,7 +411,7 @@ let check_sat ?(just_check=false) (l: elem_boolexpr guard) : bool * (elem_boolex
     )
          
   )
-  with Zustre_common.UnknownFunction(id, msg) -> (
+  with Zustre_common.UnknownFunction(_, msg) -> (
     report ~level:1 msg;
     true, l (* keeping everything. *)
   )
@@ -819,7 +819,7 @@ let rec build_switch_sys
      other mem, one need to select the same guard g with the same
      status b, *)
   let res =
-  if List.for_all (fun (m,mdefs) ->
+  if List.for_all (fun (_, mdefs) ->
          (* All defs are unguarded *)
          match mdefs with
          | [[], _] -> true (* Regular unguarded expression *)
@@ -1087,7 +1087,7 @@ let merge_updates sys =
        [mk_binop "&&"
           (List.map export gl)]
   in
-  let rec clean_disj disj =
+  let clean_disj disj =
     match disj with
     | [] -> []
     | [_] -> assert false (* A disjunction with a single case can be ignored *) 

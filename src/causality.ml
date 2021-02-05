@@ -17,7 +17,6 @@
 open Utils
 open Lustre_types
 open Corelang
-open Graph
 
 
 type identified_call = eq * tag
@@ -682,7 +681,7 @@ module VarClockDep =
 struct
   let rec get_clock_dep ck =
     match ck.Clocks.cdesc with
-    | Clocks.Con (ck ,c ,l) -> l::(get_clock_dep ck)
+    | Clocks.Con (ck , _ ,l) -> l::(get_clock_dep ck)
     | Clocks.Clink ck' 
     | Clocks.Ccarrying (_, ck') -> get_clock_dep ck'
     | _ -> []

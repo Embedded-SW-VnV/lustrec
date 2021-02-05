@@ -61,7 +61,7 @@ let search_lib_path (local, full_file_name) =
 let core_dependency lib_name =
   search_lib_path (false, lib_name ^ ".h")
 
-let name_dependency (local, dep) ext =
+let name_dependency (_, dep) ext =
   let dir = search_lib_path (false, dep ^ ext) in
   dir ^ "/" ^ dep
 

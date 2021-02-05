@@ -160,7 +160,7 @@ let is_stateless_fun x =
 (*     | _, [v1; v2] -> Format.fprintf fmt "(%a %s %a)" pp_val v1 i pp_val v2 *)
 (*     | _ -> (Format.eprintf "internal error: Basic_library.pp_java %s@." i; assert false) *)
 
-let rec partial_eval op e opt =
+let partial_eval op e opt =
   let open Lustre_types in
   let is_zero e =
     match e.expr_desc with
@@ -279,8 +279,8 @@ let rec partial_eval op e opt =
        e.expr_desc
     | "-", [e0; e] when is_zero e0 ->
        Expr_appl("uminus", e, None)
-    | ("*"|"/"), [e0; e] when is_zero e0 -> e0.expr_desc
-    | "*", [e; e0] when is_zero e0 -> e0.expr_desc
+    | ("*"|"/"), [e0; _] when is_zero e0 -> e0.expr_desc
+    | "*", [_; e0] when is_zero e0 -> e0.expr_desc
     | "*", [e1; e] when is_one e1 -> e.expr_desc
     | "/", [e; e1] when is_one e1 -> e.expr_desc
     | "&&", [efalse; _] when is_false efalse ->

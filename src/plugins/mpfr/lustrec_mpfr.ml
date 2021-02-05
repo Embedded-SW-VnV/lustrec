@@ -68,7 +68,7 @@ let pp_inject_copy pp_var fmt var value =
     pp_var value
     (mpfr_rnd ())
 
-let rec pp_inject_assign pp_var fmt var value =
+let pp_inject_assign pp_var fmt var value =
   if is_const_value value
   then
     pp_inject_real pp_var pp_var fmt var value
@@ -172,7 +172,7 @@ let expr_of_const_array expr =
   | _                           -> assert false
 
 (* inject_<foo> : defs * used vars -> <foo> -> (updated defs * updated vars) * normalized <foo> *)
-let rec inject_list alias node inject_element defvars elist =
+let inject_list alias node inject_element defvars elist =
   List.fold_right
     (fun t (defvars, qlist) ->
       let defvars, norm_t = inject_element alias node defvars t in
@@ -245,7 +245,7 @@ and inject_branches node defvars hl =
    hl (defvars, [])
 
 
-let rec inject_eq node defvars eq =
+let inject_eq node defvars eq =
   let (defs', vars'), norm_rhs = inject_expr ~alias:false node defvars eq.eq_rhs in
   let norm_eq = { eq with eq_rhs = norm_rhs } in
   norm_eq::defs', vars'
@@ -283,7 +283,7 @@ let inject_node node =
     if auts != [] then assert false; (* Automata should be expanded by now. *)
     List.fold_left (inject_eq norm_ctx) ([], orig_vars) eqs in
   (* Normalize the asserts *)
-  let vars, assert_defs, asserts = 
+  let vars, assert_defs, _ =
     List.fold_left (
     fun (vars, def_accu, assert_accu) assert_ ->
       let assert_expr = assert_.assert_expr in

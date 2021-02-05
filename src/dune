@@ -126,3 +126,44 @@
  (public_name lustrev)
  (modules main_lustre_verifier verifiers)
  (libraries lustrec_lib verifier_register lustrec.scopes))
+
+(executable
+ (name main_lustre_importer)
+ (public_name lustrei)
+ (modules main_lustre_importer vhdl_deriving_yojson vhdl_json_lib)
+ (libraries yojson ppx_deriving_yojson.runtime)
+ (preprocess (pps ppx_deriving_yojson)))
+
+(library
+ (name tools_lib)
+ (package lustrec)
+ (wrapped false)
+ (modules basetypes datatype activeStates)
+ (libraries lustrec_lib))
+
+(executable
+ (name sf_sem)
+ (public_name lustresf)
+ (modules
+   sf_sem
+   model_simple
+   model_stopwatch
+   CPS_ccode_generator
+   CPS_transformer
+   CPS_interpreter
+   CPS_lustre_generator
+   CPS
+   theta
+   memo)
+ (libraries tools_lib))
+
+; (executable
+;  (name main_parse_json_file)
+;  (public_name json-parser)
+;  (modules main_parse_json_file json_parser)
+;  (libraries tools_lib cmdliner))
+
+; (executable
+;  (name test_json_parser_variables)
+;  (modules test_json_parser_variables json_parser)
+;  (libraries tools_lib))

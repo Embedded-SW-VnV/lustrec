@@ -17,7 +17,7 @@ module Default =
     let usage fmt = Format.fprintf fmt "No specific help." 
     let init () = ()
     let check_force_stateful () = false
-    let refine_machine_code prog machines = machines
-    let c_backend_main_loop_body_prefix basename mname fmt () = ()
-    let c_backend_main_loop_body_suffix fmt () = ()
+    let refine_machine_code _prog machines = machines
+    let c_backend_main_loop_body_prefix _basename _mname _fmt () = ()
+    let c_backend_main_loop_body_suffix _fmt () = ()
   end

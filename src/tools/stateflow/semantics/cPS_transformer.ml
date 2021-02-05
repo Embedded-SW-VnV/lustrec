@@ -1,5 +1,4 @@
 open Basetypes
-open ActiveStates
 
 type mode_t =
   | Outer

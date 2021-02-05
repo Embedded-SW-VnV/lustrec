@@ -83,13 +83,13 @@ let gen_files funs basename prog machines dependencies =
       let source_mauve_out = open_out source_mauve_file in
       let source_mauve_fmt = formatter_of_out_channel source_mauve_out in
       (* Header *)
-      print_mauve_header source_mauve_fmt m basename prog machines dependencies;
+      print_mauve_header source_mauve_fmt basename;
       (* Shell *)
-      print_mauve_shell source_mauve_fmt m basename prog machines dependencies;
+      print_mauve_shell source_mauve_fmt m;
       (* Core *)
-      print_mauve_core source_mauve_fmt m basename prog machines dependencies;
+      print_mauve_core source_mauve_fmt m;
       (* FSM *)
-      print_mauve_fsm source_mauve_fmt m basename prog machines dependencies;
+      print_mauve_fsm source_mauve_fmt m;
 
       close_out source_mauve_out;
     end

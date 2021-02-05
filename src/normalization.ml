@@ -144,7 +144,7 @@ let mk_expr_alias_opt opt norm_ctx (defs, vars) expr =
     Log.report ~plugin:"normalization" ~level:2
       (fun fmt -> Format.fprintf  fmt "mk_expr_alias_opt %B %a %a %a@." opt Printers.pp_expr expr Types.print_ty expr.expr_type Clocks.print_ck expr.expr_clock);
   match expr.expr_desc with
-  | Expr_ident alias ->
+  | Expr_ident _ ->
     (defs, vars), expr
   | _                ->
     match get_expr_alias defs expr with
@@ -223,7 +223,7 @@ let mk_norm_expr offsets ref_e norm_d =
     expr_type = Utils.repeat (List.length offsets) drop_array_type ref_e.expr_type }
 														
 (* normalize_<foo> : defs * used vars -> <foo> -> (updated defs * updated vars) * normalized <foo> *)
-let rec normalize_list alias norm_ctx offsets norm_element defvars elist =
+let normalize_list alias norm_ctx offsets norm_element defvars elist =
   List.fold_right
     (fun t (defvars, qlist) ->
       let defvars, norm_t = norm_element alias norm_ctx offsets defvars t in
@@ -244,7 +244,7 @@ let rec normalize_expr ?(alias=true) ?(alias_basic=false) norm_ctx offsets defva
      let defvars, norm_e1 = normalize_expr norm_ctx offsets defvars e1 in
      let norm_expr = mk_norm_expr offsets expr (Expr_power (norm_e1, d)) in
      mk_expr_alias_opt alias norm_ctx defvars norm_expr
-  | Expr_power (e1, d) ->
+  | Expr_power (e1, _) ->
      normalize_expr ~alias:alias norm_ctx (List.tl offsets) defvars e1
   | Expr_access (e1, d) ->
      normalize_expr ~alias:alias norm_ctx (d::offsets) defvars e1 
@@ -288,7 +288,7 @@ let rec normalize_expr ?(alias=true) ?(alias_basic=false) norm_ctx offsets defva
        mk_expr_alias_opt (alias && (!params.force_alias_internal_fun || alias_basic
 				    || not (Basic_library.is_expr_internal_fun expr)))
 	 norm_ctx defvars norm_expr
-  | Expr_arrow (e1,e2) when !params.unfold_arrow_active && not (is_expr_once expr) ->
+  | Expr_arrow _ when !params.unfold_arrow_active && not (is_expr_once expr) ->
      (* Here we differ from Colaco paper: arrows are pushed to the top *)
      normalize_expr ~alias:alias norm_ctx offsets defvars (unfold_arrow expr)
   | Expr_arrow (e1,e2) ->
@@ -341,7 +341,7 @@ and normalize_array_expr ?(alias=true) norm_ctx offsets defvars expr =
   | Expr_power (e1, d) when offsets = [] ->
      let defvars, norm_e1 = normalize_expr norm_ctx offsets defvars e1 in
      defvars, mk_norm_expr offsets expr (Expr_power (norm_e1, d))
-  | Expr_power (e1, d) ->
+  | Expr_power (e1, _) ->
      normalize_array_expr ~alias:alias norm_ctx (List.tl offsets) defvars e1
   | Expr_access (e1, d) -> normalize_array_expr ~alias:alias norm_ctx (d::offsets) defvars e1
   | Expr_array elist when offsets = [] ->
@@ -401,7 +401,7 @@ let decouple_outputs norm_ctx defvars eq =
       (Clocks.clock_list_of_clock eq.eq_rhs.expr_clock) in
   defvars', {eq with eq_lhs = lhs' }
 
-let rec normalize_eq norm_ctx defvars eq =
+let normalize_eq norm_ctx defvars eq =
 (*Format.eprintf "normalize_eq %a@." Types.print_ty eq.eq_rhs.expr_type;*)
   match eq.eq_rhs.expr_desc with
   | Expr_pre _
@@ -446,7 +446,7 @@ let normalize_eq_split norm_ctx defvars eq =
 (* Projecting an eexpr to an eexpr associated to a single
    variable. Returns the updated ee, the bounded variable and the
    associated statement *)
-let normalize_pred_eexpr decls norm_ctx (def,vars) ee =
+let normalize_pred_eexpr norm_ctx (def,vars) ee =
   assert (ee.eexpr_quantifiers = []); (* We do not normalize quantifiers yet. This is for very far future. *)
   (* don't do anything is eexpr is just a variable *)
   let skip =
@@ -584,7 +584,7 @@ let normalize_pred_eexpr decls norm_ctx (def,vars) ee =
  
 
 (* We use node local vars to make sure we are creating fresh variables *) 
-let normalize_spec decls parentid (in_vars, out_vars, l_vars) s =  
+let normalize_spec parentid (in_vars, out_vars, l_vars) s =
   (* Original set of variables actually visible from here: in/out and
      spec locals (no node locals) *)
   let orig_vars = in_vars @ out_vars @ s.locals in
@@ -608,7 +608,7 @@ let normalize_spec decls parentid (in_vars, out_vars, l_vars) s =
   let process_predicates l defvars =
     (* Format.eprintf "ProcPred: vars: %a@." Printers.pp_vars (snd defvars); *)
     let res = List.fold_right (fun ee (accu, defvars) ->
-        let ee', defvars = normalize_pred_eexpr decls norm_ctx defvars ee in
+        let ee', defvars = normalize_pred_eexpr norm_ctx defvars ee in
         ee'::accu, defvars
       ) l ([], defvars)
     in
@@ -669,7 +669,7 @@ let normalize_spec decls parentid (in_vars, out_vars, l_vars) s =
     - new equations
     -
 *)
-let normalize_node decls node =
+let normalize_node node =
   reset_cpt_fresh ();
   let orig_vars = node.node_inputs@node.node_outputs@node.node_locals in
   let not_is_orig_var v =
@@ -695,7 +695,6 @@ let normalize_node decls node =
         | Some (NodeSpec _) -> node.node_spec, [], eqs
       | Some (Contract s) ->
          let new_locals, new_stmts, s' = normalize_spec
-                    decls
                     node.node_id
                     (node.node_inputs, node.node_outputs, node.node_locals)
                     s
@@ -801,20 +800,20 @@ let normalize_node decls node =
       node
     )
 
-let normalize_inode decls nd =
+let normalize_inode nd =
   reset_cpt_fresh ();
   match nd.nodei_spec with
     None | Some (NodeSpec _) -> nd
     | Some (Contract _) -> assert false
                          
-let normalize_decl (decls: program_t) (decl: top_decl) : top_decl =
+let normalize_decl (decl: top_decl) : top_decl =
   match decl.top_decl_desc with
   | Node nd ->
-     let decl' = {decl with top_decl_desc = Node (normalize_node decls nd)} in
+     let decl' = {decl with top_decl_desc = Node (normalize_node nd)} in
      update_node nd.node_id decl';
      decl'
   | ImportedNode nd ->
-     let decl' = {decl with top_decl_desc = ImportedNode (normalize_inode decls nd)} in
+     let decl' = {decl with top_decl_desc = ImportedNode (normalize_inode nd)} in
      update_node nd.nodei_id decl';
      decl'
      
@@ -825,7 +824,7 @@ let normalize_prog p decls =
   params := p;
 
   (* Main algorithm: iterates over nodes *)
-  List.map (normalize_decl decls) decls
+  List.map normalize_decl decls
 
 
 (* Fake interface for outside uses *)

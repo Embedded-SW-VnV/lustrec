@@ -9,8 +9,8 @@
 (*                                                                  *)
 (********************************************************************)
 
-(** Types definitions and a few utility functions on delay types. *)
-(** Delay analysis by type polymorphism instead of constraints *)
+(** Types definitions and a few utility functions on delay types.
+    Delay analysis by type polymorphism instead of constraints *)
 open Utils
 
 type delay_expr =
@@ -43,7 +43,7 @@ let new_univar () =
 
 let rec repr =
   function
-    {ddesc = Dlink i'} ->
+    {ddesc = Dlink i'; _} ->
       repr i'
   | i -> i
 

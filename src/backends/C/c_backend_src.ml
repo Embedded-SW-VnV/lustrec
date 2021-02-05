@@ -41,8 +41,8 @@ struct
     | Var _ -> 0
     | Fun (_, vl) -> List.fold_right (fun v -> max (expansion_depth v)) vl 0
     | Array vl    -> 1 + List.fold_right (fun v -> max (expansion_depth v)) vl 0
-    | Access (v, i) -> max 0 (expansion_depth v - 1)
-    | Power (v, n)  -> 0 (*1 + expansion_depth v*)
+    | Access (v, _) -> max 0 (expansion_depth v - 1)
+    | Power _  -> 0 (*1 + expansion_depth v*)
   and expansion_depth_cst c = 
     match c with
       Const_array cl -> 1 + List.fold_right (fun c -> max (expansion_depth_cst c)) cl 0
@@ -61,8 +61,8 @@ struct
     | Var _  -> []
     | Fun (_, vl) -> List.fold_right (fun v lp -> merge_static_loop_profiles lp (static_loop_profile v)) vl []
     | Array vl    -> true :: List.fold_right (fun v lp -> merge_static_loop_profiles lp (static_loop_profile v)) vl []
-    | Access (v, i) -> (match (static_loop_profile v) with [] -> [] | _ :: q -> q)
-    | Power (v, n)  -> false :: static_loop_profile v
+    | Access (v, _) -> (match (static_loop_profile v) with [] -> [] | _ :: q -> q)
+    | Power (v, _)  -> false :: static_loop_profile v
   and static_loop_profile_cst cst =
     match cst with
       Const_array cl -> List.fold_right 
@@ -107,12 +107,12 @@ let rec mk_loop_variables m ty depth =
 
 let reorder_loop_variables loop_vars =
   let (int_loops, var_loops) = 
-    List.partition (function (d, LInt _) -> true | _ -> false) loop_vars 
+    List.partition (function (_, LInt _) -> true | _ -> false) loop_vars
   in
   var_loops @ int_loops
 
 (* Prints a one loop variable suffix for arrays *)
-let pp_loop_var m pp_val fmt lv =
+let pp_loop_var _ pp_val fmt lv =
  match snd lv with
  | LVar v -> fprintf fmt "[%s]" v
  | LInt r -> fprintf fmt "[%d]" !r
@@ -160,7 +160,7 @@ let rec pp_value_suffix m self var_type loop_vars pp_var fmt value =
     | []              , Array vl      ->
        let var_type = Types.array_element_type var_type in
        Format.fprintf fmt "(%a[]){%a }" (pp_c_type "") var_type (Utils.fprintf_list ~sep:", " (pp_value_suffix m self var_type [] pp_var)) vl
-    | _           :: q, Power (v, n)  ->
+    | _           :: q, Power (v, _)  ->
        pp_value_suffix m self var_type q pp_var fmt v
     | _               , Fun (n, vl)   ->
        pp_basic_lib_fun (Types.is_int_type value.value_type) n (pp_value_suffix m self var_type loop_vars pp_var) fmt vl
@@ -443,35 +443,35 @@ let print_dealloc_code fmt m =
     (Utils.fprintf_list ~sep:"" print_dealloc_array) array_mem
     (Utils.fprintf_list ~sep:"" print_dealloc_instance) m.minstances
 
-let print_stateless_init_code dependencies fmt m self =
-  let minit = List.map (fun i -> match get_instr_desc i with MReset i -> i | _ -> assert false) m.minit in
-  let array_mems = List.filter (fun v -> Types.is_array_type v.var_type) m.mmemory in
-  fprintf fmt "@[<v 2>%a {@,%a%t%a%t%a%treturn;@]@,}@.@."
-    (print_init_prototype self) (m.mname.node_id, m.mstatic)
-    (* array mems *) 
-    (Utils.fprintf_list ~sep:";@," (pp_c_decl_array_mem self)) array_mems
-    (Utils.pp_final_char_if_non_empty ";@," array_mems)
-    (* memory initialization *)
-    (Utils.fprintf_list ~sep:"@," (pp_initialize m self (pp_c_var_read m))) m.mmemory
-    (Utils.pp_newline_if_non_empty m.mmemory)
-    (* sub-machines initialization *)
-    (Utils.fprintf_list ~sep:"@," (pp_machine_init m self)) minit
-    (Utils.pp_newline_if_non_empty m.minit)
-
-let print_stateless_clear_code dependencies fmt m self =
-  let minit = List.map (fun i -> match get_instr_desc i with MReset i -> i | _ -> assert false) m.minit in
-  let array_mems = List.filter (fun v -> Types.is_array_type v.var_type) m.mmemory in
-  fprintf fmt "@[<v 2>%a {@,%a%t%a%t%a%treturn;@]@,}@.@."
-    (print_clear_prototype self) (m.mname.node_id, m.mstatic)
-    (* array mems *)
-    (Utils.fprintf_list ~sep:";@," (pp_c_decl_array_mem self)) array_mems
-    (Utils.pp_final_char_if_non_empty ";@," array_mems)
-    (* memory clear *)
-    (Utils.fprintf_list ~sep:"@," (pp_clear m self (pp_c_var_read m))) m.mmemory
-    (Utils.pp_newline_if_non_empty m.mmemory)
-    (* sub-machines clear*)
-    (Utils.fprintf_list ~sep:"@," (pp_machine_clear m self)) minit
-    (Utils.pp_newline_if_non_empty m.minit)
+(* let print_stateless_init_code fmt m self =
+ *   let minit = List.map (fun i -> match get_instr_desc i with MReset i -> i | _ -> assert false) m.minit in
+ *   let array_mems = List.filter (fun v -> Types.is_array_type v.var_type) m.mmemory in
+ *   fprintf fmt "@[<v 2>%a {@,%a%t%a%t%a%treturn;@]@,}@.@."
+ *     (print_init_prototype self) (m.mname.node_id, m.mstatic)
+ *     (\* array mems *\)
+ *     (Utils.fprintf_list ~sep:";@," (pp_c_decl_array_mem self)) array_mems
+ *     (Utils.pp_final_char_if_non_empty ";@," array_mems)
+ *     (\* memory initialization *\)
+ *     (Utils.fprintf_list ~sep:"@," (pp_initialize m self (pp_c_var_read m))) m.mmemory
+ *     (Utils.pp_newline_if_non_empty m.mmemory)
+ *     (\* sub-machines initialization *\)
+ *     (Utils.fprintf_list ~sep:"@," (pp_machine_init m self)) minit
+ *     (Utils.pp_newline_if_non_empty m.minit)
+ *
+ * let print_stateless_clear_code fmt m self =
+ *   let minit = List.map (fun i -> match get_instr_desc i with MReset i -> i | _ -> assert false) m.minit in
+ *   let array_mems = List.filter (fun v -> Types.is_array_type v.var_type) m.mmemory in
+ *   fprintf fmt "@[<v 2>%a {@,%a%t%a%t%a%treturn;@]@,}@.@."
+ *     (print_clear_prototype self) (m.mname.node_id, m.mstatic)
+ *     (\* array mems *\)
+ *     (Utils.fprintf_list ~sep:";@," (pp_c_decl_array_mem self)) array_mems
+ *     (Utils.pp_final_char_if_non_empty ";@," array_mems)
+ *     (\* memory clear *\)
+ *     (Utils.fprintf_list ~sep:"@," (pp_clear m self (pp_c_var_read m))) m.mmemory
+ *     (Utils.pp_newline_if_non_empty m.mmemory)
+ *     (\* sub-machines clear*\)
+ *     (Utils.fprintf_list ~sep:"@," (pp_machine_clear m self)) minit
+ *     (Utils.pp_newline_if_non_empty m.minit) *)
 
 let print_stateless_code dependencies fmt m =
   let self = "__ERROR__" in
@@ -528,7 +528,7 @@ let print_reset_code dependencies fmt m self =
     (Utils.fprintf_list ~sep:"@," (pp_machine_instr dependencies m self)) m.minit
     (Utils.pp_newline_if_non_empty m.minit)
 
-let print_init_code dependencies fmt m self =
+let print_init_code fmt m self =
   let minit = List.map (fun i -> match get_instr_desc i with MReset i -> i | _ -> assert false) m.minit in
   let array_mems = List.filter (fun v -> Types.is_array_type v.var_type) m.mmemory in
   fprintf fmt "@[<v 2>%a {@,%a%t%a%t%a%treturn;@]@,}@.@."
@@ -543,7 +543,7 @@ let print_init_code dependencies fmt m self =
     (Utils.fprintf_list ~sep:"@," (pp_machine_init m self)) minit
     (Utils.pp_newline_if_non_empty m.minit)
 
-let print_clear_code dependencies fmt m self =
+let print_clear_code fmt m self =
   let minit = List.map (fun i -> match get_instr_desc i with MReset i -> i | _ -> assert false) m.minit in
   let array_mems = List.filter (fun v -> Types.is_array_type v.var_type) m.mmemory in
   fprintf fmt "@[<v 2>%a {@,%a%t%a%t%a%treturn;@]@,}@.@."
@@ -669,9 +669,9 @@ let print_machine dependencies fmt m =
       if !Options.mpfr then
 	begin
           (* Init function *)
-	  print_init_code dependencies fmt m self;
+	  print_init_code fmt m self;
           (* Clear function *)
-	  print_clear_code dependencies fmt m self;
+	  print_clear_code fmt m self;
 	end
     end
 
@@ -735,7 +735,7 @@ let print_lib_c source_fmt basename prog machines dependencies =
   (* Print the struct definitions of all machines. *)
   fprintf source_fmt "/* Struct definitions */@.";
   fprintf source_fmt "@[<v>";
-  List.iter (print_machine_struct machines source_fmt) machines;
+  List.iter (print_machine_struct source_fmt) machines;
   fprintf source_fmt "@]@.";
   pp_print_newline source_fmt ();
   (* Print nodes one by one (in the previous order) *)

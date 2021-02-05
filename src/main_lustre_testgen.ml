@@ -15,7 +15,6 @@ open Format
 open Log
 
 open Utils
-open Lustre_types
 open Compiler_common
 
 let usage = "Usage: lustret [options] \x1b[4msource file\x1b[0m"
@@ -46,18 +45,18 @@ let testgen_source dirname basename extension =
   (* Parsing source *)
   let prog = parse source_name extension in
   let params = Backends.get_normalization_params () in
-  let prog, dependencies =
+  let prog, _ =
     try
       Compiler_stages.stage1 params prog dirname basename extension 
-   with Compiler_stages.StopPhase1 prog -> (
-      if !Options.print_nodes then (
-        Format.printf "%a@.@?" Printers.pp_node_list prog;
-        exit 0
+    with Compiler_stages.StopPhase1 prog -> (
+        if !Options.print_nodes then (
+          Format.printf "%a@.@?" Printers.pp_node_list prog;
+          exit 0
+        )
+        else
+          assert false
       )
-      else
-        assert false
-    )
- in
+  in
   
   (* Two cases
      - generation of coverage conditions

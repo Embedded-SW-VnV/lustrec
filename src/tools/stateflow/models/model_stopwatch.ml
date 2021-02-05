@@ -4,9 +4,9 @@ open Basetypes
 open SF
 
 let verbose = false
-let actionv x = no_action (*TODO if verbose then action x else no_action*)
-let action x = no_action (* TODO *)
-let condition x = condition {
+let actionv _ = no_action (*TODO if verbose then action x else no_action*)
+let action _ = no_action (* TODO *)
+let condition _ = condition {
   expr = Corelang.mkexpr Location.dummy_loc (Lustre_types.Expr_const (Corelang.const_of_bool true));
   cinputs = [];
   coutputs = [];

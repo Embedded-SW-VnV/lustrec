@@ -13,10 +13,7 @@ open Format
 
 open Machine_code_types
 open Lustre_types
-open Corelang
-open Machine_code_common
 
-open Misc_printer
 open Misc_lustre_function
 open Ada_printer
 open Ada_backend_common
@@ -39,9 +36,8 @@ struct
 
   (** Print the expression function representing the transition predicate.
      @param fmt the formater to print on
-     @param machine the machine
   **)
-  let pp_init_predicate typed_submachines fmt (opt_spec_machine, m) =
+  let pp_init_predicate fmt () =
     let new_state = (AdaIn, pp_state_name_predicate suffixNew, pp_state_type, None) in
     pp_predicate pp_init_name [[new_state]] true fmt None
 
@@ -49,14 +45,14 @@ struct
      @param fmt the formater to print on
      @param machine the machine
   **)
-  let pp_transition_predicate typed_submachines fmt (opt_spec_machine, m) =
+  let pp_transition_predicate fmt (_, m) =
     let old_state = (AdaIn, pp_state_name_predicate suffixOld, pp_state_type, None) in
     let new_state = (AdaIn, pp_state_name_predicate suffixNew, pp_state_type, None) in
     let inputs = build_pp_var_decl_step_input AdaIn None m in
     let outputs = build_pp_var_decl_step_output AdaIn None m in
     pp_predicate pp_transition_name ([[old_state; new_state]]@inputs@outputs) true fmt None
 
-  let pp_invariant_predicate typed_submachines fmt (opt_spec_machine, m) =
+  let pp_invariant_predicate fmt () =
     pp_predicate pp_invariant_name [[build_pp_state_decl AdaIn None]] true fmt None
 
   (** Print a new statement instantiating a generic package.
@@ -204,12 +200,11 @@ struct
         (pp_package (pp_axiomatize_package_name) [] false)
           (fun fmt -> fprintf fmt "pragma Annotate (GNATProve, External_Axiomatization);@,@,%a;@,%a;@,%a"
             (*Declare the init predicate*)
-            (pp_init_predicate typed_submachines) (m_spec_opt, m)
+            pp_init_predicate ()
             (*Declare the transition predicate*)
-            (pp_transition_predicate typed_submachines) (m_spec_opt, m)
+            pp_transition_predicate (m_spec_opt, m)
             (*Declare the invariant predicate*)
-            (pp_invariant_predicate typed_submachines) (m_spec_opt, m)
-          )
+            pp_invariant_predicate ())
         
         (*Print the private section*)
         pp_private_section

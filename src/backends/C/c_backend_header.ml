@@ -28,7 +28,7 @@ end
 
 module EmptyMod =
 struct
-  let print_machine_decl_prefix = fun fmt x -> ()
+  let print_machine_decl_prefix = fun _ _ -> ()
 end
 
 module Main = functor (Mod: MODIFIERS_HDR) -> 
@@ -120,7 +120,7 @@ let print_static_link_instance fmt (i, (m, _)) =
 (* Allocation of a node struct:
    - if node memory is an array/matrix/etc, we cast it to a pointer (see pp_registers_struct)
 *)
-let print_static_link_macro fmt (m, attr, inst) =
+let print_static_link_macro fmt (m, _, inst) =
   let array_mem = List.filter (fun v -> Types.is_array_type v.var_type) m.mmemory in
   fprintf fmt "@[<v>@[<v 2>#define %a(%s) do {\\@,%a%t%a;\\@]@,} while (0)@.@]"
     pp_machine_static_link_name m.mname.node_id
@@ -166,7 +166,7 @@ we do multiple things:
 - if the node is a regular node associated to a contract, print the contract as function contract.
 - do not print anything if this is a contract node
 *)
-let print_machine_alloc_decl machines fmt m =
+let print_machine_alloc_decl fmt m =
   Mod.print_machine_decl_prefix fmt m;
   if fst (get_stateless_status m) then
     begin
@@ -339,7 +339,7 @@ let print_header header_fmt basename prog machines dependencies =
     pp_print_newline header_fmt ()
   end
   *)
-let print_alloc_header header_fmt basename prog machines dependencies spec =
+let print_alloc_header header_fmt basename _prog machines dependencies spec =
   (* Include once: start *)
   let baseNAME = file_to_module_name basename in
   begin
@@ -358,12 +358,12 @@ let print_alloc_header header_fmt basename prog machines dependencies spec =
     fprintf header_fmt "@]@.";
     (* Print the struct definitions of all machines. *)
     fprintf header_fmt "/* Struct definitions */@.";
-    List.iter (print_machine_struct machines header_fmt) machines;
+    List.iter (print_machine_struct header_fmt) machines;
     pp_print_newline header_fmt ();
     fprintf header_fmt "/* Specification */@.%a@." C_backend_spec.pp_acsl_preamble spec;
     (* Print the prototypes of all machines *)
     fprintf header_fmt "/* Node allocation function/macro prototypes */@.";
-    List.iter (print_machine_alloc_decl machines header_fmt) machines;
+    List.iter (print_machine_alloc_decl header_fmt) machines;
     pp_print_newline header_fmt ();
     (* Include once: end *)
     fprintf header_fmt "#endif@.";

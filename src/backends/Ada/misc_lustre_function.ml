@@ -79,7 +79,7 @@ let rec find_submachine_step_call ident instr_list =
         (List.map (function x-> x.value_type) vl,
             List.map (function x-> x.var_type) il)]
       | MBranch (_, l) -> List.flatten
-          (List.map (function x, y -> find_submachine_step_call ident y) l)
+          (List.map (function _, y -> find_submachine_step_call ident y) l)
       | _ -> []
   in
   List.flatten (List.map search_instr instr_list)
@@ -155,7 +155,7 @@ let unification (substituion:(int*Types.type_expr) list) ((type_poly:Types.type_
    @param calls a list of pair of list of types
    @param return true if the two pairs are equal
 **)
-let check_call_equal (i1, o1) (i2, o2) =
+let check_call_equal (i1, _) (i2, _) =
   (List.for_all2 check_type_equal i1 i2)
     && (List.for_all2 check_type_equal i1 i2)
 
@@ -184,7 +184,7 @@ let get_substitution machine ident submachine =
   let call = match calls with
               (* assume that there is always one call to a subinstance *)
               | []    -> assert(false)
-              | h::t  -> h in
+              | h::_  -> h in
   (* assume that all the calls to a subinstance are using the same type *)
   assert(check_calls call calls);
   (* make a list of all types from input and output vars *)
@@ -235,7 +235,7 @@ let build_if g c1 i1 tl =
   let neg = c1=tag_false in
   let other = match tl with
     | []         -> None
-    | [(c2, i2)] -> Some i2
+    | [(_, i2)]  -> Some i2
     | _          -> assert false
   in
   match neg, other with
@@ -249,7 +249,7 @@ let rec push_if_in_expr = function
     (
       match get_instr_desc instr with
         | MBranch (g, (c1, i1)::tl) when c1=tag_false || c1=tag_true ->
-            let (neg, g, instrs1, instrs2) = build_if g c1 i1 tl in
+            let (_, g, instrs1, instrs2) = build_if g c1 i1 tl in
             let instrs1_pushed = push_if_in_expr instrs1 in
             let get_assign instr = match get_instr_desc instr with
               | MLocalAssign (id, value) -> (false, id, value)
@@ -304,7 +304,7 @@ let rec push_if_in_expr = function
                   List.map get_assign instrs2_pushed
             in
             gen_assigns if_assigns else_assigns
-        | x -> [instr]
+        | _ -> [instr]
       )@(push_if_in_expr q)
 
 

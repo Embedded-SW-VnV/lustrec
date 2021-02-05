@@ -67,7 +67,7 @@ let mkautomata loc id handlers =
 let expr_of_exit loc restart state conds tag =
   mkexpr loc (Expr_when (List.fold_right add_branch conds (mkidentpair loc restart state), state, tag))
 
-let rec unless_read reads handler =
+let unless_read reads handler =
   let res =
   List.fold_left (fun read (_, c, _, _) -> Utils.ISet.union read (get_expr_vars c)) reads handler.hand_unless
   in
@@ -79,7 +79,7 @@ Format.eprintf "unless_reads' %s = %a@." handler.hand_state (fprintf_list ~sep:"
 res
 )
 
-let rec until_read reads handler =
+let until_read reads handler =
   List.fold_left (fun read (_, c, _, _) -> Utils.ISet.union read (get_expr_vars c)) reads handler.hand_until
 
 let rec handler_read reads handler =
@@ -136,7 +136,7 @@ let mkautomata_state nodeid used typedef loc id =
 let vars_of_aut_state aut_state =
   [aut_state.incoming_r'; aut_state.incoming_r; aut_state.actual_r; aut_state.incoming_s'; as_clock aut_state.incoming_s; as_clock aut_state.actual_s]
 
-let node_of_unless nused used node aut_id aut_state handler =
+let node_of_unless nused node aut_id aut_state handler =
 (*Format.eprintf "node_of_unless %s@." node.node_id;*)
   let inputs = unless_read ISet.empty handler in
   let var_inputs = aut_state.incoming_r (*:: aut_state.incoming_s*) :: (node_vars_of_idents node inputs) in
@@ -228,13 +228,13 @@ let typedef_of_automata aut =
 let expand_automata nused used owner typedef node aut =
   let initial = (List.hd aut.aut_handlers).hand_state in
   let aut_state = mkautomata_state node.node_id used typedef aut.aut_loc aut.aut_id in
-  let unodes = List.map (fun h -> node_of_unless nused used node aut.aut_id aut_state h) aut.aut_handlers in
+  let unodes = List.map (fun h -> node_of_unless nused node aut.aut_id aut_state h) aut.aut_handlers in
   let aunodes = List.map (fun h -> node_of_assign_until nused used node aut.aut_id aut_state h) aut.aut_handlers in
   let all_outputs = List.fold_left (fun all (outputs, _, _) -> ISet.union outputs all) ISet.empty aunodes in
-  let unless_handlers = List.map2 (fun h (n, c) -> (h.hand_state, c)) aut.aut_handlers unodes in
+  let unless_handlers = List.map2 (fun h (_, c) -> (h.hand_state, c)) aut.aut_handlers unodes in
   let unless_expr = mkexpr aut.aut_loc (Expr_merge (aut_state.incoming_s.var_id, unless_handlers)) in
   let unless_eq = mkeq aut.aut_loc ([aut_state.actual_r.var_id; aut_state.actual_s.var_id], unless_expr) in
-  let assign_until_handlers = List.map2 (fun h (_, n, c) -> (h.hand_state, c)) aut.aut_handlers aunodes in
+  let assign_until_handlers = List.map2 (fun h (_, _, c) -> (h.hand_state, c)) aut.aut_handlers aunodes in
   let assign_until_expr = mkexpr aut.aut_loc (Expr_merge (aut_state.actual_s.var_id, assign_until_handlers)) in
   let assign_until_vars = [aut_state.incoming_r'.var_id; aut_state.incoming_s'.var_id] @ (ISet.elements all_outputs) in
   let assign_until_eq = mkeq aut.aut_loc (assign_until_vars, assign_until_expr) in

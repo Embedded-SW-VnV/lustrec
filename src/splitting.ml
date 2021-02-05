@@ -12,7 +12,6 @@
 open Utils
 open Corelang
 open Lustre_types
-open Format
 
 
 let rec tuple_split_expr expr = 
@@ -70,7 +69,7 @@ let rec tuple_split_expr expr =
       (fun hl -> {expr with expr_tag = Utils.new_tag (); expr_desc = Expr_merge (c, List.combine tl hl) })
       (transpose_list hl)
 
-let rec tuple_split_eq eq =
+let tuple_split_eq eq =
   let split_rhs = tuple_split_expr eq.eq_rhs in
   if List.length split_rhs = 1
   then

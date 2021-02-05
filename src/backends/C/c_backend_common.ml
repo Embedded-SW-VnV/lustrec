@@ -204,7 +204,7 @@ let pp_c_type ?(var_opt=None) var_id fmt t =
       | Types.Tconst ty       -> fprintf fmt "%s %s" ty var_id
       | Types.Tarrow (_, _)   -> fprintf fmt "void (*%s)()" var_id
       | _                     -> eprintf "internal error: C_backend_common.pp_c_type %a@." Types.print_ty t; assert false
-  in aux t (fun fmt () -> ())
+  in aux t (fun _ () -> ())
 (*
 let rec pp_c_initialize fmt t = 
   match (Types.repr t).Types.tdesc with
@@ -230,7 +230,7 @@ let rec pp_c_const fmt c =
     (* | Const_float r   -> pp_print_float fmt r *)
     | Const_tag t     -> pp_c_tag fmt t
     | Const_array ca  -> fprintf fmt "{%a }" (Utils.fprintf_list ~sep:", " pp_c_const) ca
-    | Const_struct fl -> fprintf fmt "{%a }" (Utils.fprintf_list ~sep:", " (fun fmt (f, c) -> pp_c_const fmt c)) fl
+    | Const_struct fl -> fprintf fmt "{%a }" (Utils.fprintf_list ~sep:", " (fun fmt (_, c) -> pp_c_const fmt c)) fl
     | Const_string _ | Const_modeid _ -> assert false (* string occurs in annotations not in C *)
 
                   
@@ -244,7 +244,7 @@ let rec pp_c_val m self pp_var fmt v =
   | Cst c         -> pp_c_const fmt c
   | Array vl      -> fprintf fmt "{%a}" (Utils.fprintf_list ~sep:", " pp_c_val) vl
   | Access (t, i) -> fprintf fmt "%a[%a]" pp_c_val t pp_c_val i
-  | Power (v, n)  -> (Format.eprintf "internal error: C_backend_common.pp_c_val %a@." (Machine_code_common.pp_val m) v; assert false)
+  | Power (v, _)  -> (Format.eprintf "internal error: C_backend_common.pp_c_val %a@." (Machine_code_common.pp_val m) v; assert false)
   | Var v    ->
      if Machine_code_common.is_memory m v then (
        (* array memory vars are represented by an indirection to a local var with the right type,
@@ -342,7 +342,7 @@ let pp_c_decl_struct_var fmt id =
   then pp_c_type (sprintf "(*%s)" id.var_id) fmt (Types.array_base_type id.var_type)
   else pp_c_type                  id.var_id  fmt id.var_type
 
-let pp_c_decl_instance_var fmt (name, (node, static)) = 
+let pp_c_decl_instance_var fmt (name, (node, _)) =
   fprintf fmt "%a *%s" pp_machine_memtype_name (node_name node) name
 
 let pp_c_checks self fmt m =
@@ -369,7 +369,7 @@ let pp_registers_struct fmt m =
   else
     ()
 
-let print_machine_struct machines fmt m =
+let print_machine_struct fmt m =
   if fst (Machine_code_common.get_stateless_status m) then
     begin
     end

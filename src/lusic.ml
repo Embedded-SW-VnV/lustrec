@@ -12,7 +12,6 @@
 
 open Format 
 open Lustre_types
-open Corelang
 
 (********************************************************************************************)
 (*                      Lusic to/from Header Printing functions                             *)

@@ -1,5 +1,4 @@
 open Format
-open Utils
 open Compiler_common
 open Lustre_types
 module Mpfr = Lustrec_mpfr
@@ -98,10 +97,10 @@ let stage1 params prog dirname basename extension =
   in
   
   (* Perform inlining before any analysis *)
-  let orig, prog =
+  let _, prog =
     if !Options.global_inline && !Global.main_node <> "" then
       (if !Options.witnesses then prog else []),
-      Inliner.global_inline basename prog
+      Inliner.global_inline prog
     else (* if !Option.has_local_inline *)
       [],
       Inliner.local_inline prog (* type_env clock_env *)
@@ -306,7 +305,7 @@ let stage3 prog machine_code dependencies basename extension =
     begin
       Log.report ~level:1 (fun fmt -> fprintf fmt ".. Ada code generation@.");
       Ada_backend.translate_to_ada
-      basename prog (Machine_code_common.arrow_machine::machine_code) dependencies
+        basename (Machine_code_common.arrow_machine::machine_code)
     end
   | "horn", _ ->
      begin
@@ -315,14 +314,14 @@ let stage3 prog machine_code dependencies basename extension =
        let source_out = open_out source_file in
        let fmt = formatter_of_out_channel source_out in
        Log.report ~level:1 (fun fmt -> fprintf fmt ".. hornification@,");
-       Horn_backend.translate fmt basename prog (Machine_code_common.arrow_machine::machine_code);
+       Horn_backend.translate fmt prog (Machine_code_common.arrow_machine::machine_code);
        (* Tracability file if option is activated *)
        if !Options.traces then (
 	 let traces_file = destname ^ ".traces.xml" in (* Could be changed *)
 	 let traces_out = open_out traces_file in
 	 let fmt = formatter_of_out_channel traces_out in
          Log.report ~level:1 (fun fmt -> fprintf fmt ".. tracing info@,");
-	 Horn_backend_traces.traces_file fmt basename prog machine_code;
+	 Horn_backend_traces.traces_file fmt machine_code;
        )
      end
   | "lustre", _ ->

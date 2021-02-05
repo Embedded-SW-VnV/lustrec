@@ -157,7 +157,7 @@ let check_top_decls header =
 	 
 
     
-let check_compatibility (prog, computed_types_env, computed_clocks_env) (header, declared_types_env, declared_clocks_env) =
+let check_compatibility (_, computed_types_env, computed_clocks_env) (header, declared_types_env, declared_clocks_env) =
   try
     (* checking defined types are compatible with declared types*)
     Typing.check_typedef_compat header;
@@ -342,9 +342,9 @@ let resolve_contracts prog =
         | Node nd -> (
           match nd.node_spec with
           | None -> accu_contracts, top::accu_nodes (* A boring node: no contract *)
-          | Some (NodeSpec id) -> (* shall not happen, its too early *)
+          | Some (NodeSpec _) -> (* shall not happen, its too early *)
              assert false
-          | Some (Contract c) -> (* A contract: processing it *)
+          | Some (Contract _) -> (* A contract: processing it *)
              (* we bind a fresh node *)
              let new_nd = process_contract_new_node accu_contracts prog top in
              (* Format.eprintf "Creating new contract node %s@." (node_name new_nd); *)
@@ -357,9 +357,9 @@ let resolve_contracts prog =
         | ImportedNode ind -> ( (* Similar treatment for imported nodes *)
           match ind.nodei_spec with
             None -> accu_contracts, top::accu_nodes (* A boring node: no contract *)
-          | Some (NodeSpec id) -> (* shall not happen, its too early *)
+          | Some (NodeSpec _) -> (* shall not happen, its too early *)
              assert false
-          | Some (Contract c) -> (* A contract: processing it *)
+          | Some (Contract _) -> (* A contract: processing it *)
              (* we bind a fresh node *)
              let new_nd = process_contract_new_node accu_contracts prog top in
              let ind = { ind with nodei_spec = (Some (NodeSpec (node_name new_nd))) } in

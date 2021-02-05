@@ -11,7 +11,7 @@
 
 (** Access checking module. Done after typing. Generates dimension constraints stored in nodes *)
 
-let debug fmt args = () (* Format.eprintf "%a"  *)
+let debug _fmt _args = () (* Format.eprintf "%a"  *)
 (* Though it shares similarities with the clock calculus module, no code
     is shared.  Simple environments, very limited identifier scoping, no
     identifier redefinition allowed. *)
@@ -21,8 +21,6 @@ open Utils
    overwritten, yet this makes notations far lighter.*)
 open Lustre_types
 open Corelang
-open Types
-open Format
 
 module ConstraintModule =
 struct (* bool dimension module *)
@@ -59,7 +57,7 @@ let rec check_expr checks expr =
   | Expr_pre e1
   | Expr_when (e1,_,_) -> check_expr checks e1
  
-  | Expr_merge (_,hl) -> List.fold_left (fun checks (l, h) -> check_expr checks h) checks hl
+  | Expr_merge (_,hl) -> List.fold_left (fun checks (_, h) -> check_expr checks h) checks hl
   in (*Format.eprintf "typing %B %a at %a = %a@." const Printers.pp_expr expr Location.pp_loc expr.expr_loc Types.print_ty res;*) res
 
 let rec check_var_decl_type loc checks ty =

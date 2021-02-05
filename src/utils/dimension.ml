@@ -174,14 +174,14 @@ let rec factors_constant fs =
 let norm_factors fs =
   let k = factors_constant fs in
   let nk = List.filter (fun d -> not (is_dimension_const d)) fs in
-  (k, List.sort Pervasives.compare nk)
+  (k, List.sort compare nk)
 
 let rec terms dim =
  match dim.dim_desc with
  | Dappl (f, args) when f = "+" -> List.flatten (List.map terms args)
  | _                            -> [dim]
 
-let rec normalize dim =
+let normalize dim =
  dim
 (*
 let rec unnormalize loc l =
@@ -295,7 +295,7 @@ let rec instantiate inst_dim_vars dim =
 	(instantiate inst_dim_vars t)
 	(instantiate inst_dim_vars e)
   | Dappl (f, args) -> mkdim_appl dim.dim_loc f (List.map (instantiate inst_dim_vars) args)
-  | Dlink dim' -> assert false (*mkdim dim.dim_loc (Dlink (instantiate inst_dim_vars dim'))*)
+  | Dlink _ -> assert false (*mkdim dim.dim_loc (Dlink (instantiate inst_dim_vars dim'))*)
   | Dunivar ->
       try
         List.assoc dim.dim_id !inst_dim_vars

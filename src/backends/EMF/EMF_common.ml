@@ -13,7 +13,7 @@ let rec get_idx x l =
 
 let rec get_expr_vars v =
   match v.value_desc with
-  | Cst c -> VSet.empty
+  | Cst _ -> VSet.empty
   | Var v -> VSet.singleton v
   | Fun (_, args) -> List.fold_left (fun accu v -> VSet.union accu (get_expr_vars v)) VSet.empty args
   | _ -> assert false (* Invalid argument *)

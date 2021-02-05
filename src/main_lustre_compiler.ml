@@ -10,12 +10,10 @@
 (********************************************************************)
 
 open Format
-open Log
 open Compiler_common
 
 open Utils
-open Lustre_types
- 
+
 
 let usage = "Usage: lustrec [options] \x1b[4msource file\x1b[0m"
 
@@ -40,7 +38,7 @@ let print_lusi prog dirname basename extension =
 
 
 (* compile a .lus source file *)
-let rec compile dirname basename extension =
+let compile dirname basename extension =
   let source_name = dirname ^ "/" ^ basename ^ extension in
 
   Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 0>");

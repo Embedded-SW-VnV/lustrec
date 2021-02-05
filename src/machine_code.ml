@@ -136,7 +136,7 @@ let rec translate_expr env expr =
                                              raise NormalizationError)
                                           
     | Expr_when    (e1, _, _)          -> (translate_expr e1).value_desc
-    | Expr_merge   (x, _)              -> raise NormalizationError
+    | Expr_merge   _                   -> raise NormalizationError
     | Expr_appl (id, e, _) when Basic_library.is_expr_internal_fun expr ->
        let nd = node_from_name id in
        Fun (node_name nd, List.map translate_expr (expr_list_of_expr e))

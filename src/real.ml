@@ -1,12 +1,12 @@
 (* (a, b, c) means a * 10^-b. c is the original string *)
 type t = Q.t * int * string 
 
-let pp fmt (c, e, s) =
+let pp fmt (_, _, s) =
     Format.fprintf fmt "%s%s"
       s
       (if String.get s (-1 + String.length s) = '.' then "0" else "")
 
-let pp_ada fmt (c, e, s) =
+let pp_ada fmt (c, e, _) =
   Format.fprintf fmt "%s.0*1.0e-%i" (Q.to_string c) e
   
 let create m e s = Q.of_string m, e, s
@@ -33,8 +33,8 @@ let to_num = to_q
            
 let to_string (_, _, s) = s
                         
-let eq r1 r2 =
-  Q.equal (to_q r1) (to_q r2)
+(* let eq r1 r2 =
+ *   Q.equal (to_q r1) (to_q r2) *)
   
   
 let num_binop op r1 r2 =

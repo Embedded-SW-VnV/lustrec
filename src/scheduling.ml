@@ -12,7 +12,6 @@
 open Utils
 open Lustre_types
 open Corelang
-open Graph
 open Causality
 open Scheduling_type
 
