@@ -40,7 +40,7 @@ let keyword_table =
   "tel", TEL;
   "returns", RETURNS;
   "var", VAR;
-  "imported", IMPORTED;
+  (* "imported", IMPORTED; *)
   "import", IMPORT;
   "type", TYPE;
   "int", TINT;
@@ -90,7 +90,7 @@ let make_annot lexbuf s =
     ANNOT ann
   with LexerLustreSpec.Error loc -> raise (Parse.Error (Location.shift orig_loc loc, Parse.Annot_error s))
 
-let make_spec orig_loc lexbuf s = 
+let make_spec orig_loc s =
   try
     Location.push_loc orig_loc;	
     let ns = LexerLustreSpec.spec s in
@@ -208,8 +208,8 @@ and annot_multiline n = parse
   | _ as c { Buffer.add_char buf c; annot_multiline n lexbuf }
 
 and spec_singleline loc = parse
-  | eof { make_spec loc lexbuf (Buffer.contents buf) }
-  | newline { incr_line lexbuf; make_spec loc lexbuf (Buffer.contents buf) }
+  | eof { make_spec loc (Buffer.contents buf) }
+  | newline { incr_line lexbuf; make_spec loc (Buffer.contents buf) }
   | _ as c { Buffer.add_char buf c; spec_singleline loc lexbuf }
 
 and spec_multiline loc n = parse
@@ -217,7 +217,7 @@ and spec_multiline loc n = parse
   | "*)" as s { if n > 0 then 
       (Buffer.add_string buf s; spec_multiline loc (n-1) lexbuf) 
     else 
-      make_spec loc lexbuf (Buffer.contents buf) }
+      make_spec loc (Buffer.contents buf) }
   | "(*" as s { Buffer.add_string buf s; spec_multiline loc (n+1) lexbuf }
   | newline as s { incr_line lexbuf; Buffer.add_string buf s; spec_multiline loc n lexbuf }
   | _ as c { Buffer.add_char buf c; spec_multiline loc n lexbuf }

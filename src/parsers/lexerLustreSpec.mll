@@ -41,7 +41,7 @@ let keyword_table =
   "returns", RETURNS;
   "var", VAR;
   "import", IMPORT;
-  "imported", IMPORTED;
+  (* "imported", IMPORTED; *)
   "int", TINT;
   "bool", TBOOL;
   (* "float", TFLOAT; *)
