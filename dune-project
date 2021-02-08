@@ -29,6 +29,7 @@
     intermediate representation and relies mainly on lustrec to produce code \
     or verification artifacts.")
  (depends
+    conf-gmp
     ocamlgraph
     menhir
     zarith
