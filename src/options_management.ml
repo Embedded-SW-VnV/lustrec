@@ -11,7 +11,7 @@
 open Options
 
 let print_version () =
-  Format.printf "Lustrec compiler, version %s (%s)@." version (codename ());
+  Format.printf "Lustrec compiler, version %s (%s)@." version codename;
   Format.printf "Standard lib: %s@." Version.include_path;
   Format.printf "User provided include directory: @[<h>%a@]@."
     (Utils.fprintf_list ~sep:"@ " Format.pp_print_string) !include_dirs

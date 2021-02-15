@@ -40,8 +40,8 @@ variables:
   # value of any variable defined here.
 
   DUNE_BUILD_TARGETS: "@all"
-  DUNE_TEST_TARGETS: "@runtest"
-  DUNE_DOC_TARGETS: "@doc"
+  DUNE_TEST_TARGETS: "" #"@runtest"
+  DUNE_DOC_TARGETS: "" #"@doc"
   # If you make one of these variables empty (: ""),
   # the corresponding build step will be skipped.
   # Setting them to other values can refine the build

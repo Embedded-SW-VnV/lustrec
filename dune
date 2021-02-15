@@ -1,7 +1,6 @@
 ; too bad dune does not support glob in install stanza
 ; (see https://discuss.ocaml.org/t/installing-many-files-with-dune/4143)
 ; TODO: open an issue?
-
 (install
  (section (site (lustrec include_)))
  (files
