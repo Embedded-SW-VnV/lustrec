@@ -17,41 +17,39 @@ let compile_source_to_header prog computed_types_env computed_clocks_env dirname
   let destname = !Options.dest_dir ^ "/" ^ basename in
   let lusic_ext = ".lusic" in
   let header_name = destname ^ lusic_ext in
+  let from_lusi = extension = ".lusi" in
   begin
     if (* Generating the lusic file *)
-      extension = ".lusi" (* because input is a lusi *)
-      || (extension = ".lus" &&
-            not (Sys.file_exists header_name))
-           (* or because it is a lus but not lusic exists *)
+      (* because input is a lusi *)
+      from_lusi
+      (* or because it is a lus but no lusic exists *)
+      || (extension = ".lus" && not (Sys.file_exists header_name))
+      (* or the lusic exists but is not generated from a lusi, hence it
+         has te be regenerated *)
       || (let lusic = Lusic.read_lusic destname lusic_ext in
           not lusic.Lusic.from_lusi)
-         (* or the lusic exists but is not generated from a lusi, hence it
-            has te be regenerated *)
     then
       begin
-	Log.report ~level:1 (fun fmt -> fprintf fmt ".. generating compiled header file %s@," header_name);
-	Lusic.write_lusic
-          (extension = ".lusi") (* is it a lusi file ? *)
-          (if extension = ".lusi" then prog else Lusic.extract_header dirname basename prog)
+        Log.report ~level:1 (fun fmt -> fprintf fmt ".. generating compiled header file %s@," header_name);
+        Lusic.write_lusic
+          from_lusi (* is it a lusi file ? *)
+          (if from_lusi then prog else Lusic.extract_header dirname basename prog)
           destname
           lusic_ext;
-        let _ =
-          match !Options.output with
-          | "C" -> C_backend_lusic.print_lusic_to_h destname lusic_ext
-          | _ -> ()
-        in
-        ()
+        match !Options.output with
+        | "C" -> C_backend_lusic.print_lusic_to_h destname lusic_ext
+        | _ -> ()
       end
     else (* Lusic exists and is usable. Checking compatibility *)
       begin
-	Log.report ~level:1 (fun fmt -> fprintf fmt ".. loading compiled header file %s@," header_name);
+        Log.report ~level:1 (fun fmt -> fprintf fmt ".. loading compiled header file %s@," header_name);
         let lusic = Lusic.read_lusic destname lusic_ext in
         Lusic.check_obsolete lusic destname;
-	let header = lusic.Lusic.contents in
-	let (declared_types_env, declared_clocks_env) = Modules.get_envs_from_top_decls header in
-	check_compatibility
-	  (prog, computed_types_env, computed_clocks_env)
-	  (header, declared_types_env, declared_clocks_env)
+        let header = lusic.Lusic.contents in
+        let (declared_types_env, declared_clocks_env) = Modules.get_envs_from_top_decls header in
+        check_compatibility
+          (prog, computed_types_env, computed_clocks_env)
+          (header, declared_types_env, declared_clocks_env)
       end
   end
 

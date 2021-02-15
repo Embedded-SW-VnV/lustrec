@@ -98,7 +98,7 @@ To be solved (later) with
     fprintf fmt "GCC=gcc -O0@.";
     fprintf fmt "LUSTREC=%s@." Sys.executable_name;
     fprintf fmt "LUSTREC_BASE=%s@." (Filename.dirname (Filename.dirname Sys.executable_name));
-    fprintf fmt "INC=${LUSTREC_BASE}/include/lustrec@.";
+    fprintf fmt "INC=%s@." Version.include_path (*"${LUSTREC_BASE}/include/lustrec"*);
     fprintf fmt "@.";
 
     (* Main binary *)

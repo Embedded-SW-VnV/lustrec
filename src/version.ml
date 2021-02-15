@@ -1,7 +1,9 @@
-let number = "@PACKAGE_VERSION@-@GITBRANCH@"
+let number = "%%VERSION%%"
 
-let codename ="@VERSION_CODENAME@"
+let codename () =
+  match "%%VERSION_NUM%%" with
+  | "1.7" -> "Xia/Huai-dev"
+  | _ -> "dev"
 
-let prefix = "@prefix@"
-
-let include_path = prefix ^ "/include/lustrec"
+let include_path = Sites.Sites.include_ |> List.hd
+let testgen_path = Sites.Sites.testgen |> List.hd

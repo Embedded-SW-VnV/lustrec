@@ -19,26 +19,26 @@ open Dimension
 let get_loc () = Location.symbol_rloc ()
 
 let mkident x = x, get_loc ()
-let mktyp = mktyp (get_loc ())
+let mktyp x = mktyp (get_loc ()) x
 let mkotyp x = match x with Some t -> Some (mktyp t) | None -> None
-let mkclock = mkclock (get_loc ())
+let mkclock x = mkclock (get_loc ()) x
 let mkvar_decl x loc = mkvar_decl loc ~orig:true x
-let mkexpr = mkexpr (get_loc ())
-let mkeexpr = mkeexpr (get_loc ())
-let mkeq = mkeq (get_loc ())
-let mkassert = mkassert (get_loc ())
-let mktop_decl = mktop_decl (get_loc ()) (Location.get_module ())
-let mkpredef_call = mkpredef_call (get_loc ())
+let mkexpr x = mkexpr (get_loc ()) x
+let mkeexpr x = mkeexpr (get_loc ()) x
+let mkeq x = mkeq (get_loc ()) x
+let mkassert x = mkassert (get_loc ()) x
+let mktop_decl x = mktop_decl (get_loc ()) (Location.get_module ()) x
+let mkpredef_call x = mkpredef_call (get_loc ()) x
 let mkpredef_call_b f x1 x2 = mkpredef_call f [x1; x2]
 let mkpredef_call_u f x = mkpredef_call f [x]
 
-let mkdim_int = mkdim_int (get_loc ())
+let mkdim_int x = mkdim_int (get_loc ()) x
 (* let mkdim_bool b = mkdim_bool (get_loc ()) b *)
-let mkdim_ident = mkdim_ident (get_loc ())
-let mkdim_appl = mkdim_appl (get_loc ())
+let mkdim_ident x = mkdim_ident (get_loc ()) x
+let mkdim_appl x = mkdim_appl (get_loc ()) x
 let mkdim_appl_b f x1 x2 = mkdim_appl f [x1; x2]
 let mkdim_appl_u f x = mkdim_appl f [x]
-let mkdim_ite = mkdim_ite (get_loc ())
+let mkdim_ite x = mkdim_ite (get_loc ()) x
 
 let mkarraytype = List.fold_left (fun t d -> Tydec_array (d, t))
 
@@ -96,8 +96,8 @@ let rec fby expr n init =
 %token EOF
 
 %nonassoc p_string
-%nonassoc p_vdecl
-%left SCOL
+(* %nonassoc p_vdecl *)
+(* %left SCOL *)
 %nonassoc EVERY
 %nonassoc ELSE
 %right ARROW FBY
@@ -189,8 +189,8 @@ top_decl_header:
 | CONST ds=cdecl+ SCOL
   { List.map ((|>) true) ds }
 | nodei_spec=nodespecs nodei_stateless=state_annot nodei_id=node_ident_decl
-  LPAR nodei_inputs=vdecl_list SCOL? RPAR
-  RETURNS LPAR nodei_outputs=vdecl_list SCOL? RPAR
+  LPAR nodei_inputs=var_decl_list(vdecl) RPAR
+  RETURNS LPAR nodei_outputs=var_decl_list(vdecl) RPAR
   nodei_prototype=preceded(PROTOTYPE, node_ident)?
   nodei_in_lib=preceded(LIB, module_ident)* SCOL
   { let nd = mktop_decl true (ImportedNode {
@@ -215,8 +215,8 @@ top_decl:
 | CONST ds=cdecl+ SCOL
   { List.map ((|>) false) ds }
 | node_dec_stateless=state_annot node_id=node_ident_decl
-  LPAR node_inputs=vdecl_list SCOL? RPAR
-  RETURNS LPAR node_outputs=vdecl_list SCOL? RPAR SCOL?
+  LPAR node_inputs=var_decl_list(vdecl) RPAR
+  RETURNS LPAR node_outputs=var_decl_list(vdecl) RPAR SCOL?
   node_spec=nodespecs
   node_locals=locals LET content=stmt_list TEL
   { let node_stmts, node_asserts, node_annot = content in
@@ -351,8 +351,8 @@ lustre_spec:
 
 top_contract:
 | CONTRACT node_id=node_ident_decl
-  LPAR node_inputs=vdecl_list SCOL? RPAR
-  RETURNS LPAR node_outputs=vdecl_list SCOL? RPAR SCOL?
+  LPAR node_inputs=var_decl_list(vdecl) RPAR
+  RETURNS LPAR node_outputs=var_decl_list(vdecl) RPAR SCOL?
   LET cc=contract_content TEL
   { let nd = mktop_decl true (Node {
                                   node_id;
@@ -566,12 +566,11 @@ dim:
 | IF d=dim THEN t=dim ELSE f=dim { mkdim_ite d t f }
 
 %inline locals:
-| xs=loption(preceded(VAR, flatten(separated_nonempty_list(SCOL, local_vdecl))))
-  { xs }
+| xs=loption(preceded(VAR, var_decl_list(local_vdecl))) { xs }
 
-vdecl_list:
-| d=vdecl %prec p_vdecl { d }
-| d=vdecl SCOL ds=vdecl_list { d @ ds }
+var_decl_list(X):
+| d=X ioption(SCOL)            { d }
+| d=X SCOL ds=var_decl_list(X) { d @ ds }
 
 vdecl:
 | xs=ident_list COL t=typeconst c=clock?

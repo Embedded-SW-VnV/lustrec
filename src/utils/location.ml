@@ -90,7 +90,8 @@ let pp_loc fmt loc =
   let (start_char, end_char) =
     if start_char < 0 then (0,1) else (start_char, end_char)
   in
-  Format.fprintf fmt "File \"%s\", line %i, characters %i-%i:" filename line start_char end_char;
+  Format.fprintf fmt "File \"%s\", line %i, characters %i-%i"
+    filename line start_char end_char;
   (* Format.fprintf fmt "@.loc1=(%i,%i,%i) loc2=(%i,%i,%i)@."
    *   loc.loc_start.Lexing.pos_lnum
    *   loc.loc_start.Lexing.pos_bol

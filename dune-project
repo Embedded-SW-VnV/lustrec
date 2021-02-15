@@ -18,7 +18,9 @@
  (name lustrec)
  (sites
   (lib plugins)
-  (lib verifiers))
+  (lib verifiers)
+  (lib include_)
+  (share testgen))
  (synopsis "A Lustre compiler toolset")
  (description
    "lustrec is structured around the modular compilation scheme proposed by \

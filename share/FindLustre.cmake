@@ -26,7 +26,7 @@
 # The VERBOSE level is a numeric value passed directly to the -verbose
 # command line option of the lustre compiler
 #
-include("@prefix@/share/helpful_functions.cmake")
+include("helpful_functions.cmake")
 
 if(LUSTRE_PATH_HINT)
   message(STATUS "FindLustre: using PATH HINT: ${LUSTRE_PATH_HINT}")

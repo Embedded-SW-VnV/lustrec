@@ -1,0 +1,3 @@
+[submodule "tests"]
+	path = tests
+	url = https://cavale.enseeiht.fr/git/lustrec-tests

@@ -1,0 +1,23 @@
+; too bad we have to repeat the same rule three times...
+; The make-like behavior if still unsupported by dune
+; (see https://discuss.ocaml.org/t/dune-copy-multiple-dependencies-to-build-directory-in-rule-stanza/4144/5)
+
+(rule
+ (target conv.lusic)
+ (action (run lustrec -verbose 0 -I . -d . %{dep:conv.lusi}))
+ (alias install))
+
+(rule
+ (target simulink_math_fcn.lusic)
+ (action (run lustrec -verbose 0 -I . -d . %{dep:simulink_math_fcn.lusi}))
+ (alias install))
+
+(rule
+ (target lustrec_math.lusic)
+ (action (run lustrec -verbose 0 -I . -d . %{dep:lustrec_math.lusi}))
+ (alias install))
+
+(rule
+ (target mpfr_lustre.lusic)
+ (action (run lustrec -verbose 0 -mpfr 1 -d . %{dep:mpfr_lustre.lusi}))
+ (alias install))

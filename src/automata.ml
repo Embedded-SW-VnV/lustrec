@@ -263,7 +263,7 @@ let expand_node_stmt nused used owner node (top_types, top_nodes, locals, eqs) s
     (top_typedef :: top_types, top_decls'@top_nodes, locals'@locals, eqs'@eqs)
 
 let expand_node_stmts nused used loc owner node =
-  let (top_types', top_nodes', locals', eqs') =
+  let top_types', top_nodes', locals', eqs' =
     List.fold_left (expand_node_stmt nused used owner node) ([], [], [], []) node.node_stmts in
   let node' = 
     { node with node_locals = locals'@node.node_locals; node_stmts = eqs' } in
@@ -277,18 +277,18 @@ let rec expand_decls_rec nused top_decls =
     match top_decl.top_decl_desc with
     | Node nd ->
       let used name =
-	   List.exists (fun v -> v.var_id = name) nd.node_inputs
-	|| List.exists (fun v -> v.var_id = name) nd.node_outputs
-	|| List.exists (fun v -> v.var_id = name) nd.node_locals in
-      let (top_types', top_decl', top_nodes') = expand_node_stmts nused used top_decl.top_decl_loc top_decl.top_decl_owner nd in
+        List.exists (fun v -> v.var_id = name) nd.node_inputs
+        || List.exists (fun v -> v.var_id = name) nd.node_outputs
+        || List.exists (fun v -> v.var_id = name) nd.node_locals in
+      let top_types', top_decl', top_nodes' = expand_node_stmts nused used top_decl.top_decl_loc top_decl.top_decl_owner nd in
       top_types' @ (top_decl' :: expand_decls_rec nused (top_nodes'@q))
     | _       -> top_decl :: expand_decls_rec nused q
 
 let expand_decls top_decls =
   let top_names = List.fold_left (fun names t -> match t.top_decl_desc with
-    | Node nd         -> ISet.add nd.node_id names
-    | ImportedNode nd -> ISet.add nd.nodei_id names
-    | _               -> names) ISet.empty top_decls in
+      | Node nd         -> ISet.add nd.node_id names
+      | ImportedNode nd -> ISet.add nd.nodei_id names
+      | _               -> names) ISet.empty top_decls in
   let nused name = ISet.mem name top_names in
   expand_decls_rec nused top_decls
 

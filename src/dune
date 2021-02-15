@@ -50,7 +50,7 @@
    clock_calculus
  )
  (wrapped false)
- (libraries ocamlgraph zarith unix str))
+ (libraries sites ocamlgraph zarith unix str))
 
 (library
  (name plugin_register)
@@ -61,7 +61,10 @@
 
 (generate_sites_module
  (module sites)
- (plugins (lustrec plugins) (lustrec verifiers)))
+ ; (sites lustrec)
+ (plugins
+  (lustrec plugins)
+  (lustrec verifiers)))
 
 (library
  (name sites)
@@ -156,6 +159,8 @@
    theta
    memo)
  (libraries tools_lib))
+
+
 
 ; (executable
 ;  (name main_parse_json_file)

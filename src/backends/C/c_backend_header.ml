@@ -280,11 +280,11 @@ let print_type_definitions fmt filename =
 		| _        -> ()) type_table
 
 let reset_type_definitions, print_type_definition_from_header =
-  let cpt_type =ref 0 in
-  ((fun () -> cpt_type := 0),
-   (fun fmt typ filename ->
-    fprintf fmt "typedef %a;@.@."
-	(pp_c_type_decl filename cpt_type typ.tydef_id) typ.tydef_desc))
+  let cpt_type = ref 0 in
+  (fun () -> cpt_type := 0),
+  (fun fmt typ filename ->
+     fprintf fmt "typedef %a;@.@."
+	     (pp_c_type_decl filename cpt_type typ.tydef_id) typ.tydef_desc)
 
 (********************************************************************************************)
 (*                         MAIN Header Printing functions                                   *)
