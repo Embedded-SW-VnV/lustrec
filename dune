@@ -5,8 +5,19 @@
  (section (site (lustrec include_)))
  (files
    include/conv.c
+   include/conv.lusi
+   include/conv.lusic
    include/mpfr_lustre.c
+   include/mpfr_lustre.lusi
+   include/mpfr_lustre.lusic
+   include/mpfr_lustre.h
    include/simulink_math_fcn.c
+   include/simulink_math_fcn.lusi
+   include/simulink_math_fcn.lusic
+   include/simulink_math_fcn.h
+   include/lustrec_math.lusi
+   include/lustrec_math.lusic
+   include/lustrec_math.h
    include/arrow.c
    include/arrow.h
    include/arrow.cpp
@@ -15,14 +26,6 @@
    include/io_frontend.h
    include/io_frontend.hpp
    include/lustrec_math.smt2
-   include/mpfr_lustre.lusi
-   include/mpfr_lustre.lusic
-   include/simulink_math_fcn.lusi
-   include/simulink_math_fcn.lusic
-   include/conv.lusi
-   include/conv.lusic
-   include/lustrec_math.lusi
-   include/lustrec_math.lusic
    include/StdIn.java))
 
 (install

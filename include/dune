@@ -8,16 +8,16 @@
  (alias install))
 
 (rule
- (target simulink_math_fcn.lusic)
+ (targets simulink_math_fcn.lusic simulink_math_fcn.h)
  (action (run lustrec -verbose 0 -I . -d . %{dep:simulink_math_fcn.lusi}))
  (alias install))
 
 (rule
- (target lustrec_math.lusic)
+ (targets lustrec_math.lusic lustrec_math.h)
  (action (run lustrec -verbose 0 -I . -d . %{dep:lustrec_math.lusi}))
  (alias install))
 
 (rule
- (target mpfr_lustre.lusic)
+ (targets mpfr_lustre.lusic mpfr_lustre.h)
  (action (run lustrec -verbose 0 -mpfr 1 -d . %{dep:mpfr_lustre.lusi}))
  (alias install))
