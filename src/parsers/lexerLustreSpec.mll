@@ -82,10 +82,10 @@ rule token = parse
   | "(*"
       { comment_line 0 lexbuf }
   | "--" notnewline* (newline|eof)
-      { incr_line lexbuf;
+      { Lexing.new_line lexbuf;
       token lexbuf }
   | newline
-      { incr_line lexbuf;
+      { Lexing.new_line lexbuf;
 	token lexbuf }
   | blank +
       {token lexbuf}
@@ -141,7 +141,7 @@ and comment_line n = parse
 | "*)"
     { if n > 0 then comment_line (n-1) lexbuf else token lexbuf }
 | newline
-    { incr_line lexbuf;
+    { Lexing.new_line lexbuf;
       comment_line n lexbuf }
 | _ { comment_line n lexbuf }
 and string_parse = parse

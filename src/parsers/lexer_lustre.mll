@@ -118,10 +118,10 @@ rule token = parse
 | "(*"
     { comment 0 lexbuf }
 | "--" [^ '!' '@'] notnewline* (newline|eof)
-    { incr_line lexbuf;
+    { Lexing.new_line lexbuf;
       token lexbuf }
 | newline
-    { incr_line lexbuf;
+    { Lexing.new_line lexbuf;
       token lexbuf }
 | blank +
     {token lexbuf}
@@ -187,13 +187,13 @@ and comment n = parse
 | "*)"
     { if n > 0 then comment (n-1) lexbuf else token lexbuf }
 | newline
-    { incr_line lexbuf;
+    { Lexing.new_line lexbuf;
       comment n lexbuf }
 | _ { comment n lexbuf }
 
 and annot_singleline = parse
   | eof { make_annot lexbuf (Buffer.contents buf) }
-  | newline { incr_line lexbuf; make_annot lexbuf (Buffer.contents buf) }
+  | newline { Lexing.new_line lexbuf; make_annot lexbuf (Buffer.contents buf) }
   | _ as c { Buffer.add_char buf c; annot_singleline lexbuf }
 
 and annot_multiline n = parse
@@ -204,12 +204,12 @@ and annot_multiline n = parse
     else 
       make_annot lexbuf (Buffer.contents buf) }
   | "(*" as s { Buffer.add_string buf s; annot_multiline (n+1) lexbuf }
-  | newline as s { incr_line lexbuf; Buffer.add_string buf s; annot_multiline n lexbuf }
+  | newline as s { Lexing.new_line lexbuf; Buffer.add_string buf s; annot_multiline n lexbuf }
   | _ as c { Buffer.add_char buf c; annot_multiline n lexbuf }
 
 and spec_singleline loc = parse
   | eof { make_spec loc (Buffer.contents buf) }
-  | newline { incr_line lexbuf; make_spec loc (Buffer.contents buf) }
+  | newline { Lexing.new_line lexbuf; make_spec loc (Buffer.contents buf) }
   | _ as c { Buffer.add_char buf c; spec_singleline loc lexbuf }
 
 and spec_multiline loc n = parse
@@ -219,6 +219,6 @@ and spec_multiline loc n = parse
     else 
       make_spec loc (Buffer.contents buf) }
   | "(*" as s { Buffer.add_string buf s; spec_multiline loc (n+1) lexbuf }
-  | newline as s { incr_line lexbuf; Buffer.add_string buf s; spec_multiline loc n lexbuf }
+  | newline as s { Lexing.new_line lexbuf; Buffer.add_string buf s; spec_multiline loc n lexbuf }
   | _ as c { Buffer.add_char buf c; spec_multiline loc n lexbuf }
 

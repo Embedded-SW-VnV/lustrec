@@ -11,11 +11,15 @@
 open Options
 
 let print_version () =
-  Format.printf "Lustrec compiler, version %s (%s)@." version codename;
-  Format.printf "Standard lib: %s@." Version.include_path;
-  Format.printf "User provided include directory: @[<h>%a@]@."
+  Format.printf
+    "@[<v>\
+     Lustrec compiler, version %s (%s)@;\
+     Standard lib: %s@;\
+     User provided include directory: @[<h>%a@]\
+     @]@."
+    version codename
+    Version.include_path
     (Utils.fprintf_list ~sep:"@ " Format.pp_print_string) !include_dirs
-
 
 let add_include_dir dir =
   let removed_slash_suffix =

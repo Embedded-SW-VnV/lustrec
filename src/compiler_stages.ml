@@ -36,9 +36,8 @@ let compile_source_to_header prog computed_types_env computed_clocks_env dirname
           (if from_lusi then prog else Lusic.extract_header dirname basename prog)
           destname
           lusic_ext;
-        match !Options.output with
-        | "C" -> C_backend_lusic.print_lusic_to_h destname lusic_ext
-        | _ -> ()
+        if !Options.output = "C"
+        then C_backend_lusic.print_lusic_to_h destname lusic_ext
       end
     else (* Lusic exists and is usable. Checking compatibility *)
       begin

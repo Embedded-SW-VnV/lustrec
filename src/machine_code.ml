@@ -413,7 +413,7 @@ let translate_decl nd sch =
     let l = VSet.elements (VSet.diff locals ctx.m) in
     List.fold_left (fun res v -> if List.mem v.var_id unused then res else v::res) [] l
   in
-  let mmap = Utils.IMap.elements ctx.j in
+  let mmap = Utils.IMap.bindings ctx.j in
   {
     mname = nd;
     mmemory = VSet.elements ctx.m;
