@@ -1,11 +1,12 @@
 open Lustre_types
 open Machine_code_types
 open Machine_code_common
-open Format
 (* open Horn_backend_common
  * open Horn_backend *)
 open Zustre_data
-
+  
+let report = Log.report ~plugin:"z3 interface"
+           
 module HBC = Horn_backend_common
 let node_name = HBC.node_name
 
@@ -52,7 +53,7 @@ let int_sort = Z3.Arithmetic.Integer.mk_sort !ctx
 let real_sort = Z3.Arithmetic.Real.mk_sort !ctx
 
 
-let get_const_sort = Hashtbl.find const_sorts 
+let get_const_sort = Hashtbl.find const_sorts  
 let get_sort_elems = Hashtbl.find sort_elems
 let get_tag_sort id = try Hashtbl.find const_tags id with _ -> Format.eprintf "Unable to find sort for tag=%s@." id; assert false
   
@@ -85,8 +86,8 @@ let rec type_to_sort t =
   match (Types.repr t).Types.tdesc with
   | Types.Tconst ty       -> get_const_sort ty
   | Types.Tclock t        -> type_to_sort t
-  | Types.Tarray(dim,ty)   -> Z3.Z3Array.mk_sort !ctx int_sort (type_to_sort ty)
-  | Types.Tstatic(d, ty)-> type_to_sort ty
+  | Types.Tarray(_, ty)   -> Z3.Z3Array.mk_sort !ctx int_sort (type_to_sort ty)
+  | Types.Tstatic(_, ty)  -> type_to_sort ty
   | Types.Tarrow _
   | _                     -> Format.eprintf "internal error: pp_type %a@."
                                Types.print_ty t; assert false
@@ -111,7 +112,7 @@ let register_fdecl id fd = Hashtbl.add decls id fd
 let get_fdecl id =
   try
     Hashtbl.find decls id
-  with Not_found -> (Format.eprintf "Unable to find func_decl %s@.@?" id; raise Not_found)
+  with Not_found -> (report ~level:3 (fun fmt -> Format.fprintf fmt  "Unable to find func_decl %s@.@?" id); raise Not_found)
 
 let pp_fdecls fmt =
   Format.fprintf fmt "Registered fdecls: @[%a@]@ "
@@ -122,6 +123,13 @@ let decl_var id =
   (* Format.eprintf "Declaring var %s@." id.var_id; *)
   let fdecl = Z3.FuncDecl.mk_func_decl_s !ctx id.var_id [] (type_to_sort id.var_type) in
   register_fdecl id.var_id fdecl;
+  fdecl
+
+(* Declaring the function used in expr *) 
+let decl_fun op args typ =
+  let args = List.map type_to_sort args in
+  let fdecl = Z3.FuncDecl.mk_func_decl_s !ctx op args (type_to_sort typ) in
+  register_fdecl op fdecl;
   fdecl
 
 let idx_sort = int_sort
@@ -194,9 +202,9 @@ let horn_var_to_expr v =
 
   (* Used to print boolean constants *)
 let horn_tag_to_expr t =
-  if t = Corelang.tag_true then
+  if t = tag_true then
     Z3.Boolean.mk_true !ctx
-  else if t = Corelang.tag_false then
+  else if t = tag_false then
     Z3.Boolean.mk_false !ctx
   else
     (* Finding the associated sort *)
@@ -212,10 +220,10 @@ let horn_tag_to_expr t =
     match res with None -> assert false | Some s -> s
     
 (* Prints a constant value *)
-let rec horn_const_to_expr c =
+let horn_const_to_expr c =
   match c with
     | Const_int i    -> Z3.Arithmetic.Integer.mk_numeral_i !ctx i
-    | Const_real (_,_,s)   -> Z3.Arithmetic.Real.mk_numeral_s !ctx s
+    | Const_real r  -> Z3.Arithmetic.Real.mk_numeral_s !ctx (Real.to_string r)
     | Const_tag t    -> horn_tag_to_expr t
     | _              -> assert false
 
@@ -225,7 +233,7 @@ let rec horn_const_to_expr c =
    [2;7] is defined as (store (store (0) 1 7) 0 2) where 0 is this default value
    for the type integer (arrays).
 *)
-let rec horn_default_val t =
+let horn_default_val t =
   let t = Types.dynamic_type t in
   if Types.is_bool_type t  then Z3.Boolean.mk_true !ctx else
   if Types.is_int_type t then Z3.Arithmetic.Integer.mk_numeral_i !ctx 0 else 
@@ -242,129 +250,107 @@ let rec horn_default_val t =
 
 (* Conversion of basic library functions *)
     
-let horn_basic_app i val_to_expr vl =
+let horn_basic_app i vl (vltyp, typ) =
   match i, vl with
-  | "ite", [v1; v2; v3] ->
-     Z3.Boolean.mk_ite
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
-       (val_to_expr v3)
-
-  | "uminus", [v] ->
-     Z3.Arithmetic.mk_unary_minus
-       !ctx
-       (val_to_expr v)
+  | "ite", [v1; v2; v3] ->  Z3.Boolean.mk_ite !ctx v1 v2 v3
+  | "uminus", [v] ->    Z3.Arithmetic.mk_unary_minus
+       !ctx v
   | "not", [v] ->
      Z3.Boolean.mk_not
-       !ctx
-       (val_to_expr v)
+       !ctx v
   | "=", [v1; v2] ->
      Z3.Boolean.mk_eq
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
+       !ctx v1 v2
   | "&&", [v1; v2] ->
      Z3.Boolean.mk_and
        !ctx
-       [val_to_expr v1;
-        val_to_expr v2]
+       [v1; v2]
   | "||", [v1; v2] ->
           Z3.Boolean.mk_or
        !ctx
-       [val_to_expr v1;
-        val_to_expr v2]
+       [v1;
+         v2]
 
   | "impl", [v1; v2] ->
      Z3.Boolean.mk_implies
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
+       !ctx v1 v2
  | "mod", [v1; v2] ->
           Z3.Arithmetic.Integer.mk_mod
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
+       !ctx v1 v2
   | "equi", [v1; v2] ->
           Z3.Boolean.mk_eq
        !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
+       v1 v2
   | "xor", [v1; v2] ->
           Z3.Boolean.mk_xor
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
+       !ctx v1 v2
   | "!=", [v1; v2] ->
      Z3.Boolean.mk_not
        !ctx
        (
          Z3.Boolean.mk_eq
-           !ctx
-           (val_to_expr v1)
-           (val_to_expr v2)
+           !ctx v1 v2
        )
   | "/", [v1; v2] ->
      Z3.Arithmetic.mk_div
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
+       !ctx v1 v2
 
   | "+", [v1; v2] ->
      Z3.Arithmetic.mk_add
        !ctx
-       [val_to_expr v1; val_to_expr v2]
-
+       [v1; v2]
   | "-", [v1; v2] ->
      Z3.Arithmetic.mk_sub
        !ctx
-       [val_to_expr v1 ; val_to_expr v2]
+       [v1 ;  v2]
        
   | "*", [v1; v2] ->
      Z3.Arithmetic.mk_mul
        !ctx
-       [val_to_expr v1; val_to_expr v2]
+       [ v1;  v2]
 
 
   | "<", [v1; v2] ->
      Z3.Arithmetic.mk_lt
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
-
+       !ctx v1 v2
   | "<=", [v1; v2] ->
      Z3.Arithmetic.mk_le
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
-
+       !ctx v1 v2
   | ">", [v1; v2] ->
      Z3.Arithmetic.mk_gt
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
-
+       !ctx v1 v2
   | ">=", [v1; v2] ->
      Z3.Arithmetic.mk_ge
-       !ctx
-       (val_to_expr v1)
-       (val_to_expr v2)
-
-
+       !ctx v1 v2
+  | "int_to_real", [v1] ->
+     Z3.Arithmetic.Integer.mk_int2real
+       !ctx v1
+  | _ ->
+     let fd =
+       try
+         get_fdecl i
+       with Not_found -> begin
+           report ~level:3 (fun fmt -> Format.fprintf fmt "Registering function %s as uninterpreted function in Z3@.%s: (%a) -> %a" i i (Utils.fprintf_list ~sep:"," Types.print_ty) vltyp Types.print_ty typ); 
+           decl_fun i vltyp typ
+         end
+     in
+     Z3.FuncDecl.apply fd vl
     
+     
   (* | _, [v1; v2] ->      Z3.Boolean.mk_and
    *      !ctx
    *      (val_to_expr v1)
    *      (val_to_expr v2)
    * 
    *      Format.fprintf fmt "(%s %a %a)" i val_to_exprr v1 val_to_expr v2 *)
-  | _ -> (
-    let msg fmt = Format.fprintf fmt
-                    "internal error: zustre unkown function %s (nb args = %i)@."
-                    i (List.length vl)
-    in
-    raise (UnknownFunction(i, msg))
-  )
+
+(* | _ -> (
+ *     let msg fmt = Format.fprintf fmt
+ *                     "internal error: zustre unkown function %s (nb args = %i)@."
+ *                     i (List.length vl)
+ *     in
+ *     raise (UnknownFunction(i, msg))
+ *   ) *)
 
            
 (* Convert a value expression [v], with internal function calls only.  [pp_var]
@@ -372,6 +358,7 @@ let horn_basic_app i val_to_expr vl =
    may be added for array variables
 *)
 let rec horn_val_to_expr ?(is_lhs=false) m self v =
+  (* Format.eprintf "h_v2e %a@." (Machine_code_common.pp_val m) v ; *)
   match v.value_desc with
   | Cst c       -> horn_const_to_expr c
 
@@ -409,7 +396,7 @@ let rec horn_val_to_expr ?(is_lhs=false) m self v =
 
   (* Code specific for arrays *)
     
-  | Power (v, n)  -> assert false
+  | Power _  -> assert false
   | Var v    ->
      if is_memory m v then
        if Types.is_array_type v.var_type
@@ -421,7 +408,7 @@ let rec horn_val_to_expr ?(is_lhs=false) m self v =
          (rename_machine
             self
             v)
-  | Fun (n, vl)   -> horn_basic_app n (horn_val_to_expr m self) vl
+  | Fun (n, vl)   -> horn_basic_app n (List.map (horn_val_to_expr m self) vl) (List.map (fun v -> v.value_type) vl, v.value_type)
 
 let no_reset_to_exprs machines m i =
   let (n,_) = List.assoc i m.minstances in
@@ -536,7 +523,7 @@ let instance_call_to_exprs machines reset_instances m i inputs outputs =
           [stmt1; stmt2]
 	end
 
-	| node_name_n ->
+	| _ ->
            let expr = 
              Z3.Expr.mk_app
                !ctx
@@ -612,7 +599,7 @@ let rec instr_to_exprs machines reset_instances (m: machine_t) instr : Z3.Expr.e
       m 
       (mk_val (Var i) i.var_type) v,
     reset_instances
-  | MStep ([i0], i, vl) when Basic_library.is_internal_fun i (List.map (fun v -> v.value_type) vl) ->
+  | MStep ([_], i, vl) when Basic_library.is_internal_fun i (List.map (fun v -> v.value_type) vl) ->
     assert false (* This should not happen anymore *)
   | MStep (il, i, vl) ->
     (* if reset instance, just print the call over mem_m , otherwise declare mem_m =
@@ -646,7 +633,8 @@ let rec instr_to_exprs machines reset_instances (m: machine_t) instr : Z3.Expr.e
     List.fold_left (fun (instrs, resets) b ->
       let b_instrs, b_resets = branch_to_expr b in
       instrs@b_instrs, resets@b_resets 
-    ) ([], reset_instances) hl 
+      ) ([], reset_instances) hl
+  | MSpec _ -> assert false
 
 and instrs_to_expr machines reset_instances m instrs = 
   let instr_to_exprs rs i = instr_to_exprs machines rs m i in
@@ -687,11 +675,14 @@ let add_rule ?(dont_touch=[]) vars  expr =
   (* let symbols = (List.map (fun id -> Z3.FuncDecl.get_name (get_fdecl id.var_id)) vars) in *)
   
   (* New code: we extract vars from expr *)
-  let module FDSet = Set.Make (struct type t = Z3.FuncDecl.func_decl
-				      let compare = compare
-				      let hash = Hashtbl.hash
-  end)
+  let module FDSet = Set.Make (struct
+      type t = Z3.FuncDecl.func_decl
+	  let compare = compare
+	  (* let hash = Hashtbl.hash *)
+    end)
   in
+(* Fonction seems unused 
+
   let rec get_expr_vars e =
     let open Utils in
     let nb_args = Z3.Expr.get_num_args e in
@@ -724,10 +715,12 @@ let add_rule ?(dont_touch=[]) vars  expr =
 	(fun accu e ->  FDSet.union accu (get_expr_vars e))
 	FDSet.empty (Z3.Expr.get_args e)
   in
+ *)
+  (* Unsed variable. Coul;d be reintroduced 
   let extracted_vars = FDSet.elements (FDSet.diff (get_expr_vars expr) (FDSet.of_list dont_touch)) in
   let extracted_sorts = List.map Z3.FuncDecl.get_range extracted_vars in
   let extracted_symbols = List.map Z3.FuncDecl.get_name extracted_vars in
-
+   *)
   if !debug then (
     Format.eprintf "Declaring rule: %s with variables @[<v 0>@ [%a@ ]@]@ @."
       (Z3.Expr.to_string expr)
@@ -759,7 +752,7 @@ let add_rule ?(dont_touch=[]) vars  expr =
 (********************************************************)
     
 let machine_reset machines m =
-  let locals = local_memory_vars machines m in
+  let locals = local_memory_vars m in
   
   (* print "x_m = x_c" for each local memory *)
   let mid_mem_def =
@@ -817,7 +810,7 @@ let decl_machine machines m =
       let _ =
         List.map decl_var
       	  (
-      	    (inout_vars machines m)@
+      	    (inout_vars m)@
       	      (rename_current_list (full_memory_vars machines m)) @
       	      (rename_mid_list (full_memory_vars machines m)) @
       	      (rename_next_list (full_memory_vars machines m)) @
@@ -830,7 +823,7 @@ let decl_machine machines m =
 	    Format.eprintf "Declaring a stateless machine: %s@." m.mname.node_id;
 
 	  (* Declaring single predicate *)
-	  let vars = inout_vars machines m in
+	  let vars = inout_vars m in
 	  let vars_types = List.map (fun v -> type_to_sort v.var_type) vars in
 	  let _ = decl_rel (machine_stateless_name m.mname.node_id) vars_types in
 	  
@@ -935,7 +928,7 @@ let decl_machine machines m =
 
 
 (* Debug functions *)
-
+(*
 let rec extract_expr_fds e =
   (* Format.eprintf "@[<v 2>Extracting fundecls from expr %s@ " *)
   (*   (Z3.Expr.to_string e); *)
@@ -980,7 +973,7 @@ let rec extract_expr_fds e =
   in
   (* Format.eprintf "@]@ " *)
   ()      
-
+ *)
 (* Local Variables: *)
 (* compile-command:"make -C ../.." *)
 (* End: *)

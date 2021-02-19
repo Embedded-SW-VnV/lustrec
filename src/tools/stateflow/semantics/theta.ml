@@ -150,7 +150,7 @@ struct
 
     let theta tag = theta_ify Kenv.kenv tag
 
-    let components call = []
+    let components _call = []
   end
 
   module ModularThetaify : functor (Tables : MemoThetaTablesType) (Mod : ModularType) -> ThetaifyType =

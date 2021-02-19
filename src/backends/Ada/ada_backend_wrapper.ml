@@ -32,7 +32,7 @@ struct
      @param fmt the formater to print on
      @param machine the main machine
   **)
-  let pp_main_adb typed_submachines fmt machine =
+  let pp_main_adb fmt machine =
     let statefull = is_machine_statefull machine in
     
     let pp_package = pp_package_name_with_polymorphic [] machine in
@@ -102,17 +102,15 @@ struct
 
   (** Print the project configuration file.
      @param fmt the formater to print on
-     @param machine the main machine
   **)
-  let pp_project_configuration_file fmt machine =
+  let pp_project_configuration_file fmt =
     fprintf fmt "pragma SPARK_Mode (On);"
 
   (** Print the name of the ada project file.
      @param base_name name of the lustre file
      @param fmt the formater to print on
-     @param machine_opt the main machine option
   **)
-  let pp_project_name basename fmt machine_opt =
+  let pp_project_name basename fmt =
     fprintf fmt "%s.gpr" basename
 
   let pp_for_single name arg fmt =
@@ -152,7 +150,7 @@ struct
           pp_for_single "Library_Name" basename;
           pp_for_single "Library_Dir" "lib";
         ]
-      | Some machine -> [
+      | Some _ -> [
           pp_for "Main" [asprintf "%t" pp_main_procedure_name];
           pp_for_single "Exec_Dir" "bin";
         ])

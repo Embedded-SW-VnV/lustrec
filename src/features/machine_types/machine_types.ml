@@ -344,7 +344,7 @@ let register_var var typ =
 (************** Registering annotations ******************)
 
     
-let register_node node_id vars annots =
+let register_node vars annots =
   List.fold_left (fun accu annot ->
     let annl = annot.annots in
     List.fold_left (fun accu (kwd, value) ->
@@ -396,7 +396,7 @@ let load prog =
       | Node nd ->
 	 (* Format.eprintf "Registeing node %s@." nd.node_id; *)
 	 let vars = nd.node_inputs @ nd.node_outputs @ nd.node_locals in
-	 let constrained_vars = register_node nd.node_id vars nd.node_annot in
+	 let constrained_vars = register_node vars nd.node_annot in
 	 check_node nd constrained_vars;
 
 	 (* Computing the node type *)

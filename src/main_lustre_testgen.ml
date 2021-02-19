@@ -15,7 +15,6 @@ open Format
 open Log
 
 open Utils
-open Lustre_types
 open Compiler_common
 
 let usage = "Usage: lustret [options] \x1b[4msource file\x1b[0m"
@@ -46,8 +45,19 @@ let testgen_source dirname basename extension =
   (* Parsing source *)
   let prog = parse source_name extension in
   let params = Backends.get_normalization_params () in
-  let prog, dependencies = Compiler_stages.stage1 params prog dirname basename extension in
-
+  let prog, _ =
+    try
+      Compiler_stages.stage1 params prog dirname basename extension 
+    with Compiler_stages.StopPhase1 prog -> (
+        if !Options.print_nodes then (
+          Format.printf "%a@.@?" Printers.pp_node_list prog;
+          exit 0
+        )
+        else
+          assert false
+      )
+  in
+  
   (* Two cases
      - generation of coverage conditions
      - generation of mutants: a number of mutated lustre files 
@@ -76,7 +86,7 @@ let testgen_source dirname basename extension =
     Options.output := "emf";
     let params = Backends.get_normalization_params () in
     let prog_mcdc = Normalization.normalize_prog params prog_mcdc in
-    let machine_code = Compiler_stages.stage2 prog_mcdc in
+    let prog_mcdc, machine_code = Compiler_stages.stage2 params prog_mcdc in
     let source_emf = source_file ^ ".emf" in 
     let source_out = open_out source_emf in
     let fmt = formatter_of_out_channel source_out in
@@ -142,8 +152,8 @@ let testgen_source dirname basename extension =
   let cmake_file = open_out cmakelists in
   let cmake_fmt = formatter_of_out_channel cmake_file in
   Format.fprintf cmake_fmt "cmake_minimum_required(VERSION 3.5)@.";
-  Format.fprintf cmake_fmt "include(\"%s/share/helpful_functions.cmake\")@." Version.prefix;
-  Format.fprintf cmake_fmt "include(\"%s/share/FindLustre.cmake\")@." Version.prefix;
+  Format.fprintf cmake_fmt "include(\"%s/helpful_functions.cmake\")@." Version.testgen_path;
+  Format.fprintf cmake_fmt "include(\"%s/FindLustre.cmake\")@." Version.testgen_path;
   Format.fprintf cmake_fmt "LUSTREFILES(LFILES ${CMAKE_CURRENT_SOURCE_DIR} )@.";
   Format.fprintf cmake_fmt "@[<v 2>FOREACH(lus_file ${LFILES})@ ";
   Format.fprintf cmake_fmt "get_lustre_name_ext(${lus_file} L E)@ ";
@@ -191,7 +201,7 @@ let _ =
   with
   | Parse.Error _
   | Types.Error (_,_) | Clocks.Error (_,_)
-  | Corelang.Error _ (*| Task_set.Error _*)
+  | Error.Error _ (*| Task_set.Error _*)
   | Causality.Error _ -> exit 1
   | Sys_error msg -> (eprintf "Failure: %s@." msg)
   | exc -> (track_exception (); raise exc)

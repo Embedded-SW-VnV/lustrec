@@ -1,5 +1,4 @@
 open Basetypes
-open ActiveStates
 open CPS_transformer
 
 let ff = Format.fprintf 
@@ -23,7 +22,7 @@ struct
     ((fun () -> incr cpt; Format.sprintf "loc_%i" !cpt),
      (fun () -> cpt := 0))
 
-  let new_aut, reset_aut =
+  let new_aut, _reset_aut =
     let cpt = ref 0 in
     ((fun () -> incr cpt; Format.sprintf "aut_%i" !cpt),
      (fun () -> cpt := 0))
@@ -33,13 +32,13 @@ struct
       prefix
       (fun fmt -> Utils.fprintf_list ~sep:"_" Format.pp_print_string fmt path)
 
-  let pp_typed_path sin fmt path =
-    Format.fprintf fmt "%a : bool" (pp_path sin) path
+  (* let pp_typed_path sin fmt path =
+   *   Format.fprintf fmt "%a : bool" (pp_path sin) path *)
 
-  let pp_vars sin fmt vars =
-    Format.fprintf fmt "%t" (fun fmt -> Utils.fprintf_list ~sep:", " (pp_path sin) fmt (ActiveStates.Vars.elements vars))
-  let pp_vars_decl sin fmt vars =
-    Format.fprintf fmt "%t" (fun fmt -> Utils.fprintf_list ~sep:"; " (pp_typed_path sin) fmt (ActiveStates.Vars.elements vars))
+  (* let pp_vars sin fmt vars =
+   *   Format.fprintf fmt "%t" (fun fmt -> Utils.fprintf_list ~sep:", " (pp_path sin) fmt (ActiveStates.Vars.elements vars)) *)
+  (* let pp_vars_decl sin fmt vars =
+   *   Format.fprintf fmt "%t" (fun fmt -> Utils.fprintf_list ~sep:"; " (pp_typed_path sin) fmt (ActiveStates.Vars.elements vars)) *)
        
   let var_to_ident prefix p =
     pp_path prefix Format.str_formatter p;
@@ -140,7 +139,7 @@ struct
     )
       
   let bot sin sout =
-    let (vars, tr) = null sin sout in
+    let _, tr = null sin sout in
     (
       ActiveStates.Vars.empty,
       { tr with assert_false = true }
@@ -148,8 +147,8 @@ struct
       
   let ( >> ) tr1 tr2 sin sout =
     let l = new_loc () in
-    let (vars1, tr1) = tr1 sin l in
-    let (vars2, tr2) = tr2 l sout in
+    let vars1, tr1 = tr1 sin l in
+    let vars2, tr2 = tr2 l sout in
     (ActiveStates.Vars.add [l] (ActiveStates.Vars.union vars1 vars2),
      {
        statements = tr1.statements @ tr2.statements;
@@ -238,11 +237,11 @@ struct
        let rhs = mkexpr (Lustre_types.Expr_tuple expr_list) in 
        mkstmt_eq ~prefix_lhs:sout Vars.state_vars rhs
 	 
-  let eval_act kenv (action : act_t) =
+  let eval_act _kenv (action : act_t) =
     (*Format.printf "----- action = %a@." Action.pp_act action;*)
     (fun sin sout -> (ActiveStates.Vars.empty,
-		      mkact' action sin sout   ))
-       
+    	      mkact' action sin sout   ))
+
   let rec mkcond' sin condition =
     (*Format.printf "----- cond = %a@." Condition.pp_cond condition;*)
     match condition with
@@ -258,13 +257,13 @@ struct
 							  mkcond' sin cond2]
     | Condition.Quote c            -> c.expr (* TODO: shall we prefix with sin ? *)
 
-  let rec eval_cond condition (ok:t) ko sin sout =
+  let eval_cond condition (ok:t) ko sin sout =
     let open Lustre_types in
     let loc = Location.dummy_loc in
     (*Format.printf "----- cond = %a@." Condition.pp_cond condition;*)
-    let (vars1, tr1) = ok sin sout in
-    let (vars2, tr2) = ko sin sout in
-    let (vars0, tr0) = bot sin sout in
+    let vars1, tr1 = ok sin sout in
+    let vars2, tr2 = ko sin sout in
+    let _, tr0 = bot sin sout in
     let aut = new_aut () in
     (ActiveStates.Vars.empty,
      {
@@ -316,9 +315,9 @@ struct
      }
     )
       
-  let mktransformer tr =
-    let (vars, tr) = tr "sin_" "sout_"
-    in tr 
+  (* let mktransformer tr =
+   *   let _, tr = tr "sin_" "sout_"
+   *   in tr  *)
     
   let mkcomponent :
   type c. c call_t -> c -> t -> Lustre_types.program_t =

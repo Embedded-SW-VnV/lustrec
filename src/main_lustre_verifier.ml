@@ -10,12 +10,10 @@
 (********************************************************************)
 
 open Format
-open Log
 open Compiler_common
 
 open Utils
-open Lustre_types
- 
+
 
 let usage = "Usage: lustrev [options] \x1b[4msource file\x1b[0m"
 
@@ -41,7 +39,7 @@ we have multiple "backends"
   shall be provided with ranges for inputs or local variables (memories)
   
 *)
-let rec verify dirname basename extension =
+let verify dirname basename extension =
   let source_name = dirname ^ "/" ^ basename ^ extension in
   Options.compile_header := false; (* to avoid producing .h / .lusic *)
   Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 0>");
@@ -56,15 +54,20 @@ let rec verify dirname basename extension =
   let module Verifier = (val verifier : VerifierType.S) in
 
   decr Options.verbose_level;
+  let params = Verifier.get_normalization_params () in
   (* Normalizing it *)
-  let prog, dependencies = 
+  let prog, _ =
     Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>.. Phase 1 : Normalisation@,");
     try
       incr Options.verbose_level;
-      let params = Verifier.get_normalization_params () in
       decr Options.verbose_level;
       Compiler_stages.stage1 params prog dirname basename extension
     with Compiler_stages.StopPhase1 prog -> (
+      if !Options.print_nodes then (
+        Format.printf "%a@.@?" Printers.pp_node_list prog;
+        exit 0
+      )
+      else
         assert false
     )
   in
@@ -73,8 +76,8 @@ let rec verify dirname basename extension =
 
   Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>.. Phase 2 : Machines generation@,");
 
-  let machine_code = 
-    Compiler_stages.stage2 prog 
+  let prog, machine_code = 
+    Compiler_stages.stage2 params prog 
   in
 
   Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ ");
@@ -96,7 +99,7 @@ let rec verify dirname basename extension =
 
   (*assert (dependencies = []); (* Do not handle deps yet *)*)
   incr Options.verbose_level;
-  Verifier.run basename prog machine_code;
+  Verifier.run ~basename prog machine_code;
   begin
     decr Options.verbose_level;
     Log.report ~level:1 (fun fmt -> fprintf fmt ".. done !@ ");
@@ -133,12 +136,14 @@ let _ =
     Arg.parse options anonymous usage
   with
   | Parse.Error _
-  | Types.Error (_,_) | Clocks.Error (_,_) -> exit 1
-  | Corelang.Error (_ (* loc *), kind) (*| Task_set.Error _*) -> exit (Error.return_code kind)
+    | Types.Error (_,_) | Clocks.Error (_,_) -> exit 1
+  | Error.Error (loc , kind) (*| Task_set.Error _*) -> 
+     Error.pp_error loc (fun fmt -> Error.pp_error_msg fmt kind);
+     exit (Error.return_code kind)
   (* | Causality.Error _  -> exit (Error.return_code Error.AlgebraicLoop) *)
   | Sys_error msg -> (eprintf "Failure: %s@." msg); exit 1
   | exc -> (track_exception (); raise exc) 
 
-(* Local Variables: *)
-(* compile-command:"make -C .." *)
-(* End: *)
+             (* Local Variables: *)
+             (* compile-command:"make -C .." *)
+             (* End: *)

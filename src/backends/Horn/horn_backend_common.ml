@@ -30,8 +30,8 @@ let rec pp_type fmt t =
   match (Types.repr t).Types.tdesc with
   | Types.Tconst ty       -> pp_print_string fmt ty
   | Types.Tclock t        -> pp_type fmt t
-  | Types.Tarray(dim,ty)   -> fprintf fmt "(Array Int "; pp_type fmt ty; fprintf fmt ")"
-  | Types.Tstatic(d, ty)-> pp_type fmt ty
+  | Types.Tarray(_,ty)    -> fprintf fmt "(Array Int "; pp_type fmt ty; fprintf fmt ")"
+  | Types.Tstatic(_, ty)  -> pp_type fmt ty
   | Types.Tarrow _
   | _                     -> eprintf "internal error: pp_type %a@."
     Types.print_ty t; assert false
@@ -81,7 +81,7 @@ let rename_next = rename (fun n -> n ^ "_x")
 let rename_next_list = List.map rename_next
 
 
-let local_memory_vars machines machine =
+let local_memory_vars machine =
   rename_machine_list machine.mname.node_id machine.mmemory
     
 let instances_memory_vars ?(without_arrow=false) machines machine =
@@ -126,20 +126,20 @@ let arrow_vars machines machine : Lustre_types.var_decl list =
   aux true machine.mname.node_id machine
 
 let full_memory_vars ?(without_arrow=false) machines machine =
-  (local_memory_vars machines machine)
+  (local_memory_vars machine)
   @ (instances_memory_vars ~without_arrow machines machine)
 
-let inout_vars machines m =
+let inout_vars m =
   (rename_machine_list m.mname.node_id m.mstep.step_inputs)
   @ (rename_machine_list m.mname.node_id m.mstep.step_outputs)
 
 let step_vars machines m =
-  (inout_vars machines m)
+  (inout_vars m)
   @ (rename_current_list (full_memory_vars machines m)) 
   @ (rename_next_list (full_memory_vars machines m))
 
 let step_vars_m_x machines m =
-  (inout_vars machines m)
+  (inout_vars m)
   @ (rename_mid_list (full_memory_vars machines m)) 
   @ (rename_next_list (full_memory_vars machines m))
 
@@ -148,7 +148,7 @@ let reset_vars machines m =
   @ (rename_mid_list (full_memory_vars machines m))
 
 let step_vars_c_m_x machines m =
-  (inout_vars machines m) 
+  (inout_vars m)
   @ (rename_current_list (full_memory_vars machines m)) 
   @ (rename_mid_list (full_memory_vars machines m)) 
   @ (rename_next_list (full_memory_vars machines m))

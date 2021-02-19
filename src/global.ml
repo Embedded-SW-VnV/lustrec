@@ -1,7 +1,7 @@
 module Types = Types.Main
 
-let type_env : (Types.type_expr Env.t) ref = ref Basic_library.type_env
-let clock_env : (Clocks.clock_expr Env.t) ref = ref Basic_library.clock_env
+let type_env : (Types.type_expr Env.t) ref = ref Env.initial (* Basic_library.type_env *)
+let clock_env : (Clocks.clock_expr Env.t) ref = ref Env.initial (*Basic_library.clock_env *)
 let basename = ref ""
 let main_node = ref ""
 

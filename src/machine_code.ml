@@ -77,7 +77,7 @@ let translate_ident env id =
         let typ = (typedef_of_top (Hashtbl.find Corelang.tag_table id)).tydef_id in
         mk_val (Cst (Const_tag id)) (Type_predef.type_const typ)
       with Not_found -> (Format.eprintf
-                           "internal error: Machine_code.translate_ident %s"
+                           "internal error: Machine_code.translate_ident %s@.@?"
                            id;
                          assert false)
 
@@ -136,7 +136,7 @@ let rec translate_expr env expr =
                                              raise NormalizationError)
                                           
     | Expr_when    (e1, _, _)          -> (translate_expr e1).value_desc
-    | Expr_merge   (x, _)              -> raise NormalizationError
+    | Expr_merge   _                   -> raise NormalizationError
     | Expr_appl (id, e, _) when Basic_library.is_expr_internal_fun expr ->
        let nd = node_from_name id in
        Fun (node_name nd, List.map translate_expr (expr_list_of_expr e))
@@ -227,12 +227,12 @@ let translate_eq env ctx eq =
   match eq.eq_lhs, eq.eq_rhs.expr_desc with
   | [x], Expr_arrow (e1, e2)                     ->
      let var_x = env.get_var x in
-     let o = new_instance Arrow.arrow_top_decl eq.eq_rhs.expr_tag in
+     let o = new_instance (Arrow.arrow_top_decl ()) eq.eq_rhs.expr_tag in
      let c1 = translate_expr e1 in
      let c2 = translate_expr e2 in
      { ctx with
        si = mkinstr (MReset o) :: ctx.si;
-       j = Utils.IMap.add o (Arrow.arrow_top_decl, []) ctx.j;
+       j = Utils.IMap.add o (Arrow.arrow_top_decl (), []) ctx.j;
        s = (control_on_clock
               eq.eq_rhs.expr_clock
               (mkinstr ?lustre_eq:(Some eq) (MStep ([var_x], o, [c1;c2])))
@@ -413,7 +413,7 @@ let translate_decl nd sch =
     let l = VSet.elements (VSet.diff locals ctx.m) in
     List.fold_left (fun res v -> if List.mem v.var_id unused then res else v::res) [] l
   in
-  let mmap = Utils.IMap.elements ctx.j in
+  let mmap = Utils.IMap.bindings ctx.j in
   {
     mname = nd;
     mmemory = VSet.elements ctx.m;
@@ -465,7 +465,6 @@ let translate_prog decls node_schs =
   in
   machines
 
-
-(* Local Variables: *)
-(* compile-command:"make -C .." *)
-(* End: *)
+    (* Local Variables: *)
+    (* compile-command:"make -C .." *)
+    (* End: *)

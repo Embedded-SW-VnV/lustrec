@@ -778,9 +778,9 @@ let salsaStep constEnv  m s =
       match value.LT.eexpr_qfexpr.LT.expr_desc with 
       | LT.Expr_tuple [minv; maxv] -> (
 	let get_cst e = match e.LT.expr_desc with 
-	  | LT.Expr_const (LT.Const_real (c,e,s)) -> 
-	    (* calculer la valeur c * 10^e *) 
-	    Num.div_num c (Num.power_num (Num.num_of_int 10) (Num.num_of_int e))
+	  | LT.Expr_const (LT.Const_real r) -> 
+	     (* calculer la valeur c * 10^e *)
+             Real.to_num r 
 	  | _ -> 
 	    Format.eprintf 
 	      "Invalid salsa range: %a. It should be a pair of constant floats and %a is not a float.@." 

@@ -22,6 +22,10 @@ function MPFRNeq(i1, i2: real) returns (out: bool);
 
 -- Functions already available in conv
 function MPFRint_to_real (x: int) returns (y: real);
+function MPFRreal_to_int (in1: real) returns (out: int);
+function MPFRFloor (in1: real) returns (out: int);
+function MPFRCeiling (in1: real) returns (out: int);
+function MPFRRound (in1: real) returns (out: int);
 
 -- Functions already available in lustrec_math
 

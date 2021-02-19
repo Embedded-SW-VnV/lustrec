@@ -1,7 +1,7 @@
 open Format
-open Utils
 open Compiler_common
 open Lustre_types
+module Mpfr = Lustrec_mpfr
 
 exception StopPhase1 of program_t
 
@@ -17,41 +17,38 @@ let compile_source_to_header prog computed_types_env computed_clocks_env dirname
   let destname = !Options.dest_dir ^ "/" ^ basename in
   let lusic_ext = ".lusic" in
   let header_name = destname ^ lusic_ext in
+  let from_lusi = extension = ".lusi" in
   begin
     if (* Generating the lusic file *)
-      extension = ".lusi" (* because input is a lusi *)
-      || (extension = ".lus" &&
-            not (Sys.file_exists header_name))
-           (* or because it is a lus but not lusic exists *)
+      (* because input is a lusi *)
+      from_lusi
+      (* or because it is a lus but no lusic exists *)
+      || (extension = ".lus" && not (Sys.file_exists header_name))
+      (* or the lusic exists but is not generated from a lusi, hence it
+         has te be regenerated *)
       || (let lusic = Lusic.read_lusic destname lusic_ext in
           not lusic.Lusic.from_lusi)
-         (* or the lusic exists but is not generated from a lusi, hence it
-            has te be regenerated *)
     then
       begin
-	Log.report ~level:1 (fun fmt -> fprintf fmt ".. generating compiled header file %s@," header_name);
-	Lusic.write_lusic
-          (extension = ".lusi") (* is it a lusi file ? *)
-          (if extension = ".lusi" then prog else Lusic.extract_header dirname basename prog)
+        Log.report ~level:1 (fun fmt -> fprintf fmt ".. generating compiled header file %s@," header_name);
+        Lusic.write_lusic
+          from_lusi (* is it a lusi file ? *)
+          (if from_lusi then prog else Lusic.extract_header dirname basename prog)
           destname
           lusic_ext;
-        let _ =
-          match !Options.output with
-          | "C" -> C_backend_lusic.print_lusic_to_h destname lusic_ext
-          | _ -> ()
-        in
-        ()
+        if !Options.output = "C"
+        then C_backend_lusic.print_lusic_to_h destname lusic_ext
       end
     else (* Lusic exists and is usable. Checking compatibility *)
       begin
-	Log.report ~level:1 (fun fmt -> fprintf fmt ".. loading compiled header file %s@," header_name);
+        Log.report ~level:1 (fun fmt -> fprintf fmt ".. loading compiled header file %s@," header_name);
         let lusic = Lusic.read_lusic destname lusic_ext in
         Lusic.check_obsolete lusic destname;
-	let header = lusic.Lusic.contents in
-	let (declared_types_env, declared_clocks_env) = Modules.get_envs_from_top_decls header in
-	check_compatibility
-	  (prog, computed_types_env, computed_clocks_env)
-	  (header, declared_types_env, declared_clocks_env)
+        let header = lusic.Lusic.contents in
+        let (declared_types_env, declared_clocks_env) = Modules.get_envs_from_top_decls header in
+        check_compatibility
+          (prog, computed_types_env, computed_clocks_env)
+          (header, declared_types_env, declared_clocks_env)
       end
   end
 
@@ -81,12 +78,26 @@ let stage1 params prog dirname basename extension =
   let prog = SortProg.sort prog in
   Log.report ~level:3 (fun fmt ->
       Format.fprintf fmt "@[<v 0>Contracts resolved:@ %a@ @]@ " Printers.pp_prog prog);
+
+  (* Consolidating main node *)
+  let _ =
+    match !Options.main_node with
+    | "" -> ()
+    | main_node -> (
+      Global.main_node := main_node;
+      try
+        ignore (Corelang.node_from_name main_node)
+      with Not_found -> (
+        Format.eprintf "Code generation error: %a@." Error.pp_error_msg Error.Main_not_found;
+        raise (Error.Error (Location.dummy_loc, Error.Main_not_found))
+    ))
+  in
   
   (* Perform inlining before any analysis *)
-  let orig, prog =
-    if !Options.global_inline && !Options.main_node <> "" then
+  let _, prog =
+    if !Options.global_inline && !Global.main_node <> "" then
       (if !Options.witnesses then prog else []),
-      Inliner.global_inline basename prog
+      Inliner.global_inline prog
     else (* if !Option.has_local_inline *)
       [],
       Inliner.local_inline prog (* type_env clock_env *)
@@ -109,7 +120,7 @@ let stage1 params prog dirname basename extension =
 
 
   (* Generating a .lusi header file only *)
-  if !Options.lusi then
+  if !Options.lusi || !Options.print_nodes then
     (* We stop here the processing and produce the current prog. It will be
        exported as a lusi *)
     raise (StopPhase1 prog);
@@ -117,18 +128,18 @@ let stage1 params prog dirname basename extension =
   (* Optimization of prog:
      - Unfold consts
      - eliminate trivial expressions
-  *)
-  (*
-    let prog =
+   *)
+  
+  let prog =
     if !Options.const_unfold || !Options.optimization >= 5 then
-    begin
-    Log.report ~level:1 (fun fmt -> fprintf fmt ".. eliminating constants and aliases@,");
-    Optimize_prog.prog_unfold_consts prog
-    end
+      begin
+        Log.report ~level:1 (fun fmt -> fprintf fmt ".. eliminating constants and aliases@,");
+        Optimize_prog.prog_unfold_consts prog
+      end
     else
-    prog
-    in
-  *)
+      prog
+  in
+  
   (* Delay calculus *)
   (* TO BE DONE LATER (Xavier)
      if(!Options.delay_calculus)
@@ -143,16 +154,16 @@ let stage1 params prog dirname basename extension =
      Utils.track_exception ();
      raise exc
      end;
-  *)
+   *)
 
   (* Creating destination directory if needed *)
   create_dest_dir ();
-     
+  
   Typing.uneval_prog_generics prog;
   Clock_calculus.uneval_prog_generics prog;
 
 
-(* Disabling witness option. Could but reactivated later
+  (* Disabling witness option. Could but reactivated later
   if !Options.global_inline && !Options.main_node <> "" && !Options.witnesses then
     begin
       let orig = Corelang.copy_prog orig in
@@ -167,7 +178,7 @@ let stage1 params prog dirname basename extension =
 	!Options.main_node
 	orig prog type_env clock_env
     end;
-*)
+   *)
 
   (* Computes and stores generic calls for each node,
      only useful for ANSI C90 compliant generic node compilation *)
@@ -191,7 +202,8 @@ let stage1 params prog dirname basename extension =
   (* Normalization phase *)
   Log.report ~level:1 (fun fmt -> fprintf fmt ".. normalization@,");
   let prog = Normalization.normalize_prog params prog in
-  Log.report ~level:2 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog prog);
+  Log.report ~level:2 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog_short prog);
+  Log.report ~level:3  (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog prog);
   
   (* Compatibility with Lusi *)
   (* If compiling a lusi, generate the lusic. If this is a lus file, Check the existence of a lusi (Lustre Interface file) *)
@@ -212,7 +224,7 @@ let stage1 params prog dirname basename extension =
 	Log.report ~level:1 (fun fmt -> fprintf fmt ".. keeping floating-point numbers@,");
 	prog
       end in
-  Log.report ~level:2 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog prog);
+  Log.report ~level:3 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog prog);
 
   (* Checking array accesses *)
   if !Options.check then
@@ -228,7 +240,7 @@ let stage1 params prog dirname basename extension =
 
 
     (* from source to machine code, with optimization *)
-let stage2 prog =
+let stage2 params prog =
   (* Computation of node equation scheduling. It also breaks dependency cycles
      and warns about unused input or memory variables *)
   Log.report ~level:1 (fun fmt -> fprintf fmt ".. @[<v 2>scheduling@ ");
@@ -258,7 +270,7 @@ let stage2 prog =
   Log.report ~level:3 (fun fmt -> fprintf fmt ".. generated machines (unoptimized):@ %a@ " Machine_code_common.pp_machines machine_code);
 
   (* Optimize machine code *)
-  Optimize_machine.optimize prog node_schs machine_code
+  Optimize_machine.optimize params prog node_schs machine_code
 
 
 (* printing code *)
@@ -299,7 +311,7 @@ let stage3 prog machine_code dependencies basename extension =
     begin
       Log.report ~level:1 (fun fmt -> fprintf fmt ".. Ada code generation@.");
       Ada_backend.translate_to_ada
-      basename prog (Machine_code_common.arrow_machine::machine_code) dependencies
+        basename (Machine_code_common.arrow_machine::machine_code)
     end
   | "horn", _ ->
      begin
@@ -308,14 +320,14 @@ let stage3 prog machine_code dependencies basename extension =
        let source_out = open_out source_file in
        let fmt = formatter_of_out_channel source_out in
        Log.report ~level:1 (fun fmt -> fprintf fmt ".. hornification@,");
-       Horn_backend.translate fmt basename prog (Machine_code_common.arrow_machine::machine_code);
+       Horn_backend.translate fmt prog (Machine_code_common.arrow_machine::machine_code);
        (* Tracability file if option is activated *)
        if !Options.traces then (
 	 let traces_file = destname ^ ".traces.xml" in (* Could be changed *)
 	 let traces_out = open_out traces_file in
 	 let fmt = formatter_of_out_channel traces_out in
          Log.report ~level:1 (fun fmt -> fprintf fmt ".. tracing info@,");
-	 Horn_backend_traces.traces_file fmt basename prog machine_code;
+	 Horn_backend_traces.traces_file fmt machine_code;
        )
      end
   | "lustre", _ ->

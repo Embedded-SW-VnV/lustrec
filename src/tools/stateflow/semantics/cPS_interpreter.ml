@@ -142,7 +142,7 @@ struct
 	  | Or (_T, [])   -> null
 	  | Or ([], [s0]) -> eval_open_path Enter prefix [] [s0] null
 	  | Or (_T, _S)   -> let wrapper = eval_open_path Enter [] prefix in
-			     let success p_d = null in
+			     let success _p_d = null in
 			     eval_T _T wrapper success { local = bot; global = bot }
 	  | And (_S)    -> List.fold_right (fun p -> (>>) (Theta.theta E (prefix@[p]) [] Loose)) _S null
 	)
@@ -174,7 +174,7 @@ struct
 	  Log.report ~level:sf_level (fun fmt -> Format.fprintf fmt "@[<v 2>S_%a[[node %a]]@ " pp_tag tag pp_path p);
 	  let wrapper_i = eval_open_path Inner [] p in
 	  let wrapper_o = eval_open_path Outer [] p in
-	  let success p_d = null in
+	  let success _p_d = null in
 	  let fail_o =
 	    let fail_i =
 	      let same_fail_C = eval_C D p p_def.internal_composition in

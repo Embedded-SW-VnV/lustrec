@@ -40,10 +40,10 @@ if !Options.main_node <> "" then
     let machine = get_machine machines node in
     if !Options.horn_cex then(
       cex_computation machines fmt node machine;
-      get_cex machines fmt node machine)
+      get_cex machines fmt machine)
     else (
       collecting_semantics machines fmt node machine;
-      check_prop machines fmt node machine;
+      check_prop machines fmt machine;
     )
 end
 
@@ -100,7 +100,7 @@ let check_sfunction mannot =
      begin
        match x.annots with
          [] -> false
-        |[(key,va)] ->
+        |[(key, _)] ->
           begin
             match key with
               [] -> false
@@ -119,7 +119,7 @@ let preprocess machines =
 	m :: res
   ) machines []
      
-let translate fmt basename prog machines=
+let translate fmt prog machines=
   let machines = preprocess machines in
   (* We print typedef *)
   print_dep fmt prog; (*print static library e.g. math*)

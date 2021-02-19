@@ -12,7 +12,6 @@
 
 open Lustre_types
 
-exception Error of Location.t * Error.error_kind
 module VSet: sig
   include Set.S
   val pp: Format.formatter -> t -> unit 
@@ -46,7 +45,7 @@ val mk_new_node_name: node_desc -> ident -> ident
 val mktop: top_decl_desc -> top_decl
 
 (* constructor for machine types *)
-val mkinstr: ?lustre_expr:expr -> ?lustre_eq: eq -> Machine_code_types.instr_t_desc -> Machine_code_types.instr_t
+val mkinstr: (* ?lustre_expr:expr ->  *)?lustre_eq: eq -> Machine_code_types.instr_t_desc -> Machine_code_types.instr_t
 val get_instr_desc: Machine_code_types.instr_t -> Machine_code_types.instr_t_desc
 val update_instr_desc: Machine_code_types.instr_t -> Machine_code_types.instr_t_desc -> Machine_code_types.instr_t
   
@@ -70,8 +69,6 @@ val is_clock_dec_type: type_dec_desc -> bool
 val get_repr_type: type_dec_desc -> type_dec_desc
 val is_user_type: type_dec_desc -> bool
 val coretype_equal: type_dec_desc -> type_dec_desc -> bool
-val tag_true: label
-val tag_false: label
 val tag_default: label
 val tag_table: (label, top_decl) Hashtbl.t
 val field_table: (label, top_decl) Hashtbl.t
@@ -152,10 +149,13 @@ val eq_replace_rhs_var: (ident -> bool) -> (ident -> ident) -> eq -> eq
 
 (** val rename_expr f_node f_var expr *)
 val rename_expr : (ident -> ident) -> (ident -> ident) -> expr -> expr
+
 (** val rename_eq f_node f_var eq *)
 val rename_eq : (ident -> ident) -> (ident -> ident) -> eq -> eq
+
 (** val rename_aut f_node f_var aut *)
 val rename_aut : (ident -> ident) -> (ident -> ident) -> automata_desc -> automata_desc
+
 (** rename_prog f_node f_var f_const prog *)
 val rename_prog: (ident -> ident) -> (ident -> ident) -> (ident -> ident) -> program_t -> program_t
 val rename_node: (ident -> ident) -> (ident -> ident) -> node_desc -> node_desc
@@ -172,8 +172,8 @@ val copy_prog: top_decl list -> top_decl list
 val mkeexpr: Location.t ->  expr -> eexpr
 val empty_contract: contract_desc
 val mk_contract_var: ident -> bool -> type_dec option -> expr -> Location.t -> contract_desc
-val mk_contract_guarantees: ?name:string -> eexpr -> contract_desc
-val mk_contract_assume: ?name:string -> eexpr -> contract_desc
+val mk_contract_guarantees: string option -> eexpr -> contract_desc
+val mk_contract_assume: string option -> eexpr -> contract_desc
 val mk_contract_mode: ident -> eexpr list -> eexpr list -> Location.t -> contract_desc
 val mk_contract_import: ident -> expr -> expr -> Location.t -> contract_desc
 val merge_contracts:  contract_desc -> contract_desc -> contract_desc 
@@ -190,18 +190,19 @@ val mk_fresh_var: (ident * var_decl list) -> Location.t -> Types.type_expr ->  C
 
 val find_eq: ident list -> eq list -> eq * eq list
 
-(* Extract a num to describe a real constant *)
-val cst_real_to_num: Num.num -> int -> Num.num
-
 val get_expr_calls: top_decl list -> expr -> Utils.ISet.t
 
-val eq_has_arrows: eq -> bool
+(* val eq_has_arrows: eq -> bool *)
 
 val push_negations: ?neg:bool -> expr -> expr
 
 val add_pre_expr: ident list -> expr -> expr
 
 val mk_eq: Location.t -> expr -> expr -> expr 
-(* Local Variables: *)
+
+(* Simple transformations: eg computation over constants *)
+val partial_eval: expr -> expr
+
+  (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

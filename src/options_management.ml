@@ -11,11 +11,16 @@
 open Options
 
 let print_version () =
-  Format.printf "Lustrec compiler, version %s (%s)@." version codename;
-  Format.printf "Standard lib: %s@." Version.include_path;
-  Format.printf "User provided include directory: @[<h>%a@]@."
-    (Utils.fprintf_list ~sep:"@ " Format.pp_print_string) !include_dirs
-
+  let open Utils.Format in
+  printf
+    "@[<v>\
+     Lustrec compiler, version %s (%s)@,\
+     Standard lib: %s@,\
+     User provided include directory: @[<h>%a@]\
+     @]@."
+    version codename
+    Version.include_path
+    (pp_print_list ~pp_sep:pp_print_space pp_print_string) !include_dirs
 
 let add_include_dir dir =
   let removed_slash_suffix =
@@ -51,14 +56,17 @@ let search_lib_path (local, full_file_name) =
       None
   in
   match name with
-  | None -> Format.eprintf "Unable to find library %s in paths %a@.@?" full_file_name (Utils.fprintf_list ~sep:", " Format.pp_print_string) paths;raise Not_found
+  | None ->
+    Format.eprintf "Unable to find library %s in paths %a@.@?" full_file_name
+      (Utils.fprintf_list ~sep:", " Format.pp_print_string) paths;
+     raise Not_found
   | Some s -> s
 
 (* Search for path of core libs (without lusic: arrow and io_frontend *)
 let core_dependency lib_name =
   search_lib_path (false, lib_name ^ ".h")
 
-let name_dependency (local, dep) ext =
+let name_dependency (_, dep) ext =
   let dir = search_lib_path (false, dep ^ ext) in
   dir ^ "/" ^ dep
 
@@ -90,6 +98,7 @@ let common_options =
     "-node", Arg.Set_string main_node, "specifies the \x1b[4mmain\x1b[0m node";
     "-print-types", Arg.Set print_types, "prints node types";
     "-print-clocks", Arg.Set print_clocks, "prints node clocks";
+    "-print-nodes",  Arg.Set print_nodes, "prints node list";
     "-algebraic-loop-solve", Arg.Set solve_al, "try to solve algebraic loops";
     "-algebraic-loop-max", Arg.Set_int al_nb_max, "try to solve \x1b[4mnb\x1b[0m number of algebraic loops  <default: 15>";
     "-kind2", Arg.Set kind2_print, "active kind2 output";

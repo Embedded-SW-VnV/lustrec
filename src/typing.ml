@@ -14,7 +14,7 @@
 (** Main typing module. Classic inference algorithm with destructive
     unification. *)
 
-let debug fmt args = () (* Format.eprintf "%a"  *)
+let debug _fmt _args = () (* Format.eprintf "%a"  *)
 (* Though it shares similarities with the clock calculus module, no code
     is shared.  Simple environments, very limited identifier scoping, no
     identifier redefinition allowed. *)
@@ -24,7 +24,6 @@ open Utils
    overwritten, yet this makes notations far lighter.*)
 open Lustre_types
 open Corelang
-open Format
 
 
 (* TODO general remark: except in the add_vdecl, it seems to me that
@@ -64,7 +63,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       | Ttuple tl ->
          List.exists (occurs tvar) tl
       | Tstruct fl ->
-         List.exists (fun (f, t) -> occurs tvar t) fl
+         List.exists (fun (_, t) -> occurs tvar t) fl
       | Tarray (_, t)
         | Tstatic (_, t)
         | Tclock t
@@ -84,7 +83,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       | Ttuple tl ->
          List.iter generalize tl
       | Tstruct fl ->
-         List.iter (fun (f, t) -> generalize t) fl
+         List.iter (fun (_, t) -> generalize t) fl
       | Tstatic (d, t)
         | Tarray (d, t) -> Dimension.generalize d; generalize t
       | Tclock t
@@ -171,7 +170,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       with Not_found -> raise (Error (Location.dummy_loc, Unbound_type tname))
 
     let get_type_definition tname =
-      type_coretype (fun d -> ()) (get_coretype_definition tname)
+      type_coretype (fun _ -> ()) (get_coretype_definition tname)
 
     (* Equality on ground types only *)
     (* Should be used between local variables which must have a ground type *)
@@ -216,7 +215,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
           (* strictly subtyping cases first *)
           | _ , Tclock t2 when sub && (get_clock_base_type t1 = None) ->
 	     unif t1 t2
-          | _ , Tstatic (d2, t2) when sub && (get_static_value t1 = None) ->
+          | _ , Tstatic (_, t2) when sub && (get_static_value t1 = None) ->
 	     unif t1 t2
           (* This case is not mandatory but will keep "older" types *)
           | Tvar, Tvar ->
@@ -256,11 +255,11 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
 	     let eval_const =
 	       if semi
 	       then (fun c -> Some (Dimension.mkdim_ident Location.dummy_loc c))
-	       else (fun c -> None) in
+	       else (fun _ -> None) in
 	     begin
 	       unif t1' t2';
-	       Dimension.eval Basic_library.eval_env eval_const e1;
-	       Dimension.eval Basic_library.eval_env eval_const e2;
+	       Dimension.eval Basic_library.eval_dim_env eval_const e1;
+	       Dimension.eval Basic_library.eval_dim_env eval_const e2;
 	       Dimension.unify ~semi:semi e1 e2;
 	     end
           (* Special cases for machine_types. Rules to unify static types infered
@@ -290,10 +289,10 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       then let tydef = Hashtbl.find field_table label in
            let tydec = (typedef_of_top tydef).tydef_desc in 
            let tydec_struct = get_struct_type_fields tydec in
-           let ty_label = type_coretype (fun d -> ()) (List.assoc label tydec_struct) in
+           let ty_label = type_coretype (fun _ -> ()) (List.assoc label tydec_struct) in
            begin
 	     try_unify ty_label (type_const ~is_annot loc c) loc;
-	     type_coretype (fun d -> ()) tydec
+	     type_coretype (fun _ -> ()) tydec
            end
       else raise (Error (loc, Unbound_value ("struct field " ^ label)))
 
@@ -313,7 +312,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
 	     if is_user_type tydef.tydef_desc
 	     then Tydec_const tydef.tydef_id
 	     else tydef.tydef_desc in
-           type_coretype (fun d -> ()) tydec
+           type_coretype (fun _ -> ()) tydec
          else raise (Error (loc, Unbound_value ("enum tag " ^ t)))
       | Const_struct fl ->
          let ty_struct = new_var () in
@@ -359,11 +358,11 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
 	     then dimension_of_expr arg
 	     else Dimension.mkdim_var () in
            let eval_const id = (* Types. *)get_static_value (Env.lookup_value (fst env) id) in
-           Dimension.eval Basic_library.eval_env eval_const d;
+           Dimension.eval Basic_library.eval_dim_env eval_const d;
            let real_static_type = (* Type_predef. *)type_static d ((* Types. *)dynamic_type targ) in
            (match (* Types. *)get_static_value targ with
             | None    -> ()
-            | Some d' -> try_unify targ real_static_type arg.expr_loc);
+            | Some _ -> try_unify targ real_static_type arg.expr_loc);
            real_static_type
       else targ
 
@@ -477,7 +476,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
         | Expr_power (e1, d) ->
            let eval_const id = (* Types. *)get_static_value (Env.lookup_value (fst env) id) in
            type_subtyping_arg env in_main true (expr_of_dimension d) (* Type_predef. *)type_int;
-           Dimension.eval Basic_library.eval_env eval_const d;
+           Dimension.eval Basic_library.eval_dim_env eval_const d;
            let ty_elt = type_appl env in_main expr.expr_loc const "uminus" [e1] in
            let ty = (* Type_predef. *)type_array d ty_elt in
            expr.expr_type <- Expr_type_hub.export ty;
@@ -637,7 +636,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       let type_dim d =
         begin
           type_subtyping_arg (env, vd_env) false true (expr_of_dimension d) (* Type_predef. *)type_int;
-          Dimension.eval Basic_library.eval_env eval_const d;
+          Dimension.eval Basic_library.eval_dim_env eval_const d;
         end in
       let ty = type_coretype type_dim vdecl.var_dec_type.ty_dec_desc in
 
@@ -704,10 +703,10 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
        *)
       env
 
-    let rec type_spec env spec loc =
+    let rec type_spec env spec =
       match spec with
       | Contract c -> type_contract env c
-      | NodeSpec id -> env
+      | NodeSpec _ -> env
                      
     (** [type_node env nd loc] types node [nd] in environment env. The
     location is used for error reports. *)
@@ -728,7 +727,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
           (fun uvs v -> ISet.add v.var_id uvs)
           ISet.empty vd_env_ol in
       let undefined_vars =
-        let eqs, auts = get_node_eqs nd in
+        let eqs, _ = get_node_eqs nd in
         (* TODO XXX: il faut typer les handlers de l'automate *)
         List.fold_left (type_eq (new_env, vd_env) is_main) undefined_vars_init eqs
       in
@@ -740,7 +739,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       (* Typing spec/contracts *)
       (match nd.node_spec with
        | None -> ()
-       | Some spec -> ignore (type_spec new_env spec loc));
+       | Some spec -> ignore (type_spec new_env spec));
       (* Typing annots *)
       List.iter (fun annot ->
           List.iter (fun (_, eexpr) -> ignore (type_eexpr (new_env, vd_env) eexpr)) annot.annots
@@ -760,7 +759,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       nd.node_type <- Expr_type_hub.export ty_node;
       Env.add_value env nd.node_id ty_node
 
-    let type_imported_node env nd loc =
+    let type_imported_node env nd _loc =
       let vd_env = nd.nodei_inputs@nd.nodei_outputs in
       check_vd_env vd_env;
       let delta_env = type_var_decl_list vd_env env nd.nodei_inputs in
@@ -769,7 +768,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       (* Typing spec *)
       (match nd.nodei_spec with
        | None -> ()
-       | Some spec -> ignore (type_spec new_env spec loc)); 
+       | Some spec -> ignore (type_spec new_env spec));
       let ty_ins = type_of_vlist nd.nodei_inputs in
       let ty_outs = type_of_vlist nd.nodei_outputs in
       let ty_node = new_ty (Tarrow (ty_ins,ty_outs)) in
@@ -801,7 +800,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       | Node nd -> (
         try
           type_node env nd decl.top_decl_loc
-        with Error (loc, err) as exc -> (
+        with Error _ as exc -> (
           if !Options.global_inline then
 	    Format.eprintf "Type error: failing node@.%a@.@?"
 	      Printers.pp_node nd

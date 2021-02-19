@@ -18,7 +18,7 @@ let check_main () =
   if !Options.main_node = "" then
     begin
       eprintf "Code generation error: %a@." Error.pp_error_msg Error.No_main_specified;
-      raise (Error (Location.dummy_loc, Error.No_main_specified))
+      raise (Error.Error (Location.dummy_loc, Error.No_main_specified))
     end
 
 let create_dest_dir () =
@@ -59,7 +59,7 @@ let parse filename extension =
     | (Parse.Error err) as exc -> 
        Parse.report_error err;
        raise exc
-    | Corelang.Error (loc, err) as exc -> (
+    | Error.Error (loc, err) as exc -> (
       eprintf "Parsing error: %a%a@."
         Error.pp_error_msg err
         Location.pp_loc loc;
@@ -74,7 +74,7 @@ let expand_automata decls =
   Log.report ~level:1 (fun fmt -> fprintf fmt ".. expanding automata@ ");
   try
     Automata.expand_decls decls
-  with (Corelang.Error (loc, err)) as exc ->
+  with (Error.Error (loc, err)) as exc ->
     eprintf "Automata error: %a%a@."
       Error.pp_error_msg err
       Location.pp_loc loc;
@@ -157,7 +157,7 @@ let check_top_decls header =
 	 
 
     
-let check_compatibility (prog, computed_types_env, computed_clocks_env) (header, declared_types_env, declared_clocks_env) =
+let check_compatibility (_, computed_types_env, computed_clocks_env) (header, declared_types_env, declared_clocks_env) =
   try
     (* checking defined types are compatible with declared types*)
     Typing.check_typedef_compat header;
@@ -191,7 +191,7 @@ let check_compatibility (prog, computed_types_env, computed_clocks_env) (header,
 let resolve_contracts prog =
   (* Bind a fresh node with a new name according to existing nodes and freshly binded contract node. Clean the contract to remove the stmts  *)
   let process_contract new_contracts c =
-    Format.eprintf "Process contract@.";
+    (* Format.eprintf "Process contract@."; *)
     (* Resolve first the imports *)
     let stmts, locals, c =
       List.fold_left (
@@ -205,7 +205,7 @@ let resolve_contracts prog =
              Last the contracts elements are replaced with the renamed vars and merged with c contract.
            *)
           let name = import.import_nodeid in
-          Format.eprintf "Process contract import %s@." name;
+          (* Format.eprintf "Process contract import %s@." name; *)
           let loc = import.import_loc in
           try
             let imp_nd = get_node name new_contracts in (* Get the contract node in process contracts *)
@@ -237,7 +237,7 @@ let resolve_contracts prog =
             let stmts = in_assigns :: out_assigns :: imp_nd.node_stmts @ stmts in
             let c = merge_contracts c imp_c in
             stmts, locals, c 
-          with Not_found -> Format.eprintf "Where is contract %s@.@?" name; assert false; raise (Error (loc, (Error.Unbound_symbol ("contract " ^ name))))
+          with Not_found -> Format.eprintf "Where is contract %s@.@?" name; raise (Error.Error (loc, (Error.Unbound_symbol ("contract " ^ name))))
 
          
         ) ([], c.consts@c.locals, c) c.imports
@@ -264,7 +264,7 @@ let resolve_contracts prog =
       | ImportedNode ind -> ind.nodei_id, ind.nodei_spec, ind.nodei_inputs, ind.nodei_outputs
       | _ -> assert false
     in
-    Format.eprintf "Process contract new node for node %s@." id;
+    (* Format.eprintf "Process contract new node for node %s@." id; *)
 
     let stmts, locals, c =
       match spec with
@@ -342,9 +342,9 @@ let resolve_contracts prog =
         | Node nd -> (
           match nd.node_spec with
           | None -> accu_contracts, top::accu_nodes (* A boring node: no contract *)
-          | Some (NodeSpec id) -> (* shall not happen, its too early *)
+          | Some (NodeSpec _) -> (* shall not happen, its too early *)
              assert false
-          | Some (Contract c) -> (* A contract: processing it *)
+          | Some (Contract _) -> (* A contract: processing it *)
              (* we bind a fresh node *)
              let new_nd = process_contract_new_node accu_contracts prog top in
              (* Format.eprintf "Creating new contract node %s@." (node_name new_nd); *)
@@ -357,9 +357,9 @@ let resolve_contracts prog =
         | ImportedNode ind -> ( (* Similar treatment for imported nodes *)
           match ind.nodei_spec with
             None -> accu_contracts, top::accu_nodes (* A boring node: no contract *)
-          | Some (NodeSpec id) -> (* shall not happen, its too early *)
+          | Some (NodeSpec _) -> (* shall not happen, its too early *)
              assert false
-          | Some (Contract c) -> (* A contract: processing it *)
+          | Some (Contract _) -> (* A contract: processing it *)
              (* we bind a fresh node *)
              let new_nd = process_contract_new_node accu_contracts prog top in
              let ind = { ind with nodei_spec = (Some (NodeSpec (node_name new_nd))) } in

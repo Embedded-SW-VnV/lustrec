@@ -78,12 +78,21 @@ AS_IF([ocamlfind query yojson >/dev/null 2>&1],
 
 # Seal
 AC_MSG_CHECKING(seal library (optional))
-AS_IF([ocamlfind query seal >/dev/null 2>&1; echo 1],
+AS_IF([ocamlfind query seal >/dev/null 2>&1],
     [seal=yes; AC_MSG_RESULT(yes)],[seal=no; AC_MSG_RESULT(no)],
 )
 AS_IF([test "x$seal" = "xyes"], [
    AC_SUBST(LUSTREV_SEAL, "(module Seal_verifier.Verifier : VerifierType.S);")
-   AC_SUBST(LUSTREV_SEAL_TAG, "") # <**/*>: package(seal)")
+   AC_SUBST(LUSTREV_SEAL_TAG, "<**/*>: package(seal)")
+])
+
+# Tiny
+AC_MSG_CHECKING(tiny library (optional))
+AS_IF([ocamlfind query tiny >/dev/null 2>&1],
+    [tiny=yes; AC_MSG_RESULT(yes)],[tiny=no; AC_MSG_RESULT(no)],
+)
+AS_IF([test "x$tiny" = "xyes"], [
+ dnl   AC_SUBST(LUSTREV_TINY_TAG, "<**/*>: package(apron.boxMPQ), package(apron.octMPQ), package(apron.polkaMPQ), package(tiny)")
 ])
 
 # z3 (optional)
@@ -125,14 +134,14 @@ AS_IF([test "x$enable_z3" != "xno"], [
 ])
 
 
-# Tiny
-AC_MSG_CHECKING(tiny library (optional))
-AS_IF([ocamlfind query tiny >/dev/null 2>&1],
-    [tiny=yes; AC_MSG_RESULT(yes)],[tiny=no; AC_MSG_RESULT(no)],
-)
+dnl # Tiny
+dnl AC_MSG_CHECKING(tiny library (optional))
+dnl AS_IF([ocamlfind query tiny >/dev/null 2>&1],
+dnl     [tiny=yes; AC_MSG_RESULT(yes)],[tiny=no; AC_MSG_RESULT(no)],
+dnl )
 AS_IF([test "x$tiny" = "xyes"], [
    AC_SUBST(LUSTREV_TINY, "(module Tiny_verifier.Verifier : VerifierType.S);")
-   AC_SUBST(LUSTREV_TINY_TAG, "<**/*>: package(tiny)")
+   AC_SUBST(LUSTREV_TINY_TAG, ["<**/*>: package(apron.boxMPQ), package(apron.octMPQ), package(apron.polkaMPQ), package(tiny)"])
 ])
 
 # Salsa

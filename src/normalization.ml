@@ -14,6 +14,9 @@ open Lustre_types
 open Corelang
 open Format
 
+(* To update thank to some command line options *)
+let debug = ref false
+          
 (** Normalisation iters through the AST of expressions and bind fresh definition
     when some criteria are met. This creation of fresh definition is performed by
     the function mk_expr_alias_opt when the alias argument is on.
@@ -109,19 +112,7 @@ let replace_expr locals expr =
    expr_tag = Utils.new_tag ();
    expr_desc = Expr_tuple (List.map expr_of_vdecl locals) }
 
-let unfold_offsets e offsets =
-  let add_offset e d =
-(*Format.eprintf "add_offset %a(%a) %a @." Printers.pp_expr e Types.print_ty e.expr_type Dimension.pp_dimension d;
-    let res = *)
-    { e with
-      expr_tag = Utils.new_tag ();
-      expr_loc = d.Dimension.dim_loc;
-      expr_type = Types.array_element_type e.expr_type;
-      expr_desc = Expr_access (e, d) }
-(*in (Format.eprintf "= %a @." Printers.pp_expr res; res) *)
-  in
- List.fold_left add_offset e offsets
-
+  
 (* IS IT USED ? TODO 
 (* Create an alias for [expr], if none exists yet *)
 let mk_expr_alias (parentid, vars) (defs, vars) expr =
@@ -144,11 +135,16 @@ let mk_expr_alias (parentid, vars) (defs, vars) expr =
  *)
   
 (* Create an alias for [expr], if [expr] is not already an alias (i.e. an ident)
-   and [opt] is true *)
+   and [opt] is true
+
+  
+ *)
 let mk_expr_alias_opt opt norm_ctx (defs, vars) expr =
-(*Format.eprintf "mk_expr_alias_opt %B %a %a %a@." opt Printers.pp_expr expr Types.print_ty expr.expr_type Clocks.print_ck expr.expr_clock;*)
+  if !debug then
+    Log.report ~plugin:"normalization" ~level:2
+      (fun fmt -> Format.fprintf  fmt "mk_expr_alias_opt %B %a %a %a@." opt Printers.pp_expr expr Types.print_ty expr.expr_type Clocks.print_ck expr.expr_clock);
   match expr.expr_desc with
-  | Expr_ident alias ->
+  | Expr_ident _ ->
     (defs, vars), expr
   | _                ->
     match get_expr_alias defs expr with
@@ -184,6 +180,36 @@ let mk_expr_alias_opt opt norm_ctx (defs, vars) expr =
       else
 	(defs, vars), expr
 
+(* Similar fonctions for dimensions *) 
+let mk_dim_alias opt norm_ctx (defs, vars) dim =
+  match dim.Dimension.dim_desc with
+  | Dimension.Dbool _ | Dint _ 
+    | Dident _ -> (defs, vars), dim (* Keep the same *)
+  | _ when opt -> (* Cast to expression, normalizing *)
+     let e = expr_of_dimension dim in
+     let defvars, e = mk_expr_alias_opt true norm_ctx (defs, vars) e in
+     defvars, dimension_of_expr e
+
+  | _ -> (defs, vars), dim (* Keep the same *)
+
+
+let unfold_offsets norm_ctx defvars e offsets =
+  let add_offset (defvars, e) d =
+    (*Format.eprintf "add_offset %a(%a) %a @." Printers.pp_expr e Types.print_ty e.expr_type Dimension.pp_dimension d; *)
+    let defvars, d = mk_dim_alias !params.force_alias_internal_fun norm_ctx defvars d in
+    let new_e = 
+      { e with
+        expr_tag = Utils.new_tag ();
+        expr_loc = d.Dimension.dim_loc;
+        expr_type = Types.array_element_type e.expr_type;
+        expr_desc = Expr_access (e, d) }
+    in
+    defvars, new_e
+(*in (Format.eprintf "= %a @." Printers.pp_expr res; res) *)
+  in
+  List.fold_left add_offset (defvars, e) offsets 
+
+      
 (* Create a (normalized) expression from [ref_e],
    replacing description with [norm_d],
    taking propagated [offsets] into account
@@ -197,7 +223,7 @@ let mk_norm_expr offsets ref_e norm_d =
     expr_type = Utils.repeat (List.length offsets) drop_array_type ref_e.expr_type }
 														
 (* normalize_<foo> : defs * used vars -> <foo> -> (updated defs * updated vars) * normalized <foo> *)
-let rec normalize_list alias norm_ctx offsets norm_element defvars elist =
+let normalize_list alias norm_ctx offsets norm_element defvars elist =
   List.fold_right
     (fun t (defvars, qlist) ->
       let defvars, norm_t = norm_element alias norm_ctx offsets defvars t in
@@ -205,10 +231,11 @@ let rec normalize_list alias norm_ctx offsets norm_element defvars elist =
     ) elist (defvars, [])
 
 let rec normalize_expr ?(alias=true) ?(alias_basic=false) norm_ctx offsets defvars expr =
-  (*Format.eprintf "normalize %B %a:%a [%a]@." alias Printers.pp_expr expr Types.print_ty expr.expr_type (Utils.fprintf_list ~sep:"," Dimension.pp_dimension) offsets;*)
+  (* Format.eprintf "normalize %B %a:%a [%a]@." alias Printers.pp_expr expr Types.print_ty expr.expr_type (Utils.fprintf_list ~sep:"," Dimension.pp_dimension) offsets; *)
   match expr.expr_desc with
   | Expr_const _
-  | Expr_ident _ -> defvars, unfold_offsets expr offsets
+    | Expr_ident _ ->
+     unfold_offsets norm_ctx defvars expr offsets
   | Expr_array elist ->
      let defvars, norm_elist = normalize_list alias norm_ctx offsets (fun _ -> normalize_array_expr ~alias:true) defvars elist in
      let norm_expr = mk_norm_expr offsets expr (Expr_array norm_elist) in
@@ -217,17 +244,18 @@ let rec normalize_expr ?(alias=true) ?(alias_basic=false) norm_ctx offsets defva
      let defvars, norm_e1 = normalize_expr norm_ctx offsets defvars e1 in
      let norm_expr = mk_norm_expr offsets expr (Expr_power (norm_e1, d)) in
      mk_expr_alias_opt alias norm_ctx defvars norm_expr
-  | Expr_power (e1, d) ->
+  | Expr_power (e1, _) ->
      normalize_expr ~alias:alias norm_ctx (List.tl offsets) defvars e1
   | Expr_access (e1, d) ->
-     normalize_expr ~alias:alias norm_ctx (d::offsets) defvars e1
+     normalize_expr ~alias:alias norm_ctx (d::offsets) defvars e1 
+    
   | Expr_tuple elist ->
      let defvars, norm_elist =
        normalize_list alias norm_ctx offsets (fun alias -> normalize_expr ~alias:alias ~alias_basic:false) defvars elist in
      defvars, mk_norm_expr offsets expr (Expr_tuple norm_elist)
   | Expr_appl (id, args, None)
       when Basic_library.is_homomorphic_fun id 
-	&& Types.is_array_type expr.expr_type ->
+	   && Types.is_array_type expr.expr_type ->
      let defvars, norm_args =
        normalize_list
 	 alias
@@ -260,7 +288,7 @@ let rec normalize_expr ?(alias=true) ?(alias_basic=false) norm_ctx offsets defva
        mk_expr_alias_opt (alias && (!params.force_alias_internal_fun || alias_basic
 				    || not (Basic_library.is_expr_internal_fun expr)))
 	 norm_ctx defvars norm_expr
-  | Expr_arrow (e1,e2) when !params.unfold_arrow_active && not (is_expr_once expr) ->
+  | Expr_arrow _ when !params.unfold_arrow_active && not (is_expr_once expr) ->
      (* Here we differ from Colaco paper: arrows are pushed to the top *)
      normalize_expr ~alias:alias norm_ctx offsets defvars (unfold_arrow expr)
   | Expr_arrow (e1,e2) ->
@@ -313,7 +341,7 @@ and normalize_array_expr ?(alias=true) norm_ctx offsets defvars expr =
   | Expr_power (e1, d) when offsets = [] ->
      let defvars, norm_e1 = normalize_expr norm_ctx offsets defvars e1 in
      defvars, mk_norm_expr offsets expr (Expr_power (norm_e1, d))
-  | Expr_power (e1, d) ->
+  | Expr_power (e1, _) ->
      normalize_array_expr ~alias:alias norm_ctx (List.tl offsets) defvars e1
   | Expr_access (e1, d) -> normalize_array_expr ~alias:alias norm_ctx (d::offsets) defvars e1
   | Expr_array elist when offsets = [] ->
@@ -325,7 +353,7 @@ and normalize_array_expr ?(alias=true) norm_ctx offsets defvars expr =
   |  _ -> normalize_expr ~alias:alias norm_ctx offsets defvars expr
 
 and normalize_cond_expr ?(alias=true) norm_ctx offsets defvars expr =
-  (*Format.eprintf "normalize_cond %B %a [%a]@." alias Printers.pp_expr expr (Utils.fprintf_list ~sep:"," Dimension.pp_dimension) offsets;*)
+  (* Format.eprintf "normalize_cond %B %a [%a]@." alias Printers.pp_expr expr (Utils.fprintf_list ~sep:"," Dimension.pp_dimension) offsets; *)
   match expr.expr_desc with
   | Expr_access (e1, d) ->
      normalize_cond_expr ~alias:alias norm_ctx (d::offsets) defvars e1
@@ -373,7 +401,7 @@ let decouple_outputs norm_ctx defvars eq =
       (Clocks.clock_list_of_clock eq.eq_rhs.expr_clock) in
   defvars', {eq with eq_lhs = lhs' }
 
-let rec normalize_eq norm_ctx defvars eq =
+let normalize_eq norm_ctx defvars eq =
 (*Format.eprintf "normalize_eq %a@." Types.print_ty eq.eq_rhs.expr_type;*)
   match eq.eq_rhs.expr_desc with
   | Expr_pre _
@@ -418,7 +446,7 @@ let normalize_eq_split norm_ctx defvars eq =
 (* Projecting an eexpr to an eexpr associated to a single
    variable. Returns the updated ee, the bounded variable and the
    associated statement *)
-let normalize_pred_eexpr decls norm_ctx (def,vars) ee =
+let normalize_pred_eexpr norm_ctx (def,vars) ee =
   assert (ee.eexpr_quantifiers = []); (* We do not normalize quantifiers yet. This is for very far future. *)
   (* don't do anything is eexpr is just a variable *)
   let skip =
@@ -556,7 +584,7 @@ let normalize_pred_eexpr decls norm_ctx (def,vars) ee =
  
 
 (* We use node local vars to make sure we are creating fresh variables *) 
-let normalize_spec decls parentid (in_vars, out_vars, l_vars) s =  
+let normalize_spec parentid (in_vars, out_vars, l_vars) s =
   (* Original set of variables actually visible from here: in/out and
      spec locals (no node locals) *)
   let orig_vars = in_vars @ out_vars @ s.locals in
@@ -580,7 +608,7 @@ let normalize_spec decls parentid (in_vars, out_vars, l_vars) s =
   let process_predicates l defvars =
     (* Format.eprintf "ProcPred: vars: %a@." Printers.pp_vars (snd defvars); *)
     let res = List.fold_right (fun ee (accu, defvars) ->
-        let ee', defvars = normalize_pred_eexpr decls norm_ctx defvars ee in
+        let ee', defvars = normalize_pred_eexpr norm_ctx defvars ee in
         ee'::accu, defvars
       ) l ([], defvars)
     in
@@ -641,7 +669,7 @@ let normalize_spec decls parentid (in_vars, out_vars, l_vars) s =
     - new equations
     -
 *)
-let normalize_node decls node =
+let normalize_node node =
   reset_cpt_fresh ();
   let orig_vars = node.node_inputs@node.node_outputs@node.node_locals in
   let not_is_orig_var v =
@@ -667,7 +695,6 @@ let normalize_node decls node =
         | Some (NodeSpec _) -> node.node_spec, [], eqs
       | Some (Contract s) ->
          let new_locals, new_stmts, s' = normalize_spec
-                    decls
                     node.node_id
                     (node.node_inputs, node.node_outputs, node.node_locals)
                     s
@@ -773,20 +800,20 @@ let normalize_node decls node =
       node
     )
 
-let normalize_inode decls nd =
+let normalize_inode nd =
   reset_cpt_fresh ();
   match nd.nodei_spec with
     None | Some (NodeSpec _) -> nd
     | Some (Contract _) -> assert false
                          
-let normalize_decl (decls: program_t) (decl: top_decl) : top_decl =
+let normalize_decl (decl: top_decl) : top_decl =
   match decl.top_decl_desc with
   | Node nd ->
-     let decl' = {decl with top_decl_desc = Node (normalize_node decls nd)} in
+     let decl' = {decl with top_decl_desc = Node (normalize_node nd)} in
      update_node nd.node_id decl';
      decl'
   | ImportedNode nd ->
-     let decl' = {decl with top_decl_desc = ImportedNode (normalize_inode decls nd)} in
+     let decl' = {decl with top_decl_desc = ImportedNode (normalize_inode nd)} in
      update_node nd.nodei_id decl';
      decl'
      
@@ -797,7 +824,7 @@ let normalize_prog p decls =
   params := p;
 
   (* Main algorithm: iterates over nodes *)
-  List.map (normalize_decl decls) decls
+  List.map normalize_decl decls
 
 
 (* Fake interface for outside uses *)

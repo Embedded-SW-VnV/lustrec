@@ -113,11 +113,11 @@ struct
 *)
   let inject cst = match cst with  
     | LT.Const_int(i)  -> Salsa.Builder.mk_cst (Salsa.Float.Domain.inject_int i)
-    | LT.Const_real (c,e,s) -> (* TODO: this is incorrect. We should rather
+    | LT.Const_real r -> (* TODO: this is incorrect. We should rather
 				  compute the error associated to the float *)
        (* let f = float_of_string s in *)
-       let n = Corelang.cst_real_to_num c e in
-       Salsa.Builder.mk_cst (Salsa.Float.Domain.inject_num n)
+       let n = Real.to_q r in
+       Salsa.Builder.mk_cst (Salsa.Float.Domain.inject_q n)
        
        (* let r = Salsa.Prelude.r_of_f_aux r in *)
        (* Salsa.Builder.mk_cst (Float.Domain.nnew r r) *)

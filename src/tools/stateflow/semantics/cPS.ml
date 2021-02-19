@@ -27,9 +27,9 @@ let eval ((modular_entry:bool), (modular_during:bool), (modular_exit:bool)) =
 	let modular : type b. (path_t, b, bool) tag_t -> path_t -> b =
 			fun tag ->
 			  match tag with
-			  | E -> (fun p p' f -> modular_entry)
-			  | D -> (fun p      -> modular_during)
-			  | X -> (fun p f    -> modular_exit)
+			  | E -> (fun _p _p' _f -> modular_entry)
+			  | D -> (fun _p        -> modular_during)
+			  | X -> (fun _p _f     -> modular_exit)
       end
   in
   let module Thetaify = KenvTheta.ModularThetaify (Tables) (Modularity) in

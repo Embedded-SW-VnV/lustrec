@@ -11,9 +11,6 @@
 
 open Format
 open Lustre_types
-open Machine_code
-open C_backend_common
-open Utils
 
 (**************************************************************************)
 (*     Printing spec for c *)
@@ -131,7 +128,7 @@ let print_machine_decl_prefix fmt m =
 
 (* TODO ACSL
    mspec are function body annotations, sush as loop invariants, acsl asserts ... *) 
-let pp_mspec fmt s = ()
+let pp_mspec _ _ = ()
 
    (* TODO ACSL 
    Return updates machines (eg with local annotations) and acsl preamble *)
@@ -145,7 +142,7 @@ let pp_acsl_preamble fmt preamble =
 (*                              MAKEFILE                                  *)
 (**************************************************************************)
 
-let makefile_targets fmt basename nodename dependencies =
+let makefile_targets fmt basename _nodename dependencies =
   fprintf fmt "FRAMACEACSL=`frama-c -print-share-path`/e-acsl@.";
   (* EACSL version of library file . c *)
   fprintf fmt "%s_eacsl.c: %s.c %s.h@." basename basename basename;

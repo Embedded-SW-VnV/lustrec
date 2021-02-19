@@ -10,12 +10,10 @@
 (********************************************************************)
 
 open Format
-open Log
 open Compiler_common
 
 open Utils
-open Lustre_types
- 
+
 
 let usage = "Usage: lustrec [options] \x1b[4msource file\x1b[0m"
 
@@ -40,19 +38,19 @@ let print_lusi prog dirname basename extension =
 
 
 (* compile a .lus source file *)
-let rec compile dirname basename extension =
+let compile dirname basename extension =
   let source_name = dirname ^ "/" ^ basename ^ extension in
 
   Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 0>");
 
   (* Parsing source *)
   let prog = parse source_name extension in
-
+  
   let prog =
     if !Options.mpfr &&
          extension = ".lus" (* trying to avoid the injection of the module for lusi files *) 
     then
-      Mpfr.mpfr_module::prog
+      Lustrec_mpfr.mpfr_module::prog
     else
       prog
   in
@@ -71,6 +69,10 @@ let rec compile dirname basename extension =
 	  Log.report ~level:1 (fun fmt -> fprintf fmt ".. done !@ @]@.");
 	  exit 0
 	end
+      else if !Options.print_nodes then (
+        Format.printf "%a@.@?" Printers.pp_node_list prog;
+        exit 0
+      )
       else
         assert false
     )
@@ -80,8 +82,8 @@ let rec compile dirname basename extension =
 
   Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>.. Phase 2 : Machines generation@,");
 
-  let machine_code = 
-    Compiler_stages.stage2 prog 
+  let prog, machine_code = 
+    Compiler_stages.stage2 params prog 
   in
 
   Log.report ~level:3 (fun fmt -> fprintf fmt ".. Generated machines:@ %a@ " Machine_code_common.pp_machines machine_code);
@@ -140,7 +142,9 @@ let _ =
   with
   | Parse.Error _
   | Types.Error (_,_) | Clocks.Error (_,_) -> exit 1
-  | Corelang.Error (_ (* loc *), kind) (*| Task_set.Error _*) -> exit (Error.return_code kind)
+  | Error.Error (loc , kind) (*| Task_set.Error _*) ->
+     Error.pp_error loc (fun fmt -> Error.pp_error_msg fmt kind);
+     exit (Error.return_code kind)
   (* | Causality.Error _  -> exit (Error.return_code Error.AlgebraicLoop) *)
   | Sys_error msg -> (eprintf "Failure: %s@." msg); exit 1
   | exc -> (track_exception (); raise exc) 

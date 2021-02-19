@@ -129,7 +129,7 @@ struct
       | MLocalAssign (ident, value) -> 
           { instr_desc = MStateAssign (ident, value);
             lustre_eq= instr.lustre_eq }
-      | x -> instr
+      | _ -> instr
     in
     let pp_local_ghost_list, spec_instrs = match m_spec_opt with
       | None -> [], []
@@ -154,7 +154,7 @@ struct
     in
     let env, memory = match m_spec_opt with
       | None -> env, m.mmemory
-      | Some m_spec ->
+      | Some _ ->
           env,
           (m.mmemory)
     in

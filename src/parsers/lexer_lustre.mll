@@ -40,7 +40,7 @@ let keyword_table =
   "tel", TEL;
   "returns", RETURNS;
   "var", VAR;
-  "imported", IMPORTED;
+  (* "imported", IMPORTED; *)
   "import", IMPORT;
   "type", TYPE;
   "int", TINT;
@@ -81,17 +81,22 @@ let keyword_table =
 (* Buffer for parsing specification/annotation *)
 let buf = Buffer.create 1024
 
-let make_annot lexbuf s = 
+let make_annot lexbuf s =
+  let orig_loc = Location.curr lexbuf in
   try
+    Location.push_loc orig_loc;	
     let ann = LexerLustreSpec.annot s in
+    Location.pop_loc ();
     ANNOT ann
-  with LexerLustreSpec.Error loc -> raise (Parse.Error (Location.shift (Location.curr lexbuf) loc, Parse.Annot_error s))
+  with LexerLustreSpec.Error loc -> raise (Parse.Error (Location.shift orig_loc loc, Parse.Annot_error s))
 
-let make_spec lexbuf s = 
+let make_spec orig_loc s =
   try
+    Location.push_loc orig_loc;	
     let ns = LexerLustreSpec.spec s in
+    Location.pop_loc ();
     NODESPEC ns
-  with LexerLustreSpec.Error loc -> raise (Parse.Error (Location.shift (Location.curr lexbuf) loc, Parse.Node_spec_error s))
+  with LexerLustreSpec.Error loc -> raise (Parse.Error (Location.shift orig_loc loc, Parse.Node_spec_error s))
 
 }
 
@@ -101,9 +106,11 @@ let blank = [' ' '\009' '\012']
 
 rule token = parse
 | "--@" { Buffer.clear buf;
-	  spec_singleline lexbuf }
+          let loc = Location.curr lexbuf in
+	  spec_singleline loc lexbuf }
 | "(*@" { Buffer.clear buf; 
-	  spec_multiline 0 lexbuf }
+	  let loc = Location.curr lexbuf in
+	  spec_multiline loc 0 lexbuf }
 | "--!" { Buffer.clear buf; 
 	  annot_singleline lexbuf }
 | "(*!" { Buffer.clear buf; 
@@ -111,17 +118,17 @@ rule token = parse
 | "(*"
     { comment 0 lexbuf }
 | "--" [^ '!' '@'] notnewline* (newline|eof)
-    { incr_line lexbuf;
+    { Lexing.new_line lexbuf;
       token lexbuf }
 | newline
-    { incr_line lexbuf;
+    { Lexing.new_line lexbuf;
       token lexbuf }
 | blank +
     {token lexbuf}
 | ((['0'-'9']+ as l)  '.' (['0'-'9']* as r) ('E'|'e') (('+'|'-')? ['0'-'9']+ as exp)) as s
-    {REAL (Num.num_of_string (l^r), String.length r + -1 * int_of_string exp , s)}
+    {REAL (Real.create (l^r) (String.length r + -1 * int_of_string exp) s)}
 | ((['0'-'9']+ as l) '.' (['0'-'9']* as r)) as s
-    {REAL (Num.num_of_string (l^r), String.length r, s)}
+    {REAL (Real.create (l^r) (String.length r) s)}
 | ['0'-'9']+ 
     {INT (int_of_string (Lexing.lexeme lexbuf)) }
 | "tel." {TEL}
@@ -180,13 +187,13 @@ and comment n = parse
 | "*)"
     { if n > 0 then comment (n-1) lexbuf else token lexbuf }
 | newline
-    { incr_line lexbuf;
+    { Lexing.new_line lexbuf;
       comment n lexbuf }
 | _ { comment n lexbuf }
 
 and annot_singleline = parse
   | eof { make_annot lexbuf (Buffer.contents buf) }
-  | newline { incr_line lexbuf; make_annot lexbuf (Buffer.contents buf) }
+  | newline { Lexing.new_line lexbuf; make_annot lexbuf (Buffer.contents buf) }
   | _ as c { Buffer.add_char buf c; annot_singleline lexbuf }
 
 and annot_multiline n = parse
@@ -197,21 +204,21 @@ and annot_multiline n = parse
     else 
       make_annot lexbuf (Buffer.contents buf) }
   | "(*" as s { Buffer.add_string buf s; annot_multiline (n+1) lexbuf }
-  | newline as s { incr_line lexbuf; Buffer.add_string buf s; annot_multiline n lexbuf }
+  | newline as s { Lexing.new_line lexbuf; Buffer.add_string buf s; annot_multiline n lexbuf }
   | _ as c { Buffer.add_char buf c; annot_multiline n lexbuf }
 
-and spec_singleline = parse
-  | eof { make_spec lexbuf (Buffer.contents buf) }
-  | newline { incr_line lexbuf; make_spec lexbuf (Buffer.contents buf) }
-  | _ as c { Buffer.add_char buf c; spec_singleline lexbuf }
+and spec_singleline loc = parse
+  | eof { make_spec loc (Buffer.contents buf) }
+  | newline { Lexing.new_line lexbuf; make_spec loc (Buffer.contents buf) }
+  | _ as c { Buffer.add_char buf c; spec_singleline loc lexbuf }
 
-and spec_multiline n = parse
+and spec_multiline loc n = parse
   | eof { raise (Parse.Error (Location.curr lexbuf, Parse.Unfinished_node_spec)) }
   | "*)" as s { if n > 0 then 
-      (Buffer.add_string buf s; spec_multiline (n-1) lexbuf) 
+      (Buffer.add_string buf s; spec_multiline loc (n-1) lexbuf) 
     else 
-      make_spec lexbuf (Buffer.contents buf) }
-  | "(*" as s { Buffer.add_string buf s; spec_multiline (n+1) lexbuf }
-  | newline as s { incr_line lexbuf; Buffer.add_string buf s; spec_multiline n lexbuf }
-  | _ as c { Buffer.add_char buf c; spec_multiline n lexbuf }
+      make_spec loc (Buffer.contents buf) }
+  | "(*" as s { Buffer.add_string buf s; spec_multiline loc (n+1) lexbuf }
+  | newline as s { Lexing.new_line lexbuf; Buffer.add_string buf s; spec_multiline loc n lexbuf }
+  | _ as c { Buffer.add_char buf c; spec_multiline loc n lexbuf }
 

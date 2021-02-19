@@ -9,11 +9,11 @@
 (*                                                                  *)
 (********************************************************************)
 
-open Format
+open Utils.Format
 open C_backend_mauve
-(********************************************************************************************)
-(*                         Translation function                                             *)
-(********************************************************************************************)
+(******************************************************************************)
+(*                        Translation function                                *)
+(******************************************************************************)
 (* USELESS
 let makefile_opt print basename dependencies makefile_fmt machines =
   (* If a main node is identified, generate a main target for it *)
@@ -26,76 +26,59 @@ let makefile_opt print basename dependencies makefile_fmt machines =
   )
 *)
 
-let gen_files funs basename prog machines dependencies =
+let c_or_cpp f =
+  if !Options.cpp then f ^ ".cpp" else f ^ ".c" (* Could be changed *)
+
+let with_main_node machines node f =
+  if node <> "" then
+    (* looking for the main node *)
+    match Machine_code_common.get_machine_opt machines node with
+    | None ->
+      let open Error in
+      Global.main_node := node;
+      Format.eprintf "Code generation error: %a@." pp_error_msg Main_not_found;
+      raise (Error (Location.dummy_loc, Main_not_found))
+    | Some m ->
+      f m
+
+let gen_files
+    (print_header, print_lib_c, print_main_c, print_makefile, preprocess (* , print_cmake *))
+    basename prog machines dependencies =
   let destname = !Options.dest_dir ^ "/" ^ basename in
   
-  let print_header, print_lib_c, print_main_c, print_makefile, preprocess (* , print_cmake *) = funs in
-
   let machines, spec = preprocess machines in
   
   (* Generating H file *)
   let alloc_header_file = destname ^ "_alloc.h" in (* Could be changed *)
-  let header_out = open_out alloc_header_file in
-  let header_fmt = formatter_of_out_channel header_out in
-  print_header header_fmt basename prog machines dependencies spec;
-  close_out header_out;
-  
+  with_out_file alloc_header_file (fun header_fmt ->
+      print_header header_fmt basename prog machines dependencies spec);
+
   (* Generating Lib C file *)
-  let source_lib_file = (if !Options.cpp then destname ^ ".cpp" else destname ^ ".c") in (* Could be changed *)
-  let source_lib_out = open_out source_lib_file in
-  let source_lib_fmt = formatter_of_out_channel source_lib_out in
-  print_lib_c source_lib_fmt basename prog machines dependencies;
-  close_out source_lib_out;
+  let source_lib_file = c_or_cpp destname in
+  with_out_file source_lib_file (fun source_lib_fmt ->
+      print_lib_c source_lib_fmt basename prog machines dependencies);
 
-  (match !Options.main_node with
-  | "" ->  () (* No main node: we do not generate main *)
-  | main_node -> (
-    match Machine_code_common.get_machine_opt machines main_node with
-    | None -> begin
-      Global.main_node := main_node;
-      Format.eprintf "Code generation error: %a@." Error.pp_error_msg Error.Main_not_found;
-      raise (Corelang.Error (Location.dummy_loc, Error.Main_not_found))
-    end
-    | Some m -> begin
-      let source_main_file = (if !Options.cpp then destname ^ "_main.cpp" else destname ^ "_main.c") in (* Could be changed *)
-      let source_main_out = open_out source_main_file in
-      let source_main_fmt = formatter_of_out_channel source_main_out in
+  (* Generating Main C file *)
+  let main_node = !Options.main_node in
+  with_main_node machines main_node (fun m ->
+      let source_main_file = c_or_cpp (destname ^ "_main") in
+      with_out_file source_main_file (fun source_main_fmt ->
+          print_main_c source_main_fmt m basename prog machines dependencies));
 
-      (* Generating Main C file *)
-      print_main_c source_main_fmt m basename prog machines dependencies;
-
-      close_out source_main_out;
-    end
-  ));
-
-  (match !Options.mauve with
-  | "" ->  ()
-  | mauve -> (
-    (* looking for the main node *)
-    match Machine_code_common.get_machine_opt machines mauve  with
-    | None -> begin
-      Global.main_node := mauve;
-      Format.eprintf "Code generation error: %a@." Error.pp_error_msg Error.Main_not_found;
-      raise (Corelang.Error (Location.dummy_loc, Error.Main_not_found))
-    end
-    | Some m -> begin
+  (* Generating Mauve files *)
+  with_main_node machines !Options.mauve (fun m ->
       let source_mauve_file = destname ^ "_mauve.hpp" in
-      let source_mauve_out = open_out source_mauve_file in
-      let source_mauve_fmt = formatter_of_out_channel source_mauve_out in
-      (* Header *)
-      print_mauve_header source_mauve_fmt m basename prog machines dependencies;
-      (* Shell *)
-      print_mauve_shell source_mauve_fmt m basename prog machines dependencies;
-      (* Core *)
-      print_mauve_core source_mauve_fmt m basename prog machines dependencies;
-      (* FSM *)
-      print_mauve_fsm source_mauve_fmt m basename prog machines dependencies;
+      with_out_file source_mauve_file (fun source_mauve_fmt ->
+          (* Header *)
+          print_mauve_header source_mauve_fmt basename;
+          (* Shell *)
+          print_mauve_shell source_mauve_fmt m;
+          (* Core *)
+          print_mauve_core source_mauve_fmt m;
+          (* FSM *)
+          print_mauve_fsm source_mauve_fmt m));
 
-      close_out source_mauve_out;
-    end
-  ));
-
-
+  (* Generating Makefile *)
   (* Makefiles:
      - for the moment two cases
      1. Classical Makefile, only when provided with a main node
@@ -106,19 +89,11 @@ let gen_files funs basename prog machines dependencies =
      - Later option 1 should be removed
   *)
   (* Case 1 *)
-  (match !Options.main_node with
-  | "" ->  () (* No main node: we do not generate main *)
-  | main_node -> (
+  if main_node <> "" then
     let makefile_file = destname ^ ".makefile" in (* Could be changed *)
-    let makefile_out = open_out makefile_file in
-    let makefile_fmt = formatter_of_out_channel makefile_out in
-    
-    (* Generating Makefile *)
-    print_makefile basename main_node dependencies makefile_fmt;
-    
-    close_out makefile_out
-  ))(* ; *)
-  
+    with_out_file makefile_file (fun makefile_fmt ->
+        print_makefile basename main_node dependencies makefile_fmt)
+
   (* (\* Case 2 *\) *)
   (* let cmake_file = "lustrec-" ^ basename ^ ".cmake" in *)
   (* let cmake_file_full_path = !Options.dest_dir ^ "/" ^ cmake_file in *)
@@ -131,58 +106,42 @@ let gen_files funs basename prog machines dependencies =
   
 
 let translate_to_c basename prog machines dependencies =
-  match !Options.spec with
-  | "no" -> begin
-    let module HeaderMod = C_backend_header.EmptyMod in
-    let module SourceMod = C_backend_src.EmptyMod in
-    let module SourceMainMod = C_backend_main.EmptyMod in
-    let module MakefileMod = C_backend_makefile.EmptyMod in
+  let header_m, source_m, source_main_m, makefile_m, preprocess =
+    match !Options.spec with
+    | "no" ->
+      C_backend_header.(module EmptyMod : MODIFIERS_HDR),
+      C_backend_src.(module EmptyMod : MODIFIERS_SRC),
+      C_backend_main.(module EmptyMod : MODIFIERS_MAINSRC),
+      C_backend_makefile.(module EmptyMod : MODIFIERS_MKF),
+      fun m -> m, []
 
-    let module Header = C_backend_header.Main (HeaderMod) in
-    let module Source = C_backend_src.Main (SourceMod) in
-    let module SourceMain = C_backend_main.Main (SourceMainMod) in
-    let module Makefile = C_backend_makefile.Main (MakefileMod) in
-    (* let module CMakefile = C_backend_cmake.Main (MakefileMod) in *)
-    
-    let funs = 
-      Header.print_alloc_header, 
-      Source.print_lib_c, 
-      SourceMain.print_main_c, 
-      Makefile.print_makefile,
-      (fun m -> m, [])
-      (* CMakefile.print_makefile *)
-    in
-    gen_files funs basename prog machines dependencies 
-
-  end
-  | "acsl" -> begin
-
-    let module HeaderMod = C_backend_header.EmptyMod in
-    let module SourceMod = C_backend_src.EmptyMod in
-    let module SourceMainMod = C_backend_main.EmptyMod in
-    let module MakefileMod = C_backend_spec.MakefileMod in
-
-    let module Header = C_backend_header.Main (HeaderMod) in
-    let module Source = C_backend_src.Main (SourceMod) in
-    let module SourceMain = C_backend_main.Main (SourceMainMod) in
-    let module Makefile = C_backend_makefile.Main (MakefileMod) in
-    (* let module CMakefile = C_backend_cmake.Main (MakefileMod) in *)
-    
-    let funs = 
-      Header.print_alloc_header, 
-      Source.print_lib_c,
-      SourceMain.print_main_c,
-      Makefile.print_makefile,
+    | "acsl" ->
+      C_backend_header.(module EmptyMod : MODIFIERS_HDR),
+      C_backend_src.(module EmptyMod : MODIFIERS_SRC),
+      C_backend_main.(module EmptyMod : MODIFIERS_MAINSRC),
+      (module C_backend_spec.MakefileMod : C_backend_makefile.MODIFIERS_MKF),
       C_backend_spec.preprocess_acsl
-      (* CMakefile.print_makefile  *)
-    in
-    gen_files funs basename prog machines dependencies 
 
-  end
-  | "c" -> begin
-    assert false (* not implemented yet *)
-  end
-  | _ -> assert false
+    | "c" -> assert false        (* not implemented yet *)
+
+    | _ -> assert false
+  in
+  let module Header = C_backend_header.Main (val header_m) in
+  let module Source = C_backend_src.Main (val source_m) in
+  let module SourceMain = C_backend_main.Main (val source_main_m) in
+  let module Makefile = C_backend_makefile.Main (val makefile_m) in
+  (* let module CMakefile = C_backend_cmake.Main (MakefileMod) in *)
+  let funs =
+    Header.print_alloc_header,
+    Source.print_lib_c,
+    SourceMain.print_main_c,
+    Makefile.print_makefile,
+    preprocess
+    (* CMakefile.print_makefile *)
+  in
+  gen_files funs basename prog machines dependencies
+
+
 (* Local Variables: *)
 (* compile-command:"make -C ../../.." *)
 (* End: *)

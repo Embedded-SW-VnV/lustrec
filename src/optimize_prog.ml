@@ -9,8 +9,9 @@
 (*                                                                  *)
 (********************************************************************)
 
+open Lustre_types
 open Corelang
-open LustreSpec
+(* open LustreSpec *)
 
 (* Consts unfoooolding *)
 let is_const i consts = 
@@ -45,8 +46,10 @@ and expr_desc_unfold_consts consts e e_type =
 let eq_unfold_consts consts eq =
   { eq with eq_rhs = expr_unfold_consts consts eq.eq_rhs }
 
-let node_unfold_consts consts node = 
-  { node with node_stmts = List.map (fun eq -> Eq (eq_unfold_consts consts eq)) (get_node_eqs node) }
+let node_unfold_consts consts node =
+  let eqs, automata = get_node_eqs node in
+  assert (automata = []);
+  { node with node_stmts = List.map (fun eq -> Eq (eq_unfold_consts consts eq)) eqs }
 
 let prog_unfold_consts prog =
   let consts = List.map const_of_top (get_consts prog) in
@@ -92,7 +95,9 @@ let eq_distribute_when eq =
   { eq with eq_rhs = expr_distribute_when eq.eq_rhs }
 
 let node_distribute_when node =
-  { node with node_stmts = List.map (fun eq -> Eq (eq_distribute_when eq)) (get_node_eqs node) }
+  let eqs, automata = get_node_eqs node in
+  assert (automata = []);
+  { node with node_stmts = List.map (fun eq -> Eq (eq_distribute_when eq)) eqs }
 
 let prog_distribute_when prog =
     List.map (

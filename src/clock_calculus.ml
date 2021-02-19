@@ -22,7 +22,6 @@ open Utils
 open Lustre_types
 open Corelang
 open Clocks
-open Format
 
 let loc_of_cond loc_containing id =
   let pos_start =
@@ -151,7 +150,7 @@ let rec update_scope scoped ck =
           update_scope scoped ck1; update_scope scoped ck2
       | Ctuple clist ->
           List.iter (update_scope scoped) clist
-      | Con (ck',cr,_) -> update_scope scoped ck'(*; update_scope_carrier scoped cr*)
+      | Con (ck', _, _) -> update_scope scoped ck'(*; update_scope_carrier scoped cr*)
       | Cvar | Cunivar -> ()
       | Clink ck' ->
           update_scope scoped ck'
@@ -519,7 +518,7 @@ and clock_carrier env c loc ce =
 and clock_expr ?(nocarrier=true) env expr =
   let resulting_ck = 
     match expr.expr_desc with
-      | Expr_const cst ->
+      | Expr_const _ ->
       let ck = new_var true in
       expr.expr_clock <- ck;
       ck
@@ -537,12 +536,12 @@ and clock_expr ?(nocarrier=true) env expr =
     let ck = clock_standard_args env elist in
     expr.expr_clock <- ck;
     ck
-  | Expr_access (e1, d) ->
+  | Expr_access (e1, _) ->
     (* dimension, being a static value, doesn't need to be clocked *)
     let ck = clock_standard_args env [e1] in
     expr.expr_clock <- ck;
     ck
-  | Expr_power (e1, d) ->
+  | Expr_power (e1, _) ->
     (* dimension, being a static value, doesn't need to be clocked *)
     let ck = clock_standard_args env [e1] in
     expr.expr_clock <- ck;
@@ -682,7 +681,7 @@ let clock_node env loc nd =
   let new_env = clock_var_decl_list env false nd.node_inputs in
   let new_env = clock_var_decl_list new_env true nd.node_outputs in
   let new_env = clock_var_decl_list new_env true nd.node_locals in
-  let eqs, auts = get_node_eqs nd in (* TODO XXX: perform the clocking on auts.
+  let eqs, _ = get_node_eqs nd in (* TODO XXX: perform the clocking on auts.
 					For the moment, it is ignored *)
   List.iter (clock_eq new_env) eqs;
   let ck_ins = clock_of_vlist nd.node_inputs in

@@ -158,7 +158,7 @@ module Verifier =
 
       Z3.Fixedpoint.set_parameters !fp fp_params
       
-    let run ~basename prog machines =
+    let run ~basename _prog machines =
       let machines = Machine_code_common.arrow_machine::machines in
       let machines = preprocess machines in
       setup_solver ();
@@ -167,7 +167,7 @@ module Verifier =
       (* TODO
 	 load deps: cf print_dep in horn_backend.ml
 
-      *)
+      
       if false then (
 	
 	let queries = Z3.Fixedpoint.parse_file !fp "nstep.smt2" in
@@ -232,7 +232,11 @@ module Verifier =
 
 	()	
       )
-      else (
+      else 
+
+       *)
+
+      (
 	
 	
 	decl_sorts ();
@@ -260,7 +264,12 @@ module Verifier =
 	
 
 	    end: VerifierType.S)
-    
+
+
+let () =
+  VerifierList.registered := (module Verifier : VerifierType.S) ::
+                             !VerifierList.registered
+
 (* Local Variables: *)
 (* compile-command:"make -C ../.. lustrev" *)
 (* End: *)

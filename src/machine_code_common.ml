@@ -118,7 +118,7 @@ let pp_machines fmt ml =
 let rec is_const_value v =
   match v.value_desc with
   | Cst _          -> true
-  | Fun (id, args) -> Basic_library.is_value_internal_fun v && List.for_all is_const_value args
+  | Fun (_, args) -> Basic_library.is_value_internal_fun v && List.for_all is_const_value args
   | _              -> false
 
 (* Returns the declared stateless status and the computed one. *)
@@ -130,8 +130,8 @@ let get_stateless_status m =
 
 let is_stateless m = m.minstances = [] && m.mmemory = []
 
-let is_input m id =
-  List.exists (fun o -> o.var_id = id.var_id) m.mstep.step_inputs
+(* let is_input m id =
+ *   List.exists (fun o -> o.var_id = id.var_id) m.mstep.step_inputs *)
 
 let is_output m id =
   List.exists (fun o -> o.var_id = id.var_id) m.mstep.step_outputs
@@ -299,7 +299,7 @@ let type_of_value_appl f args =
 let rec value_of_dimension m dim =
   match dim.Dimension.dim_desc with
   | Dimension.Dbool b         ->
-     mk_val (Cst (Const_tag (if b then Corelang.tag_true else Corelang.tag_false))) Type_predef.type_bool
+     mk_val (Cst (Const_tag (if b then tag_true else tag_false))) Type_predef.type_bool
   | Dimension.Dint i          ->
      mk_val (Cst (Const_int i)) Type_predef.type_int
   | Dimension.Dident v        -> value_of_ident dim.Dimension.dim_loc m v
@@ -315,8 +315,8 @@ let rec value_of_dimension m dim =
 
 let rec dimension_of_value value =
   match value.value_desc with
-  | Cst (Const_tag t) when t = Corelang.tag_true  -> Dimension.mkdim_bool  Location.dummy_loc true
-  | Cst (Const_tag t) when t = Corelang.tag_false -> Dimension.mkdim_bool  Location.dummy_loc false
+  | Cst (Const_tag t) when t = tag_true  -> Dimension.mkdim_bool  Location.dummy_loc true
+  | Cst (Const_tag t) when t = tag_false -> Dimension.mkdim_bool  Location.dummy_loc false
   | Cst (Const_int i)                             -> Dimension.mkdim_int   Location.dummy_loc i
   | Var v                                         -> Dimension.mkdim_ident Location.dummy_loc v.var_id
   | Fun (f, args)                                 -> Dimension.mkdim_appl  Location.dummy_loc f (List.map dimension_of_value args)
@@ -336,7 +336,7 @@ and join_guards inst1 insts2 =
  match get_instr_desc inst1, List.map get_instr_desc insts2 with
  | _                   , []                               ->
    [inst1]
- | MBranch (x1, hl1), MBranch (x2, hl2) :: q when x1 = x2 ->
+ | MBranch (x1, hl1), MBranch (x2, hl2) :: _ when x1 = x2 ->
     mkinstr
       (* TODO on pourrait uniquement concatener les lustres de inst1 et hd(inst2) *)
       (MBranch (x1, join_branches (sort_handlers hl1) (sort_handlers hl2)))

@@ -80,7 +80,7 @@ let merge_records records_list =
       nb_boolexpr = r1.nb_boolexpr + r2.nb_boolexpr;
       nb_pre = r1.nb_pre + r2.nb_pre;
 
-      nb_op = OpCount.merge (fun op r1opt r2opt ->
+      nb_op = OpCount.merge (fun _ r1opt r2opt ->
 	match r1opt, r2opt with
 	| None, _ -> r2opt
 	| _, None -> r1opt
@@ -114,7 +114,7 @@ let rec compute_records_expr expr =
       merge_records (
 	({empty_records with nb_pre = 1})
 	::[compute_records_expr e])
-    | Expr_appl (op_id, args, r) -> 
+    | Expr_appl (op_id, args, _) ->
       if List.mem op_id ops then
 	merge_records (
 	  ({empty_records with nb_op = OpCount.singleton op_id 1})
@@ -188,7 +188,7 @@ let rdm_mutate_real r =
     let eshift = 10. ** (float_of_int shift) in
     let i = Random.int (1 + bound * (int_of_float eshift)) in
     let f = float_of_int i /. eshift in
-    (Num.num_of_int i, shift, string_of_float f)
+    Real.create (string_of_int i) shift (string_of_float f)
   else 
     r
 
@@ -224,7 +224,7 @@ let rdm_mutate_pre orig_expr =
 let rdm_mutate_const_value c =
   match c with
   | Const_int i -> Const_int (rdm_mutate_int i)
-  | Const_real (n, i, s) -> let (n', i', s') = rdm_mutate_real (n, i, s) in Const_real (n', i', s')
+  | Const_real r -> Const_real (rdm_mutate_real r)
   | Const_array _
   | Const_string _
   | Const_modeid _
@@ -255,7 +255,7 @@ let select_in_list list rdm_mutate_elem =
 let rec rdm_mutate_expr expr =
   let mk_e d = { expr with expr_desc = d } in
   match expr.expr_desc with
-  | Expr_ident id -> rdm_mutate_var expr
+  | Expr_ident _ -> rdm_mutate_var expr
   | Expr_const c -> 
     let new_const = rdm_mutate_const_value c in 
     let mut = check_mut (mk_cst_expr c) (mk_cst_expr new_const) in
@@ -318,7 +318,7 @@ let rnd_mutate_stmt stmt =
 		     Printers.pp_node_eq eq
 		     Printers.pp_node_eq new_eq);
 		 mut, Eq new_eq 
-  | Aut aut -> assert false
+  | Aut _ -> assert false
 
 let rdm_mutate_node nd = 
   let mutation, new_node_stmts =       
@@ -407,9 +407,9 @@ let print_directive_json fmt d =
   | Pre _ -> Format.fprintf fmt "\"mutation\": \"pre\""
   | Boolexpr _ -> Format.fprintf fmt "\"mutation\": \"not\"" 
   | Op (o, _, d) -> Format.fprintf fmt "\"mutation\": \"op_conv\", \"from\": \"%s\", \"to\": \"%s\"" o d
-  | IncrIntCst n ->  Format.fprintf fmt "\"mutation\": \"cst_incr\""
-  | DecrIntCst n ->  Format.fprintf fmt "\"mutation\": \"cst_decr\""
-  | SwitchIntCst (n, m) ->  Format.fprintf fmt "\"mutation\": \"cst_switch\", \"to_cst\": \"%i\"" m
+  | IncrIntCst _ ->  Format.fprintf fmt "\"mutation\": \"cst_incr\""
+  | DecrIntCst _ ->  Format.fprintf fmt "\"mutation\": \"cst_decr\""
+  | SwitchIntCst (_, m) ->  Format.fprintf fmt "\"mutation\": \"cst_switch\", \"to_cst\": \"%i\"" m
   
 let print_loc_json fmt (n,eqlhs, l) =
   Format.fprintf fmt "\"node_id\": \"%s\", \"eq_lhs\": [%a], \"loc_line\": \"%i\""
@@ -526,7 +526,7 @@ let rec fold_mutate_expr expr =
   current_loc := Some expr.expr_loc;
   let new_expr = 
     match expr.expr_desc with
-    | Expr_ident id -> fold_mutate_var expr
+    | Expr_ident _ -> fold_mutate_var expr
     | _ -> (
       let new_desc = match expr.expr_desc with
 	| Expr_const c -> Expr_const (fold_mutate_const_value c)
@@ -563,7 +563,7 @@ let fold_mutate_eq eq =
 let fold_mutate_stmt stmt =
   match stmt with
   | Eq eq   -> Eq (fold_mutate_eq eq)
-  | Aut aut -> assert false
+  | Aut _ -> assert false
 
 
 let fold_mutate_node nd =
@@ -740,7 +740,7 @@ let fold_mutate nb prog =
   in
   
   let find_next_new mutants mutant =
-    let rec find_next_new init current =
+    let find_next_new init current =
       if init = current || List.mem current mutants then raise Not_found else
 
 	(* TODO: check if we can generate more cases. The following lines were

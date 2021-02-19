@@ -15,8 +15,6 @@ open Machine_code_types
 (*open Dimension*)
 
 
-exception Error of Location.t * Error.error_kind
-
 module VDeclModule =
 struct (* Node module *)
   type t = var_decl
@@ -194,12 +192,14 @@ let mk_contract_var id is_const type_opt expr loc =
     let v = mkvar_decl loc (id, typ, mkclock loc Ckdec_any, is_const, None, None) in
     let eq = mkeq loc ([id], expr) in 
     { empty_contract with locals = [v]; stmts = [Eq eq]; spec_loc = loc; }
-let eexpr_add_name eexpr name =
-  {eexpr with eexpr_name = match name with "" -> None | _ -> Some name}
-let mk_contract_guarantees ?(name="") eexpr =
+
+let eexpr_add_name eexpr eexpr_name =
+  { eexpr with eexpr_name }
+
+let mk_contract_guarantees name eexpr =
   { empty_contract with guarantees = [eexpr_add_name eexpr name]; spec_loc = eexpr.eexpr_loc }
 
-let mk_contract_assume ?(name="") eexpr =
+let mk_contract_assume name eexpr =
   { empty_contract with assume = [eexpr_add_name eexpr name]; spec_loc = eexpr.eexpr_loc }
 
 let mk_contract_mode id rl el loc =
@@ -257,7 +257,7 @@ let update_expr_annot node_id e annot =
   e
 
 
-let mkinstr ?lustre_expr ?lustre_eq i =
+let mkinstr ?lustre_eq i =
   {
     instr_desc = i;
     (* lustre_expr = lustre_expr; *)
@@ -314,16 +314,14 @@ let node_inputs td =
 
 let node_from_name id =
       Hashtbl.find node_table id
-  (* with Not_found -> (Format.eprintf "Unable to find any node named %s@ @?" id;
-   *       	     assert false) *)
-
+      
 let update_node id top =
   Hashtbl.replace node_table id top
 
 let is_imported_node td =
   match td.top_decl_desc with 
-  | Node nd         -> false
-  | ImportedNode nd -> true
+  | Node _         -> false
+  | ImportedNode _ -> true
   | _ -> assert false
 
 let is_node_contract nd =
@@ -404,8 +402,6 @@ let rec coretype_equal ty1 ty2 =
   | _                                  -> false
   in ((*Format.eprintf "coretype_equal %a %a = %B@." Printers.pp_var_type_dec_desc ty1 Printers.pp_var_type_dec_desc ty2 res;*) res)
 
-let tag_true = "true"
-let tag_false = "false"
 let tag_default = "default"
 
 let const_is_bool c =
@@ -537,6 +533,7 @@ let call_of_expr expr =
 (* Conversion from dimension expr to standard expr, for the purpose of printing, typing, etc... *)
 let rec expr_of_dimension dim =
   let open Dimension in
+  let expr =
   match dim.dim_desc with
  | Dbool b        ->
      mkexpr dim.dim_loc (Expr_const (const_of_bool b))
@@ -552,7 +549,12 @@ let rec expr_of_dimension dim =
  | Dvar
  | Dunivar          -> (Format.eprintf "internal error: Corelang.expr_of_dimension %a@." Dimension.pp_dimension dim;
 			assert false)
-
+  in
+  { expr
+  with
+    expr_type = Types.new_ty Types.type_int;
+  }
+  
 let dimension_of_const loc const =
   let open Dimension in
  match const with
@@ -579,17 +581,11 @@ let rec dimension_of_expr expr =
 let sort_handlers hl =
  List.sort (fun (t, _) (t', _) -> compare t t') hl
 
-let num_10 = Num.num_of_int 10
-
-let cst_real_to_num n i =
-  Num.(n // (num_10 **/ (num_of_int i)))
-
+  
 let rec is_eq_const c1 c2 =
   match c1, c2 with
-  | Const_real (n1, i1, _), Const_real (n2, i2, _)
-    -> let n1 = cst_real_to_num n1 i1 in
-       let n2 = cst_real_to_num n2 i2 in
-	    Num.eq_num n1 n2
+  | Const_real r1, Const_real _
+    -> Real.eq r1 r1 
   | Const_struct lcl1, Const_struct lcl2
     -> List.length lcl1 = List.length lcl2
     && List.for_all2 (fun (l1, c1) (l2, c2) -> l1 = l2 && is_eq_const c1 c2) lcl1 lcl2
@@ -656,7 +652,7 @@ let get_node_eqs =
       end)
 
 let get_node_eq id node =
-  let eqs, auts = get_node_eqs node in
+  let eqs, _ = get_node_eqs node in
   try
     List.find (fun eq -> List.mem id eq.eq_lhs) eqs
   with
@@ -763,7 +759,7 @@ let rec rename_static rename cty =
  | Tydec_struct fl       -> Tydec_struct (List.map (fun (f, cty) -> f, rename_static rename cty) fl)
  | _                      -> cty
 
-let rec rename_carrier rename cck =
+let rename_carrier rename cck =
  match cck with
  | Ckdec_bool cl -> Ckdec_bool (List.map (fun (c, l) -> rename c, l) cl)
  | _             -> cck
@@ -813,14 +809,14 @@ let rec rename_carrier rename cck =
    | Expr_appl (i, e', i') -> 
      Expr_appl (f_node i, re e', Utils.option_map re i')
    
- let rename_var f_node f_var v = {
+ let rename_var f_var v = {
      (copy_var_decl v) with
      var_id = f_var v.var_id;
      var_type = v.var_type;
      var_clock = v.var_clock;
  } 
 
- let rename_vars f_node f_var = List.map (rename_var f_node f_var) 
+ let rename_vars f_var = List.map (rename_var f_var)
 
  let rec rename_eq f_node f_var eq = { eq with
    eq_lhs = List.map f_var eq.eq_lhs; 
@@ -834,7 +830,7 @@ let rec rename_carrier rename cck =
    hand_until = List.map (
      fun (l,e,b,id) -> l, rename_expr f_node f_var e, b, f_var id
    ) h.hand_until;
-   hand_locals = rename_vars f_node f_var h.hand_locals;
+   hand_locals = rename_vars f_var h.hand_locals;
    hand_stmts = rename_stmts f_node f_var h.hand_stmts;
    hand_annots = rename_annots f_node f_var h.hand_annots;
    
@@ -859,7 +855,7 @@ and rename_eexpr f_node f_var ee =
    { ee with
      eexpr_tag = Utils.new_tag ();
      eexpr_qfexpr = rename_expr f_node f_var ee.eexpr_qfexpr;
-     eexpr_quantifiers = List.map (fun (typ,vdecls) -> typ, rename_vars f_node f_var vdecls) ee.eexpr_quantifiers;
+     eexpr_quantifiers = List.map (fun (typ,vdecls) -> typ, rename_vars f_var vdecls) ee.eexpr_quantifiers;
    }
 and rename_mode f_node f_var m =
   let rename_ee = rename_eexpr f_node f_var in
@@ -885,7 +881,7 @@ and rename_mode f_node f_var m =
      else
        x
    in
-   let rename_var = rename_var f_node f_var in
+   let rename_var = rename_var f_var in
    let rename_vars = List.map rename_var in
    let rename_expr = rename_expr f_node f_var in
    let rename_eexpr = rename_eexpr f_node f_var in
@@ -1110,7 +1106,7 @@ let rec substitute_expr vars_to_replace defs e =
 
   }
   
- let rec expr_to_eexpr  expr =
+ let expr_to_eexpr  expr =
    { eexpr_tag = expr.expr_tag;
      eexpr_qfexpr = expr;
      eexpr_quantifiers = [];
@@ -1165,7 +1161,7 @@ let rec get_expr_calls nodes e =
    | Expr_arrow (e1, e2) 
    | Expr_fby (e1, e2) -> Utils.ISet.union (get_calls e1) (get_calls e2)
    | Expr_merge (_, hl) -> List.fold_left (fun accu (_, h) -> Utils.ISet.union accu (get_calls h)) Utils.ISet.empty  hl
-   | Expr_appl (i, e', i') -> 
+   | Expr_appl (i, e', _) ->
      if Basic_library.is_expr_internal_fun e then 
        (get_calls e') 
      else
@@ -1222,30 +1218,30 @@ let get_expr_vars e =
   in
   get_expr_vars Utils.ISet.empty e 
 
-let rec expr_has_arrows e =
-  expr_desc_has_arrows e.expr_desc
-and expr_desc_has_arrows expr_desc =
-  match expr_desc with
-  | Expr_const _ 
-  | Expr_ident _ -> false
-  | Expr_tuple el
-  | Expr_array el -> List.exists expr_has_arrows el
-  | Expr_pre e1 
-  | Expr_when (e1, _, _) 
-  | Expr_access (e1, _) 
-  | Expr_power (e1, _) -> expr_has_arrows e1
-  | Expr_ite (c, t, e) -> List.exists expr_has_arrows [c; t; e]
-  | Expr_arrow (e1, e2) 
-  | Expr_fby (e1, e2) -> true
-  | Expr_merge (_, hl) -> List.exists (fun (_, h) -> expr_has_arrows h) hl
-  | Expr_appl (i, e', i') -> expr_has_arrows e'
-
-and eq_has_arrows eq =
-  expr_has_arrows eq.eq_rhs
-and aut_has_arrows aut = List.exists (fun h -> List.exists (fun stmt -> match stmt with Eq eq -> eq_has_arrows eq | Aut aut' -> aut_has_arrows aut') h.hand_stmts ) aut.aut_handlers 
-and node_has_arrows node =
-  let eqs, auts = get_node_eqs node in
-  List.exists (fun eq -> eq_has_arrows eq) eqs || List.exists (fun aut -> aut_has_arrows aut) auts
+(* let rec expr_has_arrows e =
+ *   expr_desc_has_arrows e.expr_desc
+ * and expr_desc_has_arrows expr_desc =
+ *   match expr_desc with
+ *   | Expr_const _
+ *   | Expr_ident _ -> false
+ *   | Expr_tuple el
+ *   | Expr_array el -> List.exists expr_has_arrows el
+ *   | Expr_pre e1
+ *   | Expr_when (e1, _, _)
+ *   | Expr_access (e1, _)
+ *   | Expr_power (e1, _) -> expr_has_arrows e1
+ *   | Expr_ite (c, t, e) -> List.exists expr_has_arrows [c; t; e]
+ *   | Expr_arrow _
+ *   | Expr_fby _ -> true
+ *   | Expr_merge (_, hl) -> List.exists (fun (_, h) -> expr_has_arrows h) hl
+ *   | Expr_appl (_, e', _) -> expr_has_arrows e'
+ *
+ * and eq_has_arrows eq =
+ *   expr_has_arrows eq.eq_rhs
+ * and aut_has_arrows aut = List.exists (fun h -> List.exists (fun stmt -> match stmt with Eq eq -> eq_has_arrows eq | Aut aut' -> aut_has_arrows aut') h.hand_stmts ) aut.aut_handlers
+ * and node_has_arrows node =
+ *   let eqs, auts = get_node_eqs node in
+ *   List.exists (fun eq -> eq_has_arrows eq) eqs || List.exists (fun aut -> aut_has_arrows aut) auts *)
 
 
 
@@ -1335,7 +1331,16 @@ let get_node name prog =
 let rec push_negations ?(neg=false) e =
   let res =
     let pn = push_negations in
-    let map desc = mkexpr e.expr_loc desc in
+    let map desc =
+      (* Keeping clock and type info *)
+      let new_e = mkexpr e.expr_loc desc in
+      {
+        new_e
+      with
+        expr_type = e.expr_type;
+        expr_clock = e.expr_clock
+      }
+    in
     match e.expr_desc with
     | Expr_ite (g,t,e) ->
        if neg then
@@ -1369,12 +1374,13 @@ let rec push_negations ?(neg=false) e =
              
       | _ -> assert false                     
     )
-    | Expr_const _
-      | Expr_ident _ -> if neg then
+    | Expr_const c -> if neg then map (Expr_const (const_negation c)) else e
+    | Expr_ident _ -> 
+       if neg then
                          mkpredef_call e.expr_loc "not" [e]
                        else
                          e
-    | Expr_appl (op,_,_) -> 
+    | Expr_appl _ ->
        if neg then
          mkpredef_call e.expr_loc "not" [e]
        else
@@ -1407,13 +1413,58 @@ let rec add_pre_expr vars e =
          e.expr_desc
     | _ -> assert false (* no array, array access, power or merge/when yet *)
   in
-  mkexpr e.expr_loc desc
+  let new_e = mkexpr e.expr_loc desc in
+  { new_e with
+    expr_type = e.expr_type;
+    expr_clock = e.expr_clock
+  }
 
 
         
 let mk_eq l e1 e2 =
   mkpredef_call l "=" [e1; e2]
-      
+
+
+let rec partial_eval e =
+  let pa = partial_eval in
+  let edesc =
+    match e.expr_desc with
+    | Expr_const _ -> e.expr_desc 
+    | Expr_ident _ -> e.expr_desc
+    | Expr_ite (g,t,e) -> (
+       let g, t, e = pa g, pa t, pa e in
+       match g.expr_desc with
+       | Expr_const (Const_tag tag) when (tag = tag_true) -> t.expr_desc
+       | Expr_const (Const_tag tag) when (tag = tag_false) -> e.expr_desc
+       | _ -> Expr_ite (g, t, e)
+    )
+    | Expr_tuple t ->
+       Expr_tuple (List.map pa t)
+    | Expr_arrow (e1, e2) ->
+       Expr_arrow (pa e1, pa e2) 
+    | Expr_fby (e1, e2) ->
+       Expr_fby (pa e1, pa e2)
+    | Expr_pre e ->
+       Expr_pre (pa e)
+    | Expr_appl (op, args, opt) ->
+       let args = pa args in
+       if Basic_library.is_expr_internal_fun e then
+         Basic_library.partial_eval op args opt
+       else
+         Expr_appl (op, args, opt)
+    | Expr_array el ->
+       Expr_array (List.map pa el)
+    | Expr_access (e, d) ->
+       Expr_access (pa e, d)
+    | Expr_power (e, d) ->
+       Expr_power (pa e, d)
+    | Expr_when (e, id, l) ->
+       Expr_when (pa e, id, l)
+    | Expr_merge (id, gl) -> 
+       Expr_merge(id, List.map (fun (l, e) -> l, pa e) gl)
+  in
+  { e with expr_desc = edesc }
+
     (* Local Variables: *)
     (* compile-command:"make -C .." *)
     (* End: *)

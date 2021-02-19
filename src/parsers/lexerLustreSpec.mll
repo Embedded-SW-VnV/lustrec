@@ -41,7 +41,7 @@ let keyword_table =
   "returns", RETURNS;
   "var", VAR;
   "import", IMPORT;
-  "imported", IMPORTED;
+  (* "imported", IMPORTED; *)
   "int", TINT;
   "bool", TBOOL;
   (* "float", TFLOAT; *)
@@ -82,17 +82,17 @@ rule token = parse
   | "(*"
       { comment_line 0 lexbuf }
   | "--" notnewline* (newline|eof)
-      { incr_line lexbuf;
+      { Lexing.new_line lexbuf;
       token lexbuf }
   | newline
-      { incr_line lexbuf;
+      { Lexing.new_line lexbuf;
 	token lexbuf }
   | blank +
       {token lexbuf}
   | (('-'? ['0'-'9'] ['0'-'9']* as l) '.' (['0'-'9']* as r)) as s
-      {REAL (Num.num_of_string (l^r), String.length r, s)}
+      {REAL (Real.create (l^r) (String.length r) s)}
   | (('-'? ['0'-'9']+ as l)  '.' (['0'-'9']+ as r) ('E'|'e') (('+'|'-') ['0'-'9'] ['0'-'9']* as exp)) as s
-      {REAL (Num.num_of_string (l^r), String.length r + -1 * int_of_string exp, s)}
+      {REAL (Real.create (l^r) (String.length r + -1 * int_of_string exp) s)}
   | '-'? ['0'-'9']+ 
       {INT (int_of_string (Lexing.lexeme lexbuf)) }
  (* | '/' (['_' 'A'-'Z' 'a'-'z'] ['A'-'Z' 'a'-'z' '_' '0'-'9']* '/')+ as s
@@ -141,7 +141,7 @@ and comment_line n = parse
 | "*)"
     { if n > 0 then comment_line (n-1) lexbuf else token lexbuf }
 | newline
-    { incr_line lexbuf;
+    { Lexing.new_line lexbuf;
       comment_line n lexbuf }
 | _ { comment_line n lexbuf }
 and string_parse = parse

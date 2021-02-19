@@ -1,7 +1,5 @@
 open Lustre_types
 open Machine_code_types
-open Corelang
-open Machine_code
 open Format
 open C_backend_common
 open Utils
@@ -31,7 +29,7 @@ let fsm_name   node = node ^ "FSM"
 (*                       Hearder                      *)
 (* -------------------------------------------------- *)
 
-let print_mauve_header fmt mauve_machine basename prog machines _ (*dependencies*) =
+let print_mauve_header fmt basename =
   fprintf fmt "#include \"mauve/runtime.hpp\"@.";
   print_import_alloc_prototype fmt {local=true; name=basename; content=[]; is_stateful=true} (* assuming it is stateful*) ;
   pp_print_newline fmt ();
@@ -65,7 +63,7 @@ let print_mauve_default fmt mauve_machine v =
   if not !found then fprintf fmt "%s" (mauve_default_value v)
 
 
-let print_mauve_shell fmt mauve_machine basename prog machines _ (*dependencies*) =
+let print_mauve_shell fmt mauve_machine =
   let node_name = mauve_machine.mname.node_id in
   
   fprintf fmt "/*@.";
@@ -116,7 +114,7 @@ let print_mauve_step fmt node_name mauve_machine =
 (*                       Core                      *)
 (* -------------------------------------------------- *)
 
-let print_mauve_core fmt mauve_machine basename prog machines _ (*dependencies*) =
+let print_mauve_core fmt mauve_machine =
   let node_name = mauve_machine.mname.node_id in
 
   fprintf fmt "/*@.";
@@ -196,7 +194,7 @@ let print_mauve_period fmt mauve_machine =
   if not !found then fprintf fmt "0"
 
 
-let print_mauve_fsm fmt mauve_machine basename prog machines _ (*dependencies*) =
+let print_mauve_fsm fmt mauve_machine =
   let node_name = mauve_machine.mname.node_id in
 
   fprintf fmt "/*@.";

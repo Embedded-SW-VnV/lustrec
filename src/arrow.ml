@@ -23,7 +23,7 @@ let arrow_desc =
     node_iscontract = false;
 }
 
-let arrow_top_decl =
+let arrow_top_decl () =
   {
     top_decl_desc = Node arrow_desc;
     top_decl_owner = (Options_management.core_dependency "arrow");

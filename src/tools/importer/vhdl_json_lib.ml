@@ -1,4 +1,3 @@
-open Yojson.Safe
 open Yojson.Safe.Util
 
 let rec assoc_map_except_str l f str =
@@ -40,7 +39,7 @@ let rec name_pair_list_to_string l =
       (name_pair_list_to_string tl)
   | _ -> []
 
-let rec assoc_filter_string l str =
+let assoc_filter_string l =
   match l with
   | `Assoc (x) -> name_pair_list_to_string x
   | _ -> []
@@ -59,12 +58,12 @@ let rec pairlist_remove str l f =
 (******************)
 let rec assoc_elem_fst pair_list = 
   match pair_list with 
-  | (t,j)::tl -> t::(assoc_elem_fst tl)
+  | (t, _)::tl -> t::(assoc_elem_fst tl)
   | [] -> []
 
 let rec assoc_elem_snd pair_list = 
   match pair_list with 
-  | (t,j)::tl -> j::(assoc_elem_snd tl) 
+  | (_, j)::tl -> j::(assoc_elem_snd tl)
   | [] -> []
 
 let rec assoc_elem_filter pair_list str = 
@@ -88,7 +87,7 @@ let rec assoc_elem_filter_snd pair_list str =
                   else assoc_elem_filter_snd tl str
   | [] -> []
 
-let rec assoc_elem_filternot_snd pair_list str = 
+let assoc_elem_filternot_snd pair_list str =
   match pair_list with 
   | (t,j)::tl -> if (not (String.equal t str)) then 
                     j::(assoc_elem_filter_snd tl str) 
@@ -119,7 +118,7 @@ let vhdl_json_designunits_content_as_list json =
   let designunits_contents = json |> member "DESIGN_FILE" |> all_members "DESIGN_UNIT" in
   `List designunits_contents
 
-let vhdl_json_designfile_content_excluding json str =
+let vhdl_json_designfile_content_excluding json =
   json |> member "DESIGN_FILE" |> retain_other_members "DESIGN_UNIT" 
 
 let vhdl_json_list_designunits json =
@@ -128,7 +127,7 @@ let vhdl_json_list_designunits json =
 
 let rec pairlist_contains_str str l =
   match l with
-  | (t,j)::tl -> if (String.equal t str) then true else pairlist_contains_str str tl
+  | (t, _)::tl -> if (String.equal t str) then true else pairlist_contains_str str tl
   | [] -> false
 
 (*
@@ -187,8 +186,8 @@ let rec to_list_content_str str json =
 
 let rec prune_null_assoc json =
   match json with
-  | `Assoc ((t, `Assoc([]))::tl) -> prune_null_assoc (`Assoc tl)
-  | `Assoc ((t, `Null)::tl) -> prune_null_assoc (`Assoc tl)
+  | `Assoc ((_, `Assoc([]))::tl) -> prune_null_assoc (`Assoc tl)
+  | `Assoc ((_, `Null)::tl) -> prune_null_assoc (`Assoc tl)
   | `Assoc ((t, j)::tl) -> `Assoc ((t, (prune_null_assoc j))::(map_snd prune_null_assoc tl))
   | `List (`Null::[]) -> `Null
   | `List (l) -> `List (List.map prune_null_assoc l)

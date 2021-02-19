@@ -2,7 +2,6 @@ open Format
 
 open Machine_code_types
 open Lustre_types
-open Corelang
 open Machine_code_common
 
 open Ada_printer
@@ -16,27 +15,33 @@ exception Ada_not_supported of string
    @param fmt the formater to print on
 **)
 let pp_state_name fmt = fprintf fmt "state"
+
 (** Print the type of the state variable.
    @param fmt the formater to print on
 **)
 let pp_state_type fmt = fprintf fmt "TState"
-(** Print the name of the reset procedure
+
+ (** Print the name of the reset procedure
    @param fmt the formater to print on
 **)
 let pp_reset_procedure_name fmt = fprintf fmt "reset"
-(** Print the name of the step procedure
+
+ (** Print the name of the step procedure
    @param fmt the formater to print on
 **)
 let pp_step_procedure_name fmt = fprintf fmt "step"
-(** Print the name of the main procedure.
+
+ (** Print the name of the main procedure.
    @param fmt the formater to print on
 **)
 let pp_main_procedure_name fmt = fprintf fmt "ada_main"
-(** Print the name of the arrow package.
+
+ (** Print the name of the arrow package.
    @param fmt the formater to print on
 **)
 let pp_arrow_package_name fmt = fprintf fmt "Arrow"
-(** Print the type of a polymorphic type.
+
+ (** Print the type of a polymorphic type.
    @param fmt the formater to print on
    @param id the id of the polymorphic type
 **)
@@ -124,7 +129,7 @@ let pp_type fmt typ =
 **)
 let default_ada_cst cst_typ = match cst_typ with
   | Types.Basic.Tint  -> Const_int 0
-  | Types.Basic.Treal -> Const_real (Num.num_of_int 0, 0, "0.0")
+  | Types.Basic.Treal -> Const_real Real.zero
   | Types.Basic.Tbool -> Const_tag tag_false
   | _ -> assert false
 
@@ -200,8 +205,7 @@ let pp_ada_tag fmt t =
 let pp_ada_const fmt c =
   match c with
   | Const_int i                     -> pp_print_int fmt i
-  | Const_real (c, e, s)            ->
-      fprintf fmt "%s.0*1.0e-%i" (Num.string_of_num c) e
+  | Const_real r                    -> Real.pp_ada fmt r
   | Const_tag t                     -> pp_ada_tag fmt t
   | Const_string _ | Const_modeid _ ->
     (Format.eprintf
@@ -283,7 +287,7 @@ let pp_basic_lib_fun pp_value ident fmt vl =
     Format.fprintf fmt "(if %a then %a else %a)" pp_value v1 pp_value v2 pp_value v3
   | op, [v1; v2]     ->
     Format.fprintf fmt "(%a %s %a)" pp_value v1 op pp_value v2
-  | op, [v1] when  List.mem_assoc ident ada_supported_funs ->
+  | _, [v1] when  List.mem_assoc ident ada_supported_funs ->
     let pkg, name = try List.assoc ident ada_supported_funs
       with Not_found -> assert false in
     let pkg = pkg^(if String.equal pkg "" then "" else ".") in
@@ -369,8 +373,7 @@ let build_pp_arg_reset m =
     @ (build_pp_var_decl_static AdaIn None m)
 
 
-let build_pp_arg_transition m =
-  (if is_machine_statefull m then [[build_pp_state_decl AdaInOut None]] else [])
-    @ (build_pp_var_decl_step_input AdaIn None m)
-    @ (build_pp_var_decl_step_output AdaOut None m)
-
+(* let build_pp_arg_transition m =
+ *   (if is_machine_statefull m then [[build_pp_state_decl AdaInOut None]] else [])
+ *     @ (build_pp_var_decl_step_input AdaIn None m)
+ *     @ (build_pp_var_decl_step_output AdaOut None m) *)

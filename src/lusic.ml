@@ -12,7 +12,6 @@
 
 open Format 
 open Lustre_types
-open Corelang
 
 (********************************************************************************************)
 (*                      Lusic to/from Header Printing functions                             *)
@@ -33,18 +32,20 @@ let extract_header dirname basename prog =
   let owner = dirname ^ "/" ^ basename in
   List.fold_right
     (fun decl header ->
-      (*Format.eprintf "Lusic.extract_header: header = %B, owner = %s, decl_owner = %s@." decl.top_decl_itf owner decl.top_decl_owner;*)
-      if decl.top_decl_itf || decl.top_decl_owner <> owner then header else
-	match decl.top_decl_desc with
-	| Node nd        -> { decl with top_decl_desc = ImportedNode (Corelang.get_node_interface nd) } :: header 
-	| ImportedNode _ -> header
-	| Const _
-	| TypeDef _
-	| Include _ | Open _         -> decl :: header)
+       (* Format.eprintf "Lusic.extract_header: header = %B, owner = %s, decl_owner = %s@."
+        *   decl.top_decl_itf owner decl.top_decl_owner; *)
+       if decl.top_decl_itf || decl.top_decl_owner <> owner then header
+       else match decl.top_decl_desc with
+         | Node nd ->
+           { decl with top_decl_desc =
+                         ImportedNode (Corelang.get_node_interface nd) }
+           :: header
+         | ImportedNode _ -> header
+         | Const _ | TypeDef _ | Include _ | Open _  -> decl :: header)
     prog []
 
 let check_obsolete lusic basename =
-  if lusic.obsolete then raise (Error (Location.dummy_loc, Error.Wrong_number basename))
+  if lusic.obsolete then raise (Error.Error (Location.dummy_loc, Error.Wrong_number basename))
 
 (* encode and write a header in a file *)
 let write_lusic lusi (header : top_decl list) basename extension =
@@ -83,18 +84,16 @@ let read_lusic basename extension =
       }
     end
 
-let print_lusic_to_h basename extension =
-  let lusic = read_lusic basename extension in
-  let header_name = basename ^ ".h" in
-  let h_out = open_out header_name in
-  let h_fmt = formatter_of_out_channel h_out in
-  begin
-    assert (not lusic.obsolete);
-    (*Format.eprintf "lusic to h: %i items.@." (List.length lusic.contents);*)
-    Typing.uneval_prog_generics lusic.contents;
-    Clock_calculus.uneval_prog_generics lusic.contents;
-    Header.print_header_from_header h_fmt (Filename.basename basename) lusic.contents;
-    close_out h_out
-  end
-
-
+(* let print_lusic_to_h basename extension =
+ *   let lusic = read_lusic basename extension in
+ *   let header_name = basename ^ ".h" in
+ *   let h_out = open_out header_name in
+ *   let h_fmt = formatter_of_out_channel h_out in
+ *   begin
+ *     assert (not lusic.obsolete);
+ *     (\*Format.eprintf "lusic to h: %i items.@." (List.length lusic.contents);*\)
+ *     Typing.uneval_prog_generics lusic.contents;
+ *     Clock_calculus.uneval_prog_generics lusic.contents;
+ *     Header.print_header_from_header h_fmt (Filename.basename basename) lusic.contents;
+ *     close_out h_out
+ *   end *)

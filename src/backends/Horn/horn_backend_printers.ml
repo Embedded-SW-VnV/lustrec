@@ -27,7 +27,7 @@ open Horn_backend_common
 (*                    Instruction Printing functions                                        *)
 (********************************************************************************************)
 
-let pp_horn_var m fmt id =
+let pp_horn_var _ fmt id =
   (*if Types.is_array_type id.var_type
   then
     assert false (* no arrays in Horn output *)
@@ -39,10 +39,10 @@ let pp_horn_tag fmt t =
   pp_print_string fmt (if t = tag_true then "true" else if t = tag_false then "false" else t)
     
 (* Prints a constant value *)
-let rec pp_horn_const fmt c =
+let pp_horn_const fmt c =
   match c with
     | Const_int i    -> pp_print_int fmt i
-    | Const_real (_,_,s)   -> pp_print_string fmt s
+    | Const_real r   -> Real.pp fmt r
     | Const_tag t    -> pp_horn_tag fmt t
     | _              -> assert false
 
@@ -56,13 +56,13 @@ let rec pp_default_val fmt t =
   if Types.is_int_type t then fprintf fmt "0" else 
   if Types.is_real_type t then fprintf fmt "0" else 
   match (Types.dynamic_type t).Types.tdesc with
-  | Types.Tarray(dim, l) -> (* TODO PL: this strange code has to be (heavily) checked *)
+  | Types.Tarray _ -> (* TODO PL: this strange code has to be (heavily) checked *)
      let valt = Types.array_element_type t in
      fprintf fmt "((as const (Array Int %a)) %a)"
        pp_type valt 
        pp_default_val valt
-  | Types.Tstruct(l) -> assert false
-  | Types.Ttuple(l) -> assert false
+  | Types.Tstruct _ -> assert false
+  | Types.Ttuple _ -> assert false
   |_ -> assert false
 
 let pp_mod pp_val v1 v2 fmt =
@@ -153,7 +153,7 @@ let rec pp_horn_val ?(is_lhs=false) m self pp_var fmt v =
 
   (* Code specific for arrays *)
     
-  | Power (v, n)  -> assert false
+  | Power _ -> assert false
   | Var v    ->
      if is_memory m v then
        if Types.is_array_type v.var_type
@@ -267,7 +267,7 @@ let pp_instance_call machines reset_instances m fmt i inputs outputs =
 	fprintf fmt ")@]"
       end
 
-      | node_name_n -> begin
+      | _ -> begin
 	fprintf fmt "(%a @[<v 0>%a%t%a%t%a)@]"
 	  pp_machine_step_name (node_name n)
 	  (Utils.fprintf_list ~sep:"@ " (pp_horn_val m self (pp_horn_var m))) inputs
@@ -311,7 +311,7 @@ let rec pp_machine_instr machines reset_instances (m: machine_t) fmt instr : ide
       m (pp_horn_var m) fmt
       (mk_val (Var i) i.var_type) v;
     reset_instances
-  | MStep ([i0], i, vl) when Basic_library.is_internal_fun i (List.map (fun v -> v.value_type) vl) ->
+  | MStep ([_], i, vl) when Basic_library.is_internal_fun i (List.map (fun v -> v.value_type) vl) ->
     assert false (* This should not happen anymore *)
   | MStep (il, i, vl) ->
     (* if reset instance, just print the call over mem_m , otherwise declare mem_m =
@@ -366,7 +366,7 @@ and pp_machine_instrs machines reset_instances m fmt instrs =
   | [] -> fprintf fmt "true"; reset_instances
 
 let pp_machine_reset machines fmt m =
-  let locals = local_memory_vars machines m in
+  let locals = local_memory_vars m in
   fprintf fmt "@[<v 5>(and @ ";
 
   (* print "x_m = x_c" for each local memory *)
@@ -418,7 +418,7 @@ let print_machine machines fmt m =
       (* Printing variables *)
       Utils.fprintf_list ~sep:"@." pp_decl_var fmt
 	(
-	  (inout_vars machines m)@
+	  (inout_vars m)@
 	    (rename_current_list (full_memory_vars machines m)) @
 	    (rename_mid_list (full_memory_vars machines m)) @
 	    (rename_next_list (full_memory_vars machines m)) @
@@ -432,7 +432,7 @@ let print_machine machines fmt m =
 	  fprintf fmt "(declare-rel %a (%a))@."
 	    pp_machine_stateless_name m.mname.node_id
 	    (Utils.fprintf_list ~sep:" " pp_type)
-	    (List.map (fun v -> v.var_type) (inout_vars machines m));
+	    (List.map (fun v -> v.var_type) (inout_vars m));
 
           match m.mstep.step_asserts with
 	  | [] ->
@@ -444,7 +444,7 @@ let print_machine machines fmt m =
 	       ignore (pp_machine_instrs machines ([] (* No reset info for stateless nodes *) )  m fmt m.mstep.step_instrs);
 	       fprintf fmt "@ (%a @[<v 0>%a)@]@]@.))@.@."
 		 pp_machine_stateless_name m.mname.node_id
-		 (Utils.fprintf_list ~sep:" " (pp_horn_var m)) (inout_vars machines m);
+		 (Utils.fprintf_list ~sep:" " (pp_horn_var m)) (inout_vars m);
 	     end
 	  | assertsl ->
 	     begin
@@ -518,7 +518,7 @@ let mk_flags arity =
      if i > arity then [] else i :: (range (i+1) j) in
    range 2 arity;
  in
- List.fold_left (fun acc x -> acc ^ " false") "true" b_range
+ List.fold_left (fun acc _ -> acc ^ " false") "true" b_range
 
 
   (*Get sfunction infos from command line*)
@@ -555,7 +555,7 @@ let get_sf_info() =
                              ((step_vars machines m)@
     	                        (rename_machine_list m.mname.node_id m.mstep.step_locals));
           Format.pp_print_newline fmt ();
-          let sf_name, flags, arity = get_sf_info() in
+          let sf_name, flags, _ = get_sf_info() in
 
        if is_stateless m then
          begin
@@ -579,7 +579,7 @@ let get_sf_info() =
            Format.fprintf fmt "(declare-rel %a (%a))@."
     	                  pp_machine_reset_name m.mname.node_id
     	                  (Utils.fprintf_list ~sep:" " pp_type)
-    	                  (List.map (fun v -> v.var_type) (inout_vars machines m));
+    	                  (List.map (fun v -> v.var_type) (inout_vars m));
 
            Format.fprintf fmt "(declare-rel %a (%a))@."
     	                  pp_machine_step_name m.mname.node_id

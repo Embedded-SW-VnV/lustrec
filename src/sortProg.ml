@@ -10,7 +10,6 @@
 (********************************************************************)
 
 open Lustre_types
-open Corelang
 open Utils
    
 let get_node nid prog =

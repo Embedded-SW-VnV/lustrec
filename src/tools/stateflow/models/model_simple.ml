@@ -4,7 +4,7 @@ open SF
 
 let name = "simple"
 
-let condition x = condition {
+let condition _ = condition {
   expr = Corelang.mkexpr Location.dummy_loc (Lustre_types.Expr_const (Corelang.const_of_bool true));
   cinputs = [];
   coutputs = [];

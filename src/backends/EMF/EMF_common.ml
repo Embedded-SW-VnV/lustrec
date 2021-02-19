@@ -13,7 +13,7 @@ let rec get_idx x l =
 
 let rec get_expr_vars v =
   match v.value_desc with
-  | Cst c -> VSet.empty
+  | Cst _ -> VSet.empty
   | Var v -> VSet.singleton v
   | Fun (_, args) -> List.fold_left (fun accu v -> VSet.union accu (get_expr_vars v)) VSet.empty args
   | _ -> assert false (* Invalid argument *)
@@ -210,7 +210,7 @@ let pp_var_type fmt v =
     
 (******** Other print functions *)
 
-let pp_emf_list ?(eol:('a, formatter, unit) Pervasives.format="") pp fmt l =
+let pp_emf_list ?(eol:('a, formatter, unit) Stdlib.format="") pp fmt l =
   match l with
     [] -> ()
   | _ -> fprintf fmt "@[";
@@ -301,17 +301,17 @@ let rec pp_emf_cst_or_var m fmt v =
     fprintf fmt "@]}"
   )
   | Array vl -> (
-     fprintf fmt "{@[\"type\": \"array\",@ \"value\": @[[%a@]],@ "
+     fprintf fmt "{@[\"type\": \"array\",@ \"value\": @[[%a@]]@ "
       (pp_emf_cst_or_var_list m) vl;
      fprintf fmt "@]}"
   )
   | Access (arr, idx) -> (
-      fprintf fmt "{@[\"type\": \"array access\",@ \"array\": @[[%a@]],@ \"idx\": @[[%a@]],@ "
+      fprintf fmt "{@[\"type\": \"array access\",@ \"array\": @[[%a@]],@ \"idx\": @[[%a@]]@ "
       (pp_emf_cst_or_var m) arr (pp_emf_cst_or_var m) idx;
      fprintf fmt "@]}"
   )
   | Power (v,nb) ->(
-      fprintf fmt "{@[\"type\": \"power\",@ \"expr\": @[[%a@]],@ \"nb\": @[[%a@]],@ "
+      fprintf fmt "{@[\"type\": \"power\",@ \"expr\": @[[%a@]],@ \"nb\": @[[%a@]]@ "
       (pp_emf_cst_or_var m) v (pp_emf_cst_or_var m) nb;
      fprintf fmt "@]}"
   )

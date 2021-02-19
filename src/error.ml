@@ -1,5 +1,6 @@
 open Format
 
+
 type ident = Lustre_types.ident
 type error_kind =
     Main_not_found
@@ -11,6 +12,7 @@ type error_kind =
   | Wrong_number of ident
   | AlgebraicLoop
   | LoadError of string
+exception Error of Location.t * error_kind
 
 let return_code kind =
   match kind with
@@ -63,8 +65,9 @@ let pp_warning loc pp_msg =
     pp_msg
 
 let pp_error loc pp_msg =
-  Format.eprintf "@.%a@.Error: @[<v 0>%t@]@."
+  Format.eprintf "@.%a@.Error: @[<v 0>%t@]@.@?"
     Location.pp_loc loc
     pp_msg
+    
 
     

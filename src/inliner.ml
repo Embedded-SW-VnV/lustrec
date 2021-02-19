@@ -19,7 +19,7 @@ let keyword = ["inlining"]
 let is_inline_expr expr = 
 match expr.expr_annot with
 | Some ann -> 
-  List.exists (fun (key, value) -> key = keyword) ann.annots
+  List.exists (fun (key, _) -> key = keyword) ann.annots
 | None -> false
 
 let check_node_name id = (fun t -> 
@@ -106,6 +106,7 @@ the resulting expression is tuple_of_renamed_outputs
    
 TODO: convert the specification/annotation/assert and inject them
 *)
+
 (** [inline_call node loc uid args reset locals caller] returns a tuple (expr,
     locals, eqs, asserts)    
 *)
@@ -118,9 +119,9 @@ let inline_call node loc uid args reset locals caller =
   let eqs' = List.map (rename_eq (fun x -> x) rename) eqs in
   let auts' = List.map (rename_aut (fun x -> x) rename) auts in
   let input_arg_list = List.combine node.node_inputs (Corelang.expr_list_of_expr args) in
-  let static_inputs, dynamic_inputs = List.partition (fun (vdecl, arg) -> vdecl.var_dec_const) input_arg_list in
+  let static_inputs, dynamic_inputs = List.partition (fun (vdecl, _) -> vdecl.var_dec_const) input_arg_list in
   let static_inputs = List.map (fun (vdecl, arg) -> vdecl, Corelang.dimension_of_expr arg) static_inputs in
-  let carrier_inputs, other_inputs = List.partition (fun (vdecl, arg) -> Corelang.is_clock_dec_type vdecl.var_dec_type.ty_dec_desc) dynamic_inputs in
+  let carrier_inputs, _ = List.partition (fun (vdecl, _) -> Corelang.is_clock_dec_type vdecl.var_dec_type.ty_dec_desc) dynamic_inputs in
   let carrier_inputs = List.map (fun (vdecl, arg) -> vdecl, Corelang.ident_of_expr arg) carrier_inputs in
   let rename_static v =
     try
@@ -330,7 +331,7 @@ let inline_all_calls node nodes =
 
 
 
-let witness filename main_name orig inlined type_env clock_env =
+let witness filename main_name orig inlined (* type_env clock_env *) =
   let loc = Location.dummy_loc in
   let rename_local_node nodes prefix id =
     if List.exists (check_node_name id) nodes then
@@ -422,7 +423,7 @@ let witness filename main_name orig inlined type_env clock_env =
     node_stateless = None;
     node_spec = Some 
                   (Contract
-                     (mk_contract_guarantees
+                     (mk_contract_guarantees None
                         (mkeexpr loc (mkexpr loc (Expr_ident ok_ident)))
                      )
                   );
@@ -449,9 +450,9 @@ let witness filename main_name orig inlined type_env clock_env =
     ()
   end (* xx *)
 
-let global_inline basename prog (*type_env clock_env*) =
+let global_inline prog (*type_env clock_env*) =
   (* We select the main node desc *)
-  let main_node, other_nodes, other_tops = 
+  let main_node, other_nodes, _ =
     List.fold_right
       (fun top (main_opt, nodes, others) -> 
 	match top.top_decl_desc with 

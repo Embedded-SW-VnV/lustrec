@@ -32,12 +32,7 @@ struct (* Node module *)
   let equal n1 n2 = n1 = n2
 end
 
-module IMap =
-  struct
-    include Map.Make(IdentModule)
-    let elements m =  fold (fun i n res -> (i, n)::res) m [] 
-  end
-  
+module IMap = Map.Make(IdentModule)
 module ISet = Set.Make(IdentModule)
 module IdentDepGraph = Imperative.Digraph.ConcreteBidirectional (IdentModule)
 module TopologicalDepGraph = Topological.Make(IdentDepGraph)
@@ -70,13 +65,11 @@ let position pred l =
     | t::q -> if pred t then p else pos (p+1) q
   in pos 0 l
 
-let rec duplicate x n =
- if n < 0 then [] else x :: duplicate x (n - 1)
+(* TODO: Lélio: why n+1? cf former def below *)
+(* if n < 0 then [] else x :: duplicate x (n - 1) *)
+let duplicate x n = List.init (n+1) (fun _ -> x)
 
-let enumerate n =
-  let rec aux i =
-    if i >= n then [] else i :: aux (i+1)
-  in aux 0
+let enumerate n = List.init n (fun i -> i)
 
 let rec repeat n f x =
  if n <= 0 then x else repeat (n-1) f (f x)
@@ -90,9 +83,9 @@ let transpose_list ll =
   in match ll with
   | []   -> []
   | l::q -> let length_l = List.length l in
-	    List.iter (fun l' -> let length_l' = List.length l'
-				 in if length_l <> length_l' then raise (TransposeError (length_l, length_l'))) q;
-	    transpose ll
+    List.iter (fun l' -> let length_l' = List.length l'
+                in if length_l <> length_l' then raise (TransposeError (length_l, length_l'))) q;
+    transpose ll
 
 let rec filter_upto p n l =
  if n = 0 then [] else
@@ -186,7 +179,14 @@ let inames = ref ([]: (int * string) list)
 let iname_counter = ref 0
 
 let reset_names () =
-  tnames := []; tname_counter := 0; crnames := []; crname_counter := 0; dnames := []; dname_counter := 0; inames := []; iname_counter := 0
+  tnames := [];
+  tname_counter := 0;
+  crnames := [];
+  crname_counter := 0;
+  dnames := [];
+  dname_counter := 0;
+  inames := [];
+  iname_counter := 0
 
 (* From OCaml compiler *)
 let new_tname () =
@@ -251,25 +251,95 @@ let print_rat fmt (a,b) =
 
 (* Generic pretty printing *)
 
+
 let pp_final_char_if_non_empty c l =
   (fun fmt -> match l with [] -> () | _ -> Format.fprintf fmt "%(%)" c)
 
 let pp_newline_if_non_empty l =
   (fun fmt -> match l with [] -> () | _ -> Format.fprintf fmt "@,")
 
-let fprintf_list ?(eol:('a, formatter, unit) Pervasives.format = "") ~sep:sep f fmt l =
-  let rec aux fmt = function
-  | []   -> ()
-  | [e]  -> f fmt e
-  | x::r -> Format.fprintf fmt "%a%(%)%a" f x sep aux r
-  in
-  match l with
-  | [] -> ()
-  | _ -> (
-    aux fmt l;
-    Format.fprintf fmt "%(%)" eol
-  )                 
-   
+module Format = struct
+  include Format
+  open Format
+
+  let with_out_file file f =
+    let oc = open_out file in
+    let fmt = formatter_of_out_channel oc in
+    f fmt;
+    close_out oc
+
+  let pp_print_nothing _fmt _ = ()
+
+  let pp_print_cutcut fmt () = fprintf fmt "@,@,"
+
+  let pp_print_endcut s fmt () = fprintf fmt "%s@," s
+
+  let pp_print_opar fmt () = pp_print_string fmt "("
+  let pp_print_cpar fmt () = pp_print_string fmt ")"
+  let pp_print_obrace fmt () = pp_print_string fmt "{"
+  let pp_print_cbrace fmt () = pp_print_string fmt "}"
+
+  let pp_print_comma fmt () = fprintf fmt ",@ "
+  let pp_print_semicolon fmt () = fprintf fmt ";@ "
+  let pp_print_comma' fmt () = fprintf fmt ","
+  let pp_print_semicolon' fmt () = fprintf fmt ";"
+
+  let pp_open_vbox0 fmt () = pp_open_vbox fmt 0
+
+  let pp_print_list
+      ?(pp_prologue=pp_print_nothing) ?(pp_epilogue=pp_print_nothing)
+      ?(pp_op=pp_print_nothing) ?(pp_cl=pp_print_nothing)
+      ?(pp_open_box=fun fmt () -> pp_open_box fmt 0)
+      ?(pp_eol=pp_print_nothing) ?pp_sep pp_v fmt l =
+    fprintf fmt "%a%a%a%a%a@]%a%a"
+      (fun fmt l -> if l <> [] then pp_prologue fmt ()) l
+      pp_op ()
+      pp_open_box ()
+      (pp_print_list ?pp_sep pp_v) l
+      (fun fmt l -> if l <> [] then pp_eol fmt ()) l
+      pp_cl ()
+      (fun fmt l -> if l <> [] then pp_epilogue fmt ()) l
+
+  let pp_print_list_i
+      ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol ?pp_sep
+      pp_v =
+    let i = ref 0 in
+    pp_print_list
+      ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol ?pp_sep
+      (fun fmt x -> pp_v fmt !i x; incr i)
+
+  let pp_print_list2
+      ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol ?pp_sep
+      pp_v fmt (l1, l2) =
+    pp_print_list
+      ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol ?pp_sep
+      pp_v fmt (List.combine l1 l2)
+
+  let pp_print_list_i2
+      ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol ?pp_sep
+      pp_v fmt (l1, l2) =
+    pp_print_list_i
+      ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol ?pp_sep
+      (fun fmt i (x1, x2) -> pp_v fmt i x1 x2) fmt (List.combine l1 l2)
+
+  let pp_print_parenthesized ?(pp_sep=pp_print_comma) =
+    pp_print_list
+      ~pp_op:pp_print_opar
+      ~pp_cl:pp_print_cpar
+      ~pp_sep
+
+  let pp_print_braced ?(pp_sep=pp_print_comma) =
+    pp_print_list
+      ~pp_op:pp_print_obrace
+      ~pp_cl:pp_print_cbrace
+      ~pp_sep
+
+end
+
+let fprintf_list ?(eol:('a, formatter, unit) format = "") ~sep:sep f fmt l =
+  Format.(pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "%(%)" sep) f fmt l);
+  if l <> [] then Format.fprintf fmt "%(%)" eol
+
 let pp_list l pp_fun beg_str end_str sep_str =
   if (beg_str="\n") then
     print_newline ()
@@ -352,51 +422,39 @@ let pp_longident lid =
   pp_list lid pp_fun "" "." "."  
 
 let pp_date fmt tm =
+  let open Unix in
   Format.fprintf fmt "%i/%i/%i, %02i:%02i:%02i"
-    (tm.Unix.tm_year + 1900)
-    tm.Unix.tm_mon
-    tm.Unix.tm_mday
-    tm.Unix.tm_hour
-    tm.Unix.tm_min
-    tm.Unix.tm_sec
+    (tm.tm_year + 1900)
+    tm.tm_mon
+    tm.tm_mday
+    tm.tm_hour
+    tm.tm_min
+    tm.tm_sec
 
 (* Used for uid in variables *)
 
-let var_id_cpt = ref 0
-let get_new_id () = incr var_id_cpt;!var_id_cpt
+let get_new_id =
+  let var_id_cpt = ref 0 in
+  fun () -> incr var_id_cpt; !var_id_cpt
+
+let new_tag =
+  let last_tag = ref (-1) in
+  fun () -> incr last_tag; !last_tag
 
 
-(* for lexing purposes *)
-
-(* Update line number for location info *)
-let incr_line lexbuf =
-  let pos = lexbuf.Lexing.lex_curr_p in
-  lexbuf.Lexing.lex_curr_p <- { pos with
-    Lexing.pos_lnum = pos.Lexing.pos_lnum + 1;
-    Lexing.pos_bol = pos.Lexing.pos_cnum;
-  }
-
-
-let last_tag = ref (-1)
-let new_tag () =
-  incr last_tag; !last_tag
-
-
-module List =
-struct
+module List = struct
   include List 
   let iteri2 f l1 l2 =
     if List.length l1 <> List.length l2 then
       raise (Invalid_argument "iteri2: lists have different lengths")
     else
       let rec run idx l1 l2 =
-	match l1, l2 with
-	| [], [] -> ()
-	| hd1::tl1, hd2::tl2 -> (
-	  f idx hd1 hd2;
-	  run (idx+1) tl1 tl2
-	)
-	| _ -> assert false
+        match l1, l2 with
+        | [], [] -> ()
+        | hd1::tl1, hd2::tl2 ->
+          f idx hd1 hd2;
+          run (idx+1) tl1 tl2
+        | _ -> assert false
       in
       run 0 l1 l2
 
@@ -407,29 +465,15 @@ struct
       | _::tl, _ -> extract tl (fst-1) (last-1)
       | [], 0 -> if last=0 then [] else assert false (* List too short *)
       | _ -> assert false 
-		 
+
 end
 
 let get_date () =
   let tm = Unix.localtime (Unix.time ()) in 
   let fmt = Format.str_formatter in
   pp_date fmt tm;
-  (* let open Unix in *)
-  (* let _ = *)
-  (*   Format.fprintf fmt *)
-  (*     "%i/%i/%i %ih%i:%i" *)
-  (*     tm.tm_year *)
-  (*     tm.tm_mon *)
-  (*     tm.tm_mday *)
-  (*     tm.tm_hour *)
-  (*     tm.tm_min *)
-  (*     tm.tm_sec *)
-  (* in *)
   Format.flush_str_formatter ()
 
-
-                           
-                           (* Local Variables: *)
-                           (* compile-command:"make -C .." *)
-                           (* End: *)
-                           
+(* Local Variables: *)
+(* compile-command:"make -C .." *)
+(* End: *)

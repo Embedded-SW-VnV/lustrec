@@ -169,8 +169,8 @@ and print_ty_param pp_basic fmt ty =
   | Tbasic t -> pp_basic fmt t
   | Tclock t ->
     fprintf fmt "%a%s" print_ty t (if !Options.kind2_print then "" else " clock")
-  | Tstatic (d, t) ->
-    fprintf fmt "(%a:%a)" Dimension.pp_dimension d print_ty t
+  | Tstatic (_, t) -> print_ty fmt t
+                        (* fprintf fmt "(%a:%a)" Dimension.pp_dimension d print_ty t *)
   | Tconst t ->
     fprintf fmt "%s" t
   | Tarrow (ty1,ty2) ->
@@ -257,7 +257,7 @@ let pp_error fmt = function
   | Type_clash (ty1,ty2) ->
       Utils.reset_names ();
     fprintf fmt "Expected type %a, got type %a@." print_ty ty1 print_ty ty2
-  | Poly_imported_node id ->
+  | Poly_imported_node _ ->
     fprintf fmt "Imported nodes cannot have a polymorphic type@."
 
 
@@ -277,7 +277,7 @@ let new_univar () =
 
 let rec repr =
   function
-    {tdesc = Tlink t'} ->
+    {tdesc = Tlink t'; _} ->
       repr t'
   | t -> t
 
@@ -291,10 +291,10 @@ let get_field_type ty label =
   | Tstruct fl -> (try Some (List.assoc label fl) with Not_found -> None)
   | _          -> None
 
-let rec is_static_type ty =
+let is_static_type ty =
   match (repr ty).tdesc with
-  | Tstatic (_, ty) -> true
-  | _     -> false
+  | Tstatic _ -> true
+  | _         -> false
 
 let rec is_scalar_type ty =
   match (repr ty).tdesc with
