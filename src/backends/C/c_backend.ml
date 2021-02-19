@@ -9,7 +9,7 @@
 (*                                                                  *)
 (********************************************************************)
 
-open Format
+open Utils.Format
 open C_backend_mauve
 (******************************************************************************)
 (*                        Translation function                                *)
@@ -25,12 +25,6 @@ let makefile_opt print basename dependencies makefile_fmt machines =
     | Some _ -> print basename !Options.main_node dependencies makefile_fmt
   )
 *)
-
-let with_out_file file f =
-  let oc = open_out file in
-  let fmt = formatter_of_out_channel oc in
-  f fmt;
-  close_out oc
 
 let c_or_cpp f =
   if !Options.cpp then f ^ ".cpp" else f ^ ".c" (* Could be changed *)

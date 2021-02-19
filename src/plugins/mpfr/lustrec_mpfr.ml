@@ -47,7 +47,7 @@ let inject_id_id expr =
     expr_clock = expr.expr_clock;
   }
 
-let pp_inject_real pp_var pp_val fmt var value =
+let pp_inject_real pp_var pp_val fmt (var, value) =
   Format.fprintf fmt "%s(%a, %a, %s);"
     inject_real_id
     pp_var var
@@ -61,19 +61,19 @@ let inject_assign expr =
     expr_clock = expr.expr_clock;
   }
 
-let pp_inject_copy pp_var fmt var value =
+let pp_inject_copy pp_var fmt (var, value) =
   Format.fprintf fmt "%s(%a, %a, %s);"
     inject_copy_id
     pp_var var
     pp_var value
     (mpfr_rnd ())
 
-let pp_inject_assign pp_var fmt var value =
+let pp_inject_assign pp_var fmt (_, value as vv) =
   if is_const_value value
   then
-    pp_inject_real pp_var pp_var fmt var value
+    pp_inject_real pp_var pp_var fmt vv
   else
-    pp_inject_copy pp_var fmt var value
+    pp_inject_copy pp_var fmt vv
 
 let pp_inject_init pp_var fmt var =
   Format.fprintf fmt "%s(%a, %i);"

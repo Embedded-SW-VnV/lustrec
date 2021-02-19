@@ -67,7 +67,7 @@ let position pred l =
 
 (* TODO: Lélio: why n+1? cf former def below *)
 (* if n < 0 then [] else x :: duplicate x (n - 1) *)
-let duplicate x n = List.init (n+1) (fun i -> x)
+let duplicate x n = List.init (n+1) (fun _ -> x)
 
 let enumerate n = List.init n (fun i -> i)
 
@@ -251,11 +251,90 @@ let print_rat fmt (a,b) =
 
 (* Generic pretty printing *)
 
+
 let pp_final_char_if_non_empty c l =
   (fun fmt -> match l with [] -> () | _ -> Format.fprintf fmt "%(%)" c)
 
 let pp_newline_if_non_empty l =
   (fun fmt -> match l with [] -> () | _ -> Format.fprintf fmt "@,")
+
+module Format = struct
+  include Format
+  open Format
+
+  let with_out_file file f =
+    let oc = open_out file in
+    let fmt = formatter_of_out_channel oc in
+    f fmt;
+    close_out oc
+
+  let pp_print_nothing _fmt _ = ()
+
+  let pp_print_cutcut fmt () = fprintf fmt "@,@,"
+
+  let pp_print_endcut s fmt () = fprintf fmt "%s@," s
+
+  let pp_print_opar fmt () = pp_print_string fmt "("
+  let pp_print_cpar fmt () = pp_print_string fmt ")"
+  let pp_print_obrace fmt () = pp_print_string fmt "{"
+  let pp_print_cbrace fmt () = pp_print_string fmt "}"
+
+  let pp_print_comma fmt () = fprintf fmt ",@ "
+  let pp_print_semicolon fmt () = fprintf fmt ";@ "
+  let pp_print_comma' fmt () = fprintf fmt ","
+  let pp_print_semicolon' fmt () = fprintf fmt ";"
+
+  let pp_open_vbox0 fmt () = pp_open_vbox fmt 0
+
+  let pp_print_list
+      ?(pp_prologue=pp_print_nothing) ?(pp_epilogue=pp_print_nothing)
+      ?(pp_op=pp_print_nothing) ?(pp_cl=pp_print_nothing)
+      ?(pp_open_box=fun fmt () -> pp_open_box fmt 0)
+      ?(pp_eol=pp_print_nothing) ?pp_sep pp_v fmt l =
+    fprintf fmt "%a%a%a%a%a@]%a%a"
+      (fun fmt l -> if l <> [] then pp_prologue fmt ()) l
+      pp_op ()
+      pp_open_box ()
+      (pp_print_list ?pp_sep pp_v) l
+      (fun fmt l -> if l <> [] then pp_eol fmt ()) l
+      pp_cl ()
+      (fun fmt l -> if l <> [] then pp_epilogue fmt ()) l
+
+  let pp_print_list_i
+      ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol ?pp_sep
+      pp_v =
+    let i = ref 0 in
+    pp_print_list
+      ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol ?pp_sep
+      (fun fmt x -> pp_v fmt !i x; incr i)
+
+  let pp_print_list2
+      ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol ?pp_sep
+      pp_v fmt (l1, l2) =
+    pp_print_list
+      ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol ?pp_sep
+      pp_v fmt (List.combine l1 l2)
+
+  let pp_print_list_i2
+      ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol ?pp_sep
+      pp_v fmt (l1, l2) =
+    pp_print_list_i
+      ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol ?pp_sep
+      (fun fmt i (x1, x2) -> pp_v fmt i x1 x2) fmt (List.combine l1 l2)
+
+  let pp_print_parenthesized ?(pp_sep=pp_print_comma) =
+    pp_print_list
+      ~pp_op:pp_print_opar
+      ~pp_cl:pp_print_cpar
+      ~pp_sep
+
+  let pp_print_braced ?(pp_sep=pp_print_comma) =
+    pp_print_list
+      ~pp_op:pp_print_obrace
+      ~pp_cl:pp_print_cbrace
+      ~pp_sep
+
+end
 
 let fprintf_list ?(eol:('a, formatter, unit) format = "") ~sep:sep f fmt l =
   Format.(pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "%(%)" sep) f fmt l);
