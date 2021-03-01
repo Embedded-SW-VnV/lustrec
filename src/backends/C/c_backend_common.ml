@@ -40,15 +40,21 @@ let file_to_module_name basename =
 let var_is name v =
   v.var_id = name
 
-(* Generation of a non-clashing name for the self memory variable (for step and reset functions) *)
-let mk_self m =
+let mk_local n m =
   let used name =
     let open List in
     exists (var_is name) m.mstep.step_inputs
     || exists (var_is name) m.mstep.step_outputs
     || exists (var_is name) m.mstep.step_locals
     || exists (var_is name) m.mmemory in
-  mk_new_name used "self"
+  mk_new_name used n
+
+(* Generation of a non-clashing name for the self memory variable (for step and reset functions) *)
+let mk_self = mk_local "self"
+
+let mk_mem = mk_local "mem"
+let mk_mem_in = mk_local "mem_in"
+let mk_mem_out = mk_local "mem_out"
 
 (* Generation of a non-clashing name for the instance variable of static allocation macro *)
 let mk_instance m =
@@ -110,7 +116,8 @@ let mk_addr_var m var =
 *)
 let pp_global_init_name fmt id = fprintf fmt "%s_INIT" id
 let pp_global_clear_name fmt id = fprintf fmt "%s_CLEAR" id
-let pp_machine_memtype_name fmt id = fprintf fmt "struct %s_mem" id
+let pp_machine_memtype_name ?(ghost=false) fmt id =
+  fprintf fmt "struct %s_mem%s" id (if ghost then "_ghost" else "")
 let pp_machine_regtype_name fmt id = fprintf fmt "struct %s_reg" id
 let pp_machine_alloc_name fmt id = fprintf fmt "%s_alloc" id
 let pp_machine_dealloc_name fmt id = fprintf fmt "%s_dealloc" id
@@ -216,7 +223,7 @@ let pp_basic_c_type ?(var_opt=None) fmt t =
   | _ ->
      fprintf fmt "%s" (pp_c_basic_type_desc t)
 
-let pp_c_type ?(var_opt=None) var_id fmt t =
+let pp_c_type ?var_opt var_id fmt t =
   let rec aux t pp_suffix =
     if is_basic_c_type  t then
        fprintf fmt "%a %s%a"
@@ -352,10 +359,10 @@ let pp_c_var_write m fmt id =
 let pp_c_decl_input_var fmt id =
   if !Options.ansi && Types.is_address_type id.var_type
   then
-    pp_c_type ~var_opt:(Some id) (sprintf "(*%s)" id.var_id) fmt
+    pp_c_type ~var_opt:id (sprintf "(*%s)" id.var_id) fmt
       (Types.array_base_type id.var_type)
   else
-    pp_c_type ~var_opt:(Some id) id.var_id fmt id.var_type
+    pp_c_type ~var_opt:id id.var_id fmt id.var_type
 
 (* Declaration of an output variable:
    - if its type is scalar, then pass its address
@@ -366,9 +373,9 @@ let pp_c_decl_input_var fmt id =
 let pp_c_decl_output_var fmt id =
   if (not !Options.ansi) && Types.is_address_type id.var_type
   then
-    pp_c_type ~var_opt:(Some id) id.var_id fmt id.var_type
+    pp_c_type ~var_opt:id id.var_id fmt id.var_type
   else
-    pp_c_type ~var_opt:(Some id) (sprintf "(*%s)" id.var_id) fmt
+    pp_c_type ~var_opt:id (sprintf "(*%s)" id.var_id) fmt
       (Types.array_base_type id.var_type)
 
 (* Declaration of a local/mem variable:
@@ -380,13 +387,13 @@ let pp_c_decl_local_var m fmt id =
   if id.var_dec_const
   then
     fprintf fmt "%a = %a"
-      (pp_c_type ~var_opt:(Some id) id.var_id)
+      (pp_c_type ~var_opt:id id.var_id)
       id.var_type
       (pp_c_val m "" (pp_c_var_read m))
       (Machine_code_common.get_const_assign m id)
   else
     fprintf fmt "%a"
-      (pp_c_type ~var_opt:(Some id) id.var_id) id.var_type
+      (pp_c_type ~var_opt:id id.var_id) id.var_type
 
 (* Declaration of a struct variable:
    - if it's an array/matrix/etc, we declare it as a pointer
@@ -399,8 +406,11 @@ let pp_c_decl_struct_var fmt id =
   else
     pp_c_type id.var_id  fmt id.var_type
 
-let pp_c_decl_instance_var fmt (name, (node, _)) =
-  fprintf fmt "%a *%s" pp_machine_memtype_name (node_name node) name
+let pp_c_decl_instance_var ?(ghost=false) fmt (name, (node, _)) =
+  fprintf fmt "%a %s%s"
+    (pp_machine_memtype_name ~ghost) (node_name node)
+    (if ghost then "" else "*")
+    name
 
 (* let pp_c_checks self fmt m =
  *   pp_print_list
@@ -411,6 +421,31 @@ let pp_c_decl_instance_var fmt (name, (node, _)) =
  *          (pp_c_val m self (pp_c_var_read m)) check)
  *     fmt
  *     m.mstep.step_checks *)
+
+let has_c_prototype funname dependencies =
+  (* We select the last imported node with the name funname.
+     The order of evaluation of dependencies should be
+     compatible with overloading. (Not checked yet) *)
+  let imported_node_opt =
+    List.fold_left
+      (fun res dep ->
+         match res with
+         | Some _ -> res
+         | None ->
+           let decls = dep.content in
+           let matched = fun t -> match t.top_decl_desc with
+             | ImportedNode nd -> nd.nodei_id = funname
+             | _ -> false
+           in
+           if List.exists matched decls then
+             match (List.find matched decls).top_decl_desc with
+             | ImportedNode nd -> Some nd
+             | _ -> assert false
+           else
+             None) None dependencies in
+  match imported_node_opt with
+  | None -> false
+  | Some nd -> (match nd.nodei_prototype with Some "C" -> true | _ -> false)
 
 (********************************************************************************************)
 (*                       Struct Printing functions                                          *)
@@ -427,25 +462,32 @@ let pp_c_decl_instance_var fmt (name, (node, _)) =
  *     pp_c_decl_struct_var
  *     fmt m.mmemory *)
 
-let print_machine_struct fmt m =
+let print_machine_struct ?(ghost=false) fmt m =
   if not (fst (Machine_code_common.get_stateless_status m)) then
     (* Define struct *)
     fprintf fmt "@[<v 2>%a {%a%a@]@,};"
-      pp_machine_memtype_name m.mname.node_id
-      (pp_print_list
-         ~pp_open_box:pp_open_vbox0
-         ~pp_prologue:(fun fmt () ->
-             fprintf fmt "@,@[%a {" pp_machine_regtype_name m.mname.node_id)
-         ~pp_sep:pp_print_semicolon
-         ~pp_eol:pp_print_semicolon'
-         ~pp_epilogue:(fun fmt () -> fprintf fmt "}@] _reg;")
-         pp_c_decl_struct_var)
+      (pp_machine_memtype_name ~ghost) m.mname.node_id
+      (if ghost then
+         (fun fmt -> function
+            | [] -> pp_print_nothing fmt ()
+            | _ -> fprintf fmt "@,%a _reg;"
+                     pp_machine_regtype_name m.mname.node_id)
+       else
+         pp_print_list
+           ~pp_open_box:pp_open_vbox0
+           ~pp_prologue:(fun fmt () ->
+               fprintf fmt "@,@[%a {" pp_machine_regtype_name m.mname.node_id)
+           ~pp_sep:pp_print_semicolon
+           ~pp_eol:pp_print_semicolon'
+           ~pp_epilogue:(fun fmt () -> fprintf fmt "}@] _reg;")
+           pp_c_decl_struct_var)
       m.mmemory
       (pp_print_list
+         ~pp_open_box:pp_open_vbox0
          ~pp_prologue:pp_print_cut
          ~pp_sep:pp_print_semicolon
          ~pp_eol:pp_print_semicolon'
-         pp_c_decl_instance_var)
+         (pp_c_decl_instance_var ~ghost))
       m.minstances
 
 (********************************************************************************************)
@@ -462,21 +504,21 @@ let print_global_clear_prototype fmt baseNAME =
 
 let print_alloc_prototype fmt (name, static) =
   fprintf fmt "%a * %a %a"
-    pp_machine_memtype_name name
+    (pp_machine_memtype_name ~ghost:false) name
     pp_machine_alloc_name name
     (pp_print_parenthesized pp_c_decl_input_var) static
 
 let print_dealloc_prototype fmt name =
   fprintf fmt "void %a (%a * _alloc)"
     pp_machine_dealloc_name name
-    pp_machine_memtype_name name
-    
+    (pp_machine_memtype_name ~ghost:false) name
+
 let print_reset_prototype self fmt (name, static) =
   fprintf fmt "void %a (%a%a *%s)"
     pp_machine_reset_name name
     (pp_print_list ~pp_sep:pp_print_comma ~pp_eol:pp_print_comma
        pp_c_decl_input_var) static
-    pp_machine_memtype_name name
+    (pp_machine_memtype_name ~ghost:false) name
     self
 
 let print_init_prototype self fmt (name, static) =
@@ -484,7 +526,7 @@ let print_init_prototype self fmt (name, static) =
     pp_machine_init_name name
     (pp_print_list ~pp_sep:pp_print_comma ~pp_eol:pp_print_comma
        pp_c_decl_input_var) static
-    pp_machine_memtype_name name
+    (pp_machine_memtype_name ~ghost:false) name
     self
 
 let print_clear_prototype self fmt (name, static) =
@@ -492,7 +534,7 @@ let print_clear_prototype self fmt (name, static) =
     pp_machine_clear_name name
     (pp_print_list ~pp_sep:pp_print_comma ~pp_eol:pp_print_comma
        pp_c_decl_input_var) static
-    pp_machine_memtype_name name
+    (pp_machine_memtype_name ~ghost:false) name
     self
 
 let print_stateless_prototype fmt (name, inputs, outputs) =
@@ -509,7 +551,7 @@ let print_step_prototype self fmt (name, inputs, outputs) =
        ~pp_epilogue:pp_print_cut pp_c_decl_input_var) inputs
     (pp_print_list ~pp_sep:pp_print_comma ~pp_eol:pp_print_comma
        ~pp_epilogue:pp_print_cut pp_c_decl_output_var) outputs
-    pp_machine_memtype_name name
+    (pp_machine_memtype_name ~ghost:false) name
     self
 
 let print_import_prototype fmt dep =

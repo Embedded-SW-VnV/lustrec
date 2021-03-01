@@ -290,12 +290,15 @@ module Format = struct
       ?(pp_prologue=pp_print_nothing) ?(pp_epilogue=pp_print_nothing)
       ?(pp_op=pp_print_nothing) ?(pp_cl=pp_print_nothing)
       ?(pp_open_box=fun fmt () -> pp_open_box fmt 0)
-      ?(pp_eol=pp_print_nothing) ?pp_sep pp_v fmt l =
+      ?(pp_eol=pp_print_nothing)
+      ?(pp_nil=pp_print_nothing)
+      ?pp_sep pp_v fmt l =
     fprintf fmt "%a%a%a%a%a@]%a%a"
       (fun fmt l -> if l <> [] then pp_prologue fmt ()) l
       pp_op ()
       pp_open_box ()
-      (pp_print_list ?pp_sep pp_v) l
+      (fun fmt () ->
+         if l = [] then pp_nil fmt () else pp_print_list ?pp_sep pp_v fmt l) ()
       (fun fmt l -> if l <> [] then pp_eol fmt ()) l
       pp_cl ()
       (fun fmt l -> if l <> [] then pp_epilogue fmt ()) l

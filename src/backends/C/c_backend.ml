@@ -117,7 +117,7 @@ let translate_to_c basename prog machines dependencies =
 
     | "acsl" ->
       C_backend_header.(module EmptyMod : MODIFIERS_HDR),
-      C_backend_src.(module EmptyMod : MODIFIERS_SRC),
+      (module C_backend_spec.SrcMod : C_backend_src.MODIFIERS_SRC),
       C_backend_main.(module EmptyMod : MODIFIERS_MAINSRC),
       (module C_backend_spec.MakefileMod : C_backend_makefile.MODIFIERS_MKF),
       C_backend_spec.preprocess_acsl

@@ -17,9 +17,17 @@ open Machine_code_common
 open C_backend_common
 
 module type MODIFIERS_SRC = sig
+  val pp_predicates: dep_t list -> formatter -> machine_t list -> unit
+  val pp_reset_spec: formatter -> ident -> machine_t -> unit
+  val pp_step_spec: formatter -> ident -> machine_t -> unit
+  val pp_step_instr_spec: machine_t -> ident -> formatter -> (int * instr_t) -> unit
 end
 
 module EmptyMod = struct
+  let pp_predicates _ _ _ = ()
+  let pp_reset_spec _ _ _ = ()
+  let pp_step_spec _ _ _ = ()
+  let pp_step_instr_spec _ _ _ _ = ()
 end
 
 module Main = functor (Mod: MODIFIERS_SRC) -> struct
@@ -274,31 +282,6 @@ let rec value_offsets v offsets =
   let pp_machine_clear =
     pp_machine_ pp_machine_clear_name "pp_machine_clear"
 
-  let has_c_prototype funname dependencies =
-    (* We select the last imported node with the name funname.
-       The order of evaluation of dependencies should be
-       compatible with overloading. (Not checked yet) *)
-    let imported_node_opt =
-      List.fold_left
-        (fun res dep ->
-           match res with
-           | Some _ -> res
-           | None ->
-             let decls = dep.content in
-             let matched = fun t -> match t.top_decl_desc with
-               | ImportedNode nd -> nd.nodei_id = funname
-               | _ -> false
-             in
-             if List.exists matched decls then
-               match (List.find matched decls).top_decl_desc with
-               | ImportedNode nd -> Some nd
-               | _ -> assert false
-             else
-               None) None dependencies in
-    match imported_node_opt with
-    | None -> false
-    | Some nd -> (match nd.nodei_prototype with Some "C" -> true | _ -> false)
-
   let pp_call m self pp_read pp_write fmt i
       (inputs: Machine_code_types.value_t list) (outputs: var_decl list) =
     try (* stateful node instance *)
@@ -406,6 +389,17 @@ let rec value_offsets v offsets =
       (pp_print_list ~pp_open_box:pp_open_vbox0
          (pp_machine_instr dependencies m self)) h
 
+  let pp_machine_nospec_instr dependencies m self fmt _i instr =
+    pp_machine_instr dependencies m self fmt instr
+
+  let pp_machine_step_instr dependencies m self fmt i instr =
+    fprintf fmt "%a%a%a"
+      (if i = 0 then
+         (fun fmt () -> Mod.pp_step_instr_spec m self fmt (i-1, instr))
+       else
+         pp_print_nothing) ()
+      (pp_machine_instr dependencies m self) instr
+      (Mod.pp_step_instr_spec m self) (i, instr)
 
   (********************************************************************************************)
   (*                         C file Printing functions                                        *)
@@ -474,9 +468,9 @@ let rec value_offsets v offsets =
        _alloc = (%a *) malloc(sizeof(%a));@,\
        assert(_alloc);@,\
        %a%areturn _alloc;"
-      pp_machine_memtype_name m.mname.node_id
-      pp_machine_memtype_name m.mname.node_id
-      pp_machine_memtype_name m.mname.node_id
+      (pp_machine_memtype_name ~ghost:false) m.mname.node_id
+      (pp_machine_memtype_name ~ghost:false) m.mname.node_id
+      (pp_machine_memtype_name ~ghost:false) m.mname.node_id
       (pp_print_list ~pp_sep:pp_print_nothing print_alloc_array) (array_mems m)
       (pp_print_list ~pp_sep:pp_print_nothing print_alloc_instance) m.minstances
 
@@ -524,6 +518,7 @@ let rec value_offsets v offsets =
 
   let pp_print_function
       ~pp_prototype ~prototype
+      ?(pp_spec=pp_print_nothing)
       ?(pp_local=pp_print_nothing) ?(base_locals=[])
       ?(pp_array_mem=pp_print_nothing) ?(array_mems=[])
       ?(pp_init_mpfr_local=pp_print_nothing)
@@ -531,13 +526,14 @@ let rec value_offsets v offsets =
       ?(mpfr_locals=[])
       ?(pp_check=pp_print_nothing) ?(checks=[])
       ?(pp_extra=pp_print_nothing)
-      ?(pp_instr=pp_print_nothing) ?(instrs=[])
+      ?(pp_instr=fun fmt _ _ -> pp_print_nothing fmt ()) ?(instrs=[])
       fmt =
     fprintf fmt
-      "@[<v 2>%a {@,\
+      "%a@[<v 2>%a {@,\
        %a%a\
        %a%a%a%a%areturn;@]@,\
        }"
+      pp_spec ()
       pp_prototype prototype
       (* locals *)
       (pp_print_list
@@ -560,7 +556,7 @@ let rec value_offsets v offsets =
       (* check assertions *)
       (pp_print_list pp_check) checks
       (* instrs *)
-      (pp_print_list
+      (pp_print_list_i
          ~pp_open_box:pp_open_vbox0
          ~pp_epilogue:pp_print_cut
          pp_instr) instrs
@@ -593,7 +589,7 @@ let rec value_offsets v offsets =
         ~mpfr_locals:m.mstep.step_locals
         ~pp_check:(pp_c_check m self)
         ~checks:m.mstep.step_checks
-        ~pp_instr:(pp_machine_instr dependencies m self)
+        ~pp_instr:(pp_machine_nospec_instr dependencies m self)
         ~instrs:m.mstep.step_instrs
         fmt
     else
@@ -615,17 +611,18 @@ let rec value_offsets v offsets =
         ~mpfr_locals:m.mstep.step_locals
         ~pp_check:(pp_c_check m self)
         ~checks:m.mstep.step_checks
-        ~pp_instr:(pp_machine_instr dependencies m self)
+        ~pp_instr:(pp_machine_nospec_instr dependencies m self)
         ~instrs:m.mstep.step_instrs
         fmt
 
   let print_reset_code dependencies self fmt m =
     pp_print_function
+      ~pp_spec:(fun fmt () -> Mod.pp_reset_spec fmt self m)
       ~pp_prototype:(print_reset_prototype self)
       ~prototype:(m.mname.node_id, m.mstatic)
       ~pp_local:(pp_c_decl_local_var m)
       ~base_locals:(const_locals m)
-      ~pp_instr:(pp_machine_instr dependencies m self)
+      ~pp_instr:(pp_machine_nospec_instr dependencies m self)
       ~instrs:m.minit
       fmt
 
@@ -670,6 +667,7 @@ let rec value_offsets v offsets =
     then
       (* C99 code *)
       pp_print_function
+        ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt self m)
         ~pp_prototype:(print_step_prototype self)
         ~prototype:(m.mname.node_id, m.mstep.step_inputs, m.mstep.step_outputs)
         ~pp_local:(pp_c_decl_local_var m)
@@ -681,7 +679,7 @@ let rec value_offsets v offsets =
         ~mpfr_locals:m.mstep.step_locals
         ~pp_check:(pp_c_check m self)
         ~checks:m.mstep.step_checks
-        ~pp_instr:(pp_machine_instr dependencies m self)
+        ~pp_instr:(pp_machine_step_instr dependencies m self)
         ~instrs:m.mstep.step_instrs
         fmt
     else
@@ -692,6 +690,7 @@ let rec value_offsets v offsets =
           let id, _, _ = call_of_expr e in
           mk_call_var_decl e.expr_loc id) m.mname.node_gencalls in
       pp_print_function
+        ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt self m)
         ~pp_prototype:(print_step_prototype self)
         ~prototype:(m.mname.node_id,
                     m.mstep.step_inputs @ gen_locals @ gen_calls,
@@ -703,7 +702,7 @@ let rec value_offsets v offsets =
         ~mpfr_locals:m.mstep.step_locals
         ~pp_check:(pp_c_check m self)
         ~checks:m.mstep.step_checks
-        ~pp_instr:(pp_machine_instr dependencies m self)
+        ~pp_instr:(pp_machine_step_instr dependencies m self)
         ~instrs:m.mstep.step_instrs
         fmt
 
@@ -834,7 +833,6 @@ let rec value_offsets v offsets =
         (* Clear function *)
         (print_clear_code self) m
 
-
   (* TODO: ACSL
      - a contract machine shall not be directly printed in the C source
      - but a regular machine associated to a contract machine shall integrate
@@ -849,7 +847,7 @@ let rec value_offsets v offsets =
       print_stateless_code dependencies fmt m
     else
       let self = mk_self m in
-      fprintf fmt "@[<v>%a%a@,%a%a@]"
+      fprintf fmt "@[<v>%a%a@,@,%a%a@]"
         print_alloc_function m
         (* Reset function *)
         (print_reset_code dependencies self) m
@@ -883,6 +881,7 @@ let rec value_offsets v offsets =
        %a@,\
        @,\
        %a@,\
+       %a\
        %a\
        %a\
        %a\
@@ -966,6 +965,9 @@ let rec value_offsets v offsets =
          ~pp_sep:pp_print_cutcut
          print_machine_struct
          ~pp_epilogue:pp_print_cutcut) machines
+
+      (* Print the spec predicates *)
+      (Mod.pp_predicates dependencies) machines
 
       (* Print nodes one by one (in the previous order) *)
       (pp_print_list

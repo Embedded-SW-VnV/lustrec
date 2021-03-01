@@ -105,7 +105,7 @@ module Main = functor (Mod: MODIFIERS_HDR) -> struct
       (* constants *)
       (print_static_constant_decl macro) const_locals
       attr
-      pp_machine_memtype_name m.mname.node_id
+      (pp_machine_memtype_name ~ghost:false) m.mname.node_id
       inst
       (pp_print_list ~pp_open_box:pp_open_vbox0
          ~pp_sep:(pp_print_endcut ";\\") ~pp_eol:(pp_print_endcut ";\\")
@@ -201,7 +201,7 @@ module Main = functor (Mod: MODIFIERS_HDR) -> struct
     if not inode.nodei_stateless then
       (* Declare struct *)
       fprintf fmt "%a;"
-        pp_machine_memtype_name inode.nodei_id
+        (pp_machine_memtype_name ~ghost:false) inode.nodei_id
 
   let print_stateless_C_prototype fmt (name, inputs, outputs) =
     let output =
