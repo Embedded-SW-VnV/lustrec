@@ -278,6 +278,10 @@ module Format = struct
   let pp_print_cpar fmt () = pp_print_string fmt ")"
   let pp_print_obrace fmt () = pp_print_string fmt "{"
   let pp_print_cbrace fmt () = pp_print_string fmt "}"
+  let pp_print_opar' fmt () = pp_print_string fmt "( "
+  let pp_print_cpar' fmt () = pp_print_string fmt " )"
+  let pp_print_obrace' fmt () = pp_print_string fmt "{ "
+  let pp_print_cbrace' fmt () = pp_print_string fmt " }"
 
   let pp_print_comma fmt () = fprintf fmt ",@ "
   let pp_print_semicolon fmt () = fprintf fmt ";@ "
@@ -337,6 +341,11 @@ module Format = struct
       ~pp_cl:pp_print_cbrace
       ~pp_sep
 
+  let pp_print_braced' ?(pp_sep=pp_print_comma) =
+    pp_print_list
+      ~pp_op:pp_print_obrace'
+      ~pp_cl:pp_print_cbrace'
+      ~pp_sep
 end
 
 let fprintf_list ?(eol:('a, formatter, unit) format = "") ~sep:sep f fmt l =

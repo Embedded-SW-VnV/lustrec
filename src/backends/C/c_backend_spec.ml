@@ -135,7 +135,7 @@ let print_machine_decl_prefix fmt m =
 let preprocess_acsl machines = machines, []
                           
 (* TODO: This preamble shall be a list of types, axiomatics, predicates, theorems *)
-let pp_acsl_preamble fmt preamble =
+let pp_acsl_preamble fmt _preamble =
   Format.fprintf fmt "";
   ()
 
@@ -224,11 +224,17 @@ let pp_and_l pp_v fmt =
     pp_v
     fmt
 
+let pp_ite pp_c pp_t pp_f fmt (c, t, f) =
+  fprintf fmt "%a @[<hov>? %a@ : %a@]"
+    pp_c c
+    pp_t t
+    pp_f f
+
 let pp_machine_decl fmt (id, mem_type, var) =
   fprintf fmt "struct %s_%s %s" id mem_type var
 
 let pp_mem_ghost pp_mem pp_self ?i fmt (name, mem, self) =
-  fprintf fmt "%s_ghost%a(%a, %a)"
+  fprintf fmt "%s_ghost%a(@[<hov>%a,@ %a@])"
     name
     (pp_print_option pp_print_int) i
     pp_mem mem
@@ -236,8 +242,10 @@ let pp_mem_ghost pp_mem pp_self ?i fmt (name, mem, self) =
 
 let pp_mem_ghost' = pp_mem_ghost pp_print_string pp_print_string
 
-let pp_mem_init fmt (name, mem) =
-  fprintf fmt "%s_init(%s)" name mem
+let pp_mem_init pp_mem fmt (name, mem) =
+  fprintf fmt "%s_init(%a)" name pp_mem mem
+
+let pp_mem_init' = pp_mem_init pp_print_string
 
 let pp_var_decl fmt v =
   pp_print_string fmt v.var_id
@@ -245,20 +253,27 @@ let pp_var_decl fmt v =
 let pp_ptr_decl fmt v =
   fprintf fmt "*%s" v.var_id
 
-let pp_mem_trans ?i fmt (m, mem_in, mem_out) =
-  fprintf fmt "%s_trans%a(@[<h>%s, %a%s%a@])"
-    m.mname.node_id
+let pp_mem_trans_aux ?i pp_mem_in pp_mem_out pp_input pp_output fmt
+    (name, inputs, outputs, mem_in, mem_out) =
+  fprintf fmt "%s_trans%a(@[<hov>%a,@ %a%a%a@])"
+    name
     (pp_print_option pp_print_int) i
-    mem_in
+    pp_mem_in mem_in
     (pp_print_list
        ~pp_epilogue:pp_print_comma
        ~pp_sep:pp_print_comma
-       pp_var_decl) m.mstep.step_inputs
-    mem_out
+       pp_input) inputs
+    pp_mem_out mem_out
     (pp_print_list
        ~pp_prologue:pp_print_comma
        ~pp_sep:pp_print_comma
-       pp_ptr_decl) m.mstep.step_outputs
+       pp_output) outputs
+
+let pp_mem_trans ?i pp_mem_in pp_mem_out fmt (m, mem_in, mem_out) =
+  pp_mem_trans_aux ?i pp_mem_in pp_mem_out pp_var_decl pp_ptr_decl fmt
+    (m.mname.node_id, m.mstep.step_inputs, m.mstep.step_outputs, mem_in, mem_out)
+
+let pp_mem_trans' ?i fmt = pp_mem_trans ?i pp_print_string pp_print_string fmt
 
 let pp_nothing fmt () =
   pp_print_string fmt "\\nothing"
@@ -349,6 +364,22 @@ let print_machine_ghost_simulations dependencies fmt m =
       (print_machine_ghost_simulation_aux m
          (pp_mem_ghost' ~i:(List.length m.mstep.step_instrs))) (name, mem, self)
 
+let print_machine_core_annotations dependencies fmt m =
+  if not (fst (Machine_code_common.get_stateless_status m)) then
+    let name = m.mname.node_id in
+    let self = mk_self m in
+    let mem = mk_mem m in
+    fprintf fmt "%a@,%a@,%a%a"
+      print_machine_ghost_struct m
+      (print_machine_ghost_simulation_aux m pp_true ~i:0) ()
+      (pp_print_list_i
+        ~pp_epilogue:pp_print_cut
+        ~pp_open_box:pp_open_vbox0
+        (print_machine_ghost_simulation dependencies m))
+      m.mstep.step_instrs
+      (print_machine_ghost_simulation_aux m
+         (pp_mem_ghost' ~i:(List.length m.mstep.step_instrs))) (name, mem, self)
+
 let pp_at pp_p fmt (p, l) =
   fprintf fmt "\\at(%a, %s)" pp_p p l
 
@@ -357,11 +388,66 @@ let label_pre = "Pre"
 let pp_at_pre pp_p fmt p =
   pp_at pp_p fmt (p, label_pre)
 
+module VarDecl = struct
+  type t = var_decl
+  let compare v1 v2 = compare v1.var_id v2.var_id
+end
+module VDSet = Set.Make(VarDecl)
+
+let pp_arrow_spec fmt () =
+  let name = "_arrow" in
+  let mem_in = "mem_in" in
+  let mem_out = "mem_out" in
+  let reg_first = "_reg", "_first" in
+  let mem_in_first = mem_in, reg_first in
+  let mem_out_first = mem_out, reg_first in
+  let mem = "mem" in
+  let self = "self" in
+  fprintf fmt "/* ACSL arrow spec */@,%a%a%a%a"
+    (pp_spec_line (pp_ghost pp_print_string))
+    "struct _arrow_mem_ghost {struct _arrow_reg _reg;};"
+    (pp_spec_cut
+       (pp_predicate
+          (pp_mem_init pp_machine_decl)
+          (pp_equal
+             (pp_access pp_access')
+             pp_print_string)))
+    ((name, (name, "mem_ghost", mem_in)),
+     (mem_in_first, "true"))
+    (pp_spec_cut
+       (pp_predicate
+          (pp_mem_trans_aux
+             pp_machine_decl pp_machine_decl pp_print_string pp_print_string)
+          (pp_and
+             (pp_equal
+                pp_print_string
+                (pp_access pp_access'))
+             (pp_ite
+                (pp_access pp_access')
+                (pp_equal
+                   (pp_access pp_access')
+                   pp_print_string)
+                (pp_equal
+                   (pp_access pp_access')
+                   (pp_access pp_access'))))))
+    ((name, [], ["_Bool out"], (name, "mem_ghost", mem_in), (name, "mem_ghost", mem_out)),
+     (("out", mem_in_first),
+      (mem_in_first, (mem_out_first, "false"), (mem_out_first, mem_in_first))))
+    (pp_spec_cut
+       (pp_predicate
+          (pp_mem_ghost pp_machine_decl pp_machine_decl)
+          (pp_equal
+             (pp_access pp_access')
+             (pp_indirect pp_access'))))
+    ((name, (name, "mem_ghost", mem), (name, "mem", "*" ^ self)),
+    ((mem, reg_first), (self, reg_first)))
+
 module SrcMod = struct
 
   let pp_predicates dependencies fmt machines =
     fprintf fmt
-      "%a%a"
+      "%a@,%a%a%a"
+      pp_arrow_spec ()
       (pp_print_list
          ~pp_open_box:pp_open_vbox0
          ~pp_prologue:(pp_print_endcut "/* ACSL `valid` predicates */")
@@ -370,11 +456,14 @@ module SrcMod = struct
       (pp_print_list
          ~pp_open_box:pp_open_vbox0
          ~pp_sep:pp_print_cutcut
-         ~pp_prologue:(fun fmt () -> fprintf fmt
-                          "/* ACSL ghost simulations */@,%a"
-                          (pp_spec_line (pp_ghost pp_print_string))
-                          "struct _arrow_mem_ghost {struct _arrow_reg _reg;};")
+         ~pp_prologue:(pp_print_endcut "/* ACSL ghost simulations */")
          (print_machine_ghost_simulations dependencies)
+         ~pp_epilogue:pp_print_cutcut) machines
+      (pp_print_list
+         ~pp_open_box:pp_open_vbox0
+         ~pp_sep:pp_print_cutcut
+         ~pp_prologue:(pp_print_endcut "/* ACSL core annotations */")
+         (print_machine_core_annotations dependencies)
          ~pp_epilogue:pp_print_cutcut) machines
 
   let pp_reset_spec fmt self m =
@@ -395,7 +484,7 @@ module SrcMod = struct
                 pp_machine_decl
                 (pp_implies
                    pp_mem_ghost'
-                   pp_mem_init)))
+                   pp_mem_init')))
           ((name, "mem_ghost", mem),
            ((name, mem, self), (name, mem))))
       fmt ()
@@ -433,14 +522,14 @@ module SrcMod = struct
                    (pp_at_pre pp_mem_ghost')
                    (pp_implies
                       pp_mem_ghost'
-                      pp_mem_trans))))
+                      pp_mem_trans'))))
           ((),
            ((name, mem_in, self),
             ((name, mem_out, self),
              (m, mem_in, mem_out)))))
       fmt ()
 
-  let pp_step_instr_spec m self fmt (i, instr) =
+  let pp_step_instr_spec m self fmt (i, _instr) =
     let name = m.mname.node_id in
     let mem_in = mk_mem_in m in
     let mem_out = mk_mem_out m in
@@ -456,7 +545,7 @@ module SrcMod = struct
                   (pp_at_pre pp_mem_ghost')
                   (pp_implies
                      (pp_mem_ghost' ~i:(i+1))
-                     (pp_mem_trans ~i:(i+1)))))))
+                     (pp_mem_trans' ~i:(i+1)))))))
       ((),
        ((name, mem_in, self),
         ((name, mem_out, self),

@@ -544,12 +544,9 @@ struct
      maybe removing shorter branches *)
   type disjoint_map = (ident, CISet.t) Hashtbl.t
 
-  let pp_ciset fmt t =
-    begin
-      Format.fprintf fmt "{@ ";
-      CISet.iter (fun s -> Format.fprintf fmt "%a@ " Printers.pp_var_name s) t;
-      Format.fprintf fmt "}@."
-    end
+  let pp_ciset fmt t = let open Format in
+    pp_print_braced' ~pp_sep:pp_print_space Printers.pp_var_name fmt
+      (CISet.elements t)
 
   let clock_disjoint_map vdecls =
     let map = Hashtbl.create 23 in
@@ -602,20 +599,19 @@ struct
     end
 
   let pp_disjoint_map fmt map =
-    begin
-      Format.fprintf fmt "{ /* disjoint map */@.";
-      Hashtbl.iter (fun k v -> Format.fprintf fmt "%s # { %a }@." k (Utils.fprintf_list ~sep:", " Printers.pp_var_name) (CISet.elements v)) map;
-      Format.fprintf fmt "}@."
-    end
+    Format.(fprintf fmt "@[<v 2>{ /* disjoint map */%t@] }"
+              (fun fmt ->
+                 Hashtbl.iter (fun k v ->
+                     fprintf fmt "@,%s # %a"
+                       k (pp_print_braced' Printers.pp_var_name)
+                       (CISet.elements v)) map))
 end
 
   
 let pp_dep_graph fmt g =
-  begin
-    Format.fprintf fmt "{ /* graph */@.";
-    IdentDepGraph.iter_edges (fun s t -> Format.fprintf fmt "%s -> %s@." s t) g;
-    Format.fprintf fmt "}@."
-  end
+  Format.fprintf fmt "@[<v 2>{ /* graph */%t@] }"
+    (fun fmt ->
+       IdentDepGraph.iter_edges (fun s t -> Format.fprintf fmt "@,%s -> %s" s t) g)
 
 let pp_error fmt err =
   match err with
