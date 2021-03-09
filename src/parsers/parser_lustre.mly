@@ -16,38 +16,25 @@ open Corelang
 open Dimension
 
    
-let get_loc () = Location.symbol_rloc ()
+let mkident loc x = x, loc
+let mkotyp loc x = match x with Some t -> Some (mktyp loc t) | None -> None
+let mkvar_decl loc x = mkvar_decl loc ~orig:true x
+let mktop_decl loc x = mktop_decl loc (Location.get_module ()) x
+let mkpredef_call_b loc f x1 x2 = mkpredef_call loc f [x1; x2]
+let mkpredef_call_u loc f x = mkpredef_call loc f [x]
 
-let mkident x = x, get_loc ()
-let mktyp x = mktyp (get_loc ()) x
-let mkotyp x = match x with Some t -> Some (mktyp t) | None -> None
-let mkclock x = mkclock (get_loc ()) x
-let mkvar_decl x loc = mkvar_decl loc ~orig:true x
-let mkexpr x = mkexpr (get_loc ()) x
-let mkeexpr x = mkeexpr (get_loc ()) x
-let mkeq x = mkeq (get_loc ()) x
-let mkassert x = mkassert (get_loc ()) x
-let mktop_decl x = mktop_decl (get_loc ()) (Location.get_module ()) x
-let mkpredef_call x = mkpredef_call (get_loc ()) x
-let mkpredef_call_b f x1 x2 = mkpredef_call f [x1; x2]
-let mkpredef_call_u f x = mkpredef_call f [x]
-
-let mkdim_int x = mkdim_int (get_loc ()) x
-(* let mkdim_bool b = mkdim_bool (get_loc ()) b *)
-let mkdim_ident x = mkdim_ident (get_loc ()) x
-let mkdim_appl x = mkdim_appl (get_loc ()) x
-let mkdim_appl_b f x1 x2 = mkdim_appl f [x1; x2]
-let mkdim_appl_u f x = mkdim_appl f [x]
-let mkdim_ite x = mkdim_ite (get_loc ()) x
+let mkdim_appl_b loc f x1 x2 = mkdim_appl loc f [x1; x2]
+let mkdim_appl_u loc f x = mkdim_appl loc f [x]
 
 let mkarraytype = List.fold_left (fun t d -> Tydec_array (d, t))
 
 let mkvdecls const typ clock expr =
   List.map (fun (id, loc) ->
-      mkvar_decl (id,
-                  mktyp (match typ with Some t -> t | None -> Tydec_any),
-                  (match clock with Some ck -> ck | None -> mkclock Ckdec_any),
-                  const, expr, None) loc)
+      mkvar_decl loc
+        (id,
+         mktyp loc (match typ with Some t -> t | None -> Tydec_any),
+         (match clock with Some ck -> ck | None -> mkclock loc Ckdec_any),
+         const, expr, None))
 
 (* let mkannots annots = { annots = annots; annot_loc = get_loc () } *)
 
@@ -57,11 +44,12 @@ let push_node nd = node_stack := nd :: !node_stack; nd
 let pop_node () = try node_stack := List.tl !node_stack with _ -> assert false
 let get_current_node () = try List.hd !node_stack with _ -> assert false
 
-let rec fby expr n init =
-  if n <= 1 then
-    mkexpr (Expr_arrow (init, mkexpr (Expr_pre expr)))
-  else
-    mkexpr (Expr_arrow (init, mkexpr (Expr_pre (fby expr (n - 1) init))))
+let rec fby loc expr n init =
+  mkexpr loc
+    (Expr_arrow
+       (init,
+        mkexpr loc (Expr_pre
+                      (if n <= 1 then expr else fby loc expr (n - 1) init))))
 
  
 %}
@@ -157,7 +145,7 @@ node_ident_decl:
 | n=node_ident { push_node n }
 
 vdecl_ident:
-| x=ident { mkident x }
+| x=ident { mkident $sloc x }
 
 const_ident:
 | c=ident { c }
@@ -177,9 +165,9 @@ prefix:
 | td=typ_def p=prefix  { (fun is_header -> td is_header) :: p }
 
 open_lusi:
-| OPEN QUOTE p=path_ident QUOTE    { mktop_decl false (Open (true, p)) }
-| INCLUDE QUOTE p=path_ident QUOTE { mktop_decl false (Include p) }
-| OPEN LT p=path_ident GT          { mktop_decl false (Open (false, p))  }
+| OPEN QUOTE p=path_ident QUOTE    { mktop_decl $sloc false (Open (true, p)) }
+| INCLUDE QUOTE p=path_ident QUOTE { mktop_decl $sloc false (Include p) }
+| OPEN LT p=path_ident GT          { mktop_decl $sloc false (Open (false, p))  }
 
 state_annot:
 | FUNCTION { true }
@@ -193,17 +181,18 @@ top_decl_header:
   RETURNS LPAR nodei_outputs=var_decl_list(vdecl) RPAR
   nodei_prototype=preceded(PROTOTYPE, node_ident)?
   nodei_in_lib=preceded(LIB, module_ident)* SCOL
-  { let nd = mktop_decl true (ImportedNode {
-                                  nodei_id;
-                                  nodei_type = Types.new_var ();
-                                  nodei_clock = Clocks.new_var true;
-                                  nodei_inputs;
-                                  nodei_outputs;
-                                  nodei_stateless;
-                                  nodei_spec;
-                                  nodei_prototype;
-                                  nodei_in_lib
-               })
+  { let nd = mktop_decl $sloc true
+                           (ImportedNode {
+                                nodei_id;
+                                nodei_type = Types.new_var ();
+                                nodei_clock = Clocks.new_var true;
+                                nodei_inputs;
+                                nodei_outputs;
+                                nodei_stateless;
+                                nodei_spec;
+                                nodei_prototype;
+                                nodei_in_lib
+                           })
     in
     pop_node ();
     [nd]
@@ -227,23 +216,24 @@ top_decl:
           ann.annots)
       node_annot;
     (* Building the node *)
-    let nd = mktop_decl false (Node
-                                 {node_id;
-                                  node_type = Types.new_var ();
-                                  node_clock = Clocks.new_var true;
-                                  node_inputs;
-                                  node_outputs;
-                                  node_locals;
-                                  node_gencalls = [];
-                                  node_checks = [];
-                                  node_asserts;
-                                  node_stmts;
-                                  node_dec_stateless;
-                                  node_stateless = None;
-                                  node_spec;
-                                  node_annot;
-                                  node_iscontract = false;
-               })
+    let nd = mktop_decl $sloc false
+                           (Node {
+                                node_id;
+                                node_type = Types.new_var ();
+                                node_clock = Clocks.new_var true;
+                                node_inputs;
+                                node_outputs;
+                                node_locals;
+                                node_gencalls = [];
+                                node_checks = [];
+                                node_asserts;
+                                node_stmts;
+                                node_dec_stateless;
+                                node_stateless = None;
+                                node_spec;
+                                node_annot;
+                                node_iscontract = false;
+                           })
     in
     pop_node ();
     (*add_node $3 nd;*)
@@ -275,7 +265,7 @@ nodespec_list:
 typ_def:
 | TYPE tydef_id=type_ident EQ tydef_desc=typ_def_rhs SCOL
   { fun itf ->
-    let typ = mktop_decl itf (TypeDef { tydef_id; tydef_desc }) in
+    let typ = mktop_decl $sloc itf (TypeDef { tydef_id; tydef_desc }) in
     (*add_type itf $2 typ;*)
     typ
   }
@@ -321,25 +311,25 @@ stmt_list:
   }
 
 automaton:
-| AUTOMATON t=type_ident hs=handler* { Automata.mkautomata (get_loc ()) t hs }
+| AUTOMATON t=type_ident hs=handler* { Automata.mkautomata $sloc t hs }
 
 handler:
 | STATE x=UIDENT COL ul=unless* l=locals LET ss=stmt_list TEL ut=until*
-  { Automata.mkhandler (get_loc ()) x ul ut l ss }
+  { Automata.mkhandler $sloc x ul ut l ss }
 
 unless:
-| UNLESS e=expr RESTART s=UIDENT { get_loc (), e, true, s  }
-| UNLESS e=expr RESUME s=UIDENT  { get_loc (), e, false, s }
+| UNLESS e=expr RESTART s=UIDENT { $sloc, e, true, s  }
+| UNLESS e=expr RESUME s=UIDENT  { $sloc, e, false, s }
 
 until:
-| UNTIL e=expr RESTART s=UIDENT { get_loc (), e, true, s }
-| UNTIL e=expr RESUME s=UIDENT  { get_loc (), e, false, s }
+| UNTIL e=expr RESTART s=UIDENT { $sloc, e, true, s }
+| UNTIL e=expr RESUME s=UIDENT  { $sloc, e, false, s }
 
 assert_:
-| ASSERT e=expr SCOL { mkassert e }
+| ASSERT e=expr SCOL { mkassert $sloc e }
 
 eq:
-| xs=pattern EQ e=expr SCOL {mkeq (List.map fst xs, e)}
+| xs=pattern EQ e=expr SCOL {mkeq $sloc (List.map fst xs, e)}
 
 %inline pattern:
 | xs=ident_list           { xs }
@@ -354,25 +344,25 @@ top_contract:
   LPAR node_inputs=var_decl_list(vdecl) RPAR
   RETURNS LPAR node_outputs=var_decl_list(vdecl) RPAR SCOL?
   LET cc=contract_content TEL
-  { let nd = mktop_decl true (Node {
-                                  node_id;
-                                  node_type = Types.new_var ();
-                                  node_clock = Clocks.new_var true;
-                                  node_inputs;
-                                  node_outputs;
-                                  node_locals = []; (* will be filled later *)
-                                  node_gencalls = [];
-                                  node_checks = [];
-                                  node_asserts = [];
-                                  node_stmts = []; (* will be filled later *)
-                                  node_dec_stateless = false;
-                                  (* By default we assume contracts as stateful *)
-                                  node_stateless = None;
-                                  node_spec = Some (Contract cc);
-                                  node_annot = [];
-                                  node_iscontract = true;
-                                }
-               )
+  { let nd = mktop_decl $sloc true
+                           (Node {
+                                node_id;
+                                node_type = Types.new_var ();
+                                node_clock = Clocks.new_var true;
+                                node_inputs;
+                                node_outputs;
+                                node_locals = []; (* will be filled later *)
+                                node_gencalls = [];
+                                node_checks = [];
+                                node_asserts = [];
+                                node_stmts = []; (* will be filled later *)
+                                node_dec_stateless = false;
+                                (* By default we assume contracts as stateful *)
+                                node_stateless = None;
+                                node_spec = Some (Contract cc);
+                                node_annot = [];
+                                node_iscontract = true;
+                              })
     in
     pop_node ();
     (*add_imported_node $3 nd;*)
@@ -384,9 +374,9 @@ contract_content:
 | CONTRACT cc=contract_content
   { cc }
 | CONST x=IDENT COL t=typeconst? EQ e=expr SCOL cc=contract_content
-  { merge_contracts (mk_contract_var x true (mkotyp t) e (get_loc())) cc }
+  { merge_contracts (mk_contract_var x true (mkotyp $sloc t) e $sloc) cc }
 | VAR x=IDENT COL t=typeconst EQ e=expr SCOL cc=contract_content
-  { merge_contracts (mk_contract_var x false (Some (mktyp t)) e (get_loc())) cc }
+  { merge_contracts (mk_contract_var x false (Some (mktyp $sloc t)) e $sloc) cc }
 | ASSUME x=ioption(STRING) e=qexpr SCOL cc=contract_content
   { merge_contracts (mk_contract_assume x e) cc }
 | GUARANTEES x=ioption(STRING) e=qexpr SCOL cc=contract_content
@@ -394,15 +384,15 @@ contract_content:
 | MODE x=IDENT LPAR mc=mode_content RPAR SCOL cc=contract_content
   { merge_contracts (
         let r, e = mc in
-        mk_contract_mode x r e (get_loc())) cc
+        mk_contract_mode x r e $sloc) cc
   }
 | IMPORT x=IDENT LPAR xs=expr_or_tuple RPAR RETURNS LPAR ys=expr_or_tuple RPAR
   SCOL cc=contract_content
-  { merge_contracts (mk_contract_import x xs ys (get_loc())) cc }
+  { merge_contracts (mk_contract_import x xs ys $sloc) cc }
 
 %inline expr_or_tuple:
 | e=expr                     { e }
-| e=expr COMMA es=array_expr { mkexpr (Expr_tuple (e :: es)) }
+| e=expr COMMA es=array_expr { mkexpr $sloc (Expr_tuple (e :: es)) }
 
 mode_content:
 | { [], [] }
@@ -419,7 +409,7 @@ mode_content:
  * | tuple_qexpr COMMA qexpr {$3::$1} *)
 
 qexpr:
-| e=expr                      { mkeexpr e }
+| e=expr                      { mkeexpr $sloc e }
   /* Quantifiers */
 | EXISTS x=vdecl SCOL e=qexpr { extend_eexpr [Exists, x] e }
 | FORALL x=vdecl SCOL e=qexpr { extend_eexpr [Forall, x] e }
@@ -433,45 +423,45 @@ qexpr:
 
 expr:
 /* constants */
-| c=INT                   { mkexpr (Expr_const (Const_int c)) }
-| c=REAL                  { mkexpr (Expr_const (Const_real c)) }
-| c=STRING %prec p_string { mkexpr (Expr_const (Const_string c)) }
-| COLCOL c=IDENT          { mkexpr (Expr_const (Const_modeid c)) }
-/* | c=FLOAT { mkexpr (Expr_const (Const_float c)) }*/
+| c=INT                   { mkexpr $sloc (Expr_const (Const_int c)) }
+| c=REAL                  { mkexpr $sloc (Expr_const (Const_real c)) }
+| c=STRING %prec p_string { mkexpr $sloc (Expr_const (Const_string c)) }
+| COLCOL c=IDENT          { mkexpr $sloc (Expr_const (Const_modeid c)) }
+/* | c=FLOAT { mkexpr $sloc (Expr_const (Const_float c)) }*/
 
 /* Idents or type enum tags */
-| x=IDENT    { mkexpr (Expr_ident x) }
-| x=UIDENT   { mkexpr (Expr_ident x) (* TODO we will differenciate enum constants from variables later *) }
-| t=tag_bool { mkexpr (Expr_const (Const_tag t)) } (* on sept 2014, X changed the Const to
-                                                      mkexpr (Expr_ident $1)
+| x=IDENT    { mkexpr $sloc (Expr_ident x) }
+| x=UIDENT   { mkexpr $sloc (Expr_ident x) (* TODO we will differenciate enum constants from variables later *) }
+| t=tag_bool { mkexpr $sloc (Expr_const (Const_tag t)) } (* on sept 2014, X changed the Const to
+                                                      mkexpr $sloc (Expr_ident $1)
                                                       reverted back to const on july 2019 *)
 | LPAR a=ANNOT e=expr RPAR  { update_expr_annot (get_current_node ()) e a }
 | LPAR e=expr_or_tuple RPAR { e }
 
 /* Array expressions */
 | LBRACKET es=array_expr RBRACKET
-  { mkexpr (Expr_array es) }
+  { mkexpr $sloc (Expr_array es) }
 | e=expr POWER d=dim
-  { mkexpr (Expr_power (e, d)) }
+  { mkexpr $sloc (Expr_power (e, d)) }
 | e=expr ds=delimited(LBRACKET, dim, RBRACKET)+
-  { List.fold_left (fun base d -> mkexpr (Expr_access (base, d))) e ds }
+  { List.fold_left (fun base d -> mkexpr $sloc (Expr_access (base, d))) e ds }
 
 /* Temporal operators */
 | PRE e=expr
-  { mkexpr (Expr_pre e) }
+  { mkexpr $sloc (Expr_pre e) }
 | e1=expr ARROW e2=expr
-  { mkexpr (Expr_arrow (e1, e2)) }
+  { mkexpr $sloc (Expr_arrow (e1, e2)) }
 | e1=expr FBY e2=expr
-  { mkexpr (Expr_arrow (e1, mkexpr (Expr_pre e2))) }
+  { mkexpr $sloc (Expr_arrow (e1, mkexpr $loc(e2) (Expr_pre e2))) }
 | e=expr WHEN x=vdecl_ident
-  { mkexpr (Expr_when (e, fst x, tag_true)) }
+  { mkexpr $sloc (Expr_when (e, fst x, tag_true)) }
 | e=expr WHENNOT x=vdecl_ident
-  { mkexpr (Expr_when (e, fst x, tag_false)) }
+  { mkexpr $sloc (Expr_when (e, fst x, tag_false)) }
 | e=expr WHEN t=tag_ident LPAR x=vdecl_ident RPAR
-  { mkexpr (Expr_when (e, fst x, t)) }
+  { mkexpr $sloc (Expr_when (e, fst x, t)) }
 | MERGE x=vdecl_ident
   hs=delimited(LPAR, separated_pair(tag_ident, ARROW, expr), RPAR)*
-  { mkexpr (Expr_merge (fst x, hs)) }
+  { mkexpr $sloc (Expr_merge (fst x, hs)) }
 
 /* Applications */
 | f=node_ident LPAR es=expr_or_tuple RPAR r=preceded(EVERY, expr)?
@@ -481,39 +471,39 @@ expr:
          | Expr_const (Const_int n) -> n
          | _ -> assert false
        in
-       fby expr n init
+       fby $sloc expr n init
     | "fbyn", _ , Some _ ->
        assert false (* TODO Ca veut dire quoi fby (e,n,init) every c *)
-    | _ -> mkexpr (Expr_appl (f, es, r))
+    | _ -> mkexpr $sloc (Expr_appl (f, es, r))
   }
 
 /* Boolean expr */
-| e1=expr AND e2=expr         { mkpredef_call_b "&&" e1 e2 }
-| e1=expr AMPERAMPER e2=expr  { mkpredef_call_b "&&" e1 e2 }
-| e1=expr OR e2=expr          { mkpredef_call_b "||" e1 e2 }
-| e1=expr BARBAR e2=expr      { mkpredef_call_b "||" e1 e2 }
-| e1=expr XOR e2=expr         { mkpredef_call_b "xor" e1 e2 }
-| NOT e=expr                  { mkpredef_call_u "not" e }
-| e1=expr IMPL e2=expr        { mkpredef_call_b "impl" e1 e2 }
+| e1=expr AND e2=expr         { mkpredef_call_b $sloc "&&" e1 e2 }
+| e1=expr AMPERAMPER e2=expr  { mkpredef_call_b $sloc "&&" e1 e2 }
+| e1=expr OR e2=expr          { mkpredef_call_b $sloc "||" e1 e2 }
+| e1=expr BARBAR e2=expr      { mkpredef_call_b $sloc "||" e1 e2 }
+| e1=expr XOR e2=expr         { mkpredef_call_b $sloc "xor" e1 e2 }
+| NOT e=expr                  { mkpredef_call_u $sloc "not" e }
+| e1=expr IMPL e2=expr        { mkpredef_call_b $sloc "impl" e1 e2 }
 
 /* Comparison expr */
-| e1=expr EQ e2=expr          { mkpredef_call_b "=" e1 e2 }
-| e1=expr LT e2=expr          { mkpredef_call_b "<" e1 e2 }
-| e1=expr LTE e2=expr         { mkpredef_call_b "<=" e1 e2 }
-| e1=expr GT e2=expr          { mkpredef_call_b ">" e1 e2 }
-| e1=expr GTE e2=expr         { mkpredef_call_b ">=" e1 e2 }
-| e1=expr NEQ e2=expr         { mkpredef_call_b "!=" e1 e2 }
+| e1=expr EQ e2=expr          { mkpredef_call_b $sloc "=" e1 e2 }
+| e1=expr LT e2=expr          { mkpredef_call_b $sloc "<" e1 e2 }
+| e1=expr LTE e2=expr         { mkpredef_call_b $sloc "<=" e1 e2 }
+| e1=expr GT e2=expr          { mkpredef_call_b $sloc ">" e1 e2 }
+| e1=expr GTE e2=expr         { mkpredef_call_b $sloc ">=" e1 e2 }
+| e1=expr NEQ e2=expr         { mkpredef_call_b $sloc "!=" e1 e2 }
 
 /* Arithmetic expr */
-| e1=expr PLUS e2=expr        { mkpredef_call_b "+" e1 e2 }
-| e1=expr MINUS e2=expr       { mkpredef_call_b "-" e1 e2 }
-| e1=expr MULT e2=expr        { mkpredef_call_b "*" e1 e2 }
-| e1=expr DIV e2=expr         { mkpredef_call_b "/" e1 e2 }
-| MINUS e=expr %prec p_uminus { mkpredef_call_u "uminus" e }
-| e1=expr MOD e2=expr         { mkpredef_call_b "mod" e1 e2 }
+| e1=expr PLUS e2=expr        { mkpredef_call_b $sloc "+" e1 e2 }
+| e1=expr MINUS e2=expr       { mkpredef_call_b $sloc "-" e1 e2 }
+| e1=expr MULT e2=expr        { mkpredef_call_b $sloc "*" e1 e2 }
+| e1=expr DIV e2=expr         { mkpredef_call_b $sloc "/" e1 e2 }
+| MINUS e=expr %prec p_uminus { mkpredef_call_u $sloc "uminus" e }
+| e1=expr MOD e2=expr         { mkpredef_call_b $sloc "mod" e1 e2 }
 
 /* If */
-| IF e=expr THEN t=expr ELSE f=expr { mkexpr (Expr_ite (e, t, f)) }
+| IF e=expr THEN t=expr ELSE f=expr { mkexpr $sloc (Expr_ite (e, t, f)) }
 
 signed_const:
 | c=INT
@@ -535,35 +525,35 @@ signed_const:
   { Const_array cs }
 
 dim:
-| i=INT                      { mkdim_int i }
+| i=INT                      { mkdim_int $sloc i }
 | LPAR d=dim RPAR            { d }
-| x=ident                    { mkdim_ident x }
-| d1=dim AND d2=dim          { mkdim_appl_b "&&" d1 d2 }
-| d1=dim AMPERAMPER d2=dim   { mkdim_appl_b "&&" d1 d2 }
-| d1=dim OR d2=dim           { mkdim_appl_b "||" d1 d2 }
-| d1=dim BARBAR d2=dim       { mkdim_appl_b "||" d1 d2 }
-| d1=dim XOR d2=dim          { mkdim_appl_b "xor" d1 d2 }
-| NOT d=dim                  { mkdim_appl_u "not" d }
-| d1=dim IMPL d2=dim         { mkdim_appl_b "impl" d1 d2 }
+| x=ident                    { mkdim_ident $sloc x }
+| d1=dim AND d2=dim          { mkdim_appl_b $sloc "&&" d1 d2 }
+| d1=dim AMPERAMPER d2=dim   { mkdim_appl_b $sloc "&&" d1 d2 }
+| d1=dim OR d2=dim           { mkdim_appl_b $sloc "||" d1 d2 }
+| d1=dim BARBAR d2=dim       { mkdim_appl_b $sloc "||" d1 d2 }
+| d1=dim XOR d2=dim          { mkdim_appl_b $sloc "xor" d1 d2 }
+| NOT d=dim                  { mkdim_appl_u $sloc "not" d }
+| d1=dim IMPL d2=dim         { mkdim_appl_b $sloc "impl" d1 d2 }
 
-/* Comparison dim */
-| d1=dim EQ d2=dim           { mkdim_appl_b "=" d1 d2 }
-| d1=dim LT d2=dim           { mkdim_appl_b "<" d1 d2 }
-| d1=dim LTE d2=dim          { mkdim_appl_b "<=" d1 d2 }
-| d1=dim GT d2=dim           { mkdim_appl_b ">" d1 d2 }
-| d1=dim GTE  d2=dim         { mkdim_appl_b ">=" d1 d2 }
-| d1=dim NEQ d2=dim          { mkdim_appl_b "!=" d1 d2 }
+/* Comparison dim */                      
+| d1=dim EQ d2=dim           { mkdim_appl_b $sloc "=" d1 d2 }
+| d1=dim LT d2=dim           { mkdim_appl_b $sloc "<" d1 d2 }
+| d1=dim LTE d2=dim          { mkdim_appl_b $sloc "<=" d1 d2 }
+| d1=dim GT d2=dim           { mkdim_appl_b $sloc ">" d1 d2 }
+| d1=dim GTE  d2=dim         { mkdim_appl_b $sloc ">=" d1 d2 }
+| d1=dim NEQ d2=dim          { mkdim_appl_b $sloc "!=" d1 d2 }
 
-/* Arithmetic dim */
-| d1=dim PLUS d2=dim         { mkdim_appl_b "+" d1 d2 }
-| d1=dim MINUS d2=dim        { mkdim_appl_b "-" d1 d2 }
-| d1=dim MULT d2=dim         { mkdim_appl_b "*" d1 d2 }
-| d1=dim DIV d2=dim          { mkdim_appl_b "/" d1 d2 }
-| MINUS d=dim %prec p_uminus { mkdim_appl_u "uminus" d }
-| d1=dim MOD d2=dim          { mkdim_appl_b "mod" d1 d2 }
+/* Arithmetic dim */                    
+| d1=dim PLUS d2=dim         { mkdim_appl_b $sloc "+" d1 d2 }
+| d1=dim MINUS d2=dim        { mkdim_appl_b $sloc "-" d1 d2 }
+| d1=dim MULT d2=dim         { mkdim_appl_b $sloc "*" d1 d2 }
+| d1=dim DIV d2=dim          { mkdim_appl_b $sloc "/" d1 d2 }
+| MINUS d=dim %prec p_uminus { mkdim_appl_u $sloc "uminus" d }
+| d1=dim MOD d2=dim          { mkdim_appl_b $sloc "mod" d1 d2 }
 
 /* If */
-| IF d=dim THEN t=dim ELSE f=dim { mkdim_ite d t f }
+| IF d=dim THEN t=dim ELSE f=dim { mkdim_ite $sloc d t f }
 
 %inline locals:
 | xs=loption(preceded(VAR, var_decl_list(local_vdecl))) { xs }
@@ -591,19 +581,19 @@ local_vdecl:
 cdecl:
 | x=const_ident EQ c=signed_const
   { fun itf ->
-    let c = mktop_decl itf (Const {
-                                const_id = x;
-                                const_loc = get_loc ();
-                                const_type = Types.new_var ();
-                                const_value = c
-              })
+    let c = mktop_decl $sloc itf (Const {
+                                      const_id = x;
+                                      const_loc = $sloc;
+                                      const_type = Types.new_var ();
+                                      const_value = c
+                          })
     in
     (*add_const itf $1 c;*)
     c
   }
 
 %inline clock:
-| l=when_cond+ { mkclock (Ckdec_bool l) }
+| l=when_cond+ { mkclock $sloc (Ckdec_bool l) }
 
 when_cond:
 | WHEN x=IDENT                       { x, tag_true }
@@ -614,21 +604,21 @@ when_cond:
 | ds=separated_nonempty_list(COMMA, vdecl_ident) { ds }
 
 lustre_annot:
-| lustre_annot_list EOF { { annots = $1; annot_loc = get_loc () } }
+| annots=lustre_annot_list EOF { { annots; annot_loc = $sloc } }
 
 lustre_annot_list:
   { [] } 
-| kwd COL qexpr SCOL lustre_annot_list { ($1,$3)::$5 }
-| IDENT COL qexpr SCOL lustre_annot_list { ([$1],$3)::$5 }
-| INVARIANT COL qexpr SCOL lustre_annot_list{ (["invariant"],$3)::$5 }
+| k=kwd COL e=qexpr SCOL anns=lustre_annot_list     { (k, e) :: anns }
+| x=IDENT COL e=qexpr SCOL anns=lustre_annot_list   { ([x], e) :: anns }
+| INVARIANT COL e=qexpr SCOL anns=lustre_annot_list { (["invariant"], e) :: anns }
 // (* | OBSERVER COL qexpr SCOL lustre_annot_list { (["observer"],$3)::$5 } *)
-| CCODE COL qexpr SCOL lustre_annot_list{ (["c_code"],$3)::$5 }
-| MATLAB COL qexpr SCOL lustre_annot_list{ (["matlab"],$3)::$5 }
+| CCODE COL e=qexpr SCOL anns=lustre_annot_list     { (["c_code"], e) :: anns }
+| MATLAB COL e=qexpr SCOL anns=lustre_annot_list    { (["matlab"], e) :: anns }
 
 
 kwd:
-DIV { [] }
-| DIV IDENT kwd { $2::$3}
+| DIV               { [] }
+| DIV x=IDENT k=kwd { x :: k }
 
 %%
 (* Local Variables: *)

@@ -38,27 +38,28 @@ let create_dest_dir () =
 (* Loading Lus/Lusi file and filling type tables with parsed
    functions/nodes *)
 let parse filename extension =
-  Location.set_input filename;
-  let f_in = open_in filename in
-  let lexbuf = Lexing.from_channel f_in in
-  Location.init lexbuf filename;
+  (* Location.set_input filename; *)
+  (* let f_in = open_in filename in *)
+  (* let lexbuf = Lexing.from_channel f_in in *)
+  (* Location.init lexbuf filename; *)
   (* Parsing *)
   let prog = 
     try
-      match extension with
-        ".lusi" ->
-        Log.report ~level:1
-          (fun fmt -> fprintf fmt ".. parsing header file %s@ " filename);
-        Parse.header Parser_lustre.header Lexer_lustre.token lexbuf 
-      | ".lus" ->
-         Log.report ~level:1 
-           (fun fmt -> fprintf fmt ".. parsing source file %s@ " filename);
-         Parse.prog Parser_lustre.prog Lexer_lustre.token lexbuf
-      | _ -> assert false
+      Parse.(parse filename
+               (match extension with
+                | ".lusi" ->
+                  Log.report ~level:1
+                    (fun fmt -> fprintf fmt ".. parsing header file %s@ " filename);
+                  Header
+                | ".lus" ->
+                  Log.report ~level:1
+                    (fun fmt -> fprintf fmt ".. parsing source file %s@ " filename);
+                  Program
+                | _ -> assert false))
     with
-    | (Parse.Error err) as exc -> 
-       Parse.report_error err;
-       raise exc
+    (* | (Parse.Error err) as exc ->
+     *    Parse.report_error err;
+     *    raise exc *)
     | Error.Error (loc, err) as exc -> (
       eprintf "Parsing error: %a%a@."
         Error.pp_error_msg err
@@ -66,7 +67,7 @@ let parse filename extension =
       raise exc
     )
   in
-  close_in f_in;
+  (* close_in f_in; *)
   prog
     
 

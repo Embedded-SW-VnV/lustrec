@@ -45,12 +45,13 @@
    machine_types
    splitting
    compiler_common
-   parse parser_lustre lexer_lustre lexerLustreSpec
+   parse parser_lustre parser_lustre_table parser_lustre_messages
+   lexer_lustre lexerLustreSpec
    automata
    clock_calculus
  )
  (wrapped false)
- (libraries sites ocamlgraph zarith unix str))
+ (libraries sites ocamlgraph zarith unix str menhirLib))
 
 (library
  (name plugin_register)

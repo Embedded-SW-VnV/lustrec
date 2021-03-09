@@ -23,13 +23,11 @@ open Lustre_types
 open Corelang
 open Clocks
 
-let loc_of_cond loc_containing id =
+let loc_of_cond (_s, e) id =
   let pos_start =
-    {loc_containing.Location.loc_end with 
-     Lexing.pos_cnum=loc_containing.Location.loc_end.Lexing.pos_cnum-(String.length id)}
+    { e with Lexing.pos_cnum = e.Lexing.pos_cnum - (String.length id) }
   in
-  {Location.loc_start = pos_start;
-   Location.loc_end = loc_containing.Location.loc_end}
+  pos_start, e
 
 (** [occurs cvar ck] returns true if the clock variable [cvar] occurs in
     clock [ck]. False otherwise. *)

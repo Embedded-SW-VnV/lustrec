@@ -234,7 +234,7 @@ module ExprDep = struct
     (* Add mashup dependencies for a user-defined node instance [lhs] = [f]([e]) *)
     (* i.e every input is connected to every output, through a ghost var *)
       let mashup_appl_dependencies f e g =
-	let f_var = mk_instance_var (Format.sprintf "%s_%d" f eq.eq_loc.Location.loc_start.Lexing.pos_lnum) in
+	let f_var = mk_instance_var (Format.sprintf "%s_%d" f (fst eq.eq_loc).Lexing.pos_lnum) in
 	List.fold_right (fun rhs -> add_dep lhs_is_mem (adjust_tuple f_var rhs) rhs)
 	  (expr_list_of_expr e) (add_var lhs_is_mem lhs f_var g) 
       in

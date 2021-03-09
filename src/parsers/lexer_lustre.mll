@@ -81,22 +81,46 @@ let keyword_table =
 (* Buffer for parsing specification/annotation *)
 let buf = Buffer.create 1024
 
-let make_annot lexbuf s =
+  type error =
+    | Undefined_token of string
+    (* | Unexpected_eof *)
+    (* | Unfinished_string *)
+    | Unfinished_comment
+    (* | Unexpected_token_annot *)
+    (* | Unexpected_token_spec *)
+    (* | Syntax_error *)
+    (* | String_Syntax_error of string *)
+    | Unfinished_annot
+    | Unfinished_node_spec
+    | Annot_error of string
+    | Node_spec_error of string
+
+  exception Error of Location.t * error
+
+let error_with loc err =
+  raise (Error (loc, err))
+
+let error lexbuf =
+  error_with (Location.curr lexbuf)
+
+let newline token lexbuf =
+  Location.Lex.newline lexbuf;
+  token lexbuf
+
+let make_annot s lexbuf =
   let orig_loc = Location.curr lexbuf in
   try
-    Location.push_loc orig_loc;	
     let ann = LexerLustreSpec.annot s in
-    Location.pop_loc ();
     ANNOT ann
-  with LexerLustreSpec.Error loc -> raise (Parse.Error (Location.shift orig_loc loc, Parse.Annot_error s))
+  with LexerLustreSpec.Error (loc, _) ->
+   error_with (Location.shift orig_loc loc) (Annot_error s)
 
 let make_spec orig_loc s =
   try
-    Location.push_loc orig_loc;	
     let ns = LexerLustreSpec.spec s in
-    Location.pop_loc ();
     NODESPEC ns
-  with LexerLustreSpec.Error loc -> raise (Parse.Error (Location.shift orig_loc loc, Parse.Node_spec_error s))
+  with LexerLustreSpec.Error (loc, _) ->
+   error_with (Location.shift orig_loc loc) (Node_spec_error s)
 
 }
 
@@ -107,24 +131,19 @@ let blank = [' ' '\009' '\012']
 rule token = parse
 | "--@" { Buffer.clear buf;
           let loc = Location.curr lexbuf in
-	  spec_singleline loc lexbuf }
+          spec_singleline loc lexbuf }
 | "(*@" { Buffer.clear buf; 
-	  let loc = Location.curr lexbuf in
-	  spec_multiline loc 0 lexbuf }
+          let loc = Location.curr lexbuf in
+          spec_multiline loc 0 lexbuf }
 | "--!" { Buffer.clear buf; 
-	  annot_singleline lexbuf }
+          annot_singleline lexbuf }
 | "(*!" { Buffer.clear buf; 
-	  annot_multiline 0 lexbuf }
-| "(*"
-    { comment 0 lexbuf }
+          annot_multiline 0 lexbuf }
+| "(*"  { comment 0 lexbuf }
 | "--" [^ '!' '@'] notnewline* (newline|eof)
-    { Lexing.new_line lexbuf;
-      token lexbuf }
-| newline
-    { Lexing.new_line lexbuf;
-      token lexbuf }
-| blank +
-    {token lexbuf}
+    { newline token lexbuf }
+| newline { newline token lexbuf }
+| blank + { token lexbuf }
 | ((['0'-'9']+ as l)  '.' (['0'-'9']* as r) ('E'|'e') (('+'|'-')? ['0'-'9']+ as exp)) as s
     {REAL (Real.create (l^r) (String.length r + -1 * int_of_string exp) s)}
 | ((['0'-'9']+ as l) '.' (['0'-'9']* as r)) as s
@@ -135,18 +154,10 @@ rule token = parse
 | "tel;" {TEL}
 | "#open" { OPEN }
 | "include" { INCLUDE }
-| ['_' 'a'-'z'] [ '_' 'a'-'z' 'A'-'Z' '0'-'9']*
-    {let s = Lexing.lexeme lexbuf in
-    try
-      Hashtbl.find keyword_table s
-    with Not_found ->
-      IDENT s}
-| ['A'-'Z'] [ '_' 'a'-'z' 'A'-'Z' '0'-'9']*
-    {let s = Lexing.lexeme lexbuf in
-    try
-      Hashtbl.find keyword_table s
-    with Not_found ->
-      UIDENT s}     
+| ['_' 'a'-'z'] [ '_' 'a'-'z' 'A'-'Z' '0'-'9']* as s
+    { try Hashtbl.find keyword_table s with Not_found -> IDENT s }
+| ['A'-'Z'] [ '_' 'a'-'z' 'A'-'Z' '0'-'9']* as s
+    { try Hashtbl.find keyword_table s with Not_found -> UIDENT s }
 | "->" {ARROW}
 | "=>" {IMPL}
 | "<=" {LTE}
@@ -177,48 +188,43 @@ rule token = parse
 | '"' {QUOTE}
 | '.' {POINT}
 | eof { EOF }
-| _ { raise (Parse.Error (Location.curr lexbuf, Parse.Undefined_token (Lexing.lexeme lexbuf))) }
+| _ { error lexbuf (Undefined_token (Lexing.lexeme lexbuf)) }
 
 and comment n = parse
-| eof
-    { raise (Parse.Error (Location.curr lexbuf, Parse.Unfinished_comment)) }
-| "(*"
-    { comment (n+1) lexbuf }
-| "*)"
-    { if n > 0 then comment (n-1) lexbuf else token lexbuf }
-| newline
-    { Lexing.new_line lexbuf;
-      comment n lexbuf }
-| _ { comment n lexbuf }
+  | eof     { error lexbuf Unfinished_comment }
+  | "(*"    { comment (n+1) lexbuf }
+  | "*)"    { if n > 0 then comment (n-1) lexbuf else token lexbuf }
+  | newline { newline (comment n) lexbuf }
+  | _       { comment n lexbuf }
 
 and annot_singleline = parse
-  | eof { make_annot lexbuf (Buffer.contents buf) }
-  | newline { Lexing.new_line lexbuf; make_annot lexbuf (Buffer.contents buf) }
-  | _ as c { Buffer.add_char buf c; annot_singleline lexbuf }
+  | eof     { make_annot (Buffer.contents buf) lexbuf }
+  | newline { newline (make_annot (Buffer.contents buf)) lexbuf }
+  | _ as c  { Buffer.add_char buf c; annot_singleline lexbuf }
 
 and annot_multiline n = parse
-  | eof { raise (Parse.Error (Location.curr lexbuf, Parse.Unfinished_annot)) }
-  | "*)" as s { 
-    if n > 0 then 
-      (Buffer.add_string buf s; annot_multiline (n-1) lexbuf) 
-    else 
-      make_annot lexbuf (Buffer.contents buf) }
-  | "(*" as s { Buffer.add_string buf s; annot_multiline (n+1) lexbuf }
-  | newline as s { Lexing.new_line lexbuf; Buffer.add_string buf s; annot_multiline n lexbuf }
-  | _ as c { Buffer.add_char buf c; annot_multiline n lexbuf }
+  | eof          { error lexbuf Unfinished_annot }
+  | "*)" as s    { if n > 0 then
+                     (Buffer.add_string buf s; annot_multiline (n-1) lexbuf)
+                   else
+                     make_annot (Buffer.contents buf) lexbuf }
+  | "(*" as s    { Buffer.add_string buf s; annot_multiline (n+1) lexbuf }
+  | newline as s { newline (fun lexbuf ->
+        Buffer.add_string buf s; annot_multiline n lexbuf) lexbuf }
+  | _ as c       { Buffer.add_char buf c; annot_multiline n lexbuf }
 
 and spec_singleline loc = parse
-  | eof { make_spec loc (Buffer.contents buf) }
-  | newline { Lexing.new_line lexbuf; make_spec loc (Buffer.contents buf) }
-  | _ as c { Buffer.add_char buf c; spec_singleline loc lexbuf }
+  | eof     { make_spec loc (Buffer.contents buf) }
+  | newline { newline (fun _ -> make_spec loc (Buffer.contents buf)) lexbuf }
+  | _ as c  { Buffer.add_char buf c; spec_singleline loc lexbuf }
 
 and spec_multiline loc n = parse
-  | eof { raise (Parse.Error (Location.curr lexbuf, Parse.Unfinished_node_spec)) }
-  | "*)" as s { if n > 0 then 
-      (Buffer.add_string buf s; spec_multiline loc (n-1) lexbuf) 
-    else 
-      make_spec loc (Buffer.contents buf) }
-  | "(*" as s { Buffer.add_string buf s; spec_multiline loc (n+1) lexbuf }
-  | newline as s { Lexing.new_line lexbuf; Buffer.add_string buf s; spec_multiline loc n lexbuf }
-  | _ as c { Buffer.add_char buf c; spec_multiline loc n lexbuf }
-
+  | eof          { error lexbuf Unfinished_node_spec }
+  | "*)" as s    { if n > 0 then
+                     (Buffer.add_string buf s; spec_multiline loc (n-1) lexbuf)
+                   else
+                     make_spec loc (Buffer.contents buf) }
+  | "(*" as s    { Buffer.add_string buf s; spec_multiline loc (n+1) lexbuf }
+  | newline as s { newline (fun lexbuf ->
+        Buffer.add_string buf s; spec_multiline loc n lexbuf) lexbuf }
+  | _ as c       { Buffer.add_char buf c; spec_multiline loc n lexbuf }
