@@ -45,7 +45,7 @@ let parse filename extension =
   (* Parsing *)
   let prog = 
     try
-      Parse.(parse filename
+      Parse.(parse_filename (module Lexer_lustre) filename
                (match extension with
                 | ".lusi" ->
                   Log.report ~level:1

@@ -26,7 +26,14 @@ let set_input, get_input, get_module =
   (fun () -> !input_name),
   (fun () -> !module_name)
 
-let curr lexbuf = lexbuf.lex_start_p, lexbuf.lex_curr_p
+let curr lexbuf =
+  lexbuf.lex_start_p, lexbuf.lex_curr_p
+
+let filename_of_loc (s, _) =
+  s.pos_fname
+
+let filename_of_lexbuf lexbuf =
+  lexbuf.lex_start_p.pos_fname
 
 (* let init lexbuf fname =
  *   lexbuf.Lexing.lex_curr_p <- {
@@ -44,8 +51,10 @@ let shift_pos pos1 pos2 =
     pos_lnum = pos1.pos_lnum + pos2.pos_lnum - 1;
 
     (* New try *)
-    pos_bol = pos2.pos_bol;
-    pos_cnum = pos2.pos_cnum;
+    (* pos_bol = pos2.pos_bol; *)
+    pos_bol = pos1.pos_bol + pos2.pos_bol;
+    pos_cnum = pos1.pos_cnum + pos2.pos_cnum
+    (* pos_cnum = pos2.pos_cnum; *)
     (*
     pos_bol = pos1.pos_bol + pos2.pos_bol;
     pos_cnum =if pos2.pos_lnum = 1 then pos1.pos_cnum + pos2.pos_cnum else pos2.pos_cnum
@@ -77,40 +86,19 @@ let shift_pos pos1 pos2 =
 let loc_line (s, _e) = s.pos_lnum
   
 let pp_loc fmt loc =
-  if loc == dummy_loc then () else
-  (* let filename = loc.loc_start.pos_fname in
-   * let line = loc_line loc in
-   * let start_char =
-   *   loc.loc_start.pos_cnum - loc.loc_start.pos_bol
-   * in
-   * let end_char =
-   *   loc.loc_end.pos_cnum - loc.loc_start.pos_cnum + start_char
-   * in
-   * let (start_char, end_char) =
-   *   if start_char < 0 then (0,1) else (start_char, end_char)
-   * in
-   * Format.fprintf fmt "File \"%s\", line %i, characters %i-%i"
-   *   filename line start_char end_char; *)
+  if loc == dummy_loc then
+    ()
+  else
     Format.fprintf fmt "%s" (Lex.range loc)
-  (* Format.fprintf fmt "@.loc1=(%i,%i,%i) loc2=(%i,%i,%i)@."
-   *   loc.loc_start.pos_lnum
-   *   loc.loc_start.pos_bol
-   *   loc.loc_start.pos_cnum
-   *   loc.loc_end.pos_lnum
-   *   loc.loc_end.pos_bol
-   *   loc.loc_end.pos_cnum;
-   *    () *)
 
-  (* () *)
-  
 let pp_c_loc fmt (s, _e) =
   let filename = s.pos_fname in
   let line = s.pos_lnum in
   Format.fprintf fmt "#line %i \"%s\"" line filename
 
-let shift (s1, _e1) (s2, e2) =
-  shift_pos s1 s2,
-  shift_pos s1 e2
+let shift (_s1, e1) (s2, e2) =
+  shift_pos e1 s2,
+  shift_pos e1 e2
 
 (* Local Variables: *)
 (* compile-command:"make -C .." *)

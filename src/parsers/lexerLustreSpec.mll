@@ -18,20 +18,21 @@
   let str_buf = Buffer.create 1024
 
   type error =
-    (* | Undefined_token of string *)
-    | Unexpected_eof
+    | Undefined_token of string
     | Unfinished_string
     | Unfinished_comment
-    | Unexpected_token_annot
-    | Unexpected_token_spec
-    (* | Syntax_error *)
-    (* | String_Syntax_error of string *)
-    (* | Unfinished_annot *)
-    (* | Unfinished_node_spec  *)
-    (* | Annot_error of string *)
-    (* | Node_spec_error of string *)
 
   exception Error of Location.t * error
+
+let pp_error fmt =
+  let open Format in
+  function
+  | Undefined_token s ->
+    fprintf fmt "undefined token '%s'" s
+  | Unfinished_comment ->
+    fprintf fmt "unfinished comment"
+  | Unfinished_string ->
+    fprintf fmt "unfinished string"
 
 let error lexbuf err =
   raise (Error (Location.curr lexbuf, err))
@@ -147,7 +148,7 @@ rule token = parse
   | "^" {POWER}
   | '"' { Buffer.clear str_buf; string_parse lexbuf }
   | eof { EOF }
-  | _ { error lexbuf Unexpected_eof }
+  | _   { error lexbuf (Undefined_token (Lexing.lexeme lexbuf)) }
 
 and comment_line n = parse
   | eof     { error lexbuf Unfinished_comment }
@@ -161,20 +162,3 @@ and string_parse = parse
   | "\\\"" as s { Buffer.add_string str_buf s; string_parse lexbuf}
   | '"'         { STRING (Buffer.contents str_buf) }
   | _ as c      { Buffer.add_char str_buf c; string_parse lexbuf }
-
-{
-
-  let annot s =
-    let lexbuf = Lexing.from_string s in
-    try
-      Parser_lustre.lustre_annot token lexbuf
-    with Parser_lustre.Error ->
-      error lexbuf Unexpected_token_annot
-
-  let spec s =
-    let lexbuf = Lexing.from_string s in
-    try
-      Parser_lustre.lustre_spec token lexbuf
-    with Parser_lustre.Error ->
-      error lexbuf Unexpected_token_spec
-}
