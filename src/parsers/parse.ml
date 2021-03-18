@@ -49,18 +49,18 @@ let show text positions =
   |> E.compress
   |> E.shorten 20 (* max width 43 *)
 
-(* [get text checkpoint i] extracts and shows the range of the input text that
-   corresponds to the [i]-th stack cell. The top stack cell is numbered zero. *)
-let get text checkpoint i =
-  match I.get i (env checkpoint) with
-  | Some (I.Element (_, _, pos1, pos2)) ->
-    show text (pos1, pos2)
-  | None ->
-    (* The index is out of range. This should not happen if [$i]
-       keywords are correctly inside the syntax error message
-       database. The integer [i] should always be a valid offset
-       into the known suffix of the stack. *)
-    "???"
+(* (\* [get text checkpoint i] extracts and shows the range of the input text that
+ *    corresponds to the [i]-th stack cell. The top stack cell is numbered zero. *\)
+ * let get text checkpoint i =
+ *   match I.get i (env checkpoint) with
+ *   | Some (I.Element (_, _, pos1, pos2)) ->
+ *     show text (pos1, pos2)
+ *   | None ->
+ *     (\* The index is out of range. This should not happen if [$i]
+ *        keywords are correctly inside the syntax error message
+ *        database. The integer [i] should always be a valid offset
+ *        into the known suffix of the stack. *\)
+ *     "???" *)
 
 module type LEXER = sig
   val token: Lexing.lexbuf -> Parser_lustre.token
@@ -96,7 +96,7 @@ let reparse (module Lexer : LEXER) ?orig_loc filename start src =
     (* Fetch an error message from the database. *)
     let message = Parser_lustre_messages.message (state checkpoint) in
     (* Expand away the $i keywords that might appear in the message. *)
-    let message = E.expand (get src checkpoint) message in
+    (* let message = E.expand (get src checkpoint) message in *)
     (* Show these three components. *)
     eprintf "@[<v>%aSyntax error %s.@,%s@]@."
       Location.pp_loc loc indication message;

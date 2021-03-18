@@ -1,4 +1,9 @@
 prog: CONST XOR
+##
+## Ends in an error in state: 471.
+##
+## top_decl -> CONST . nonempty_list(cdecl) SCOL [ NODESPEC NODE FUNCTION EOF CONST ]
+##
 ## The known suffix of the stack is as follows:
 ## CONST
 ##
@@ -7,22 +12,47 @@ A `const` declaration must be followed by an identifier.
   Example: const x = 42;
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET ANNOT XOR
+##
+## Ends in an error in state: 527.
+##
+## stmt_list -> ANNOT . stmt_list [ TEL ]
+##
 ## The known suffix of the stack is as follows:
 ## ANNOT
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET ASSERT UIDENT SCOL XOR
+##
+## Ends in an error in state: 537.
+##
+## stmt_list -> assert_ . stmt_list [ TEL ]
+##
 ## The known suffix of the stack is as follows:
 ## assert_
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET XOR
+##
+## Ends in an error in state: 501.
+##
+## top_decl -> state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) nodespecs loption(preceded(VAR,var_decl_list(local_vdecl))) LET . stmt_list TEL [ NODESPEC NODE FUNCTION EOF CONST ]
+##
 ## The known suffix of the stack is as follows:
 ## state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) nodespecs loption(preceded(VAR,var_decl_list(local_vdecl))) LET
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT STATE UIDENT COL LET XOR
+##
+## Ends in an error in state: 523.
+##
+## handler -> STATE UIDENT COL list(unless) loption(preceded(VAR,var_decl_list(local_vdecl))) LET . stmt_list TEL list(until) [ UIDENT TEL STATE LPAR IDENT AUTOMATON ASSERT ANNOT ]
+##
 ## The known suffix of the stack is as follows:
 ## STATE UIDENT COL list(unless) loption(preceded(VAR,var_decl_list(local_vdecl))) LET
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET UIDENT EQ FALSE SCOL XOR
+##
+## Ends in an error in state: 533.
+##
+## stmt_list -> eq . stmt_list [ TEL ]
+##
 ## The known suffix of the stack is as follows:
 ## eq
 ##
@@ -30,6 +60,11 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET UIDENT
 A statement must be an equation, an assertion, an annotation or an automaton.
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET ASSERT XOR
+##
+## Ends in an error in state: 524.
+##
+## assert_ -> ASSERT . expr SCOL [ UIDENT TEL LPAR IDENT AUTOMATON ASSERT ANNOT ]
+##
 ## The known suffix of the stack is as follows:
 ## ASSERT
 ##
@@ -38,10 +73,20 @@ An `assert` must be provided with an expression.
   Example: assert x > 42;
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT STATE UIDENT COL LET TEL UNTIL UIDENT RESTART UIDENT XOR
+##
+## Ends in an error in state: 547.
+##
+## list(until) -> until . list(until) [ UIDENT TEL STATE LPAR IDENT AUTOMATON ASSERT ANNOT ]
+##
 ## The known suffix of the stack is as follows:
 ## until
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT STATE UIDENT COL LET TEL XOR
+##
+## Ends in an error in state: 540.
+##
+## handler -> STATE UIDENT COL list(unless) loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL . list(until) [ UIDENT TEL STATE LPAR IDENT AUTOMATON ASSERT ANNOT ]
+##
 ## The known suffix of the stack is as follows:
 ## STATE UIDENT COL list(unless) loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL
 ##
@@ -50,28 +95,53 @@ Ill-formed `until` clauses.
  Example: let ... tel until x = 42 resume Foo until y restart Bar
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT STATE UIDENT COL LET TEL UNTIL UIDENT RESTART XOR
+##
+## Ends in an error in state: 545.
+##
+## until -> UNTIL expr RESTART . UIDENT [ UNTIL UIDENT TEL STATE LPAR IDENT AUTOMATON ASSERT ANNOT ]
+##
 ## The known suffix of the stack is as follows:
 ## UNTIL expr RESTART
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT STATE UIDENT COL LET TEL UNTIL UIDENT RESUME XOR
+##
+## Ends in an error in state: 543.
+##
+## until -> UNTIL expr RESUME . UIDENT [ UNTIL UIDENT TEL STATE LPAR IDENT AUTOMATON ASSERT ANNOT ]
+##
 ## The known suffix of the stack is as follows:
 ## UNTIL expr RESUME
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT STATE XOR
+##
+## Ends in an error in state: 510.
+##
+## handler -> STATE . UIDENT COL list(unless) loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL list(until) [ UIDENT TEL STATE LPAR IDENT AUTOMATON ASSERT ANNOT ]
+##
 ## The known suffix of the stack is as follows:
 ## STATE
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT STATE UIDENT COL UNLESS UIDENT RESTART XOR
+##
+## Ends in an error in state: 517.
+##
+## unless -> UNLESS expr RESTART . UIDENT [ VAR UNLESS LET ]
+##
 ## The known suffix of the stack is as follows:
 ## UNLESS expr RESTART
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT STATE UIDENT COL UNLESS UIDENT RESUME XOR
+##
+## Ends in an error in state: 515.
+##
+## unless -> UNLESS expr RESUME . UIDENT [ VAR UNLESS LET ]
+##
 ## The known suffix of the stack is as follows:
 ## UNLESS expr RESUME
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT STATE UIDENT XOR
 ##
-## Ends in an error in state: 514.
+## Ends in an error in state: 511.
 ##
 ## handler -> STATE UIDENT . COL list(unless) loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL list(until) [ UIDENT TEL STATE LPAR IDENT AUTOMATON ASSERT ANNOT ]
 ##
@@ -82,6 +152,12 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMA
 The name of an automaton state must be an uppercase identifier.
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT STATE UIDENT COL LET TEL UNTIL XOR
+##
+## Ends in an error in state: 541.
+##
+## until -> UNTIL . expr RESTART UIDENT [ UNTIL UIDENT TEL STATE LPAR IDENT AUTOMATON ASSERT ANNOT ]
+## until -> UNTIL . expr RESUME UIDENT [ UNTIL UIDENT TEL STATE LPAR IDENT AUTOMATON ASSERT ANNOT ]
+##
 ## The known suffix of the stack is as follows:
 ## UNTIL
 ##
@@ -90,6 +166,11 @@ An `until` clause must be provided with an expression.
  Example: until x = 42 resume Foo
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT STATE UIDENT COL UNLESS UIDENT RESTART UIDENT XOR
+##
+## Ends in an error in state: 519.
+##
+## list(unless) -> unless . list(unless) [ VAR LET ]
+##
 ## The known suffix of the stack is as follows:
 ## unless
 ##
@@ -98,6 +179,12 @@ Ill-formed `unless` clauses.
  Example: unless x = 42 resume Foo unless y restart Bar let ... tel
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT STATE UIDENT COL UNLESS XOR
+##
+## Ends in an error in state: 513.
+##
+## unless -> UNLESS . expr RESTART UIDENT [ VAR UNLESS LET ]
+## unless -> UNLESS . expr RESUME UIDENT [ VAR UNLESS LET ]
+##
 ## The known suffix of the stack is as follows:
 ## UNLESS
 ##
@@ -106,6 +193,11 @@ An `unless` clause must be provided with an expression.
  Example: unless x = 42 resume Foo
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT STATE UIDENT COL XOR
+##
+## Ends in an error in state: 512.
+##
+## handler -> STATE UIDENT COL . list(unless) loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL list(until) [ UIDENT TEL STATE LPAR IDENT AUTOMATON ASSERT ANNOT ]
+##
 ## The known suffix of the stack is as follows:
 ## STATE UIDENT COL
 ##
@@ -114,10 +206,20 @@ Ill-formed state definition.
   Example: unless foo resume Foo let x = 42; tel until bar restart Bar
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT XOR
+##
+## Ends in an error in state: 509.
+##
+## automaton -> AUTOMATON type_ident . list(handler) [ UIDENT TEL LPAR IDENT AUTOMATON ASSERT ANNOT ]
+##
 ## The known suffix of the stack is as follows:
 ## AUTOMATON type_ident
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON XOR
+##
+## Ends in an error in state: 508.
+##
+## automaton -> AUTOMATON . type_ident list(handler) [ UIDENT TEL LPAR IDENT AUTOMATON ASSERT ANNOT ]
+##
 ## The known suffix of the stack is as follows:
 ## AUTOMATON
 ##
@@ -125,10 +227,20 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMA
 The name of an automaton must be an identifier.
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET LPAR UIDENT RPAR EQ XOR
+##
+## Ends in an error in state: 505.
+##
+## eq -> LPAR separated_nonempty_list(COMMA,vdecl_ident) RPAR EQ . expr SCOL [ UIDENT TEL LPAR IDENT AUTOMATON ASSERT ANNOT ]
+##
 ## The known suffix of the stack is as follows:
 ## LPAR separated_nonempty_list(COMMA,vdecl_ident) RPAR EQ
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET UIDENT EQ XOR
+##
+## Ends in an error in state: 530.
+##
+## eq -> separated_nonempty_list(COMMA,vdecl_ident) EQ . expr SCOL [ UIDENT TEL LPAR IDENT AUTOMATON ASSERT ANNOT ]
+##
 ## The known suffix of the stack is as follows:
 ## separated_nonempty_list(COMMA,vdecl_ident) EQ
 ##
@@ -137,12 +249,17 @@ The right-hand side of an equation must be an expression.
   Example: x = y + 42;
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET LPAR UIDENT RPAR XOR
+##
+## Ends in an error in state: 504.
+##
+## eq -> LPAR separated_nonempty_list(COMMA,vdecl_ident) RPAR . EQ expr SCOL [ UIDENT TEL LPAR IDENT AUTOMATON ASSERT ANNOT ]
+##
 ## The known suffix of the stack is as follows:
 ## LPAR separated_nonempty_list(COMMA,vdecl_ident) RPAR
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET UIDENT SCOL
 ##
-## Ends in an error in state: 532.
+## Ends in an error in state: 529.
 ##
 ## eq -> separated_nonempty_list(COMMA,vdecl_ident) . EQ expr SCOL [ UIDENT TEL LPAR IDENT AUTOMATON ASSERT ANNOT ]
 ##
@@ -161,7 +278,7 @@ Ill-formed equation.
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET LPAR UIDENT SCOL
 ##
-## Ends in an error in state: 506.
+## Ends in an error in state: 503.
 ##
 ## eq -> LPAR separated_nonempty_list(COMMA,vdecl_ident) . RPAR EQ expr SCOL [ UIDENT TEL LPAR IDENT AUTOMATON ASSERT ANNOT ]
 ##
@@ -178,6 +295,11 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET LPAR U
 <YOUR SYNTAX ERROR MESSAGE HERE: 506.>
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET LPAR XOR
+##
+## Ends in an error in state: 502.
+##
+## eq -> LPAR . separated_nonempty_list(COMMA,vdecl_ident) RPAR EQ expr SCOL [ UIDENT TEL LPAR IDENT AUTOMATON ASSERT ANNOT ]
+##
 ## The known suffix of the stack is as follows:
 ## LPAR
 ##
@@ -187,7 +309,7 @@ The left-hand side of an equation must be an optionally parenthesized, comma-sep
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR NODESPEC FUNCTION
 ##
-## Ends in an error in state: 488.
+## Ends in an error in state: 485.
 ##
 ## top_decl -> state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) nodespecs . loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL [ NODESPEC NODE FUNCTION EOF CONST ]
 ##
@@ -200,14 +322,20 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR NODESPEC F
 ## may provide an INCOMPLETE view of the future (what was expected next).
 ## In state 118, spurious reduction of production nodespec_list ->
 ## In state 119, spurious reduction of production nodespec_list -> NODESPEC nodespec_list
-## In state 424, spurious reduction of production nodespecs -> nodespec_list
+## In state 420, spurious reduction of production nodespecs -> nodespec_list
 ##
-
-Statements expected, between `let` and `tel` keywords.
-
+prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR XOR
+##
+## Ends in an error in state: 483.
+##
+## top_decl -> state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR . option(SCOL) nodespecs loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL [ NODESPEC NODE FUNCTION EOF CONST ]
+##
+## The known suffix of the stack is as follows:
+## state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR
+##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR SCOL LCUR
 ##
-## Ends in an error in state: 487.
+## Ends in an error in state: 484.
 ##
 ## top_decl -> state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) . nodespecs loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL [ NODESPEC NODE FUNCTION EOF CONST ]
 ##
@@ -215,11 +343,11 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR SCOL LCUR
 ## state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL)
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 487.>
+Statements expected, between `let` and `tel` keywords.
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR CONST UIDENT COL IDENT WHENNOT
 ##
-## Ends in an error in state: 492.
+## Ends in an error in state: 489.
 ##
 ## local_vdecl -> CONST vdecl_ident option(preceded(COL,typeconst)) . EQ expr [ SCOL LET ]
 ##
@@ -234,66 +362,18 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR CONST 
 ## In state 75, spurious reduction of production typeconst -> type_ident
 ## In state 130, spurious reduction of production option(preceded(COL,typeconst)) -> COL typeconst
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 492.>
-
-prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR CONST UIDENT EQ UIDENT THEN
-##
-## Ends in an error in state: 494.
-##
-## expr -> expr . POWER dim [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . ARROW expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . FBY expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . AND expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . OR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . XOR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . IMPL expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . EQ expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . LT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . LTE expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . GT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . GTE expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . NEQ expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . PLUS expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . MINUS expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . MULT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . DIV expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . MOD expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## local_vdecl -> CONST vdecl_ident option(preceded(COL,typeconst)) EQ expr . [ SCOL LET ]
-##
-## The known suffix of the stack is as follows:
-## CONST vdecl_ident option(preceded(COL,typeconst)) EQ expr
-##
-## WARNING: This example involves spurious reductions.
-## This implies that, although the LR(1) items shown above provide an
-## accurate view of the past (what has been recognized so far), they
-## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 168, spurious reduction of production expr -> UIDENT
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 494.>
-
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR CONST UIDENT EQ XOR
 ##
-## Ends in an error in state: 493.
+## Ends in an error in state: 490.
 ##
 ## local_vdecl -> CONST vdecl_ident option(preceded(COL,typeconst)) EQ . expr [ SCOL LET ]
 ##
 ## The known suffix of the stack is as follows:
 ## CONST vdecl_ident option(preceded(COL,typeconst)) EQ
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 493.>
-
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR CONST UIDENT XOR
 ##
-## Ends in an error in state: 491.
+## Ends in an error in state: 488.
 ##
 ## local_vdecl -> CONST vdecl_ident . option(preceded(COL,typeconst)) EQ expr [ SCOL LET ]
 ##
@@ -301,11 +381,12 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR CONST 
 ## CONST vdecl_ident
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 491.>
+A local `const` declaration must be initialized with an expression, using the `=` operator.
+  Example: var const x = 42
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR CONST XOR
 ##
-## Ends in an error in state: 490.
+## Ends in an error in state: 487.
 ##
 ## local_vdecl -> CONST . vdecl_ident option(preceded(COL,typeconst)) EQ expr [ SCOL LET ]
 ##
@@ -313,11 +394,12 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR CONST 
 ## CONST
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 490.>
+A local `const` declaration must be followed by an identifier.
+  Example: var const x = 42
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR UIDENT COL IDENT WHENNOT IDENT RPAR
 ##
-## Ends in an error in state: 500.
+## Ends in an error in state: 497.
 ##
 ## var_decl_list(local_vdecl) -> local_vdecl . [ LET ]
 ## var_decl_list(local_vdecl) -> local_vdecl . SCOL [ LET ]
@@ -332,14 +414,11 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR UIDENT
 ## may provide an INCOMPLETE view of the future (what was expected next).
 ## In state 150, spurious reduction of production nonempty_list(when_cond) -> when_cond
 ## In state 153, spurious reduction of production option(clock) -> nonempty_list(when_cond)
-## In state 499, spurious reduction of production local_vdecl -> separated_nonempty_list(COMMA,vdecl_ident) COL typeconst option(clock)
+## In state 496, spurious reduction of production local_vdecl -> separated_nonempty_list(COMMA,vdecl_ident) COL typeconst option(clock)
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 500.>
-
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR UIDENT COL TREAL RPAR
 ##
-## Ends in an error in state: 498.
+## Ends in an error in state: 495.
 ##
 ## local_vdecl -> separated_nonempty_list(COMMA,vdecl_ident) COL typeconst . option(clock) [ SCOL LET ]
 ##
@@ -352,24 +431,9 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR UIDENT
 ## may provide an INCOMPLETE view of the future (what was expected next).
 ## In state 5, spurious reduction of production typeconst -> TREAL
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 498.>
-
-prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR UIDENT COL XOR
-##
-## Ends in an error in state: 497.
-##
-## local_vdecl -> separated_nonempty_list(COMMA,vdecl_ident) COL . typeconst option(clock) [ SCOL LET ]
-##
-## The known suffix of the stack is as follows:
-## separated_nonempty_list(COMMA,vdecl_ident) COL
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 497.>
-
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR UIDENT RPAR
 ##
-## Ends in an error in state: 496.
+## Ends in an error in state: 493.
 ##
 ## local_vdecl -> separated_nonempty_list(COMMA,vdecl_ident) . [ SCOL LET ]
 ## local_vdecl -> separated_nonempty_list(COMMA,vdecl_ident) . COL typeconst option(clock) [ SCOL LET ]
@@ -383,12 +447,9 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR UIDENT
 ## may provide an INCOMPLETE view of the future (what was expected next).
 ## In state 124, spurious reduction of production separated_nonempty_list(COMMA,vdecl_ident) -> vdecl_ident
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 496.>
-
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR UIDENT SCOL XOR
 ##
-## Ends in an error in state: 501.
+## Ends in an error in state: 498.
 ##
 ## var_decl_list(local_vdecl) -> local_vdecl SCOL . [ LET ]
 ## var_decl_list(local_vdecl) -> local_vdecl SCOL . var_decl_list(local_vdecl) [ LET ]
@@ -396,12 +457,9 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR UIDENT
 ## The known suffix of the stack is as follows:
 ## local_vdecl SCOL
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 501.>
-
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR XOR
 ##
-## Ends in an error in state: 489.
+## Ends in an error in state: 486.
 ##
 ## loption(preceded(VAR,var_decl_list(local_vdecl))) -> VAR . var_decl_list(local_vdecl) [ LET ]
 ##
@@ -409,83 +467,159 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR XOR
 ## VAR
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 489.>
+Ill-formed local declarations.
+  Example: var x: int when c; y, z: bool; const r: real let ... tel
 
-prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR XOR
+prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR UIDENT COL XOR
 ##
-## Ends in an error in state: 486.
+## Ends in an error in state: 494.
 ##
-## top_decl -> state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR . option(SCOL) nodespecs loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL [ NODESPEC NODE FUNCTION EOF CONST ]
+## local_vdecl -> separated_nonempty_list(COMMA,vdecl_ident) COL . typeconst option(clock) [ SCOL LET ]
 ##
 ## The known suffix of the stack is as follows:
-## state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR
+## separated_nonempty_list(COMMA,vdecl_ident) COL
+##
+lustre_spec: GUARANTEES FORALL CONST UIDENT COL XOR
+##
+## Ends in an error in state: 129.
+##
+## option(preceded(COL,typeconst)) -> COL . typeconst [ SCOL RPAR EQ ]
+##
+## The known suffix of the stack is as follows:
+## COL
+##
+lustre_spec: GUARANTEES FORALL UIDENT COL XOR
+##
+## Ends in an error in state: 136.
+##
+## vdecl -> separated_nonempty_list(COMMA,vdecl_ident) COL . typeconst option(clock) [ SCOL RPAR ]
+##
+## The known suffix of the stack is as follows:
+## separated_nonempty_list(COMMA,vdecl_ident) COL
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 486.>
+A type name is expected.
+  Example: x: int
 
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR XOR
 ##
-## Ends in an error in state: 484.
+## Ends in an error in state: 481.
 ##
 ## top_decl -> state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR . var_decl_list(vdecl) RPAR option(SCOL) nodespecs loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL [ NODESPEC NODE FUNCTION EOF CONST ]
 ##
 ## The known suffix of the stack is as follows:
 ## state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 484.>
-
-prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS XOR
-##
-## Ends in an error in state: 483.
-##
-## top_decl -> state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS . LPAR var_decl_list(vdecl) RPAR option(SCOL) nodespecs loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL [ NODESPEC NODE FUNCTION EOF CONST ]
-##
-## The known suffix of the stack is as follows:
-## state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 483.>
-
-prog: NODE UIDENT LPAR CONST IDENT RPAR XOR
-##
-## Ends in an error in state: 482.
-##
-## top_decl -> state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR . RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) nodespecs loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL [ NODESPEC NODE FUNCTION EOF CONST ]
-##
-## The known suffix of the stack is as follows:
-## state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 482.>
-
 prog: NODE UIDENT LPAR XOR
 ##
-## Ends in an error in state: 480.
+## Ends in an error in state: 477.
 ##
 ## top_decl -> state_annot node_ident_decl LPAR . var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) nodespecs loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL [ NODESPEC NODE FUNCTION EOF CONST ]
 ##
 ## The known suffix of the stack is as follows:
 ## state_annot node_ident_decl LPAR
 ##
+lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS LPAR XOR
+##
+## Ends in an error in state: 157.
+##
+## top_contract -> CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR . var_decl_list(vdecl) RPAR option(SCOL) LET contract_content TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR
+##
+lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT SCOL XOR
+##
+## Ends in an error in state: 133.
+##
+## var_decl_list(vdecl) -> vdecl SCOL . [ RPAR ]
+## var_decl_list(vdecl) -> vdecl SCOL . var_decl_list(vdecl) [ RPAR ]
+##
+## The known suffix of the stack is as follows:
+## vdecl SCOL
+##
+lustre_spec: CONTRACT UIDENT LPAR XOR
+##
+## Ends in an error in state: 122.
+##
+## top_contract -> CONTRACT node_ident_decl LPAR . var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## CONTRACT node_ident_decl LPAR
+##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 480.>
+Ill-formed parameter declarations.
+  Example: x: int when c; y, z: bool; const r: real
+
+prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS XOR
+##
+## Ends in an error in state: 480.
+##
+## top_decl -> state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS . LPAR var_decl_list(vdecl) RPAR option(SCOL) nodespecs loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL [ NODESPEC NODE FUNCTION EOF CONST ]
+##
+## The known suffix of the stack is as follows:
+## state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS
+##
+lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS XOR
+##
+## Ends in an error in state: 156.
+##
+## top_contract -> CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS . LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS
+##
+
+The outputs of a node, function or node contract must be defined as a parenthesized list of parameter declarations.
+  Example: (x: int when c; y, z: bool; const r: real)
+
+prog: NODE UIDENT LPAR CONST IDENT RPAR XOR
+##
+## Ends in an error in state: 479.
+##
+## top_decl -> state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR . RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) nodespecs loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL [ NODESPEC NODE FUNCTION EOF CONST ]
+##
+## The known suffix of the stack is as follows:
+## state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR
+##
+lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR XOR
+##
+## Ends in an error in state: 155.
+##
+## top_contract -> CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR . RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR
+##
+
+A node, function or node contract definition must declare its outputs as a parenthesized list of parameter declarations, using the `returns` keyword.
+  Example: returns (x: int when c; y, z: bool; const r: real)
 
 prog: NODE UIDENT XOR
 ##
-## Ends in an error in state: 479.
+## Ends in an error in state: 476.
 ##
 ## top_decl -> state_annot node_ident_decl . LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) nodespecs loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL [ NODESPEC NODE FUNCTION EOF CONST ]
 ##
 ## The known suffix of the stack is as follows:
 ## state_annot node_ident_decl
 ##
+lustre_spec: CONTRACT UIDENT XOR
+##
+## Ends in an error in state: 121.
+##
+## top_contract -> CONTRACT node_ident_decl . LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## CONTRACT node_ident_decl
+##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 479.>
+A node, function or node contract definition must declare its inputs as a parenthesized list of parameter declarations, using the `returns` keyword.
+  Example: node f (x: int when c; y, z: bool; const r: real)
 
 prog: NODE XOR
 ##
-## Ends in an error in state: 478.
+## Ends in an error in state: 475.
 ##
 ## top_decl -> state_annot . node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) nodespecs loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL [ NODESPEC NODE FUNCTION EOF CONST ]
 ##
@@ -493,23 +627,20 @@ prog: NODE XOR
 ## state_annot
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 478.>
+The name of a node or function must be an identifier.
 
 prog: NODESPEC XOR
 ##
-## Ends in an error in state: 477.
+## Ends in an error in state: 474.
 ##
 ## list(top_decl) -> top_decl . list(top_decl) [ EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## top_decl
 ##
-
-Ill-formed toplevel declaration.
-
 prog: OPEN LT IDENT GT CONTRACT
 ##
-## Ends in an error in state: 472.
+## Ends in an error in state: 469.
 ##
 ## prog -> prefix . list(top_decl) EOF [ # ]
 ##
@@ -523,12 +654,9 @@ prog: OPEN LT IDENT GT CONTRACT
 ## In state 115, spurious reduction of production prefix ->
 ## In state 116, spurious reduction of production prefix -> open_lusi prefix
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 472.>
-
 prog: XOR
 ##
-## Ends in an error in state: 470.
+## Ends in an error in state: 467.
 ##
 ## prog' -> . prog [ # ]
 ##
@@ -536,23 +664,32 @@ prog: XOR
 ##
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 470.>
+Ill-formed toplevel declaration.
 
 lustre_spec: ASSUME STRING UIDENT SCOL XOR
 ##
-## Ends in an error in state: 337.
+## Ends in an error in state: 334.
 ##
 ## contract_content -> ASSUME STRING qexpr SCOL . contract_content [ TEL EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## ASSUME STRING qexpr SCOL
 ##
+lustre_spec: ASSUME UIDENT SCOL XOR
+##
+## Ends in an error in state: 337.
+##
+## contract_content -> ASSUME qexpr SCOL . contract_content [ TEL EOF ]
+##
+## The known suffix of the stack is as follows:
+## ASSUME qexpr SCOL
+##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 337.>
+Contract content expected.
 
 lustre_spec: ASSUME STRING VAR
 ##
-## Ends in an error in state: 335.
+## Ends in an error in state: 332.
 ##
 ## contract_content -> ASSUME STRING . qexpr SCOL contract_content [ TEL EOF ]
 ## expr -> STRING . [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
@@ -561,23 +698,12 @@ lustre_spec: ASSUME STRING VAR
 ## ASSUME STRING
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 335.>
-
-lustre_spec: ASSUME UIDENT SCOL XOR
-##
-## Ends in an error in state: 340.
-##
-## contract_content -> ASSUME qexpr SCOL . contract_content [ TEL EOF ]
-##
-## The known suffix of the stack is as follows:
-## ASSUME qexpr SCOL
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 340.>
+A named `assume` contract must be followed by a possibly quantified expression.
+  Example: --@ assume "foo" x=42;
 
 lustre_spec: ASSUME XOR
 ##
-## Ends in an error in state: 334.
+## Ends in an error in state: 331.
 ##
 ## contract_content -> ASSUME . qexpr SCOL contract_content [ TEL EOF ]
 ## contract_content -> ASSUME . STRING qexpr SCOL contract_content [ TEL EOF ]
@@ -586,160 +712,50 @@ lustre_spec: ASSUME XOR
 ## ASSUME
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 334.>
-
-lustre_spec: CONST IDENT COL EQ UIDENT SCOL XOR
-##
-## Ends in an error in state: 333.
-##
-## contract_content -> CONST IDENT COL option(typeconst) EQ expr SCOL . contract_content [ TEL EOF ]
-##
-## The known suffix of the stack is as follows:
-## CONST IDENT COL option(typeconst) EQ expr SCOL
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 333.>
-
-lustre_spec: CONST IDENT COL EQ UIDENT THEN
-##
-## Ends in an error in state: 332.
-##
-## contract_content -> CONST IDENT COL option(typeconst) EQ expr . SCOL contract_content [ TEL EOF ]
-## expr -> expr . POWER dim [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . ARROW expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . FBY expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . AND expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . OR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . XOR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . IMPL expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . EQ expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . LT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . LTE expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . GT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . GTE expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . NEQ expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . PLUS expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . MINUS expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . MULT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . DIV expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . MOD expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-##
-## The known suffix of the stack is as follows:
-## CONST IDENT COL option(typeconst) EQ expr
-##
-## WARNING: This example involves spurious reductions.
-## This implies that, although the LR(1) items shown above provide an
-## accurate view of the past (what has been recognized so far), they
-## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 168, spurious reduction of production expr -> UIDENT
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 332.>
-
-lustre_spec: CONST IDENT COL EQ XOR
-##
-## Ends in an error in state: 331.
-##
-## contract_content -> CONST IDENT COL option(typeconst) EQ . expr SCOL contract_content [ TEL EOF ]
-##
-## The known suffix of the stack is as follows:
-## CONST IDENT COL option(typeconst) EQ
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 331.>
+Ill-formed `assume` contract.
+  Example: --@ assume x=42;
 
 lustre_spec: CONST IDENT COL TREAL WHENNOT
 ##
-## Ends in an error in state: 330.
+## Ends in an error in state: 327.
 ##
-## contract_content -> CONST IDENT COL option(typeconst) . EQ expr SCOL contract_content [ TEL EOF ]
+## contract_content -> CONST IDENT option(preceded(COL,typeconst)) . EQ expr SCOL contract_content [ TEL EOF ]
 ##
 ## The known suffix of the stack is as follows:
-## CONST IDENT COL option(typeconst)
+## CONST IDENT option(preceded(COL,typeconst))
 ##
 ## WARNING: This example involves spurious reductions.
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
 ## In state 5, spurious reduction of production typeconst -> TREAL
-## In state 329, spurious reduction of production option(typeconst) -> typeconst
+## In state 130, spurious reduction of production option(preceded(COL,typeconst)) -> COL typeconst
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 330.>
-
-lustre_spec: CONST IDENT COL XOR
-##
-## Ends in an error in state: 328.
-##
-## contract_content -> CONST IDENT COL . option(typeconst) EQ expr SCOL contract_content [ TEL EOF ]
-##
-## The known suffix of the stack is as follows:
-## CONST IDENT COL
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 328.>
-
 lustre_spec: CONST IDENT XOR
 ##
-## Ends in an error in state: 327.
+## Ends in an error in state: 326.
 ##
-## contract_content -> CONST IDENT . COL option(typeconst) EQ expr SCOL contract_content [ TEL EOF ]
+## contract_content -> CONST IDENT . option(preceded(COL,typeconst)) EQ expr SCOL contract_content [ TEL EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## CONST IDENT
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 327.>
+A contract `const` declaration must be initialized with an expression, using the `=` operator.
+  Example: --@ const x = 42;
 
 lustre_spec: CONST XOR
 ##
-## Ends in an error in state: 326.
+## Ends in an error in state: 325.
 ##
-## contract_content -> CONST . IDENT COL option(typeconst) EQ expr SCOL contract_content [ TEL EOF ]
+## contract_content -> CONST . IDENT option(preceded(COL,typeconst)) EQ expr SCOL contract_content [ TEL EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## CONST
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 326.>
-
-lustre_spec: CONTRACT CONTRACT TEL
-##
-## Ends in an error in state: 468.
-##
-## lustre_spec -> contract_content . EOF [ # ]
-##
-## The known suffix of the stack is as follows:
-## contract_content
-##
-## WARNING: This example involves spurious reductions.
-## This implies that, although the LR(1) items shown above provide an
-## accurate view of the past (what has been recognized so far), they
-## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 325, spurious reduction of production contract_content ->
-## In state 343, spurious reduction of production contract_content -> CONTRACT contract_content
-## In state 343, spurious reduction of production contract_content -> CONTRACT contract_content
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 468.>
-
-lustre_spec: CONTRACT CONTRACT XOR
-##
-## Ends in an error in state: 325.
-##
-## contract_content -> CONTRACT . contract_content [ TEL EOF ]
-##
-## The known suffix of the stack is as follows:
-## CONTRACT
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 325.>
+A contract `const` declaration must be followed by an identifier.
+  Example: --@ const x = 42;
 
 lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT COL TREAL WHENNOT
 ##
@@ -763,28 +779,9 @@ lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT COL TREAL WHENNOT
 
 <YOUR SYNTAX ERROR MESSAGE HERE: 132.>
 
-lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS LPAR CONST IDENT RPAR LET CONTRACT EOF
-##
-## Ends in an error in state: 370.
-##
-## top_contract -> CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content . TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content
-##
-## WARNING: This example involves spurious reductions.
-## This implies that, although the LR(1) items shown above provide an
-## accurate view of the past (what has been recognized so far), they
-## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 325, spurious reduction of production contract_content ->
-## In state 343, spurious reduction of production contract_content -> CONTRACT contract_content
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 370.>
-
 lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS LPAR CONST IDENT RPAR LET TEL XOR
 ##
-## Ends in an error in state: 463.
+## Ends in an error in state: 459.
 ##
 ## nonempty_list(top_contract) -> top_contract . [ EOF ]
 ## nonempty_list(top_contract) -> top_contract . nonempty_list(top_contract) [ EOF ]
@@ -793,7 +790,7 @@ lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS LPAR CONST IDENT RPA
 ## top_contract
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 463.>
+Node contracts must be separated by `;`s.
 
 lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS LPAR CONST IDENT RPAR LET XOR
 ##
@@ -804,8 +801,12 @@ lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS LPAR CONST IDENT RPA
 ## The known suffix of the stack is as follows:
 ## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET
 ##
+lustre_spec: CONTRACT XOR
+## The known suffix of the stack is as follows:
+## CONTRACT
+##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 162.>
+Ill-formed contract content.
 
 lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS LPAR CONST IDENT RPAR SCOL LCUR
 ##
@@ -817,7 +818,7 @@ lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS LPAR CONST IDENT RPA
 ## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL)
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 161.>
+Ill-formed node contract.
 
 lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS LPAR CONST IDENT RPAR XOR
 ##
@@ -829,93 +830,7 @@ lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS LPAR CONST IDENT RPA
 ## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 159.>
-
-lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS LPAR XOR
-##
-## Ends in an error in state: 157.
-##
-## top_contract -> CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR . var_decl_list(vdecl) RPAR option(SCOL) LET contract_content TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 157.>
-
-lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS XOR
-##
-## Ends in an error in state: 156.
-##
-## top_contract -> CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS . LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 156.>
-
-lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR XOR
-##
-## Ends in an error in state: 155.
-##
-## top_contract -> CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR . RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 155.>
-
-lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT SCOL XOR
-##
-## Ends in an error in state: 133.
-##
-## var_decl_list(vdecl) -> vdecl SCOL . [ RPAR ]
-## var_decl_list(vdecl) -> vdecl SCOL . var_decl_list(vdecl) [ RPAR ]
-##
-## The known suffix of the stack is as follows:
-## vdecl SCOL
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 133.>
-
-lustre_spec: CONTRACT UIDENT LPAR XOR
-##
-## Ends in an error in state: 122.
-##
-## top_contract -> CONTRACT node_ident_decl LPAR . var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## CONTRACT node_ident_decl LPAR
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 122.>
-
-lustre_spec: CONTRACT UIDENT XOR
-##
-## Ends in an error in state: 121.
-##
-## top_contract -> CONTRACT node_ident_decl . LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## CONTRACT node_ident_decl
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 121.>
-
-lustre_spec: CONTRACT XOR
-##
-## Ends in an error in state: 462.
-##
-## contract_content -> CONTRACT . contract_content [ EOF ]
-## top_contract -> CONTRACT . node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content TEL [ EOF CONTRACT ]
-##
-## The known suffix of the stack is as follows:
-## CONTRACT
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 462.>
+Contract contents expected, between `let` and `tel` keywords.
 
 lustre_spec: GUARANTEES COLCOL XOR
 ##
@@ -927,7 +842,8 @@ lustre_spec: GUARANTEES COLCOL XOR
 ## COLCOL
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 184.>
+Ill-formed string annotation.
+  Example: --@ const x = ::foo;
 
 lustre_spec: GUARANTEES EXISTS CONST IDENT RPAR
 ##
@@ -946,9 +862,6 @@ lustre_spec: GUARANTEES EXISTS CONST IDENT RPAR
 ## In state 128, spurious reduction of production option(preceded(COL,typeconst)) ->
 ## In state 131, spurious reduction of production vdecl -> CONST separated_nonempty_list(COMMA,vdecl_ident) option(preceded(COL,typeconst))
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 289.>
-
 lustre_spec: GUARANTEES EXISTS CONST IDENT SCOL XOR
 ##
 ## Ends in an error in state: 290.
@@ -958,21 +871,6 @@ lustre_spec: GUARANTEES EXISTS CONST IDENT SCOL XOR
 ## The known suffix of the stack is as follows:
 ## EXISTS vdecl SCOL
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 290.>
-
-lustre_spec: GUARANTEES EXISTS XOR
-##
-## Ends in an error in state: 288.
-##
-## qexpr -> EXISTS . vdecl SCOL qexpr [ SCOL ]
-##
-## The known suffix of the stack is as follows:
-## EXISTS
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 288.>
-
 lustre_spec: GUARANTEES FORALL CONST IDENT RPAR
 ##
 ## Ends in an error in state: 286.
@@ -990,9 +888,6 @@ lustre_spec: GUARANTEES FORALL CONST IDENT RPAR
 ## In state 128, spurious reduction of production option(preceded(COL,typeconst)) ->
 ## In state 131, spurious reduction of production vdecl -> CONST separated_nonempty_list(COMMA,vdecl_ident) option(preceded(COL,typeconst))
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 286.>
-
 lustre_spec: GUARANTEES FORALL CONST IDENT SCOL XOR
 ##
 ## Ends in an error in state: 287.
@@ -1003,19 +898,8 @@ lustre_spec: GUARANTEES FORALL CONST IDENT SCOL XOR
 ## FORALL vdecl SCOL
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 287.>
-
-lustre_spec: GUARANTEES FORALL CONST UIDENT COL XOR
-##
-## Ends in an error in state: 129.
-##
-## option(preceded(COL,typeconst)) -> COL . typeconst [ SCOL RPAR EQ ]
-##
-## The known suffix of the stack is as follows:
-## COL
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 129.>
+Quantified parameters must be followed by a `;` and a (quantified) expression.
+  Example: --@ assume exists x : int; x = 42;
 
 lustre_spec: GUARANTEES FORALL CONST UIDENT LET
 ##
@@ -1033,7 +917,7 @@ lustre_spec: GUARANTEES FORALL CONST UIDENT LET
 ## In state 124, spurious reduction of production separated_nonempty_list(COMMA,vdecl_ident) -> vdecl_ident
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 128.>
+Unexpected token in the context of a `const` parameter declaration.
 
 lustre_spec: GUARANTEES FORALL CONST XOR
 ##
@@ -1045,7 +929,8 @@ lustre_spec: GUARANTEES FORALL CONST XOR
 ## CONST
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 123.>
+A `const` parameter must be followed by an identifier and an optional type annotation.
+  Example: const x
 
 lustre_spec: GUARANTEES FORALL UIDENT COL TREAL RCUR
 ##
@@ -1074,9 +959,6 @@ lustre_spec: GUARANTEES FORALL UIDENT COL TREAL WHEN UIDENT LPAR IDENT XOR
 ## The known suffix of the stack is as follows:
 ## WHEN tag_ident LPAR IDENT
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 147.>
-
 lustre_spec: GUARANTEES FORALL UIDENT COL TREAL WHEN UIDENT LPAR XOR
 ##
 ## Ends in an error in state: 146.
@@ -1086,9 +968,6 @@ lustre_spec: GUARANTEES FORALL UIDENT COL TREAL WHEN UIDENT LPAR XOR
 ## The known suffix of the stack is as follows:
 ## WHEN tag_ident LPAR
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 146.>
-
 lustre_spec: GUARANTEES FORALL UIDENT COL TREAL WHEN UIDENT XOR
 ##
 ## Ends in an error in state: 145.
@@ -1099,7 +978,8 @@ lustre_spec: GUARANTEES FORALL UIDENT COL TREAL WHEN UIDENT XOR
 ## WHEN tag_ident
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 145.>
+Ill-formed clock annotation.
+  Example: x: int when C(z)
 
 lustre_spec: GUARANTEES FORALL UIDENT COL TREAL WHEN XOR
 ##
@@ -1111,9 +991,6 @@ lustre_spec: GUARANTEES FORALL UIDENT COL TREAL WHEN XOR
 ## The known suffix of the stack is as follows:
 ## WHEN
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 140.>
-
 lustre_spec: GUARANTEES FORALL UIDENT COL TREAL WHENNOT IDENT XOR
 ##
 ## Ends in an error in state: 150.
@@ -1124,9 +1001,6 @@ lustre_spec: GUARANTEES FORALL UIDENT COL TREAL WHENNOT IDENT XOR
 ## The known suffix of the stack is as follows:
 ## when_cond
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 150.>
-
 lustre_spec: GUARANTEES FORALL UIDENT COL TREAL WHENNOT XOR
 ##
 ## Ends in an error in state: 138.
@@ -1137,20 +1011,18 @@ lustre_spec: GUARANTEES FORALL UIDENT COL TREAL WHENNOT XOR
 ## WHENNOT
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 138.>
+Ill-formed clock annotation: after the `when` and `whenot` keywords, either an identifier or a tagged identifier is expected.
+  Example: x: int whenot c; y: real when C(z)
 
-lustre_spec: GUARANTEES FORALL UIDENT COL XOR
+lustre_spec: GUARANTEES EXISTS XOR
 ##
-## Ends in an error in state: 136.
+## Ends in an error in state: 288.
 ##
-## vdecl -> separated_nonempty_list(COMMA,vdecl_ident) COL . typeconst option(clock) [ SCOL RPAR ]
+## qexpr -> EXISTS . vdecl SCOL qexpr [ SCOL ]
 ##
 ## The known suffix of the stack is as follows:
-## separated_nonempty_list(COMMA,vdecl_ident) COL
+## EXISTS
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 136.>
-
 lustre_spec: GUARANTEES FORALL UIDENT COMMA XOR
 ##
 ## Ends in an error in state: 125.
@@ -1160,9 +1032,6 @@ lustre_spec: GUARANTEES FORALL UIDENT COMMA XOR
 ## The known suffix of the stack is as follows:
 ## vdecl_ident COMMA
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 125.>
-
 lustre_spec: GUARANTEES FORALL UIDENT SCOL
 ##
 ## Ends in an error in state: 135.
@@ -1178,9 +1047,6 @@ lustre_spec: GUARANTEES FORALL UIDENT SCOL
 ## may provide an INCOMPLETE view of the future (what was expected next).
 ## In state 124, spurious reduction of production separated_nonempty_list(COMMA,vdecl_ident) -> vdecl_ident
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 135.>
-
 lustre_spec: GUARANTEES FORALL UIDENT XOR
 ##
 ## Ends in an error in state: 124.
@@ -1191,9 +1057,6 @@ lustre_spec: GUARANTEES FORALL UIDENT XOR
 ## The known suffix of the stack is as follows:
 ## vdecl_ident
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 124.>
-
 lustre_spec: GUARANTEES FORALL XOR
 ##
 ## Ends in an error in state: 285.
@@ -1204,20 +1067,8 @@ lustre_spec: GUARANTEES FORALL XOR
 ## FORALL
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 285.>
-
-lustre_spec: GUARANTEES IDENT VAR
-##
-## Ends in an error in state: 183.
-##
-## expr -> IDENT . [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
-## ident -> IDENT . [ LPAR ]
-##
-## The known suffix of the stack is as follows:
-## IDENT
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 183.>
+Ill-formed parameter declarations.
+  Example: x: y, z: bool
 
 lustre_spec: GUARANTEES IF UIDENT SCOL
 ##
@@ -1259,7 +1110,7 @@ lustre_spec: GUARANTEES IF UIDENT SCOL
 ## In state 168, spurious reduction of production expr -> UIDENT
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 256.>
+Uncomplete `if/then/else` expression.
 
 lustre_spec: GUARANTEES IF UIDENT THEN UIDENT ELSE TRUE VAR
 ##
@@ -1717,9 +1568,6 @@ lustre_spec: GUARANTEES MERGE XOR
 
 <YOUR SYNTAX ERROR MESSAGE HERE: 174.>
 
-
-
-
 lustre_spec: GUARANTEES NOT XOR
 ##
 ## Ends in an error in state: 172.
@@ -1814,8 +1662,6 @@ lustre_spec: GUARANTEES STRING VAR
 
 <YOUR SYNTAX ERROR MESSAGE HERE: 322.>
 
-
-
 lustre_spec: GUARANTEES UIDENT ARROW TRUE VAR
 ##
 ## Ends in an error in state: 247.
@@ -1864,12 +1710,6 @@ lustre_spec: GUARANTEES UIDENT ARROW XOR
 
 <YOUR SYNTAX ERROR MESSAGE HERE: 246.>
 
-
-
-
-
-
-
 lustre_spec: GUARANTEES UIDENT FBY TRUE VAR
 ##
 ## Ends in an error in state: 245.
@@ -1917,10 +1757,6 @@ lustre_spec: GUARANTEES UIDENT FBY XOR
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE: 244.>
-
-
-
-
 
 lustre_spec: GUARANTEES UIDENT LBRACKET UIDENT AMPERAMPER UIDENT VAR
 ##
@@ -2733,7 +2569,7 @@ lustre_spec: GUARANTEES UIDENT LPAR UIDENT THEN
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET UIDENT EQ UIDENT THEN
 ##
-## Ends in an error in state: 534.
+## Ends in an error in state: 531.
 ##
 ## eq -> separated_nonempty_list(COMMA,vdecl_ident) EQ expr . SCOL [ UIDENT TEL LPAR IDENT AUTOMATON ASSERT ANNOT ]
 ## expr -> expr . POWER dim [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
@@ -2771,34 +2607,266 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET UIDENT
 ## In state 168, spurious reduction of production expr -> UIDENT
 ##
 lustre_spec: GUARANTEES NOT TRUE VAR
+##
+## Ends in an error in state: 276.
+##
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> NOT expr . [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## NOT expr
 ##
 lustre_spec: GUARANTEES MINUS TRUE VAR
+##
+## Ends in an error in state: 275.
+##
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> MINUS expr . [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## MINUS expr
 ##
 lustre_spec: GUARANTEES UIDENT AMPERAMPER TRUE VAR
+##
+## Ends in an error in state: 225.
+##
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr AMPERAMPER expr . [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr AMPERAMPER expr
 ##
 lustre_spec: GUARANTEES UIDENT AND TRUE VAR
+##
+## Ends in an error in state: 223.
+##
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr AND expr . [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr AND expr
 ##
 lustre_spec: GUARANTEES UIDENT BARBAR TRUE VAR
+##
+## Ends in an error in state: 243.
+##
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr BARBAR expr . [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr BARBAR expr
 ##
 lustre_spec: GUARANTEES UIDENT OR TRUE VAR
+##
+## Ends in an error in state: 239.
+##
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr OR expr . [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr OR expr
 ##
 lustre_spec: GUARANTEES UIDENT XOR TRUE VAR
+##
+## Ends in an error in state: 192.
+##
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr XOR expr . [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr XOR expr
 ##
 lustre_spec: GUARANTEES UIDENT IMPL TRUE VAR
+##
+## Ends in an error in state: 241.
+##
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr IMPL expr . [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr IMPL expr
 ##
@@ -3037,28 +3105,173 @@ lustre_spec: GUARANTEES UIDENT NEQ UIDENT NEQ
 ## In state 168, spurious reduction of production expr -> UIDENT
 ##
 lustre_spec: GUARANTEES UIDENT PLUS TRUE VAR
+##
+## Ends in an error in state: 196.
+##
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr PLUS expr . [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr PLUS expr
 ##
 lustre_spec: GUARANTEES UIDENT MINUS TRUE VAR
+##
+## Ends in an error in state: 211.
+##
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr MINUS expr . [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr MINUS expr
 ##
 lustre_spec: GUARANTEES UIDENT MULT TRUE VAR
+##
+## Ends in an error in state: 198.
+##
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr MULT expr . [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr MULT expr
 ##
 lustre_spec: GUARANTEES UIDENT DIV TRUE VAR
+##
+## Ends in an error in state: 207.
+##
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr DIV expr . [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr DIV expr
 ##
 lustre_spec: GUARANTEES UIDENT MOD TRUE VAR
+##
+## Ends in an error in state: 205.
+##
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr MOD expr . [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr MOD expr
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET ASSERT UIDENT THEN
 ##
-## Ends in an error in state: 528.
+## Ends in an error in state: 525.
 ##
 ## assert_ -> ASSERT expr . SCOL [ UIDENT TEL LPAR IDENT AUTOMATON ASSERT ANNOT ]
 ## expr -> expr . POWER dim [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
@@ -3097,7 +3310,7 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET ASSERT
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT STATE UIDENT COL LET TEL UNTIL UIDENT THEN
 ##
-## Ends in an error in state: 545.
+## Ends in an error in state: 542.
 ##
 ## expr -> expr . POWER dim [ XOR WHENNOT WHEN RESUME RESTART POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
 ## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN RESUME RESTART POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
@@ -3137,7 +3350,7 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMA
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMATON IDENT STATE UIDENT COL UNLESS UIDENT THEN
 ##
-## Ends in an error in state: 517.
+## Ends in an error in state: 514.
 ##
 ## expr -> expr . POWER dim [ XOR WHENNOT WHEN RESUME RESTART POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
 ## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN RESUME RESTART POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
@@ -3177,7 +3390,7 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET AUTOMA
 ##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET LPAR UIDENT RPAR EQ UIDENT THEN
 ##
-## Ends in an error in state: 509.
+## Ends in an error in state: 506.
 ##
 ## eq -> LPAR separated_nonempty_list(COMMA,vdecl_ident) RPAR EQ expr . SCOL [ UIDENT TEL LPAR IDENT AUTOMATON ASSERT ANNOT ]
 ## expr -> expr . POWER dim [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
@@ -3214,6 +3427,55 @@ prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LET LPAR U
 ## may provide an INCOMPLETE view of the future (what was expected next).
 ## In state 168, spurious reduction of production expr -> UIDENT
 ##
+prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR VAR CONST UIDENT EQ UIDENT THEN
+##
+## Ends in an error in state: 491.
+##
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## local_vdecl -> CONST vdecl_ident option(preceded(COL,typeconst)) EQ expr . [ SCOL LET ]
+##
+## The known suffix of the stack is as follows:
+## CONST vdecl_ident option(preceded(COL,typeconst)) EQ expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 168, spurious reduction of production expr -> UIDENT
+##
+lustre_spec: GUARANTEES IDENT VAR
+##
+## Ends in an error in state: 183.
+##
+## expr -> IDENT . [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+## ident -> IDENT . [ LPAR ]
+##
+## The known suffix of the stack is as follows:
+## IDENT
+##
 
 Unexpected token in the context of an expression.
 
@@ -3231,70 +3493,155 @@ lustre_spec: GUARANTEES UIDENT LPAR XOR
 <YOUR SYNTAX ERROR MESSAGE HERE: 188.>
 
 lustre_spec: GUARANTEES UIDENT PLUS XOR
+##
+## Ends in an error in state: 195.
+##
+## expr -> expr PLUS . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr PLUS
 ##
 lustre_spec: GUARANTEES UIDENT MINUS XOR
+##
+## Ends in an error in state: 210.
+##
+## expr -> expr MINUS . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr MINUS
 ##
 lustre_spec: GUARANTEES UIDENT MULT XOR
+##
+## Ends in an error in state: 197.
+##
+## expr -> expr MULT . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr MULT
 ##
 lustre_spec: GUARANTEES UIDENT DIV XOR
+##
+## Ends in an error in state: 206.
+##
+## expr -> expr DIV . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr DIV
 ##
 lustre_spec: GUARANTEES UIDENT AMPERAMPER XOR
+##
+## Ends in an error in state: 224.
+##
+## expr -> expr AMPERAMPER . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr AMPERAMPER
 ##
 lustre_spec: GUARANTEES UIDENT AND XOR
+##
+## Ends in an error in state: 222.
+##
+## expr -> expr AND . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr AND
 ##
 lustre_spec: GUARANTEES UIDENT BARBAR XOR
+##
+## Ends in an error in state: 242.
+##
+## expr -> expr BARBAR . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr BARBAR
 ##
 lustre_spec: GUARANTEES UIDENT OR XOR
+##
+## Ends in an error in state: 238.
+##
+## expr -> expr OR . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr OR
 ##
 lustre_spec: GUARANTEES UIDENT XOR XOR
+##
+## Ends in an error in state: 191.
+##
+## expr -> expr XOR . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr XOR
 ##
 lustre_spec: GUARANTEES UIDENT IMPL XOR
+##
+## Ends in an error in state: 240.
+##
+## expr -> expr IMPL . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr IMPL
 ##
 lustre_spec: GUARANTEES UIDENT EQ XOR
+##
+## Ends in an error in state: 220.
+##
+## expr -> expr EQ . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr EQ
 ##
 lustre_spec: GUARANTEES UIDENT LT XOR
+##
+## Ends in an error in state: 214.
+##
+## expr -> expr LT . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr LT
 ##
 lustre_spec: GUARANTEES UIDENT LTE XOR
+##
+## Ends in an error in state: 212.
+##
+## expr -> expr LTE . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr LTE
 ##
 lustre_spec: GUARANTEES UIDENT GT XOR
+##
+## Ends in an error in state: 218.
+##
+## expr -> expr GT . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr GT
 ##
 lustre_spec: GUARANTEES UIDENT GTE XOR
+##
+## Ends in an error in state: 216.
+##
+## expr -> expr GTE . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr GTE
 ##
 lustre_spec: GUARANTEES UIDENT NEQ XOR
+##
+## Ends in an error in state: 208.
+##
+## expr -> expr NEQ . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr NEQ
 ##
 lustre_spec: GUARANTEES UIDENT MOD XOR
+##
+## Ends in an error in state: 204.
+##
+## expr -> expr MOD . expr [ XOR WHENNOT WHEN THEN SCOL RPAR RESUME RESTART RBRACKET POWER PLUS OR NEQ MULT MOD MINUS LTE LT LET LBRACKET IMPL GTE GT FBY EQ ELSE DIV COMMA BARBAR ARROW AND AMPERAMPER ]
+##
 ## The known suffix of the stack is as follows:
 ## expr MOD
 ##
@@ -3532,7 +3879,7 @@ lustre_spec: GUARANTEES UIDENT POWER XOR
 
 lustre_spec: GUARANTEES UIDENT SCOL XOR
 ##
-## Ends in an error in state: 346.
+## Ends in an error in state: 342.
 ##
 ## contract_content -> GUARANTEES qexpr SCOL . contract_content [ TEL EOF ]
 ##
@@ -3671,8 +4018,6 @@ lustre_spec: GUARANTEES UIDENT WHENNOT XOR
 
 <YOUR SYNTAX ERROR MESSAGE HERE: 226.>
 
-
-
 lustre_spec: GUARANTEES XOR
 ##
 ## Ends in an error in state: 321.
@@ -3688,7 +4033,7 @@ lustre_spec: GUARANTEES XOR
 
 lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RBRACKET
 ##
-## Ends in an error in state: 355.
+## Ends in an error in state: 351.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) . RPAR RETURNS LPAR expr RPAR SCOL contract_content [ TEL EOF ]
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) . RPAR RETURNS LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR SCOL contract_content [ TEL EOF ]
@@ -3708,7 +4053,7 @@ lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RBRACKET
 
 lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR UIDENT COMMA UIDENT RBRACKET
 ##
-## Ends in an error in state: 364.
+## Ends in an error in state: 360.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR RETURNS LPAR expr COMMA separated_nonempty_list(COMMA,expr) . RPAR SCOL contract_content [ TEL EOF ]
 ##
@@ -3727,7 +4072,7 @@ lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR UIDENT COMM
 
 lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR UIDENT COMMA UIDENT RPAR SCOL XOR
 ##
-## Ends in an error in state: 366.
+## Ends in an error in state: 362.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR RETURNS LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR SCOL . contract_content [ TEL EOF ]
 ##
@@ -3739,7 +4084,7 @@ lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR UIDENT COMM
 
 lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR UIDENT COMMA UIDENT RPAR XOR
 ##
-## Ends in an error in state: 365.
+## Ends in an error in state: 361.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR RETURNS LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR . SCOL contract_content [ TEL EOF ]
 ##
@@ -3751,7 +4096,7 @@ lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR UIDENT COMM
 
 lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR UIDENT COMMA XOR
 ##
-## Ends in an error in state: 363.
+## Ends in an error in state: 359.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR RETURNS LPAR expr COMMA . separated_nonempty_list(COMMA,expr) RPAR SCOL contract_content [ TEL EOF ]
 ##
@@ -3763,7 +4108,7 @@ lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR UIDENT COMM
 
 lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR UIDENT RPAR SCOL XOR
 ##
-## Ends in an error in state: 361.
+## Ends in an error in state: 357.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR RETURNS LPAR expr RPAR SCOL . contract_content [ TEL EOF ]
 ##
@@ -3775,7 +4120,7 @@ lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR UIDENT RPAR
 
 lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR UIDENT RPAR XOR
 ##
-## Ends in an error in state: 360.
+## Ends in an error in state: 356.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR RETURNS LPAR expr RPAR . SCOL contract_content [ TEL EOF ]
 ##
@@ -3787,7 +4132,7 @@ lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR UIDENT RPAR
 
 lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR UIDENT THEN
 ##
-## Ends in an error in state: 359.
+## Ends in an error in state: 355.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR RETURNS LPAR expr . RPAR SCOL contract_content [ TEL EOF ]
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR RETURNS LPAR expr . COMMA separated_nonempty_list(COMMA,expr) RPAR SCOL contract_content [ TEL EOF ]
@@ -3830,7 +4175,7 @@ lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR UIDENT THEN
 
 lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR XOR
 ##
-## Ends in an error in state: 358.
+## Ends in an error in state: 354.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR RETURNS LPAR . expr RPAR SCOL contract_content [ TEL EOF ]
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR RETURNS LPAR . expr COMMA separated_nonempty_list(COMMA,expr) RPAR SCOL contract_content [ TEL EOF ]
@@ -3843,7 +4188,7 @@ lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS LPAR XOR
 
 lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS XOR
 ##
-## Ends in an error in state: 357.
+## Ends in an error in state: 353.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR RETURNS . LPAR expr RPAR SCOL contract_content [ TEL EOF ]
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR RETURNS . LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR SCOL contract_content [ TEL EOF ]
@@ -3856,7 +4201,7 @@ lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR RETURNS XOR
 
 lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR XOR
 ##
-## Ends in an error in state: 356.
+## Ends in an error in state: 352.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR . RETURNS LPAR expr RPAR SCOL contract_content [ TEL EOF ]
 ## contract_content -> IMPORT IDENT LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR . RETURNS LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR SCOL contract_content [ TEL EOF ]
@@ -3869,7 +4214,7 @@ lustre_spec: IMPORT IDENT LPAR UIDENT COMMA UIDENT RPAR XOR
 
 lustre_spec: IMPORT IDENT LPAR UIDENT COMMA XOR
 ##
-## Ends in an error in state: 354.
+## Ends in an error in state: 350.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr COMMA . separated_nonempty_list(COMMA,expr) RPAR RETURNS LPAR expr RPAR SCOL contract_content [ TEL EOF ]
 ## contract_content -> IMPORT IDENT LPAR expr COMMA . separated_nonempty_list(COMMA,expr) RPAR RETURNS LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR SCOL contract_content [ TEL EOF ]
@@ -3882,7 +4227,7 @@ lustre_spec: IMPORT IDENT LPAR UIDENT COMMA XOR
 
 lustre_spec: IMPORT IDENT LPAR UIDENT RPAR RETURNS LPAR UIDENT COMMA UIDENT RBRACKET
 ##
-## Ends in an error in state: 350.
+## Ends in an error in state: 346.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr RPAR RETURNS LPAR expr COMMA separated_nonempty_list(COMMA,expr) . RPAR SCOL contract_content [ TEL EOF ]
 ##
@@ -3901,7 +4246,7 @@ lustre_spec: IMPORT IDENT LPAR UIDENT RPAR RETURNS LPAR UIDENT COMMA UIDENT RBRA
 
 lustre_spec: IMPORT IDENT LPAR UIDENT RPAR RETURNS LPAR UIDENT COMMA UIDENT RPAR SCOL XOR
 ##
-## Ends in an error in state: 352.
+## Ends in an error in state: 348.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr RPAR RETURNS LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR SCOL . contract_content [ TEL EOF ]
 ##
@@ -3913,7 +4258,7 @@ lustre_spec: IMPORT IDENT LPAR UIDENT RPAR RETURNS LPAR UIDENT COMMA UIDENT RPAR
 
 lustre_spec: IMPORT IDENT LPAR UIDENT RPAR RETURNS LPAR UIDENT COMMA UIDENT RPAR XOR
 ##
-## Ends in an error in state: 351.
+## Ends in an error in state: 347.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr RPAR RETURNS LPAR expr COMMA separated_nonempty_list(COMMA,expr) RPAR . SCOL contract_content [ TEL EOF ]
 ##
@@ -3925,7 +4270,7 @@ lustre_spec: IMPORT IDENT LPAR UIDENT RPAR RETURNS LPAR UIDENT COMMA UIDENT RPAR
 
 lustre_spec: IMPORT IDENT LPAR UIDENT RPAR RETURNS LPAR UIDENT COMMA XOR
 ##
-## Ends in an error in state: 349.
+## Ends in an error in state: 345.
 ##
 ## contract_content -> IMPORT IDENT LPAR expr RPAR RETURNS LPAR expr COMMA . separated_nonempty_list(COMMA,expr) RPAR SCOL contract_content [ TEL EOF ]
 ##
@@ -4469,7 +4814,7 @@ lustre_spec: VAR IDENT COL TREAL XOR
 ## TREAL
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 5.>
+Unexpected token in the context of a type expression.
 
 lustre_spec: VAR IDENT COL XOR
 ##
@@ -4509,7 +4854,7 @@ lustre_spec: VAR XOR
 
 lustre_spec: XOR
 ##
-## Ends in an error in state: 461.
+## Ends in an error in state: 457.
 ##
 ## lustre_spec' -> . lustre_spec [ # ]
 ##
@@ -4521,7 +4866,7 @@ lustre_spec: XOR
 
 lustre_annot: CCODE COL UIDENT SCOL XOR
 ##
-## Ends in an error in state: 448.
+## Ends in an error in state: 444.
 ##
 ## lustre_annot_list -> CCODE COL qexpr SCOL . lustre_annot_list [ EOF ]
 ##
@@ -4533,7 +4878,7 @@ lustre_annot: CCODE COL UIDENT SCOL XOR
 
 lustre_annot: CCODE COL XOR
 ##
-## Ends in an error in state: 446.
+## Ends in an error in state: 442.
 ##
 ## lustre_annot_list -> CCODE COL . qexpr SCOL lustre_annot_list [ EOF ]
 ##
@@ -4545,7 +4890,7 @@ lustre_annot: CCODE COL XOR
 
 lustre_annot: CCODE XOR
 ##
-## Ends in an error in state: 445.
+## Ends in an error in state: 441.
 ##
 ## lustre_annot_list -> CCODE . COL qexpr SCOL lustre_annot_list [ EOF ]
 ##
@@ -4557,7 +4902,7 @@ lustre_annot: CCODE XOR
 
 lustre_annot: DIV COL UIDENT SCOL XOR
 ##
-## Ends in an error in state: 453.
+## Ends in an error in state: 449.
 ##
 ## lustre_annot_list -> kwd COL qexpr SCOL . lustre_annot_list [ EOF ]
 ##
@@ -4569,7 +4914,7 @@ lustre_annot: DIV COL UIDENT SCOL XOR
 
 lustre_annot: DIV COL XOR
 ##
-## Ends in an error in state: 451.
+## Ends in an error in state: 447.
 ##
 ## lustre_annot_list -> kwd COL . qexpr SCOL lustre_annot_list [ EOF ]
 ##
@@ -4581,7 +4926,7 @@ lustre_annot: DIV COL XOR
 
 lustre_annot: DIV IDENT XOR
 ##
-## Ends in an error in state: 443.
+## Ends in an error in state: 439.
 ##
 ## kwd -> DIV IDENT . kwd [ COL ]
 ##
@@ -4593,7 +4938,7 @@ lustre_annot: DIV IDENT XOR
 
 lustre_annot: DIV XOR
 ##
-## Ends in an error in state: 442.
+## Ends in an error in state: 438.
 ##
 ## kwd -> DIV . [ COL ]
 ## kwd -> DIV . IDENT kwd [ COL ]
@@ -4606,7 +4951,7 @@ lustre_annot: DIV XOR
 
 lustre_annot: IDENT COL UIDENT SCOL XOR
 ##
-## Ends in an error in state: 441.
+## Ends in an error in state: 437.
 ##
 ## lustre_annot_list -> IDENT COL qexpr SCOL . lustre_annot_list [ EOF ]
 ##
@@ -4618,7 +4963,7 @@ lustre_annot: IDENT COL UIDENT SCOL XOR
 
 lustre_annot: IDENT COL XOR
 ##
-## Ends in an error in state: 439.
+## Ends in an error in state: 435.
 ##
 ## lustre_annot_list -> IDENT COL . qexpr SCOL lustre_annot_list [ EOF ]
 ##
@@ -4630,7 +4975,7 @@ lustre_annot: IDENT COL XOR
 
 lustre_annot: IDENT XOR
 ##
-## Ends in an error in state: 438.
+## Ends in an error in state: 434.
 ##
 ## lustre_annot_list -> IDENT . COL qexpr SCOL lustre_annot_list [ EOF ]
 ##
@@ -4642,7 +4987,7 @@ lustre_annot: IDENT XOR
 
 lustre_annot: INVARIANT COL UIDENT SCOL XOR
 ##
-## Ends in an error in state: 437.
+## Ends in an error in state: 433.
 ##
 ## lustre_annot_list -> INVARIANT COL qexpr SCOL . lustre_annot_list [ EOF ]
 ##
@@ -4654,7 +4999,7 @@ lustre_annot: INVARIANT COL UIDENT SCOL XOR
 
 lustre_annot: INVARIANT COL XOR
 ##
-## Ends in an error in state: 435.
+## Ends in an error in state: 431.
 ##
 ## lustre_annot_list -> INVARIANT COL . qexpr SCOL lustre_annot_list [ EOF ]
 ##
@@ -4666,7 +5011,7 @@ lustre_annot: INVARIANT COL XOR
 
 lustre_annot: INVARIANT XOR
 ##
-## Ends in an error in state: 434.
+## Ends in an error in state: 430.
 ##
 ## lustre_annot_list -> INVARIANT . COL qexpr SCOL lustre_annot_list [ EOF ]
 ##
@@ -4678,7 +5023,7 @@ lustre_annot: INVARIANT XOR
 
 lustre_annot: MATLAB COL UIDENT SCOL XOR
 ##
-## Ends in an error in state: 433.
+## Ends in an error in state: 429.
 ##
 ## lustre_annot_list -> MATLAB COL qexpr SCOL . lustre_annot_list [ EOF ]
 ##
@@ -4690,7 +5035,7 @@ lustre_annot: MATLAB COL UIDENT SCOL XOR
 
 lustre_annot: MATLAB COL XOR
 ##
-## Ends in an error in state: 431.
+## Ends in an error in state: 427.
 ##
 ## lustre_annot_list -> MATLAB COL . qexpr SCOL lustre_annot_list [ EOF ]
 ##
@@ -4702,7 +5047,7 @@ lustre_annot: MATLAB COL XOR
 
 lustre_annot: MATLAB XOR
 ##
-## Ends in an error in state: 430.
+## Ends in an error in state: 426.
 ##
 ## lustre_annot_list -> MATLAB . COL qexpr SCOL lustre_annot_list [ EOF ]
 ##
@@ -4714,7 +5059,7 @@ lustre_annot: MATLAB XOR
 
 lustre_annot: XOR
 ##
-## Ends in an error in state: 429.
+## Ends in an error in state: 425.
 ##
 ## lustre_annot' -> . lustre_annot [ # ]
 ##
@@ -4726,7 +5071,7 @@ lustre_annot: XOR
 
 header: CONST UIDENT EQ FALSE SCOL XOR
 ##
-## Ends in an error in state: 402.
+## Ends in an error in state: 398.
 ##
 ## list(top_decl_header) -> top_decl_header . list(top_decl_header) [ EOF ]
 ##
@@ -4738,7 +5083,7 @@ header: CONST UIDENT EQ FALSE SCOL XOR
 
 header: CONST UIDENT EQ FALSE XOR
 ##
-## Ends in an error in state: 400.
+## Ends in an error in state: 396.
 ##
 ## nonempty_list(cdecl) -> cdecl . [ SCOL ]
 ## nonempty_list(cdecl) -> cdecl . nonempty_list(cdecl) [ SCOL ]
@@ -4752,7 +5097,7 @@ A `const` declaration must be terminated by a `;`.
 
 header: CONST UIDENT EQ LBRACKET UIDENT COMMA XOR
 ##
-## Ends in an error in state: 390.
+## Ends in an error in state: 386.
 ##
 ## separated_nonempty_list(COMMA,signed_const) -> signed_const COMMA . separated_nonempty_list(COMMA,signed_const) [ RBRACKET ]
 ##
@@ -4764,7 +5109,7 @@ header: CONST UIDENT EQ LBRACKET UIDENT COMMA XOR
 
 header: CONST UIDENT EQ LBRACKET UIDENT XOR
 ##
-## Ends in an error in state: 389.
+## Ends in an error in state: 385.
 ##
 ## separated_nonempty_list(COMMA,signed_const) -> signed_const . [ RBRACKET ]
 ## separated_nonempty_list(COMMA,signed_const) -> signed_const . COMMA separated_nonempty_list(COMMA,signed_const) [ RBRACKET ]
@@ -4777,7 +5122,7 @@ header: CONST UIDENT EQ LBRACKET UIDENT XOR
 
 header: CONST UIDENT EQ LBRACKET XOR
 ##
-## Ends in an error in state: 386.
+## Ends in an error in state: 382.
 ##
 ## signed_const -> LBRACKET . separated_nonempty_list(COMMA,signed_const) RBRACKET [ UIDENT SCOL RCUR RBRACKET IDENT COMMA ]
 ##
@@ -4789,7 +5134,7 @@ header: CONST UIDENT EQ LBRACKET XOR
 
 header: CONST UIDENT EQ LCUR IDENT EQ UIDENT COMMA XOR
 ##
-## Ends in an error in state: 395.
+## Ends in an error in state: 391.
 ##
 ## separated_nonempty_list(COMMA,separated_pair(IDENT,EQ,signed_const)) -> IDENT EQ signed_const COMMA . separated_nonempty_list(COMMA,separated_pair(IDENT,EQ,signed_const)) [ RCUR ]
 ##
@@ -4801,7 +5146,7 @@ header: CONST UIDENT EQ LCUR IDENT EQ UIDENT COMMA XOR
 
 header: CONST UIDENT EQ LCUR IDENT EQ UIDENT XOR
 ##
-## Ends in an error in state: 394.
+## Ends in an error in state: 390.
 ##
 ## separated_nonempty_list(COMMA,separated_pair(IDENT,EQ,signed_const)) -> IDENT EQ signed_const . [ RCUR ]
 ## separated_nonempty_list(COMMA,separated_pair(IDENT,EQ,signed_const)) -> IDENT EQ signed_const . COMMA separated_nonempty_list(COMMA,separated_pair(IDENT,EQ,signed_const)) [ RCUR ]
@@ -4814,7 +5159,7 @@ header: CONST UIDENT EQ LCUR IDENT EQ UIDENT XOR
 
 header: CONST UIDENT EQ LCUR IDENT EQ XOR
 ##
-## Ends in an error in state: 385.
+## Ends in an error in state: 381.
 ##
 ## separated_nonempty_list(COMMA,separated_pair(IDENT,EQ,signed_const)) -> IDENT EQ . signed_const [ RCUR ]
 ## separated_nonempty_list(COMMA,separated_pair(IDENT,EQ,signed_const)) -> IDENT EQ . signed_const COMMA separated_nonempty_list(COMMA,separated_pair(IDENT,EQ,signed_const)) [ RCUR ]
@@ -4827,7 +5172,7 @@ header: CONST UIDENT EQ LCUR IDENT EQ XOR
 
 header: CONST UIDENT EQ LCUR IDENT XOR
 ##
-## Ends in an error in state: 384.
+## Ends in an error in state: 380.
 ##
 ## separated_nonempty_list(COMMA,separated_pair(IDENT,EQ,signed_const)) -> IDENT . EQ signed_const [ RCUR ]
 ## separated_nonempty_list(COMMA,separated_pair(IDENT,EQ,signed_const)) -> IDENT . EQ signed_const COMMA separated_nonempty_list(COMMA,separated_pair(IDENT,EQ,signed_const)) [ RCUR ]
@@ -4840,7 +5185,7 @@ header: CONST UIDENT EQ LCUR IDENT XOR
 
 header: CONST UIDENT EQ LCUR XOR
 ##
-## Ends in an error in state: 383.
+## Ends in an error in state: 379.
 ##
 ## signed_const -> LCUR . separated_nonempty_list(COMMA,separated_pair(IDENT,EQ,signed_const)) RCUR [ UIDENT SCOL RCUR RBRACKET IDENT COMMA ]
 ##
@@ -4852,7 +5197,7 @@ header: CONST UIDENT EQ LCUR XOR
 
 header: CONST UIDENT EQ MINUS XOR
 ##
-## Ends in an error in state: 380.
+## Ends in an error in state: 376.
 ##
 ## signed_const -> MINUS . INT [ UIDENT SCOL RCUR RBRACKET IDENT COMMA ]
 ## signed_const -> MINUS . REAL [ UIDENT SCOL RCUR RBRACKET IDENT COMMA ]
@@ -4865,7 +5210,7 @@ header: CONST UIDENT EQ MINUS XOR
 
 header: CONST UIDENT EQ XOR
 ##
-## Ends in an error in state: 378.
+## Ends in an error in state: 374.
 ##
 ## cdecl -> const_ident EQ . signed_const [ UIDENT SCOL IDENT ]
 ##
@@ -4877,7 +5222,7 @@ header: CONST UIDENT EQ XOR
 
 header: CONST UIDENT XOR
 ##
-## Ends in an error in state: 377.
+## Ends in an error in state: 373.
 ##
 ## cdecl -> const_ident . EQ signed_const [ UIDENT SCOL IDENT ]
 ##
@@ -4885,12 +5230,12 @@ header: CONST UIDENT XOR
 ## const_ident
 ##
 
-A `const` declaration must be initialized with the `=` operator.
+A `const` declaration must be initialized with a constant, using the `=` operator.
   Example: const x = 42;
 
 header: CONST XOR
 ##
-## Ends in an error in state: 373.
+## Ends in an error in state: 369.
 ##
 ## top_decl_header -> CONST . nonempty_list(cdecl) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
 ##
@@ -4957,7 +5302,7 @@ header: INCLUDE XOR
 
 header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LIB UIDENT XOR
 ##
-## Ends in an error in state: 420.
+## Ends in an error in state: 416.
 ##
 ## list(preceded(LIB,module_ident)) -> LIB module_ident . list(preceded(LIB,module_ident)) [ SCOL ]
 ##
@@ -4969,7 +5314,7 @@ header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LIB UIDE
 
 header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LIB XOR
 ##
-## Ends in an error in state: 419.
+## Ends in an error in state: 415.
 ##
 ## list(preceded(LIB,module_ident)) -> LIB . module_ident list(preceded(LIB,module_ident)) [ SCOL ]
 ##
@@ -4981,7 +5326,7 @@ header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LIB XOR
 
 header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR PROTOTYPE UIDENT LET
 ##
-## Ends in an error in state: 418.
+## Ends in an error in state: 414.
 ##
 ## top_decl_header -> nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) . list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
 ##
@@ -4993,7 +5338,7 @@ header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR PROTOTYP
 
 header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR PROTOTYPE XOR
 ##
-## Ends in an error in state: 416.
+## Ends in an error in state: 412.
 ##
 ## option(preceded(PROTOTYPE,node_ident)) -> PROTOTYPE . node_ident [ SCOL LIB ]
 ##
@@ -5005,7 +5350,7 @@ header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR PROTOTYP
 
 header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR XOR
 ##
-## Ends in an error in state: 415.
+## Ends in an error in state: 411.
 ##
 ## top_decl_header -> nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR . option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
 ##
@@ -5017,7 +5362,7 @@ header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR XOR
 
 header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR XOR
 ##
-## Ends in an error in state: 413.
+## Ends in an error in state: 409.
 ##
 ## top_decl_header -> nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR . var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
 ##
@@ -5029,7 +5374,7 @@ header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR XOR
 
 header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS XOR
 ##
-## Ends in an error in state: 412.
+## Ends in an error in state: 408.
 ##
 ## top_decl_header -> nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS . LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
 ##
@@ -5041,7 +5386,7 @@ header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS XOR
 
 header: NODE UIDENT LPAR CONST IDENT RPAR XOR
 ##
-## Ends in an error in state: 411.
+## Ends in an error in state: 407.
 ##
 ## top_decl_header -> nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR . RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
 ##
@@ -5053,7 +5398,7 @@ header: NODE UIDENT LPAR CONST IDENT RPAR XOR
 
 header: NODE UIDENT LPAR XOR
 ##
-## Ends in an error in state: 409.
+## Ends in an error in state: 405.
 ##
 ## top_decl_header -> nodespecs state_annot node_ident_decl LPAR . var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
 ##
@@ -5065,7 +5410,7 @@ header: NODE UIDENT LPAR XOR
 
 header: NODE UIDENT XOR
 ##
-## Ends in an error in state: 408.
+## Ends in an error in state: 404.
 ##
 ## top_decl_header -> nodespecs state_annot node_ident_decl . LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
 ##
@@ -5077,7 +5422,7 @@ header: NODE UIDENT XOR
 
 header: NODE XOR
 ##
-## Ends in an error in state: 407.
+## Ends in an error in state: 403.
 ##
 ## top_decl_header -> nodespecs state_annot . node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
 ##
@@ -5089,7 +5434,7 @@ header: NODE XOR
 
 header: NODESPEC VAR
 ##
-## Ends in an error in state: 404.
+## Ends in an error in state: 400.
 ##
 ## top_decl_header -> nodespecs . state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
 ##
@@ -5102,7 +5447,7 @@ header: NODESPEC VAR
 ## may provide an INCOMPLETE view of the future (what was expected next).
 ## In state 118, spurious reduction of production nodespec_list ->
 ## In state 119, spurious reduction of production nodespec_list -> NODESPEC nodespec_list
-## In state 424, spurious reduction of production nodespecs -> nodespec_list
+## In state 420, spurious reduction of production nodespecs -> nodespec_list
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE: 404.>
@@ -5487,3 +5832,107 @@ header: XOR
 ##
 
 Ill-formed declaration.
+
+lustre_spec: CONST IDENT EQ UIDENT SCOL XOR
+##
+## Ends in an error in state: 330.
+##
+## contract_content -> CONST IDENT option(preceded(COL,typeconst)) EQ expr SCOL . contract_content [ TEL EOF ]
+##
+## The known suffix of the stack is as follows:
+## CONST IDENT option(preceded(COL,typeconst)) EQ expr SCOL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE: 331.>
+
+lustre_spec: CONST IDENT EQ UIDENT THEN
+##
+## Ends in an error in state: 329.
+##
+## contract_content -> CONST IDENT option(preceded(COL,typeconst)) EQ expr . SCOL contract_content [ TEL EOF ]
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+##
+## The known suffix of the stack is as follows:
+## CONST IDENT option(preceded(COL,typeconst)) EQ expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 168, spurious reduction of production expr -> UIDENT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE: 330.>
+
+lustre_spec: CONST IDENT EQ XOR
+##
+## Ends in an error in state: 328.
+##
+## contract_content -> CONST IDENT option(preceded(COL,typeconst)) EQ . expr SCOL contract_content [ TEL EOF ]
+##
+## The known suffix of the stack is as follows:
+## CONST IDENT option(preceded(COL,typeconst)) EQ
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE: 328.>
+
+lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS LPAR CONST IDENT RPAR LET GUARANTEES UIDENT SCOL EOF
+##
+## Ends in an error in state: 366.
+##
+## top_contract -> CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content . TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 342, spurious reduction of production contract_content ->
+## In state 343, spurious reduction of production contract_content -> GUARANTEES qexpr SCOL contract_content
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE: 329.>
+
+lustre_spec: GUARANTEES FALSE SCOL TEL
+##
+## Ends in an error in state: 462.
+##
+## lustre_spec -> option(CONTRACT) contract_content . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## option(CONTRACT) contract_content
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 342, spurious reduction of production contract_content ->
+## In state 343, spurious reduction of production contract_content -> GUARANTEES qexpr SCOL contract_content
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE: 462'.>

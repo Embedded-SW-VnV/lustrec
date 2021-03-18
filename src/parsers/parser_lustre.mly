@@ -336,8 +336,8 @@ eq:
 | LPAR xs=ident_list RPAR { xs }
 
 lustre_spec:
-| cs=top_contract+ EOF   { TopContract cs }
-| c=contract_content EOF { LocalContract c }
+| cs=top_contract+ EOF             { TopContract cs }
+| CONTRACT? c=contract_content EOF { LocalContract c }
 
 top_contract:
 | CONTRACT node_id=node_ident_decl
@@ -371,9 +371,9 @@ top_contract:
 
 contract_content:
 | { empty_contract }
-| CONTRACT cc=contract_content
-  { cc }
-| CONST x=IDENT COL t=typeconst? EQ e=expr SCOL cc=contract_content
+/* | CONTRACT cc=contract_content */
+/*   { cc } */
+| CONST x=IDENT t=option(preceded(COL, typeconst)) EQ e=expr SCOL cc=contract_content
   { merge_contracts (mk_contract_var x true (mkotyp $sloc t) e $sloc) cc }
 | VAR x=IDENT COL t=typeconst EQ e=expr SCOL cc=contract_content
   { merge_contracts (mk_contract_var x false (Some (mktyp $sloc t)) e $sloc) cc }

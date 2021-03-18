@@ -68,7 +68,6 @@ let keyword_table =
   "invariant", INVARIANT;
   "mode", MODE;
   "assume", ASSUME;
-  "contract", CONTRACT;
   "guarantee", GUARANTEES;
   "exists", EXISTS;
   "forall", FORALL;
