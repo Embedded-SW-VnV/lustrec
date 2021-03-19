@@ -4,7 +4,7 @@ let tiny_debug = ref false
 let tiny_help = ref false
 let descending = ref 1
 let unrolling = ref 0
-
+let output = ref false
 
               
 let quiet () = Tiny.Report.verbosity := 0
@@ -55,10 +55,20 @@ let tiny_run ~basename prog machines =
   let bounds_inputs = [] in
   let ast = Tiny_utils.machine_to_ast bounds_inputs m in
   let mems = m.mmemory in
+  if !output then (
+    let destname = !Options.dest_dir ^ "/" ^ basename ^ "_" ^ node_name ^ ".tiny" in
+    Log.report ~plugin:"tiny" ~level:1 (fun fmt -> Format.fprintf fmt "Exporting resulting tiny source as %s@ " destname);
+    let out = open_out destname in
+    let fmt = Format.formatter_of_out_channel out in
+    Format.fprintf fmt "%a@." Tiny.Ast.VarSet.pp env; 
+    Format.fprintf fmt "%a@." Tiny.Ast.fprint_stm ast; 
+    close_out out;
   
-   Format.printf "%a@." Tiny.Ast.fprint_stm ast; 
-
-   let dom =
+  
+  );
+  Format.printf "%a@." Tiny.Ast.fprint_stm ast; 
+  
+  let dom =
      let open Tiny.Load_domains in
      prepare_domains (List.map get_domain !domains)
    in
@@ -68,7 +78,7 @@ let tiny_run ~basename prog machines =
    let module PrintResults = Tiny.PrintResults.Make (Dom) in
    let m = Results.results in
    (* if !Tiny.Report.verbosity > 1 then *)
-   PrintResults.print m ast None (* no !output_file *);
+   PrintResults.print m env ast None (* no !output_file *);
         (* else PrintResults.print_invariants m ast !output_file *)
 
    ()
@@ -116,6 +126,8 @@ module Verifier =
          * is reached (default is 1)"); *)
       ("-unrolling", Arg.Set_int unrolling,
        "<n>  Unroll loops <n> times before computing fixpoint (default is 0)");
+      ("-output", Arg.Set output,
+       "<n>  Export resulting tiny file as <name>_<mainnode>.tiny");
       (* (\* ("-u", Arg.Set_int unrolling,
        *  *  "<n>  Unroll loops <n> times before computing fixpoint (default is 0)"); *\) *)
        "-help", Arg.Set tiny_help, "tiny help and usage";
