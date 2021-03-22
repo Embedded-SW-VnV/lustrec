@@ -8,7 +8,8 @@ let output = ref false
 
               
 let quiet () = Tiny.Report.verbosity := 0
-             
+let report = Tiny_utils.report
+               
 let print_tiny_help () =
   let open Format in
   Format.eprintf "@[Tiny verifier plugin produces a simple imperative code \
@@ -57,16 +58,16 @@ let tiny_run ~basename prog machines =
   let mems = m.mmemory in
   if !output then (
     let destname = !Options.dest_dir ^ "/" ^ basename ^ "_" ^ node_name ^ ".tiny" in
-    Log.report ~plugin:"tiny" ~level:1 (fun fmt -> Format.fprintf fmt "Exporting resulting tiny source as %s@ " destname);
+    report ~level:2 (fun fmt -> Format.fprintf fmt "Exporting resulting tiny source as %s@ " destname);
     let out = open_out destname in
     let fmt = Format.formatter_of_out_channel out in
-    Format.fprintf fmt "%a@." Tiny.Ast.VarSet.pp env; 
+    Format.fprintf fmt "%a@." Tiny.Ast.Var.Set.pp env; 
     Format.fprintf fmt "%a@." Tiny.Ast.fprint_stm ast; 
     close_out out;
   
   
   );
-  Format.printf "%a@." Tiny.Ast.fprint_stm ast; 
+  report ~level:1 (fun fmt -> Format.fprintf fmt "%a@." Tiny.Ast.fprint_stm ast); 
   
   let dom =
      let open Tiny.Load_domains in
@@ -78,7 +79,8 @@ let tiny_run ~basename prog machines =
    let module PrintResults = Tiny.PrintResults.Make (Dom) in
    let m = Results.results in
    (* if !Tiny.Report.verbosity > 1 then *)
-   PrintResults.print m env ast None (* no !output_file *);
+   report ~level:1 (PrintResults.print m env ast)
+   (* no !output_file *);
         (* else PrintResults.print_invariants m ast !output_file *)
 
    ()

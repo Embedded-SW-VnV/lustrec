@@ -1,4 +1,6 @@
+let report = Log.report ~plugin:"tiny"
 
+           
 module Ast = Tiny.Ast
 
 let gen_loc () = Tiny.Location.dummy ()
@@ -163,8 +165,14 @@ let machine_body_to_ast init m =
                                 over-approximate behavior *)
        in
        if (match init_var, te.Ast.expr_desc with
-           | Some v, Var v2 -> Format.eprintf "Building init (possibly if %b)@." (v=v2); v = v2
-           | _ -> Format.eprintf "Building if init def? %b @." (match init_var with None -> false | _ -> true); false) then 
+           | Some v, Var v2 ->
+              (* Format.eprintf "Building init (possibly if %b)@." (v=v2);  *)v = v2
+           | _ ->
+              (* Format.eprintf "Building if init def? %b @." (match init_var with None -> false | _ -> true);
+               *)
+              false
+          )
+       then 
          instrl_to_stm (
              if init then
                (List.assoc "true" guarded_instrs)
@@ -267,11 +275,11 @@ let machine_to_ast bounds_input m =
   
 let machine_to_env m =
   List.fold_left (fun accu v ->
-      Format.eprintf "Adding variable %a to env@." Printers.pp_var v;
+      report ~level:3 (fun fmt -> Format.fprintf fmt "Adding variable %a to env@." Printers.pp_var v);
       let typ =
         ltyp_to_ttyp (v.Lustre_types.var_type)
       in
-      Ast.VarSet.add (v.var_id, typ) accu)
-    Ast.VarSet.empty
+      Ast.Var.Set.add (v.var_id, typ) accu)
+    Ast.Var.Set.empty
     (Machine_code_common.machine_vars m)
 
