@@ -490,6 +490,16 @@ lustre_spec: VAR IDENT COL XOR
 ## The known suffix of the stack is as follows:
 ## VAR IDENT COL
 ##
+header: TYPE IDENT EQ STRUCT LCUR IDENT COL XOR
+##
+## Ends in an error in state: 69.
+##
+## separated_nonempty_list(SCOL,separated_pair(IDENT,COL,typeconst)) -> IDENT COL . typeconst [ RCUR ]
+## separated_nonempty_list(SCOL,separated_pair(IDENT,COL,typeconst)) -> IDENT COL . typeconst SCOL separated_nonempty_list(SCOL,separated_pair(IDENT,COL,typeconst)) [ RCUR ]
+##
+## The known suffix of the stack is as follows:
+## IDENT COL
+##
 
 A type expression is expected.
   Example: x: int
@@ -563,6 +573,24 @@ lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT COL TREAL WHENNOT
 Ill-formed parameter declarations.
   Example: x: int when c; y, z: bool; const r: real
 
+prog: NODE UIDENT LPAR CONST IDENT RPAR XOR
+##
+## Ends in an error in state: 479.
+##
+## top_decl -> state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR . RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) nodespecs loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL [ NODESPEC NODE FUNCTION EOF CONST ]
+##
+## The known suffix of the stack is as follows:
+## state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR
+##
+lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR XOR
+##
+## Ends in an error in state: 155.
+##
+## top_contract -> CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR . RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR
+##
 prog: NODE UIDENT LPAR CONST IDENT RPAR RETURNS XOR
 ##
 ## Ends in an error in state: 480.
@@ -581,27 +609,23 @@ lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS XOR
 ## The known suffix of the stack is as follows:
 ## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS
 ##
-
-The outputs of a node, function or node contract must be defined as a parenthesized list of parameter declarations.
-  Example: (x: int when c; y, z: bool; const r: real)
-
-prog: NODE UIDENT LPAR CONST IDENT RPAR XOR
+header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS XOR
 ##
-## Ends in an error in state: 479.
+## Ends in an error in state: 408.
 ##
-## top_decl -> state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR . RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) nodespecs loption(preceded(VAR,var_decl_list(local_vdecl))) LET stmt_list TEL [ NODESPEC NODE FUNCTION EOF CONST ]
+## top_decl_header -> nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS . LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
 ##
 ## The known suffix of the stack is as follows:
-## state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR
+## nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS
 ##
-lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR XOR
+header: NODE UIDENT LPAR CONST IDENT RPAR XOR
 ##
-## Ends in an error in state: 155.
+## Ends in an error in state: 407.
 ##
-## top_contract -> CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR . RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+## top_decl_header -> nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR . RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
 ##
 ## The known suffix of the stack is as follows:
-## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR
+## nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR
 ##
 
 A node, function or node contract definition must declare its outputs as a parenthesized list of parameter declarations, using the `returns` keyword.
@@ -625,6 +649,15 @@ lustre_spec: CONTRACT UIDENT XOR
 ## The known suffix of the stack is as follows:
 ## CONTRACT node_ident_decl
 ##
+header: NODE UIDENT XOR
+##
+## Ends in an error in state: 404.
+##
+## top_decl_header -> nodespecs state_annot node_ident_decl . LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## nodespecs state_annot node_ident_decl
+##
 
 A node, function or node contract definition must declare its inputs as a parenthesized list of parameter declarations.
   Example: node f (x: int when c; y, z: bool; const r: real)
@@ -637,6 +670,15 @@ prog: NODE XOR
 ##
 ## The known suffix of the stack is as follows:
 ## state_annot
+##
+header: NODE XOR
+##
+## Ends in an error in state: 403.
+##
+## top_decl_header -> nodespecs state_annot . node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## nodespecs state_annot
 ##
 
 The name of a node or function must be an identifier.
@@ -684,8 +726,52 @@ header: CONST UIDENT EQ FALSE SCOL XOR
 ## The known suffix of the stack is as follows:
 ## top_decl_header
 ##
+header: NODESPEC VAR
+##
+## Ends in an error in state: 400.
+##
+## top_decl_header -> nodespecs . state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## nodespecs
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 118, spurious reduction of production nodespec_list ->
+## In state 119, spurious reduction of production nodespec_list -> NODESPEC nodespec_list
+## In state 420, spurious reduction of production nodespecs -> nodespec_list
+##
+header: NODESPEC XOR
+##
+## Ends in an error in state: 118.
+##
+## nodespec_list -> NODESPEC . nodespec_list [ VAR NODE LET FUNCTION ]
+##
+## The known suffix of the stack is as follows:
+## NODESPEC
+##
+header: OPEN LT IDENT GT XOR
+##
+## Ends in an error in state: 115.
+##
+## prefix -> open_lusi . prefix [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## open_lusi
+##
+header: TYPE IDENT EQ IDENT SCOL XOR
+##
+## Ends in an error in state: 113.
+##
+## prefix -> typ_def . prefix [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## typ_def
+##
 
-Ill-formed toplevel declaration.
+Ill-formed top-level declaration.
 
 lustre_spec: ASSUME STRING UIDENT SCOL XOR
 ##
@@ -756,6 +842,15 @@ lustre_spec: CONST IDENT XOR
 ##
 ## The known suffix of the stack is as follows:
 ## CONST IDENT
+##
+lustre_spec: CONST IDENT EQ XOR
+##
+## Ends in an error in state: 328.
+##
+## contract_content -> CONST IDENT option(preceded(COL,typeconst)) EQ . expr SCOL contract_content [ TEL EOF ]
+##
+## The known suffix of the stack is as follows:
+## CONST IDENT option(preceded(COL,typeconst)) EQ
 ##
 
 A contract `const` declaration must be initialized with an expression, using the `=` operator.
@@ -894,6 +989,31 @@ lustre_spec: VAR IDENT COL TREAL EQ UIDENT SCOL XOR
 ## The known suffix of the stack is as follows:
 ## VAR IDENT COL typeconst EQ expr SCOL
 ##
+lustre_spec: CONST IDENT EQ UIDENT SCOL XOR
+##
+## Ends in an error in state: 330.
+##
+## contract_content -> CONST IDENT option(preceded(COL,typeconst)) EQ expr SCOL . contract_content [ TEL EOF ]
+##
+## The known suffix of the stack is as follows:
+## CONST IDENT option(preceded(COL,typeconst)) EQ expr SCOL
+##
+lustre_spec: GUARANTEES FALSE SCOL TEL
+##
+## Ends in an error in state: 462.
+##
+## lustre_spec -> option(CONTRACT) contract_content . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## option(CONTRACT) contract_content
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 342, spurious reduction of production contract_content ->
+## In state 343, spurious reduction of production contract_content -> GUARANTEES qexpr SCOL contract_content
+##
 
 Ill-formed contract content.
 
@@ -905,6 +1025,22 @@ lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS LPAR CONST IDENT RPA
 ##
 ## The known suffix of the stack is as follows:
 ## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR
+##
+lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS LPAR CONST IDENT RPAR LET GUARANTEES UIDENT SCOL EOF
+##
+## Ends in an error in state: 366.
+##
+## top_contract -> CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content . TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 342, spurious reduction of production contract_content ->
+## In state 343, spurious reduction of production contract_content -> GUARANTEES qexpr SCOL contract_content
 ##
 
 Contract contents expected, between `let` and `tel` keywords.
@@ -1120,6 +1256,24 @@ lustre_spec: GUARANTEES FORALL XOR
 ##
 ## The known suffix of the stack is as follows:
 ## FORALL
+##
+header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR XOR
+##
+## Ends in an error in state: 409.
+##
+## top_decl_header -> nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR . var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR
+##
+header: NODE UIDENT LPAR XOR
+##
+## Ends in an error in state: 405.
+##
+## top_decl_header -> nodespecs state_annot node_ident_decl LPAR . var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## nodespecs state_annot node_ident_decl LPAR
 ##
 
 Ill-formed parameter declarations.
@@ -3776,6 +3930,45 @@ lustre_spec: VAR IDENT COL TREAL EQ UIDENT THEN
 ## may provide an INCOMPLETE view of the future (what was expected next).
 ## In state 168, spurious reduction of production expr -> UIDENT
 ##
+lustre_spec: CONST IDENT EQ UIDENT THEN
+##
+## Ends in an error in state: 329.
+##
+## contract_content -> CONST IDENT option(preceded(COL,typeconst)) EQ expr . SCOL contract_content [ TEL EOF ]
+## expr -> expr . POWER dim [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . ARROW expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . FBY expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AND expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . OR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . XOR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . IMPL expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . EQ expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . LTE expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . GTE expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . NEQ expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . PLUS expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MINUS expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MULT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . DIV expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+## expr -> expr . MOD expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
+##
+## The known suffix of the stack is as follows:
+## CONST IDENT option(preceded(COL,typeconst)) EQ expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 168, spurious reduction of production expr -> UIDENT
+##
 
 Unexpected token in the context of an expression.
 
@@ -4431,15 +4624,6 @@ lustre_spec: VAR IDENT COL TREAL EQ XOR
 ## The known suffix of the stack is as follows:
 ## VAR IDENT COL typeconst EQ
 ##
-lustre_spec: VAR IDENT COL TREAL WHENNOT
-##
-## Ends in an error in state: 166.
-##
-## contract_content -> VAR IDENT COL typeconst . EQ expr SCOL contract_content [ TEL EOF ]
-##
-## The known suffix of the stack is as follows:
-## VAR IDENT COL typeconst
-##
 ## WARNING: This example involves spurious reductions.
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
@@ -4514,6 +4698,47 @@ lustre_spec: GUARANTEES FORALL UIDENT COL TREAL RCUR
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
 ## In state 5, spurious reduction of production typeconst -> TREAL
+##
+lustre_spec: VAR IDENT COL TREAL WHENNOT
+##
+## Ends in an error in state: 166.
+##
+## contract_content -> VAR IDENT COL typeconst . EQ expr SCOL contract_content [ TEL EOF ]
+##
+## The known suffix of the stack is as follows:
+## VAR IDENT COL typeconst
+##
+header: TYPE IDENT EQ STRUCT LCUR IDENT COL TREAL WHENNOT
+##
+## Ends in an error in state: 72.
+##
+## separated_nonempty_list(SCOL,separated_pair(IDENT,COL,typeconst)) -> IDENT COL typeconst . [ RCUR ]
+## separated_nonempty_list(SCOL,separated_pair(IDENT,COL,typeconst)) -> IDENT COL typeconst . SCOL separated_nonempty_list(SCOL,separated_pair(IDENT,COL,typeconst)) [ RCUR ]
+##
+## The known suffix of the stack is as follows:
+## IDENT COL typeconst
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 5, spurious reduction of production typeconst -> TREAL
+##
+header: TYPE IDENT EQ TREAL WHENNOT
+##
+## Ends in an error in state: 88.
+##
+## typ_def -> TYPE type_ident EQ typ_def_rhs . SCOL [ TYPE OPEN NODESPEC NODE INCLUDE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## TYPE type_ident EQ typ_def_rhs
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 5, spurious reduction of production typeconst -> TREAL
+## In state 87, spurious reduction of production typ_def_rhs -> typeconst
 ##
 
 Unexpected token in the context of a type expression.
@@ -4915,10 +5140,118 @@ header: INCLUDE XOR
 ## The known suffix of the stack is as follows:
 ## INCLUDE
 ##
+header: OPEN QUOTE DIV XOR
+##
+## Ends in an error in state: 94.
+##
+## path_ident -> DIV . path_ident [ QUOTE GT ]
+##
+## The known suffix of the stack is as follows:
+## DIV
+##
+header: OPEN QUOTE POINT DIV XOR
+##
+## Ends in an error in state: 93.
+##
+## path_ident -> POINT DIV . path_ident [ QUOTE GT ]
+##
+## The known suffix of the stack is as follows:
+## POINT DIV
+##
+header: OPEN QUOTE POINT XOR
+##
+## Ends in an error in state: 92.
+##
+## path_ident -> POINT . DIV path_ident [ QUOTE GT ]
+##
+## The known suffix of the stack is as follows:
+## POINT
+##
+header: OPEN QUOTE UIDENT DIV XOR
+##
+## Ends in an error in state: 101.
+##
+## path_ident -> file_ident DIV . path_ident [ QUOTE GT ]
+##
+## The known suffix of the stack is as follows:
+## file_ident DIV
+##
+header: OPEN QUOTE UIDENT GT
+##
+## Ends in an error in state: 104.
+##
+## open_lusi -> OPEN QUOTE path_ident . QUOTE [ TYPE OPEN NODESPEC NODE INCLUDE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## OPEN QUOTE path_ident
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 96, spurious reduction of production file_ident -> module_ident
+## In state 100, spurious reduction of production path_ident -> file_ident
+##
+header: OPEN QUOTE UIDENT POINT XOR
+##
+## Ends in an error in state: 97.
+##
+## file_ident -> module_ident POINT . file_ident [ QUOTE GT DIV ]
+##
+## The known suffix of the stack is as follows:
+## module_ident POINT
+##
+header: OPEN QUOTE UIDENT XOR
+##
+## Ends in an error in state: 96.
+##
+## file_ident -> module_ident . [ QUOTE GT DIV ]
+## file_ident -> module_ident . POINT file_ident [ QUOTE GT DIV ]
+##
+## The known suffix of the stack is as follows:
+## module_ident
+##
+header: OPEN QUOTE XOR
+##
+## Ends in an error in state: 91.
+##
+## open_lusi -> OPEN QUOTE . path_ident QUOTE [ TYPE OPEN NODESPEC NODE INCLUDE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## OPEN QUOTE
+##
 
-Invalid path specification.
+Ill-formed path specification.
   Example: "./foo/bar.baz"
 
+header: OPEN LT XOR
+##
+## Ends in an error in state: 106.
+##
+## open_lusi -> OPEN LT . path_ident GT [ TYPE OPEN NODESPEC NODE INCLUDE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## OPEN LT
+##
+header: OPEN LT UIDENT QUOTE
+##
+## Ends in an error in state: 107.
+##
+## open_lusi -> OPEN LT path_ident . GT [ TYPE OPEN NODESPEC NODE INCLUDE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## OPEN LT path_ident
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 96, spurious reduction of production file_ident -> module_ident
+## In state 100, spurious reduction of production path_ident -> file_ident
+##
+
+Ill-formed path specification.
+  Example: <./foo/bar.baz>
 
 header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LIB XOR
 ##
@@ -4931,18 +5264,6 @@ header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LIB XOR
 ##
 
 The `lib` keyword must be followed by a module name.
-
-header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR PROTOTYPE UIDENT LET
-##
-## Ends in an error in state: 414.
-##
-## top_decl_header -> nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) . list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident))
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 418.>
 
 header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR PROTOTYPE XOR
 ##
@@ -4974,259 +5295,17 @@ header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR LIB UIDE
 ## The known suffix of the stack is as follows:
 ## LIB module_ident
 ##
+header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR CONST IDENT RPAR PROTOTYPE UIDENT LET
+##
+## Ends in an error in state: 414.
+##
+## top_decl_header -> nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) . list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
+##
+## The known suffix of the stack is as follows:
+## nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident))
+##
 
 A node or function prototype declaration must be terminated by a `;`.
-
-header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS LPAR XOR
-##
-## Ends in an error in state: 409.
-##
-## top_decl_header -> nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR . var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 413.>
-
-header: NODE UIDENT LPAR CONST IDENT RPAR RETURNS XOR
-##
-## Ends in an error in state: 408.
-##
-## top_decl_header -> nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS . LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 412.>
-
-header: NODE UIDENT LPAR CONST IDENT RPAR XOR
-##
-## Ends in an error in state: 407.
-##
-## top_decl_header -> nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR . RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## nodespecs state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 411.>
-
-header: NODE UIDENT LPAR XOR
-##
-## Ends in an error in state: 405.
-##
-## top_decl_header -> nodespecs state_annot node_ident_decl LPAR . var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## nodespecs state_annot node_ident_decl LPAR
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 409.>
-
-header: NODE UIDENT XOR
-##
-## Ends in an error in state: 404.
-##
-## top_decl_header -> nodespecs state_annot node_ident_decl . LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## nodespecs state_annot node_ident_decl
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 408.>
-
-header: NODE XOR
-##
-## Ends in an error in state: 403.
-##
-## top_decl_header -> nodespecs state_annot . node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## nodespecs state_annot
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 407.>
-
-header: NODESPEC VAR
-##
-## Ends in an error in state: 400.
-##
-## top_decl_header -> nodespecs . state_annot node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(preceded(PROTOTYPE,node_ident)) list(preceded(LIB,module_ident)) SCOL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## nodespecs
-##
-## WARNING: This example involves spurious reductions.
-## This implies that, although the LR(1) items shown above provide an
-## accurate view of the past (what has been recognized so far), they
-## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 118, spurious reduction of production nodespec_list ->
-## In state 119, spurious reduction of production nodespec_list -> NODESPEC nodespec_list
-## In state 420, spurious reduction of production nodespecs -> nodespec_list
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 404.>
-
-header: NODESPEC XOR
-##
-## Ends in an error in state: 118.
-##
-## nodespec_list -> NODESPEC . nodespec_list [ VAR NODE LET FUNCTION ]
-##
-## The known suffix of the stack is as follows:
-## NODESPEC
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 118.>
-
-header: OPEN LT IDENT GT XOR
-##
-## Ends in an error in state: 115.
-##
-## prefix -> open_lusi . prefix [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## open_lusi
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 115.>
-
-header: OPEN LT UIDENT QUOTE
-##
-## Ends in an error in state: 107.
-##
-## open_lusi -> OPEN LT path_ident . GT [ TYPE OPEN NODESPEC NODE INCLUDE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## OPEN LT path_ident
-##
-## WARNING: This example involves spurious reductions.
-## This implies that, although the LR(1) items shown above provide an
-## accurate view of the past (what has been recognized so far), they
-## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 96, spurious reduction of production file_ident -> module_ident
-## In state 100, spurious reduction of production path_ident -> file_ident
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 107.>
-
-header: OPEN LT XOR
-##
-## Ends in an error in state: 106.
-##
-## open_lusi -> OPEN LT . path_ident GT [ TYPE OPEN NODESPEC NODE INCLUDE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## OPEN LT
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 106.>
-
-header: OPEN QUOTE DIV XOR
-##
-## Ends in an error in state: 94.
-##
-## path_ident -> DIV . path_ident [ QUOTE GT ]
-##
-## The known suffix of the stack is as follows:
-## DIV
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 94.>
-
-header: OPEN QUOTE POINT DIV XOR
-##
-## Ends in an error in state: 93.
-##
-## path_ident -> POINT DIV . path_ident [ QUOTE GT ]
-##
-## The known suffix of the stack is as follows:
-## POINT DIV
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 93.>
-
-header: OPEN QUOTE POINT XOR
-##
-## Ends in an error in state: 92.
-##
-## path_ident -> POINT . DIV path_ident [ QUOTE GT ]
-##
-## The known suffix of the stack is as follows:
-## POINT
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 92.>
-
-header: OPEN QUOTE UIDENT DIV XOR
-##
-## Ends in an error in state: 101.
-##
-## path_ident -> file_ident DIV . path_ident [ QUOTE GT ]
-##
-## The known suffix of the stack is as follows:
-## file_ident DIV
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 101.>
-
-header: OPEN QUOTE UIDENT GT
-##
-## Ends in an error in state: 104.
-##
-## open_lusi -> OPEN QUOTE path_ident . QUOTE [ TYPE OPEN NODESPEC NODE INCLUDE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## OPEN QUOTE path_ident
-##
-## WARNING: This example involves spurious reductions.
-## This implies that, although the LR(1) items shown above provide an
-## accurate view of the past (what has been recognized so far), they
-## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 96, spurious reduction of production file_ident -> module_ident
-## In state 100, spurious reduction of production path_ident -> file_ident
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 104.>
-
-header: OPEN QUOTE UIDENT POINT XOR
-##
-## Ends in an error in state: 97.
-##
-## file_ident -> module_ident POINT . file_ident [ QUOTE GT DIV ]
-##
-## The known suffix of the stack is as follows:
-## module_ident POINT
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 97.>
-
-header: OPEN QUOTE UIDENT XOR
-##
-## Ends in an error in state: 96.
-##
-## file_ident -> module_ident . [ QUOTE GT DIV ]
-## file_ident -> module_ident . POINT file_ident [ QUOTE GT DIV ]
-##
-## The known suffix of the stack is as follows:
-## module_ident
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 96.>
-
-header: OPEN QUOTE XOR
-##
-## Ends in an error in state: 91.
-##
-## open_lusi -> OPEN QUOTE . path_ident QUOTE [ TYPE OPEN NODESPEC NODE INCLUDE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## OPEN QUOTE
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 91.>
 
 header: OPEN XOR
 ##
@@ -5239,7 +5318,9 @@ header: OPEN XOR
 ## OPEN
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 90.>
+The `#open` directive must be followed by a path specification.
+  Example: #open <./foo/bar.baz>   (* system-level *)
+           #open "./foo/bar.baz"   (* local *)
 
 header: TYPE IDENT EQ ENUM LCUR UIDENT COMMA XOR
 ##
@@ -5250,9 +5331,15 @@ header: TYPE IDENT EQ ENUM LCUR UIDENT COMMA XOR
 ## The known suffix of the stack is as follows:
 ## UIDENT COMMA
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 83.>
-
+header: TYPE IDENT EQ ENUM LCUR XOR
+##
+## Ends in an error in state: 81.
+##
+## typ_def_rhs -> ENUM LCUR . separated_nonempty_list(COMMA,UIDENT) RCUR [ SCOL ]
+##
+## The known suffix of the stack is as follows:
+## ENUM LCUR
+##
 header: TYPE IDENT EQ ENUM LCUR UIDENT XOR
 ##
 ## Ends in an error in state: 82.
@@ -5263,21 +5350,6 @@ header: TYPE IDENT EQ ENUM LCUR UIDENT XOR
 ## The known suffix of the stack is as follows:
 ## UIDENT
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 82.>
-
-header: TYPE IDENT EQ ENUM LCUR XOR
-##
-## Ends in an error in state: 81.
-##
-## typ_def_rhs -> ENUM LCUR . separated_nonempty_list(COMMA,UIDENT) RCUR [ SCOL ]
-##
-## The known suffix of the stack is as follows:
-## ENUM LCUR
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 81.>
-
 header: TYPE IDENT EQ ENUM XOR
 ##
 ## Ends in an error in state: 80.
@@ -5288,19 +5360,8 @@ header: TYPE IDENT EQ ENUM XOR
 ## ENUM
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 80.>
-
-header: TYPE IDENT EQ IDENT SCOL XOR
-##
-## Ends in an error in state: 113.
-##
-## prefix -> typ_def . prefix [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## typ_def
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 113.>
+An enumerated type must be specified as a comma-separated list of uppercase identifiers, between `{` and `}`.
+  Example type t = enum { Foo, Bar };
 
 header: TYPE IDENT EQ STRUCT LCUR IDENT COL TREAL SCOL XOR
 ##
@@ -5311,41 +5372,6 @@ header: TYPE IDENT EQ STRUCT LCUR IDENT COL TREAL SCOL XOR
 ## The known suffix of the stack is as follows:
 ## IDENT COL typeconst SCOL
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 73.>
-
-header: TYPE IDENT EQ STRUCT LCUR IDENT COL TREAL WHENNOT
-##
-## Ends in an error in state: 72.
-##
-## separated_nonempty_list(SCOL,separated_pair(IDENT,COL,typeconst)) -> IDENT COL typeconst . [ RCUR ]
-## separated_nonempty_list(SCOL,separated_pair(IDENT,COL,typeconst)) -> IDENT COL typeconst . SCOL separated_nonempty_list(SCOL,separated_pair(IDENT,COL,typeconst)) [ RCUR ]
-##
-## The known suffix of the stack is as follows:
-## IDENT COL typeconst
-##
-## WARNING: This example involves spurious reductions.
-## This implies that, although the LR(1) items shown above provide an
-## accurate view of the past (what has been recognized so far), they
-## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 5, spurious reduction of production typeconst -> TREAL
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 72.>
-
-header: TYPE IDENT EQ STRUCT LCUR IDENT COL XOR
-##
-## Ends in an error in state: 69.
-##
-## separated_nonempty_list(SCOL,separated_pair(IDENT,COL,typeconst)) -> IDENT COL . typeconst [ RCUR ]
-## separated_nonempty_list(SCOL,separated_pair(IDENT,COL,typeconst)) -> IDENT COL . typeconst SCOL separated_nonempty_list(SCOL,separated_pair(IDENT,COL,typeconst)) [ RCUR ]
-##
-## The known suffix of the stack is as follows:
-## IDENT COL
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 69.>
-
 header: TYPE IDENT EQ STRUCT LCUR IDENT XOR
 ##
 ## Ends in an error in state: 68.
@@ -5356,9 +5382,6 @@ header: TYPE IDENT EQ STRUCT LCUR IDENT XOR
 ## The known suffix of the stack is as follows:
 ## IDENT
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 68.>
-
 header: TYPE IDENT EQ STRUCT LCUR XOR
 ##
 ## Ends in an error in state: 67.
@@ -5368,9 +5391,6 @@ header: TYPE IDENT EQ STRUCT LCUR XOR
 ## The known suffix of the stack is as follows:
 ## STRUCT LCUR
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 67.>
-
 header: TYPE IDENT EQ STRUCT XOR
 ##
 ## Ends in an error in state: 66.
@@ -5381,26 +5401,8 @@ header: TYPE IDENT EQ STRUCT XOR
 ## STRUCT
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 66.>
-
-header: TYPE IDENT EQ TREAL WHENNOT
-##
-## Ends in an error in state: 88.
-##
-## typ_def -> TYPE type_ident EQ typ_def_rhs . SCOL [ TYPE OPEN NODESPEC NODE INCLUDE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## TYPE type_ident EQ typ_def_rhs
-##
-## WARNING: This example involves spurious reductions.
-## This implies that, although the LR(1) items shown above provide an
-## accurate view of the past (what has been recognized so far), they
-## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 5, spurious reduction of production typeconst -> TREAL
-## In state 87, spurious reduction of production typ_def_rhs -> typeconst
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 88.>
+A structure type must be specified as a semicolon-separated list of typed fields, between `{` and `}`.
+  Example type t = struct { x: int; y: real };
 
 header: TYPE IDENT EQ XOR
 ##
@@ -5411,9 +5413,6 @@ header: TYPE IDENT EQ XOR
 ## The known suffix of the stack is as follows:
 ## TYPE type_ident EQ
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 4.>
-
 header: TYPE IDENT XOR
 ##
 ## Ends in an error in state: 3.
@@ -5423,9 +5422,6 @@ header: TYPE IDENT XOR
 ## The known suffix of the stack is as follows:
 ## TYPE type_ident
 ##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 3.>
-
 header: TYPE XOR
 ##
 ## Ends in an error in state: 1.
@@ -5436,7 +5432,8 @@ header: TYPE XOR
 ## TYPE
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE: 1.>
+A `type` definition must be an enumerated type definition, a structure type definition or a type expression.
+  Example: type t = int;
 
 header: XOR
 ##
@@ -5450,106 +5447,3 @@ header: XOR
 
 Ill-formed declaration.
 
-lustre_spec: CONST IDENT EQ UIDENT SCOL XOR
-##
-## Ends in an error in state: 330.
-##
-## contract_content -> CONST IDENT option(preceded(COL,typeconst)) EQ expr SCOL . contract_content [ TEL EOF ]
-##
-## The known suffix of the stack is as follows:
-## CONST IDENT option(preceded(COL,typeconst)) EQ expr SCOL
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 331.>
-
-lustre_spec: CONST IDENT EQ UIDENT THEN
-##
-## Ends in an error in state: 329.
-##
-## contract_content -> CONST IDENT option(preceded(COL,typeconst)) EQ expr . SCOL contract_content [ TEL EOF ]
-## expr -> expr . POWER dim [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . nonempty_list(delimited(LBRACKET,dim,RBRACKET)) [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . ARROW expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . FBY expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . WHEN vdecl_ident [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . WHENNOT vdecl_ident [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . WHEN tag_ident LPAR vdecl_ident RPAR [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . AND expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . AMPERAMPER expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . OR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . BARBAR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . XOR expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . IMPL expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . EQ expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . LT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . LTE expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . GT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . GTE expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . NEQ expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . PLUS expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . MINUS expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . MULT expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . DIV expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-## expr -> expr . MOD expr [ XOR WHENNOT WHEN SCOL POWER PLUS OR NEQ MULT MOD MINUS LTE LT LBRACKET IMPL GTE GT FBY EQ DIV BARBAR ARROW AND AMPERAMPER ]
-##
-## The known suffix of the stack is as follows:
-## CONST IDENT option(preceded(COL,typeconst)) EQ expr
-##
-## WARNING: This example involves spurious reductions.
-## This implies that, although the LR(1) items shown above provide an
-## accurate view of the past (what has been recognized so far), they
-## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 168, spurious reduction of production expr -> UIDENT
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 330.>
-
-lustre_spec: CONST IDENT EQ XOR
-##
-## Ends in an error in state: 328.
-##
-## contract_content -> CONST IDENT option(preceded(COL,typeconst)) EQ . expr SCOL contract_content [ TEL EOF ]
-##
-## The known suffix of the stack is as follows:
-## CONST IDENT option(preceded(COL,typeconst)) EQ
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 328.>
-
-lustre_spec: CONTRACT UIDENT LPAR CONST UIDENT RPAR RETURNS LPAR CONST IDENT RPAR LET GUARANTEES UIDENT SCOL EOF
-##
-## Ends in an error in state: 366.
-##
-## top_contract -> CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content . TEL [ NODESPEC NODE FUNCTION EOF CONTRACT CONST ]
-##
-## The known suffix of the stack is as follows:
-## CONTRACT node_ident_decl LPAR var_decl_list(vdecl) RPAR RETURNS LPAR var_decl_list(vdecl) RPAR option(SCOL) LET contract_content
-##
-## WARNING: This example involves spurious reductions.
-## This implies that, although the LR(1) items shown above provide an
-## accurate view of the past (what has been recognized so far), they
-## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 342, spurious reduction of production contract_content ->
-## In state 343, spurious reduction of production contract_content -> GUARANTEES qexpr SCOL contract_content
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 329.>
-
-lustre_spec: GUARANTEES FALSE SCOL TEL
-##
-## Ends in an error in state: 462.
-##
-## lustre_spec -> option(CONTRACT) contract_content . EOF [ # ]
-##
-## The known suffix of the stack is as follows:
-## option(CONTRACT) contract_content
-##
-## WARNING: This example involves spurious reductions.
-## This implies that, although the LR(1) items shown above provide an
-## accurate view of the past (what has been recognized so far), they
-## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 342, spurious reduction of production contract_content ->
-## In state 343, spurious reduction of production contract_content -> GUARANTEES qexpr SCOL contract_content
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE: 462'.>
