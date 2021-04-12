@@ -139,6 +139,14 @@ let pp_acsl_preamble fmt _preamble =
   Format.fprintf fmt "";
   ()
 
+module VarDecl = struct
+  type t = var_decl
+  let compare v1 v2 = compare v1.var_id v2.var_id
+end
+module VDSet = Set.Make(VarDecl)
+
+module Live = Map.Make(Int)
+
 let pp_spec pp fmt =
   fprintf fmt "@[<v>/*%@@[<v>@,%a@]@,*/@]" pp
 
@@ -197,6 +205,11 @@ let pp_forall pp_l pp_r fmt (l, r) =
     pp_l l
     pp_r r
 
+let pp_exists pp_l pp_r fmt (l, r) =
+  fprintf fmt "@[<v 2>\\exists %a;@,%a@]"
+    pp_l l
+    pp_r r
+
 let pp_valid =
   pp_print_parenthesized
     ~pp_nil:pp_true
@@ -208,12 +221,12 @@ let pp_equal pp_l pp_r fmt (l, r) =
     pp_r r
 
 let pp_implies pp_l pp_r fmt (l, r) =
-  fprintf fmt "%a ==>@ %a"
+  fprintf fmt "@[<v>%a ==>@ %a@]"
     pp_l l
     pp_r r
 
 let pp_and pp_l pp_r fmt (l, r) =
-  fprintf fmt "%a @ && %a"
+  fprintf fmt "@[<v>%a @ && %a@]"
     pp_l l
     pp_r r
 
@@ -229,6 +242,9 @@ let pp_ite pp_c pp_t pp_f fmt (c, t, f) =
     pp_c c
     pp_t t
     pp_f f
+
+let pp_paren pp fmt v =
+  fprintf fmt "(%a)" pp v
 
 let pp_machine_decl fmt (id, mem_type, var) =
   fprintf fmt "struct %s_%s %s" id mem_type var
@@ -250,12 +266,77 @@ let pp_mem_init' = pp_mem_init pp_print_string
 let pp_var_decl fmt v =
   pp_print_string fmt v.var_id
 
+let pp_locals m fmt vs =
+  pp_print_list
+    ~pp_open_box:pp_open_hbox
+    ~pp_sep:pp_print_comma
+    (pp_c_decl_local_var m) fmt vs
+
 let pp_ptr_decl fmt v =
   fprintf fmt "*%s" v.var_id
 
+let rec assigned s instr =
+  let open VDSet in
+  match instr.instr_desc with
+  | MLocalAssign (x, _) ->
+    add x s
+  | MStep (xs, _, _) ->
+    union s (of_list xs)
+  | MBranch (_, brs) ->
+    List.(fold_left (fun s (_, instrs) -> fold_left assigned s instrs) s brs)
+  | _ -> s
+
+let rec occur_val s v =
+  let open VDSet in
+  match v.value_desc with
+  | Var x ->
+    add x s
+  | Fun (_, vs)
+  | Array vs ->
+    List.fold_left occur_val s vs
+  | Access (v1, v2)
+  | Power (v1, v2) ->
+    occur_val (occur_val s v1) v2
+  | _ -> s
+
+let rec occur s instr =
+  let open VDSet in
+  match instr.instr_desc with
+  | MLocalAssign (_, v)
+  | MStateAssign (_, v) ->
+    occur_val s v
+  | MStep (_, _, vs) ->
+    List.fold_left occur_val s vs
+  | MBranch (v, brs) ->
+    List.(fold_left (fun s (_, instrs) -> fold_left occur s instrs)
+            (occur_val s v) brs)
+  | _ -> s
+
+let live = Hashtbl.create 32
+
+let set_live_of m =
+  let open VDSet in
+  let locals = of_list m.mstep.step_locals in
+  let outputs = of_list m.mstep.step_outputs in
+  let vars = union locals outputs in
+  let no_occur_after i =
+    let occ, _ = List.fold_left (fun (s, j) instr ->
+        if j <= i then (s, j+1) else (occur s instr, j+1))
+        (empty, 0) m.mstep.step_instrs in
+    diff locals occ
+  in
+  let l, _, _ = List.fold_left (fun (l, asg, i) instr ->
+      let asg = inter (assigned asg instr) vars in
+      Live.add (i + 1) (diff asg (no_occur_after i)) l, asg, i + 1)
+      (Live.empty, empty, 0) m.mstep.step_instrs in
+  Hashtbl.add live m.mname.node_id (Live.add 0 empty l)
+
+let live_i m i =
+  Live.find i (Hashtbl.find live m.mname.node_id)
+
 let pp_mem_trans_aux ?i pp_mem_in pp_mem_out pp_input pp_output fmt
-    (name, inputs, outputs, mem_in, mem_out) =
-  fprintf fmt "%s_trans%a(@[<hov>%a,@ %a%a%a@])"
+    (name, inputs, locals, outputs, mem_in, mem_out) =
+  fprintf fmt "%s_trans%a(@[<hov>%a,@ %a%a%a%a@])"
     name
     (pp_print_option pp_print_int) i
     pp_mem_in mem_in
@@ -263,17 +344,43 @@ let pp_mem_trans_aux ?i pp_mem_in pp_mem_out pp_input pp_output fmt
        ~pp_epilogue:pp_print_comma
        ~pp_sep:pp_print_comma
        pp_input) inputs
+    (pp_print_option
+       (fun fmt _ ->
+          pp_print_list
+            ~pp_epilogue:pp_print_comma
+            ~pp_sep:pp_print_comma
+            pp_input fmt locals))
+    i
     pp_mem_out mem_out
     (pp_print_list
        ~pp_prologue:pp_print_comma
        ~pp_sep:pp_print_comma
        pp_output) outputs
 
-let pp_mem_trans ?i pp_mem_in pp_mem_out fmt (m, mem_in, mem_out) =
-  pp_mem_trans_aux ?i pp_mem_in pp_mem_out pp_var_decl pp_ptr_decl fmt
-    (m.mname.node_id, m.mstep.step_inputs, m.mstep.step_outputs, mem_in, mem_out)
+let pp_mem_trans ?i pp_mem_in pp_mem_out pp_input pp_output fmt
+    (m, mem_in, mem_out) =
+  let locals, outputs = match i with
+    | Some 0 ->
+      [], []
+    | Some i when i < List.length m.mstep.step_instrs ->
+      let li = live_i m i in
+      VDSet.(inter (of_list m.mstep.step_locals) li |> elements,
+             inter (of_list m.mstep.step_outputs) li |> elements)
+    | Some _ ->
+      [], m.mstep.step_outputs
+    | _ ->
+      m.mstep.step_locals, m.mstep.step_outputs
+  in
+  pp_mem_trans_aux ?i pp_mem_in pp_mem_out pp_input pp_output fmt
+    (m.mname.node_id,
+     m.mstep.step_inputs,
+     locals,
+     outputs,
+     mem_in,
+     mem_out)
 
-let pp_mem_trans' ?i fmt = pp_mem_trans ?i pp_print_string pp_print_string fmt
+let pp_mem_trans' ?i fmt =
+  pp_mem_trans ?i pp_print_string pp_print_string pp_var_decl pp_ptr_decl fmt
 
 let pp_nothing fmt () =
   pp_print_string fmt "\\nothing"
@@ -310,40 +417,48 @@ let print_machine_ghost_simulation_aux ?i m pp fmt v =
     ((name, (name, "mem_ghost", mem), (name, "mem", "*" ^ self)),
      v)
 
-let print_machine_ghost_simulation dependencies m fmt i instr =
+let print_ghost_simulation dependencies m fmt (i, instr) =
   let name = m.mname.node_id in
   let self = mk_self m in
   let mem = mk_mem m in
   let prev_ghost fmt () = pp_mem_ghost' ~i fmt (name, mem, self) in
   let pred pp v = pp_and prev_ghost pp fmt ((), v) in
+  let rec aux fmt instr =
+    match instr.instr_desc with
+    | MStateAssign (m, _) ->
+      pp_equal
+        (pp_access (pp_access pp_var_decl))
+        (pp_indirect (pp_access pp_var_decl))
+        fmt
+        ((mem, ("_reg", m)), (self, ("_reg", m)))
+    | MStep ([i0], i, vl)
+      when Basic_library.is_value_internal_fun
+          (mk_val (Fun (i, vl)) i0.var_type)  ->
+      pp_true fmt ()
+    | MStep (_, i, _) when !Options.mpfr && Mpfr.is_homomorphic_fun i ->
+      pp_true fmt ()
+    | MStep ([_], i, _) when has_c_prototype i dependencies ->
+      pp_true fmt ()
+    | MStep (_, i, _)
+    | MReset i ->
+      begin try
+          let n, _ = List.assoc i m.minstances in
+          pp_mem_ghost pp_access' pp_indirect' fmt
+            (node_name n, (mem, i), (self, i))
+        with Not_found -> pp_true fmt ()
+      end
+    | MBranch (_, brs) ->
+      (* TODO: handle branches *)
+      pp_and_l aux fmt List.(flatten (map snd brs))
+    | _ -> pp_true fmt ()
+  in
+  pred aux instr
+
+let print_machine_ghost_simulation dependencies m fmt i instr =
   print_machine_ghost_simulation_aux m
-    (fun fmt -> function
-       | MStateAssign (m, _) ->
-         pred
-           (pp_equal
-              (pp_access (pp_access pp_var_decl))
-              (pp_indirect (pp_access pp_var_decl)))
-           ((mem, ("_reg", m)),
-            (self, ("_reg", m)))
-       | MStep ([i0], i, vl)
-         when Basic_library.is_value_internal_fun
-             (mk_val (Fun (i, vl)) i0.var_type)  ->
-         prev_ghost fmt ()
-       | MStep (_, i, _) when !Options.mpfr && Mpfr.is_homomorphic_fun i ->
-         prev_ghost fmt ()
-       | MStep ([_], i, _) when has_c_prototype i dependencies ->
-         prev_ghost fmt ()
-       | MStep (_, i, _)
-       | MReset i ->
-         begin try
-             let n, _ = List.assoc i m.minstances in
-             pred
-               (pp_mem_ghost pp_access' pp_indirect')
-               (node_name n, (mem, i), (self, i))
-           with Not_found -> prev_ghost fmt ()
-         end
-       | _ -> prev_ghost fmt ())
-    ~i:(i+1) fmt instr.instr_desc
+    (print_ghost_simulation dependencies m)
+    ~i:(i+1)
+    fmt (i, instr)
 
 let print_machine_ghost_struct fmt m =
   pp_spec (pp_ghost (print_machine_struct ~ghost:true)) fmt m
@@ -364,21 +479,148 @@ let print_machine_ghost_simulations dependencies fmt m =
       (print_machine_ghost_simulation_aux m
          (pp_mem_ghost' ~i:(List.length m.mstep.step_instrs))) (name, mem, self)
 
-let print_machine_core_annotations dependencies fmt m =
-  if not (fst (Machine_code_common.get_stateless_status m)) then
-    let name = m.mname.node_id in
-    let self = mk_self m in
-    let mem = mk_mem m in
-    fprintf fmt "%a@,%a@,%a%a"
-      print_machine_ghost_struct m
-      (print_machine_ghost_simulation_aux m pp_true ~i:0) ()
+let pp_basic_assign_spec pp_var fmt typ var_name value =
+  if Types.is_real_type typ && !Options.mpfr
+  then
+    assert false
+    (* Mpfr.pp_inject_assign pp_var fmt (var_name, value) *)
+  else
+    pp_equal pp_var pp_var fmt (var_name, value)
+
+let pp_assign_spec m self pp_var fmt (var_type, var_name, value) =
+  let depth = expansion_depth value in
+  let loop_vars = mk_loop_variables m var_type depth in
+  let reordered_loop_vars = reorder_loop_variables loop_vars in
+  let rec aux typ fmt vars =
+    match vars with
+    | [] ->
+      pp_basic_assign_spec
+        (pp_value_suffix ~indirect:false m self var_type loop_vars pp_var)
+        fmt typ var_name value
+    | (d, LVar i) :: q ->
+      assert false
+      (* let typ' = Types.array_element_type typ in
+       * fprintf fmt "@[<v 2>{@,int %s;@,for(%s=0;%s<%a;%s++)@,%a @]@,}"
+       *   i i i pp_c_dimension d i
+       *   (aux typ') q *)
+    | (d, LInt r) :: q ->
+      assert false
+      (* let typ' = Types.array_element_type typ in
+       * let szl = Utils.enumerate (Dimension.size_const_dimension d) in
+       * fprintf fmt "@[<v 2>{@,%a@]@,}"
+       *   (pp_print_list (fun fmt i -> r := i; aux typ' fmt q)) szl *)
+    | _ -> assert false
+  in
+  begin
+    reset_loop_counter ();
+    aux var_type fmt reordered_loop_vars;
+  end
+
+let print_machine_trans_simulation_aux ?i m pp fmt v =
+  let name = m.mname.node_id in
+  let mem_in = mk_mem_in m in
+  let mem_out = mk_mem_out m in
+  pp_spec
+    (pp_predicate
+       (pp_mem_trans pp_machine_decl pp_machine_decl
+          (pp_c_decl_local_var m) pp_c_decl_output_var ?i)
+       pp)
+    fmt
+    ((m, (name, "mem_ghost", mem_in), (name, "mem_ghost", mem_out)),
+     v)
+
+let print_trans_simulation machines dependencies m fmt (i, instr) =
+  let mem_in = mk_mem_in m in
+  let mem_out = mk_mem_out m in
+  let d = VDSet.(diff (live_i m i) (live_i m (i+1))) in
+  printf "%d : %a\n%d : %a\n\n"
+    i
+    (pp_print_parenthesized pp_var_decl) (VDSet.elements (live_i m i))
+    (i+1)
+    (pp_print_parenthesized pp_var_decl) (VDSet.elements (live_i m (i+1)));
+  let prev_trans fmt () = pp_mem_trans' ~i fmt (m, mem_in, mem_out) in
+  let pred pp v =
+    let locals = VDSet.(inter (of_list m.mstep.step_locals) d |> elements) in
+    if locals = []
+    then pp_and prev_trans pp fmt ((), v)
+    else pp_exists (pp_locals m) (pp_and prev_trans pp) fmt (locals, ((), v))
+  in
+  let rec aux fmt instr = match instr.instr_desc with
+    | MLocalAssign (x, v)
+    | MStateAssign (x, v) ->
+      pp_assign_spec m mem_in (pp_c_var_read m) fmt
+        (x.var_type, mk_val (Var x) x.var_type, v)
+    | MStep ([i0], i, vl)
+      when Basic_library.is_value_internal_fun
+          (mk_val (Fun (i, vl)) i0.var_type)  ->
+      pp_true fmt ()
+    | MStep (_, i, _) when !Options.mpfr && Mpfr.is_homomorphic_fun i ->
+      pp_true fmt ()
+    | MStep ([_], i, _) when has_c_prototype i dependencies ->
+      pp_true fmt ()
+    | MStep (xs, f, ys) ->
+      begin try
+          let n, _ = List.assoc f m.minstances in
+            pp_mem_trans_aux
+              pp_access' pp_access'
+              (pp_c_val m mem_in (pp_c_var_read m))
+              pp_var_decl
+              fmt
+              (node_name n, ys, [], xs, (mem_in, f), (mem_out, f))
+        with Not_found -> pp_true fmt ()
+      end
+    | MReset f ->
+      begin try
+          let n, _ = List.assoc f m.minstances in
+          pp_mem_init' fmt (node_name n, mem_out)
+        with Not_found -> pp_true fmt ()
+      end
+    | MBranch (v, brs) ->
+      (* TODO: handle branches *)
+      pp_and_l (fun fmt (l, instrs) ->
+          pp_paren (pp_implies
+                      (pp_equal
+                         (pp_c_val m mem_in (pp_c_var_read m))
+                         pp_print_string)
+                      (pp_and_l aux))
+            fmt
+            ((v, l), instrs))
+        fmt brs
+    | _ -> pp_true fmt ()
+  in
+  pred aux instr
+
+let print_machine_trans_simulation machines dependencies m fmt i instr =
+  print_machine_trans_simulation_aux m
+    (print_trans_simulation machines dependencies m)
+    ~i:(i+1)
+    fmt (i, instr)
+
+let print_machine_core_annotations machines dependencies fmt m =
+  if not (fst (Machine_code_common.get_stateless_status m)) then begin
+    set_live_of m;
+    let i = List.length m.mstep.step_instrs in
+    let mem_in = mk_mem_in m in
+    let mem_out = mk_mem_out m in
+    let last_trans fmt () =
+      let locals = VDSet.(inter
+                            (of_list m.mstep.step_locals)
+                            (live_i m i)
+                          |> elements) in
+      if locals = []
+      then pp_mem_trans' ~i fmt (m, mem_in, mem_out)
+      else pp_exists (pp_locals m) (pp_mem_trans' ~i) fmt
+          (locals, (m, mem_in, mem_out))
+    in
+    fprintf fmt "%a@,%a%a"
+      (print_machine_trans_simulation_aux m pp_true ~i:0) ()
       (pp_print_list_i
         ~pp_epilogue:pp_print_cut
         ~pp_open_box:pp_open_vbox0
-        (print_machine_ghost_simulation dependencies m))
+        (print_machine_trans_simulation machines dependencies m))
       m.mstep.step_instrs
-      (print_machine_ghost_simulation_aux m
-         (pp_mem_ghost' ~i:(List.length m.mstep.step_instrs))) (name, mem, self)
+      (print_machine_trans_simulation_aux m last_trans) ()
+  end
 
 let pp_at pp_p fmt (p, l) =
   fprintf fmt "\\at(%a, %s)" pp_p p l
@@ -387,12 +629,6 @@ let label_pre = "Pre"
 
 let pp_at_pre pp_p fmt p =
   pp_at pp_p fmt (p, label_pre)
-
-module VarDecl = struct
-  type t = var_decl
-  let compare v1 v2 = compare v1.var_id v2.var_id
-end
-module VDSet = Set.Make(VarDecl)
 
 let pp_arrow_spec fmt () =
   let name = "_arrow" in
@@ -418,21 +654,25 @@ let pp_arrow_spec fmt () =
        (pp_predicate
           (pp_mem_trans_aux
              pp_machine_decl pp_machine_decl pp_print_string pp_print_string)
-          (pp_and
-             (pp_equal
-                pp_print_string
-                (pp_access pp_access'))
-             (pp_ite
-                (pp_access pp_access')
-                (pp_equal
-                   (pp_access pp_access')
-                   pp_print_string)
-                (pp_equal
-                   (pp_access pp_access')
-                   (pp_access pp_access'))))))
-    ((name, [], ["_Bool out"], (name, "mem_ghost", mem_in), (name, "mem_ghost", mem_out)),
-     (("out", mem_in_first),
-      (mem_in_first, (mem_out_first, "false"), (mem_out_first, mem_in_first))))
+          (pp_ite
+             (pp_access pp_access')
+             (pp_paren
+                (pp_and
+                   (pp_equal
+                      (pp_access pp_access')
+                      pp_print_string)
+                   (pp_equal pp_print_string pp_print_string)))
+                (pp_paren
+                   (pp_and
+                      (pp_equal
+                         (pp_access pp_access')
+                         (pp_access pp_access'))
+                      (pp_equal pp_print_string pp_print_string))))))
+    ((name, ["int x"; "int y"], [], ["_Bool out"],
+      (name, "mem_ghost", mem_in), (name, "mem_ghost", mem_out)),
+     (* (("out", mem_in_first), *)
+     (mem_in_first, ((mem_out_first, "false"), ("out", "x")),
+      ((mem_out_first, mem_in_first), ("out", "y"))))
     (pp_spec_cut
        (pp_predicate
           (pp_mem_ghost pp_machine_decl pp_machine_decl)
@@ -463,7 +703,7 @@ module SrcMod = struct
          ~pp_open_box:pp_open_vbox0
          ~pp_sep:pp_print_cutcut
          ~pp_prologue:(pp_print_endcut "/* ACSL core annotations */")
-         (print_machine_core_annotations dependencies)
+         (print_machine_core_annotations machines dependencies)
          ~pp_epilogue:pp_print_cutcut) machines
 
   let pp_reset_spec fmt self m =
@@ -544,8 +784,8 @@ module SrcMod = struct
                (pp_implies
                   (pp_at_pre pp_mem_ghost')
                   (pp_implies
-                     (pp_mem_ghost' ~i:(i+1))
-                     (pp_mem_trans' ~i:(i+1)))))))
+                     (pp_mem_ghost' ~i)
+                     (pp_mem_trans' ~i))))))
       ((),
        ((name, mem_in, self),
         ((name, mem_out, self),
