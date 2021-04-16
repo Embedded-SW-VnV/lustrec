@@ -139,6 +139,18 @@ let pp_acsl_preamble fmt _preamble =
   Format.fprintf fmt "";
   ()
 
+let pp_acsl_basic_type_desc t_desc =
+  if Types.is_bool_type t_desc then
+    (* if !Options.cpp then "bool" else "_Bool" *)
+    "integer"
+  else if Types.is_int_type t_desc then
+    (* !Options.int_type *)
+    "integer"
+  else if Types.is_real_type t_desc then
+    if !Options.mpfr then Mpfr.mpfr_t else !Options.real_type
+  else
+    assert false (* Not a basic C type. Do not handle arrays or pointers *)
+
 module VarDecl = struct
   type t = var_decl
   let compare v1 v2 = compare v1.var_id v2.var_id
@@ -211,12 +223,18 @@ let pp_exists pp_l pp_r fmt (l, r) =
     pp_r r
 
 let pp_valid =
-  pp_print_parenthesized
+  pp_print_braced
     ~pp_nil:pp_true
-    ~pp_prologue:(fun fmt () -> pp_print_string fmt "\\valid")
+    ~pp_prologue:(fun fmt () -> pp_print_string fmt "\\valid(")
+    ~pp_epilogue:pp_print_cpar
 
 let pp_equal pp_l pp_r fmt (l, r) =
   fprintf fmt "%a == %a"
+    pp_l l
+    pp_r r
+
+let pp_different pp_l pp_r fmt (l, r) =
+  fprintf fmt "%a != %a"
     pp_l l
     pp_r r
 
@@ -259,7 +277,7 @@ let pp_mem_ghost pp_mem pp_self ?i fmt (name, mem, self) =
 let pp_mem_ghost' = pp_mem_ghost pp_print_string pp_print_string
 
 let pp_mem_init pp_mem fmt (name, mem) =
-  fprintf fmt "%s_init(%a)" name pp_mem mem
+  fprintf fmt "%s_initialization(%a)" name pp_mem mem
 
 let pp_mem_init' = pp_mem_init pp_print_string
 
@@ -270,10 +288,58 @@ let pp_locals m fmt vs =
   pp_print_list
     ~pp_open_box:pp_open_hbox
     ~pp_sep:pp_print_comma
-    (pp_c_decl_local_var m) fmt vs
+    (pp_c_decl_local_var ~pp_c_basic_type_desc:pp_acsl_basic_type_desc m) fmt vs
 
 let pp_ptr_decl fmt v =
   fprintf fmt "*%s" v.var_id
+
+let pp_basic_assign_spec pp_var fmt typ var_name value =
+  if Types.is_real_type typ && !Options.mpfr
+  then
+    assert false
+    (* Mpfr.pp_inject_assign pp_var fmt (var_name, value) *)
+  else
+    pp_equal pp_var pp_var fmt (var_name, value)
+
+let pp_assign_spec m self pp_var fmt (var_type, var_name, value) =
+  let depth = expansion_depth value in
+  let loop_vars = mk_loop_variables m var_type depth in
+  let reordered_loop_vars = reorder_loop_variables loop_vars in
+  let rec aux typ fmt vars =
+    match vars with
+    | [] ->
+      pp_basic_assign_spec
+        (pp_value_suffix ~indirect:false m self var_type loop_vars pp_var)
+        fmt typ var_name value
+    | (d, LVar i) :: q ->
+      assert false
+      (* let typ' = Types.array_element_type typ in
+       * fprintf fmt "@[<v 2>{@,int %s;@,for(%s=0;%s<%a;%s++)@,%a @]@,}"
+       *   i i i pp_c_dimension d i
+       *   (aux typ') q *)
+    | (d, LInt r) :: q ->
+      assert false
+      (* let typ' = Types.array_element_type typ in
+       * let szl = Utils.enumerate (Dimension.size_const_dimension d) in
+       * fprintf fmt "@[<v 2>{@,%a@]@,}"
+       *   (pp_print_list (fun fmt i -> r := i; aux typ' fmt q)) szl *)
+    | _ -> assert false
+  in
+  begin
+    reset_loop_counter ();
+    aux var_type fmt reordered_loop_vars;
+  end
+
+let pp_c_var_read m fmt id =
+  (* mpfr_t is a static array, not treated as general arrays *)
+  if Types.is_address_type id.var_type
+  then
+    if Machine_code_common.is_memory m id
+    && not (Types.is_real_type id.var_type && !Options.mpfr)
+    then fprintf fmt "(*%s)" id.var_id
+    else fprintf fmt "%s" id.var_id
+  else
+    fprintf fmt "%s" id.var_id
 
 let rec assigned s instr =
   let open VDSet in
@@ -336,7 +402,7 @@ let live_i m i =
 
 let pp_mem_trans_aux ?i pp_mem_in pp_mem_out pp_input pp_output fmt
     (name, inputs, locals, outputs, mem_in, mem_out) =
-  fprintf fmt "%s_trans%a(@[<hov>%a,@ %a%a%a%a@])"
+  fprintf fmt "%s_transition%a(@[<hov>%a,@ %a%a%a%a@])"
     name
     (pp_print_option pp_print_int) i
     pp_mem_in mem_in
@@ -380,6 +446,8 @@ let pp_mem_trans ?i pp_mem_in pp_mem_out pp_input pp_output fmt
      mem_out)
 
 let pp_mem_trans' ?i fmt =
+  pp_mem_trans ?i pp_print_string pp_print_string pp_var_decl pp_var_decl fmt
+let pp_mem_trans'' ?i fmt =
   pp_mem_trans ?i pp_print_string pp_print_string pp_var_decl pp_ptr_decl fmt
 
 let pp_nothing fmt () =
@@ -479,43 +547,6 @@ let print_machine_ghost_simulations dependencies fmt m =
       (print_machine_ghost_simulation_aux m
          (pp_mem_ghost' ~i:(List.length m.mstep.step_instrs))) (name, mem, self)
 
-let pp_basic_assign_spec pp_var fmt typ var_name value =
-  if Types.is_real_type typ && !Options.mpfr
-  then
-    assert false
-    (* Mpfr.pp_inject_assign pp_var fmt (var_name, value) *)
-  else
-    pp_equal pp_var pp_var fmt (var_name, value)
-
-let pp_assign_spec m self pp_var fmt (var_type, var_name, value) =
-  let depth = expansion_depth value in
-  let loop_vars = mk_loop_variables m var_type depth in
-  let reordered_loop_vars = reorder_loop_variables loop_vars in
-  let rec aux typ fmt vars =
-    match vars with
-    | [] ->
-      pp_basic_assign_spec
-        (pp_value_suffix ~indirect:false m self var_type loop_vars pp_var)
-        fmt typ var_name value
-    | (d, LVar i) :: q ->
-      assert false
-      (* let typ' = Types.array_element_type typ in
-       * fprintf fmt "@[<v 2>{@,int %s;@,for(%s=0;%s<%a;%s++)@,%a @]@,}"
-       *   i i i pp_c_dimension d i
-       *   (aux typ') q *)
-    | (d, LInt r) :: q ->
-      assert false
-      (* let typ' = Types.array_element_type typ in
-       * let szl = Utils.enumerate (Dimension.size_const_dimension d) in
-       * fprintf fmt "@[<v 2>{@,%a@]@,}"
-       *   (pp_print_list (fun fmt i -> r := i; aux typ' fmt q)) szl *)
-    | _ -> assert false
-  in
-  begin
-    reset_loop_counter ();
-    aux var_type fmt reordered_loop_vars;
-  end
-
 let print_machine_trans_simulation_aux ?i m pp fmt v =
   let name = m.mname.node_id in
   let mem_in = mk_mem_in m in
@@ -523,7 +554,9 @@ let print_machine_trans_simulation_aux ?i m pp fmt v =
   pp_spec
     (pp_predicate
        (pp_mem_trans pp_machine_decl pp_machine_decl
-          (pp_c_decl_local_var m) pp_c_decl_output_var ?i)
+          (pp_c_decl_local_var ~pp_c_basic_type_desc:pp_acsl_basic_type_desc m)
+          (pp_c_decl_local_var ~pp_c_basic_type_desc:pp_acsl_basic_type_desc m)
+          ?i)
        pp)
     fmt
     ((m, (name, "mem_ghost", mem_in), (name, "mem_ghost", mem_out)),
@@ -532,15 +565,20 @@ let print_machine_trans_simulation_aux ?i m pp fmt v =
 let print_trans_simulation machines dependencies m fmt (i, instr) =
   let mem_in = mk_mem_in m in
   let mem_out = mk_mem_out m in
-  let d = VDSet.(diff (live_i m i) (live_i m (i+1))) in
-  printf "%d : %a\n%d : %a\n\n"
+  let d = VDSet.(diff (union (live_i m i) (assigned empty instr))
+                   (live_i m (i+1))) in
+  (* XXX *)
+  printf "%d : %a\n%d : %a\nocc: %a\n\n"
     i
     (pp_print_parenthesized pp_var_decl) (VDSet.elements (live_i m i))
     (i+1)
-    (pp_print_parenthesized pp_var_decl) (VDSet.elements (live_i m (i+1)));
+    (pp_print_parenthesized pp_var_decl) (VDSet.elements (live_i m (i+1)))
+    (pp_print_parenthesized pp_var_decl) VDSet.(elements (assigned empty instr));
   let prev_trans fmt () = pp_mem_trans' ~i fmt (m, mem_in, mem_out) in
   let pred pp v =
-    let locals = VDSet.(inter (of_list m.mstep.step_locals) d |> elements) in
+    let vars = VDSet.(union (of_list m.mstep.step_locals)
+                        (of_list m.mstep.step_outputs)) in
+    let locals = VDSet.(inter vars d |> elements) in
     if locals = []
     then pp_and prev_trans pp fmt ((), v)
     else pp_exists (pp_locals m) (pp_and prev_trans pp) fmt (locals, ((), v))
@@ -576,15 +614,28 @@ let print_trans_simulation machines dependencies m fmt (i, instr) =
         with Not_found -> pp_true fmt ()
       end
     | MBranch (v, brs) ->
-      (* TODO: handle branches *)
+      (* if let t = fst (List.hd brs) in t = tag_true || t = tag_false
+       * then (\* boolean case *\)
+       *   let tl = try List.assoc tag_true  brs with Not_found -> [] in
+       *   let el = try List.assoc tag_false brs with Not_found -> [] in
+       *   pp_ite (pp_c_val m mem_in (pp_c_var_read m))
+       *     (pp_paren (pp_and_l aux)) (pp_paren (pp_and_l aux))
+       *     fmt (v, tl, el)
+       * else (\* enum type case *\) *)
       pp_and_l (fun fmt (l, instrs) ->
-          pp_paren (pp_implies
-                      (pp_equal
-                         (pp_c_val m mem_in (pp_c_var_read m))
-                         pp_print_string)
-                      (pp_and_l aux))
-            fmt
-            ((v, l), instrs))
+          let pp_val = pp_c_val m mem_in (pp_c_var_read m) in
+          if l = tag_false then
+            pp_paren (pp_implies
+                        (pp_different pp_val pp_c_tag)
+                        (pp_and_l aux))
+              fmt
+              ((v, tag_true), instrs)
+          else
+            pp_paren (pp_implies
+                        (pp_equal pp_val pp_c_tag)
+                        (pp_and_l aux))
+              fmt
+              ((v, l), instrs))
         fmt brs
     | _ -> pp_true fmt ()
   in
@@ -596,7 +647,7 @@ let print_machine_trans_simulation machines dependencies m fmt i instr =
     ~i:(i+1)
     fmt (i, instr)
 
-let print_machine_core_annotations machines dependencies fmt m =
+let print_machine_trans_annotations machines dependencies fmt m =
   if not (fst (Machine_code_common.get_stateless_status m)) then begin
     set_live_of m;
     let i = List.length m.mstep.step_instrs in
@@ -622,6 +673,18 @@ let print_machine_core_annotations machines dependencies fmt m =
       (print_machine_trans_simulation_aux m last_trans) ()
   end
 
+let print_machine_init_predicate fmt m =
+  if not (fst (Machine_code_common.get_stateless_status m)) then
+    let name = m.mname.node_id in
+    let mem_in = mk_mem_in m in
+    pp_spec
+      (pp_predicate
+         (pp_mem_init pp_machine_decl)
+         (pp_and_l (fun fmt (i, (td, _)) ->
+              pp_mem_init pp_access' fmt (node_name td, (mem_in, i)))))
+      fmt
+      ((name, (name, "mem_ghost", mem_in)), m.minstances)
+
 let pp_at pp_p fmt (p, l) =
   fprintf fmt "\\at(%a, %s)" pp_p p l
 
@@ -639,17 +702,26 @@ let pp_arrow_spec fmt () =
   let mem_out_first = mem_out, reg_first in
   let mem = "mem" in
   let self = "self" in
-  fprintf fmt "/* ACSL arrow spec */@,%a%a%a%a"
+  fprintf fmt "/* ACSL arrow spec */@,%a%a%a%a%a"
+
     (pp_spec_line (pp_ghost pp_print_string))
     "struct _arrow_mem_ghost {struct _arrow_reg _reg;};"
+
+    (pp_spec_cut
+       (pp_predicate
+          (pp_mem_valid pp_machine_decl)
+          (pp_valid pp_print_string)))
+    ((name, (name, "mem", "*" ^ self)), [self])
+
     (pp_spec_cut
        (pp_predicate
           (pp_mem_init pp_machine_decl)
           (pp_equal
              (pp_access pp_access')
-             pp_print_string)))
+             pp_print_int)))
     ((name, (name, "mem_ghost", mem_in)),
-     (mem_in_first, "true"))
+     (mem_in_first, 1))
+
     (pp_spec_cut
        (pp_predicate
           (pp_mem_trans_aux
@@ -660,7 +732,7 @@ let pp_arrow_spec fmt () =
                 (pp_and
                    (pp_equal
                       (pp_access pp_access')
-                      pp_print_string)
+                      pp_print_int)
                    (pp_equal pp_print_string pp_print_string)))
                 (pp_paren
                    (pp_and
@@ -668,11 +740,12 @@ let pp_arrow_spec fmt () =
                          (pp_access pp_access')
                          (pp_access pp_access'))
                       (pp_equal pp_print_string pp_print_string))))))
-    ((name, ["int x"; "int y"], [], ["_Bool out"],
+    ((name, ["integer x"; "integer y"], [], ["integer out"],
       (name, "mem_ghost", mem_in), (name, "mem_ghost", mem_out)),
      (* (("out", mem_in_first), *)
-     (mem_in_first, ((mem_out_first, "false"), ("out", "x")),
+     (mem_in_first, ((mem_out_first, 0), ("out", "x")),
       ((mem_out_first, mem_in_first), ("out", "y"))))
+
     (pp_spec_cut
        (pp_predicate
           (pp_mem_ghost pp_machine_decl pp_machine_decl)
@@ -686,7 +759,7 @@ module SrcMod = struct
 
   let pp_predicates dependencies fmt machines =
     fprintf fmt
-      "%a@,%a%a%a"
+      "%a@,%a%a%a%a"
       pp_arrow_spec ()
       (pp_print_list
          ~pp_open_box:pp_open_vbox0
@@ -702,8 +775,14 @@ module SrcMod = struct
       (pp_print_list
          ~pp_open_box:pp_open_vbox0
          ~pp_sep:pp_print_cutcut
-         ~pp_prologue:(pp_print_endcut "/* ACSL core annotations */")
-         (print_machine_core_annotations machines dependencies)
+         ~pp_prologue:(pp_print_endcut "/* ACSL initialization annotations */")
+         print_machine_init_predicate
+         ~pp_epilogue:pp_print_cutcut) machines
+      (pp_print_list
+         ~pp_open_box:pp_open_vbox0
+         ~pp_sep:pp_print_cutcut
+         ~pp_prologue:(pp_print_endcut "/* ACSL transition annotations */")
+         (print_machine_trans_annotations machines dependencies)
          ~pp_epilogue:pp_print_cutcut) machines
 
   let pp_reset_spec fmt self m =
@@ -762,7 +841,7 @@ module SrcMod = struct
                    (pp_at_pre pp_mem_ghost')
                    (pp_implies
                       pp_mem_ghost'
-                      pp_mem_trans'))))
+                      pp_mem_trans''))))
           ((),
            ((name, mem_in, self),
             ((name, mem_out, self),
@@ -785,7 +864,7 @@ module SrcMod = struct
                   (pp_at_pre pp_mem_ghost')
                   (pp_implies
                      (pp_mem_ghost' ~i)
-                     (pp_mem_trans' ~i))))))
+                     (pp_mem_trans'' ~i))))))
       ((),
        ((name, mem_in, self),
         ((name, mem_out, self),

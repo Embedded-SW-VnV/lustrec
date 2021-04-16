@@ -210,7 +210,7 @@ module Main = functor (Mod: MODIFIERS_HDR) -> struct
       | _ -> assert false
     in
     fprintf fmt "%a %s %a"
-      (pp_basic_c_type ~var_opt:None) output.var_type
+      (pp_basic_c_type ~pp_c_basic_type_desc ~var_opt:None) output.var_type
       name
       (pp_print_parenthesized pp_c_decl_input_var) inputs
 

@@ -216,18 +216,18 @@ let pp_c_basic_type_desc t_desc =
   else
     assert false (* Not a basic C type. Do not handle arrays or pointers *)
 
-let pp_basic_c_type ?(var_opt=None) fmt t =
+let pp_basic_c_type ?(pp_c_basic_type_desc=pp_c_basic_type_desc) ?(var_opt=None) fmt t =
   match var_opt with
   | Some v when Machine_types.is_exportable v ->
      Machine_types.pp_c_var_type fmt v
   | _ ->
      fprintf fmt "%s" (pp_c_basic_type_desc t)
 
-let pp_c_type ?var_opt var_id fmt t =
+let pp_c_type ?pp_c_basic_type_desc ?var_opt var_id fmt t =
   let rec aux t pp_suffix =
     if is_basic_c_type  t then
        fprintf fmt "%a %s%a"
-         (pp_basic_c_type ~var_opt) t
+         (pp_basic_c_type ?pp_c_basic_type_desc ~var_opt) t
          var_id
          pp_suffix ()
     else
@@ -383,17 +383,17 @@ let pp_c_decl_output_var fmt id =
      known in order to statically allocate memory, 
      so we print the full type
 *)
-let pp_c_decl_local_var m fmt id =
+let pp_c_decl_local_var ?pp_c_basic_type_desc m fmt id =
   if id.var_dec_const
   then
     fprintf fmt "%a = %a"
-      (pp_c_type ~var_opt:id id.var_id)
+      (pp_c_type ?pp_c_basic_type_desc ~var_opt:id id.var_id)
       id.var_type
       (pp_c_val m "" (pp_c_var_read m))
       (Machine_code_common.get_const_assign m id)
   else
     fprintf fmt "%a"
-      (pp_c_type ~var_opt:id id.var_id) id.var_type
+      (pp_c_type ?pp_c_basic_type_desc ~var_opt:id id.var_id) id.var_type
 
 (* Declaration of a struct variable:
    - if it's an array/matrix/etc, we declare it as a pointer
