@@ -18,15 +18,15 @@ open C_backend_common
 
 module type MODIFIERS_SRC = sig
   val pp_predicates: dep_t list -> formatter -> machine_t list -> unit
-  val pp_reset_spec: formatter -> ident -> machine_t -> unit
-  val pp_step_spec: formatter -> ident -> machine_t -> unit
+  val pp_reset_spec: formatter -> machine_t list -> ident -> machine_t -> unit
+  val pp_step_spec: formatter -> machine_t list -> ident -> machine_t -> unit
   val pp_step_instr_spec: machine_t -> ident -> formatter -> (int * instr_t) -> unit
 end
 
 module EmptyMod = struct
   let pp_predicates _ _ _ = ()
-  let pp_reset_spec _ _ _ = ()
-  let pp_step_spec _ _ _ = ()
+  let pp_reset_spec _ _ _ _ = ()
+  let pp_step_spec _ _ _ _ = ()
   let pp_step_instr_spec _ _ _ _ = ()
 end
 
@@ -250,9 +250,10 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
     pp_machine_instr dependencies m self fmt instr
 
   let pp_machine_step_instr dependencies m self fmt i instr =
-    fprintf fmt "%a@,%a%a"
+    fprintf fmt "%a%a%a"
       (if i = 0 then
-         (fun fmt () -> Mod.pp_step_instr_spec m self fmt (i, instr))
+         (fun fmt () -> fprintf fmt "%a@,"
+             (Mod.pp_step_instr_spec m self) (i, instr))
        else
          pp_print_nothing) ()
       (pp_machine_instr dependencies m self) instr
@@ -472,9 +473,9 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
         ~instrs:m.mstep.step_instrs
         fmt
 
-  let print_reset_code dependencies self fmt m =
+  let print_reset_code machines dependencies self fmt m =
     pp_print_function
-      ~pp_spec:(fun fmt () -> Mod.pp_reset_spec fmt self m)
+      ~pp_spec:(fun fmt () -> Mod.pp_reset_spec fmt machines self m)
       ~pp_prototype:(print_reset_prototype self)
       ~prototype:(m.mname.node_id, m.mstatic)
       ~pp_local:(pp_c_decl_local_var m)
@@ -519,12 +520,12 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
             fmt minit)
       fmt
 
-  let print_step_code dependencies self fmt m =
+  let print_step_code machines dependencies self fmt m =
     if not (!Options.ansi && is_generic_node (node_of_machine m))
     then
       (* C99 code *)
       pp_print_function
-        ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt self m)
+        ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt machines self m)
         ~pp_prototype:(print_step_prototype self)
         ~prototype:(m.mname.node_id, m.mstep.step_inputs, m.mstep.step_outputs)
         ~pp_local:(pp_c_decl_local_var m)
@@ -547,7 +548,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
           let id, _, _ = call_of_expr e in
           mk_call_var_decl e.expr_loc id) m.mname.node_gencalls in
       pp_print_function
-        ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt self m)
+        ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt machines self m)
         ~pp_prototype:(print_step_prototype self)
         ~prototype:(m.mname.node_id,
                     m.mstep.step_inputs @ gen_locals @ gen_calls,
@@ -698,7 +699,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
      - last one may print intermediate comment/acsl if/when they are present in
        the sequence of instruction
   *)
-  let print_machine dependencies fmt m =
+  let print_machine machines dependencies fmt m =
     if fst (get_stateless_status m) then
       (* Step function *)
       print_stateless_code dependencies fmt m
@@ -707,9 +708,9 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
       fprintf fmt "@[<v>%a%a@,@,%a%a@]"
         print_alloc_function m
         (* Reset function *)
-        (print_reset_code dependencies self) m
+        (print_reset_code machines dependencies self) m
         (* Step function *)
-        (print_step_code dependencies self) m
+        (print_step_code machines dependencies self) m
         (print_mpfr_code self) m
 
   let print_import_standard source_fmt () =
@@ -830,7 +831,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
       (pp_print_list
          ~pp_open_box:pp_open_vbox0
          ~pp_sep:pp_print_cutcut
-         (print_machine dependencies)) machines
+         (print_machine machines dependencies)) machines
 
 end
 
