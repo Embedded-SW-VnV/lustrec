@@ -165,7 +165,6 @@ build:
     #   opam install . --deps-only --locked --with-test --with-doc --yes
     # which should start by installing depexts
     # (possibly we will need to set some explicit environment variable first).
-    - sudo apt-get update
     - opam install depext --yes
     - opam install . --dry-run --deps-only --locked --with-test --with-doc --yes | awk '/-> installed/{print $3}' | xargs opam depext -iy
     # the magical command above comes from https://github.com/ocaml/opam/issues/3790
