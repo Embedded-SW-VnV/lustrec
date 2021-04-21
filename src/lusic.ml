@@ -23,9 +23,6 @@ type lusic =
   contents  : top_decl list;
 }
 
-module HeaderMod = C_backend_header.EmptyMod
-module Header = C_backend_header.Main (HeaderMod)
-
 (* extracts a header from a program representing module owner = dirname/basename *)
 let extract_header dirname basename prog =
   let owner = dirname ^ "/" ^ basename in

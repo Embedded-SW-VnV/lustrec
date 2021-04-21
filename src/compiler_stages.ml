@@ -11,6 +11,8 @@ let dynamic_checks () =
   | _ -> false
 
 
+let generate_c_header = ref false
+
 (* check whether a source file has a compiled header, if not, generate the
    compiled header *)
 let compile_source_to_header prog computed_types_env computed_clocks_env dirname basename extension =
@@ -36,8 +38,7 @@ let compile_source_to_header prog computed_types_env computed_clocks_env dirname
           (if from_lusi then prog else Lusic.extract_header dirname basename prog)
           destname
           lusic_ext;
-        if !Options.output = "C"
-        then C_backend_lusic.print_lusic_to_h destname lusic_ext
+        generate_c_header := !Options.output = "C";
       end
     else (* Lusic exists and is usable. Checking compatibility *)
       begin
@@ -280,7 +281,7 @@ let stage3 prog machine_code dependencies basename extension =
     "C", ".lus" -> 
      begin
        Log.report ~level:1 (fun fmt -> fprintf fmt ".. C code generation@,");
-       C_backend.translate_to_c
+       C_backend.translate_to_c !generate_c_header
 	 (* alloc_header_file source_lib_file source_main_file makefile_file *)
 	 basename prog machine_code dependencies
      end
@@ -295,6 +296,7 @@ let stage3 prog machine_code dependencies basename extension =
 *)
   |  "C", _ -> 
       begin
+        C_backend.print_c_header basename;
       	Log.report ~level:1 (fun fmt -> fprintf fmt ".. no C code generation for lusi@,");
       end
   | "java", _ ->

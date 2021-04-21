@@ -42,16 +42,16 @@ let with_main_node machines node f =
       f m
 
 let gen_files
-    (print_header, print_lib_c, print_main_c, print_makefile, preprocess (* , print_cmake *))
+    (print_alloc_header, print_lib_c, print_main_c, print_makefile, preprocess (* , print_cmake *))
     basename prog machines dependencies =
   let destname = !Options.dest_dir ^ "/" ^ basename in
   
   let machines, spec = preprocess machines in
-  
-  (* Generating H file *)
+
+  (* Generating H alloc file *)
   let alloc_header_file = destname ^ "_alloc.h" in (* Could be changed *)
   with_out_file alloc_header_file (fun header_fmt ->
-      print_header header_fmt basename prog machines dependencies spec);
+      print_alloc_header header_fmt basename prog machines dependencies spec);
 
   (* Generating Lib C file *)
   let source_lib_file = c_or_cpp destname in
@@ -104,8 +104,28 @@ let gen_files
     
   (*   close_out makefile_out *)
   
+let print_c_header basename =
+  let header_m = match !Options.spec with
+    | "no" ->
+      C_backend_header.(module EmptyMod : MODIFIERS_HDR)
 
-let translate_to_c basename prog machines dependencies =
+    | "acsl" ->
+      C_backend_header.(module C_backend_spec.HdrMod : MODIFIERS_HDR)
+
+    | "c" -> assert false        (* not implemented yet *)
+
+    | _ -> assert false
+  in
+  let module Header = C_backend_header.Main (val header_m) in
+  let destname = !Options.dest_dir ^ "/" ^ basename in
+  (* Generating H file *)
+  let lusic = Lusic.read_lusic destname ".lusic" in
+  let header_file = destname ^ ".h" in
+  with_out_file header_file (fun header_fmt ->
+      assert (not lusic.obsolete);
+      Header.print_header_from_header header_fmt basename lusic.contents)
+
+let translate_to_c generate_c_header basename prog machines dependencies =
   let header_m, source_m, source_main_m, makefile_m, preprocess =
     match !Options.spec with
     | "no" ->
@@ -116,11 +136,12 @@ let translate_to_c basename prog machines dependencies =
       fun m -> m, []
 
     | "acsl" ->
-      C_backend_header.(module EmptyMod : MODIFIERS_HDR),
-      (module C_backend_spec.SrcMod : C_backend_src.MODIFIERS_SRC),
+      let open C_backend_spec in
+      C_backend_header.(module HdrMod : MODIFIERS_HDR),
+      C_backend_src.(module SrcMod : MODIFIERS_SRC),
       C_backend_main.(module EmptyMod : MODIFIERS_MAINSRC),
-      (module C_backend_spec.MakefileMod : C_backend_makefile.MODIFIERS_MKF),
-      C_backend_spec.preprocess_acsl
+      C_backend_makefile.(module MakefileMod : MODIFIERS_MKF),
+      preprocess_acsl
 
     | "c" -> assert false        (* not implemented yet *)
 
@@ -139,6 +160,7 @@ let translate_to_c basename prog machines dependencies =
     preprocess
     (* CMakefile.print_makefile *)
   in
+  if generate_c_header then print_c_header basename;
   gen_files funs basename prog machines dependencies
 
 

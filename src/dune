@@ -79,7 +79,7 @@
  (modules
    lusic
    c_backend_header c_backend_spec c_backend_makefile
-   c_backend_lusic c_backend_mauve c_backend_src
+   c_backend_mauve c_backend_src
    ada_backend ada_printer ada_backend_common ada_backend_ads ada_backend_adb
    ada_backend_wrapper
    horn_backend horn_backend_common horn_backend_printers

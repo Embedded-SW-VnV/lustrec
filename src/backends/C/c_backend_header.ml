@@ -23,10 +23,12 @@ open C_backend_common
 
 module type MODIFIERS_HDR = sig
   val print_machine_decl_prefix: Format.formatter -> machine_t -> unit
+  val pp_import_standard_spec: formatter -> unit -> unit
 end
 
 module EmptyMod = struct
   let print_machine_decl_prefix = fun _ _ -> ()
+  let pp_import_standard_spec _ _ = ()
 end
 
 module Main = functor (Mod: MODIFIERS_HDR) -> struct
@@ -36,12 +38,14 @@ module Main = functor (Mod: MODIFIERS_HDR) -> struct
     fprintf fmt
       "#include <stdint.h>@,\
        %a\
-       #include \"%s/arrow.h%s\""
+       #include \"%s/arrow.h%s\"\
+       %a"
       (if !Options.mpfr then
          pp_print_endcut "#include <mpfr.h>"
        else pp_print_nothing) ()
       (Arrow.arrow_top_decl ()).top_decl_owner
       (if !Options.cpp then "pp" else "")
+      Mod.pp_import_standard_spec ()
 
   let rec print_static_val pp_var fmt v =
     match v.value_desc with
@@ -324,7 +328,6 @@ module Main = functor (Mod: MODIFIERS_HDR) -> struct
        %a\
        %a\
        %a\
-       %a\
        #endif\
        @]"
 
@@ -357,9 +360,6 @@ module Main = functor (Mod: MODIFIERS_HDR) -> struct
          ~pp_sep:pp_print_cutcut
          print_machine_struct
          ~pp_epilogue:pp_print_cutcut) machines
-
-      (* Print specification *)
-      C_backend_spec.pp_acsl_preamble spec
 
       (* Print the prototypes of all machines *)
       (pp_print_list

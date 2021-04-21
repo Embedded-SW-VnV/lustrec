@@ -135,9 +135,9 @@ let print_machine_decl_prefix fmt m =
 let preprocess_acsl machines = machines, []
                           
 (* TODO: This preamble shall be a list of types, axiomatics, predicates, theorems *)
-let pp_acsl_preamble fmt _preamble =
-  fprintf fmt "";
-  ()
+(* let pp_acsl_preamble fmt _preamble =
+ *   fprintf fmt "";
+ *   () *)
 
 let pp_acsl_basic_type_desc t_desc =
   if Types.is_bool_type t_desc then
@@ -679,7 +679,7 @@ let print_trans_simulation machines dependencies m fmt (i, instr) =
   let rec aux fmt instr = match instr.instr_desc with
     | MLocalAssign (x, v)
     | MStateAssign (x, v) ->
-      pp_assign_spec m mem_out (pp_c_var_read m) mem_in (pp_c_var_read m)fmt
+      pp_assign_spec m mem_out (pp_c_var_read m) mem_in (pp_c_var_read m) fmt
         (x.var_type, mk_val (Var x) x.var_type, v)
     | MStep ([i0], i, vl)
       when Basic_library.is_value_internal_fun
@@ -689,20 +689,20 @@ let print_trans_simulation machines dependencies m fmt (i, instr) =
       pp_true fmt ()
     | MStep ([_], i, _) when has_c_prototype i dependencies ->
       pp_true fmt ()
-    | MStep (xs, f, ys) ->
+    | MStep (xs, i, ys) ->
       begin try
-          let n, _ = List.assoc f m.minstances in
+          let n, _ = List.assoc i m.minstances in
             pp_mem_trans_aux
               pp_access' pp_access'
               (pp_c_val m mem_in (pp_c_var_read m))
               pp_var_decl
               fmt
-              (node_name n, ys, [], xs, (mem_in, f), (mem_out, f))
+              (node_name n, ys, [], xs, (mem_in, i), (mem_out, i))
         with Not_found -> pp_true fmt ()
       end
-    | MReset f ->
+    | MReset i ->
       begin try
-          let n, _ = List.assoc f m.minstances in
+          let n, _ = List.assoc i m.minstances in
           pp_mem_init' fmt (node_name n, mem_out)
         with Not_found -> pp_true fmt ()
       end
@@ -711,15 +711,19 @@ let print_trans_simulation machines dependencies m fmt (i, instr) =
       then (* boolean case *)
         pp_ite (pp_c_val m mem_in (pp_c_var_read m))
           (fun fmt () ->
-             try
-               let l = List.assoc tag_true brs in
-               pp_paren (pp_and_l aux) fmt l
-             with Not_found -> pp_true fmt ())
+             match List.assoc tag_true brs with
+             | _ :: _ as l -> pp_paren (pp_and_l aux) fmt l
+             | []
+             | exception Not_found -> pp_true fmt ())
           (fun fmt () ->
-             try
-               let l = List.assoc tag_false brs in
-               pp_paren (pp_and_l aux) fmt l
-             with Not_found -> pp_true fmt ())
+             match List.assoc tag_false brs with
+             | _ :: _ as l -> pp_paren (pp_and_l aux) fmt l
+             | []
+             | exception Not_found ->
+             (* try
+              *   let l = List.assoc tag_false brs in
+              *   pp_paren (pp_and_l aux) fmt l
+              * with Not_found -> *) pp_true fmt ())
           
           (* (pp_paren (pp_and_l aux)) (pp_paren (pp_and_l aux)) *)
           fmt (v, (), ())
@@ -795,74 +799,29 @@ let label_pre = "Pre"
 let pp_at_pre pp_p fmt p =
   pp_at pp_p fmt (p, label_pre)
 
-let pp_arrow_spec fmt () =
-  let name = "_arrow" in
-  let mem_in = "mem_in" in
-  let mem_out = "mem_out" in
-  let reg_first = "_reg", "_first" in
-  let mem_in_first = mem_in, reg_first in
-  let mem_out_first = mem_out, reg_first in
-  let mem = "mem" in
-  let self = "self" in
-  fprintf fmt "/* ACSL arrow spec */@,%a%a%a%a%a"
+let pp_register =
+  pp_print_list
+    ~pp_prologue:(fun fmt () -> pp_print_string fmt "self->")
+    ~pp_epilogue:(fun fmt () -> pp_print_string fmt "->_reg._first")
+    ~pp_sep:(fun fmt () -> pp_print_string fmt "->")
+    (fun fmt (i, _) -> pp_print_string fmt i)
 
-    (pp_spec_line (pp_ghost pp_print_string))
-    "struct _arrow_mem_ghost {struct _arrow_reg _reg;};"
+module HdrMod = struct
 
-    (pp_spec_cut
-       (pp_predicate
-          (pp_mem_valid pp_machine_decl)
-          (pp_valid pp_print_string)))
-    ((name, (name, "mem", "*" ^ self)), [self])
+  let print_machine_decl_prefix = fun _ _ -> ()
 
-    (pp_spec_cut
-       (pp_predicate
-          (pp_mem_init pp_machine_decl)
-          (pp_equal
-             (pp_access pp_print_string pp_access')
-             pp_print_int)))
-    ((name, (name, "mem_ghost", mem_in)),
-     (mem_in_first, 1))
+  let pp_import_standard_spec fmt () =
+    fprintf fmt "@,#include \"%s/arrow_spec.h%s\""
+      (Arrow.arrow_top_decl ()).top_decl_owner
+      (if !Options.cpp then "pp" else "")
 
-    (pp_spec_cut
-       (pp_predicate
-          (pp_mem_trans_aux
-             pp_machine_decl pp_machine_decl pp_print_string pp_print_string)
-          (pp_ite
-             (pp_access pp_print_string pp_access')
-             (pp_paren
-                (pp_and
-                   (pp_equal
-                      (pp_access pp_print_string pp_access')
-                      pp_print_int)
-                   (pp_equal pp_print_string pp_print_string)))
-                (pp_paren
-                   (pp_and
-                      (pp_equal
-                         (pp_access pp_print_string pp_access')
-                         (pp_access pp_print_string pp_access'))
-                      (pp_equal pp_print_string pp_print_string))))))
-    ((name, ["integer x"; "integer y"], [], ["_Bool out"],
-      (name, "mem_ghost", mem_in), (name, "mem_ghost", mem_out)),
-     (* (("out", mem_in_first), *)
-     (mem_in_first, ((mem_out_first, 0), ("out", "x")),
-      ((mem_out_first, mem_in_first), ("out", "y"))))
-
-    (pp_spec_cut
-       (pp_predicate
-          (pp_mem_ghost pp_machine_decl pp_machine_decl)
-          (pp_equal
-             (pp_access pp_print_string pp_access')
-             (pp_indirect pp_print_string pp_access'))))
-    ((name, (name, "mem_ghost", mem), (name, "mem", "*" ^ self)),
-    ((mem, reg_first), (self, reg_first)))
+end
 
 module SrcMod = struct
 
   let pp_predicates dependencies fmt machines =
     fprintf fmt
-      "%a@,%a%a%a%a"
-      pp_arrow_spec ()
+      "%a%a%a%a"
       (pp_print_list
          ~pp_open_box:pp_open_vbox0
          ~pp_prologue:(pp_print_endcut "/* ACSL `valid` predicates */")
@@ -886,13 +845,6 @@ module SrcMod = struct
          ~pp_prologue:(pp_print_endcut "/* ACSL transition annotations */")
          (print_machine_trans_annotations machines dependencies)
          ~pp_epilogue:pp_print_cutcut) machines
-
-  let pp_register =
-    pp_print_list
-      ~pp_prologue:(fun fmt () -> pp_print_string fmt "self->")
-      ~pp_epilogue:(fun fmt () -> pp_print_string fmt "->_reg._first")
-      ~pp_sep:(fun fmt () -> pp_print_string fmt "->")
-      (fun fmt (i, _) -> pp_print_string fmt i)
 
   let pp_reset_spec fmt machines self m =
     let name = m.mname.node_id in

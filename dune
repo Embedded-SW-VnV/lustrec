@@ -20,6 +20,7 @@
    include/lustrec_math.h
    include/arrow.c
    include/arrow.h
+   include/arrow_spec.h
    include/arrow.cpp
    include/arrow.hpp
    include/io_frontend.c
