@@ -136,7 +136,7 @@ let preprocess_acsl machines = machines, []
                           
 (* TODO: This preamble shall be a list of types, axiomatics, predicates, theorems *)
 let pp_acsl_preamble fmt _preamble =
-  Format.fprintf fmt "";
+  fprintf fmt "";
   ()
 
 let pp_acsl_basic_type_desc t_desc =
@@ -316,12 +316,6 @@ let pp_exists pp_l pp_r fmt (l, r) =
     pp_l l
     pp_r r
 
-let pp_valid =
-  pp_print_braced
-    ~pp_nil:pp_true
-    ~pp_prologue:(fun fmt () -> pp_print_string fmt "\\valid(")
-    ~pp_epilogue:pp_print_cpar
-
 let pp_equal pp_l pp_r fmt (l, r) =
   fprintf fmt "%a == %a"
     pp_l l
@@ -349,8 +343,14 @@ let pp_and_l pp_v fmt =
     pp_v
     fmt
 
+let pp_valid pp =
+  pp_and_l
+  (* pp_print_list *)
+    (* ~pp_sep:pp_print_cut *)
+    (fun fmt x -> fprintf fmt "\\valid(%a)" pp x)
+
 let pp_ite pp_c pp_t pp_f fmt (c, t, f) =
-  fprintf fmt "%a @[<hov>? %a@ : %a@]"
+  fprintf fmt "(%a @[<hov>? %a@ : %a)@]"
     pp_c c
     pp_t t
     pp_f f
@@ -661,12 +661,12 @@ let print_trans_simulation machines dependencies m fmt (i, instr) =
   let d = VDSet.(diff (union (live_i m i) (assigned empty instr))
                    (live_i m (i+1))) in
   (* XXX *)
-  printf "%d : %a\n%d : %a\nocc: %a\n\n"
-    i
-    (pp_print_parenthesized pp_var_decl) (VDSet.elements (live_i m i))
-    (i+1)
-    (pp_print_parenthesized pp_var_decl) (VDSet.elements (live_i m (i+1)))
-    (pp_print_parenthesized pp_var_decl) VDSet.(elements (assigned empty instr));
+  (* printf "%d : %a\n%d : %a\nocc: %a\n\n"
+   *   i
+   *   (pp_print_parenthesized pp_var_decl) (VDSet.elements (live_i m i))
+   *   (i+1)
+   *   (pp_print_parenthesized pp_var_decl) (VDSet.elements (live_i m (i+1)))
+   *   (pp_print_parenthesized pp_var_decl) VDSet.(elements (assigned empty instr)); *)
   let prev_trans fmt () = pp_mem_trans' ~i fmt (m, mem_in, mem_out) in
   let pred pp v =
     let vars = VDSet.(union (of_list m.mstep.step_locals)
@@ -932,19 +932,20 @@ module SrcMod = struct
           (pp_assigns pp_register) insts
           (pp_ensures
              (pp_forall
-                (fun fmt () ->
-                   fprintf fmt "%a, %s"
-                     pp_machine_decl (name, "mem_ghost", mem_in)
-                     mem_out)
-                (pp_implies
-                   (pp_at_pre pp_mem_ghost')
+                pp_machine_decl
+                (pp_forall
+                   pp_machine_decl
                    (pp_implies
-                      pp_mem_ghost'
-                      pp_mem_trans''))))
-          ((),
-           ((name, mem_in, self),
-            ((name, mem_out, self),
-             (m, mem_in, mem_out)))))
+                      (pp_at_pre pp_mem_ghost')
+                      (pp_implies
+                         pp_mem_ghost'
+                         pp_mem_trans'')))))
+          ((name, "mem_ghost", mem_in),
+           ((name, "mem_ghost", mem_out),
+            ((name, mem_in, self),
+             ((name, mem_out, self),
+              (m, mem_in, mem_out)))))
+      )
       fmt ()
 
   let pp_step_instr_spec m self fmt (i, _instr) =
@@ -955,19 +956,19 @@ module SrcMod = struct
       (pp_spec
          (pp_assert
             (pp_forall
-               (fun fmt () ->
-                  fprintf fmt "%a, %s"
-                    pp_machine_decl (name, "mem_ghost", mem_in)
-                    mem_out)
-               (pp_implies
-                  (pp_at_pre pp_mem_ghost')
+               pp_machine_decl
+               (pp_forall
+                  pp_machine_decl
                   (pp_implies
-                     (pp_mem_ghost' ~i)
-                     (pp_mem_trans'' ~i))))))
-      ((),
-       ((name, mem_in, self),
-        ((name, mem_out, self),
-         (m, mem_in, mem_out))))
+                     (pp_at_pre pp_mem_ghost')
+                     (pp_implies
+                        (pp_mem_ghost' ~i)
+                        (pp_mem_trans'' ~i)))))))
+      ((name, "mem_ghost", mem_in),
+       ((name, "mem_ghost", mem_out),
+        ((name, mem_in, self),
+         ((name, mem_out, self),
+          (m, mem_in, mem_out)))))
 
 end
 
