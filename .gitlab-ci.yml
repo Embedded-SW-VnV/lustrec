@@ -194,7 +194,7 @@ build:
               $CI_JOB_URL/artifacts/browse/$ARTIFACTS
             Note: by default Gitlab only keeps them for a few weeks."
     - >
-      if [ "Dune_DOC_TARGETS" != "" ]; then
+      if [ "$DUNE_DOC_TARGETS" != "" ]; then
         cp -r _build/default/_doc/_html $ARTIFACTS/doc;
         echo "Documentation:
               $CI_JOB_URL/artifacts/browse/$ARTIFACTS/doc/index.html";
