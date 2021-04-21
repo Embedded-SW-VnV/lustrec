@@ -142,7 +142,7 @@ build:
       # with the variable CLEAN_DUNE_CACHE set to "true".
 
   script:
-    - sudo echo "Acquire::http::Proxy \"http://proxy.isae.fr:3128\"" > /etc/apt/apt.conf
+    - sudo echo "Acquire::http::Proxy \"http://proxy.isae.fr:3128\"" >> /etc/apt/apt.conf
     - if [ "$CLEAN_OPAM_CACHE" == "true" ]; then echo "we clean the _opam cache as explicitly requested"; rm -fR _opam; fi
     - if [ "$CLEAN_DUNE_CACHE" == "true" ]; then echo "we clean the dune _build cache as explicitly requested"; rm -fR _build; fi
     # Note: Gitlab supports multi-line scripts with "- |" or "- >", but the
