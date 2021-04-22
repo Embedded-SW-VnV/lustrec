@@ -122,11 +122,19 @@ let rec is_const_value v =
   | _              -> false
 
 (* Returns the declared stateless status and the computed one. *)
-let get_stateless_status m =
-  (m.mname.node_dec_stateless,
+let get_stateless_status_node n =
+  (n.node_dec_stateless,
    try
-     Utils.desome m.mname.node_stateless
-   with _ -> failwith ("stateless status of machine " ^ m.mname.node_id ^ " not computed"))
+     Utils.desome n.node_stateless
+   with _ -> failwith ("stateless status of machine " ^ n.node_id ^ " not computed"))
+
+let get_stateless_status_top_decl td = match td.top_decl_desc with
+  | Node n -> get_stateless_status_node n
+  | ImportedNode n -> n.nodei_stateless, false
+  | _ -> true, false
+
+let get_stateless_status m =
+  get_stateless_status_node m.mname
 
 let is_stateless m = m.minstances = [] && m.mmemory = []
 

@@ -432,12 +432,13 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
     top_decl_itf = false
   }
 
-  let print_stateless_code dependencies fmt m =
+  let print_stateless_code machines dependencies fmt m =
     let self = "__ERROR__" in
     if not (!Options.ansi && is_generic_node (node_of_machine m))
     then
       (* C99 code *)
       pp_print_function
+        ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt machines self m)
         ~pp_prototype:print_stateless_prototype
         ~prototype:(m.mname.node_id, m.mstep.step_inputs, m.mstep.step_outputs)
         ~pp_local:(pp_c_decl_local_var m)
@@ -447,7 +448,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
         ~mpfr_locals:m.mstep.step_locals
         ~pp_check:(pp_c_check m self)
         ~checks:m.mstep.step_checks
-        ~pp_instr:(pp_machine_nospec_instr dependencies m self)
+        ~pp_instr:(pp_machine_step_instr dependencies m self)
         ~instrs:m.mstep.step_instrs
         fmt
     else
@@ -469,7 +470,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
         ~mpfr_locals:m.mstep.step_locals
         ~pp_check:(pp_c_check m self)
         ~checks:m.mstep.step_checks
-        ~pp_instr:(pp_machine_nospec_instr dependencies m self)
+        ~pp_instr:(pp_machine_step_instr dependencies m self)
         ~instrs:m.mstep.step_instrs
         fmt
 
@@ -702,7 +703,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
   let print_machine machines dependencies fmt m =
     if fst (get_stateless_status m) then
       (* Step function *)
-      print_stateless_code dependencies fmt m
+      print_stateless_code machines dependencies fmt m
     else
       let self = mk_self m in
       fprintf fmt "@[<v>%a%a@,@,%a%a@]"

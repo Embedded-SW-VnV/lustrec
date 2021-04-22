@@ -95,7 +95,6 @@ build:
   extends: .build-matrix # defines OCAML_COMPILER
 
   variables:
-    HTTP_PROXY: "http://proxy.isae.fr:3128"
     ARTIFACTS: "artifacts/$OCAML_COMPILER"
     # a local shortcut for the per-compiler artifact repository
 

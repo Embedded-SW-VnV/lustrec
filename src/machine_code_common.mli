@@ -4,6 +4,7 @@ val is_output: Machine_code_types.machine_t -> Lustre_types.var_decl -> bool
 val is_const_value: Machine_code_types.value_t -> bool
 val get_const_assign: Machine_code_types.machine_t -> Lustre_types.var_decl -> Machine_code_types.value_t
 val get_stateless_status: Machine_code_types.machine_t -> bool * bool
+val get_stateless_status_top_decl: Lustre_types.top_decl -> bool * bool
 val is_stateless: Machine_code_types.machine_t -> bool
 val mk_val: Machine_code_types.value_t_desc -> Types.type_expr -> Machine_code_types.value_t
 val mk_conditional: ?lustre_eq:Lustre_types.eq -> Machine_code_types.value_t -> Machine_code_types.instr_t list -> Machine_code_types.instr_t list -> Machine_code_types.instr_t
