@@ -196,7 +196,10 @@ let compute_reuse node ctx heads var =
   let disjoint = Hashtbl.find ctx.disjoint var.var_id in
   let locally_reusable v =
     IdentDepGraph.fold_pred (fun p r -> r && Disjunction.CISet.exists (fun d -> p = d.var_id) disjoint) ctx.dep_graph v.var_id true in
-  let eligibles = Disjunction.CISet.filter (eligible node ctx heads var) ctx.evaluated in
+  let eligibles =
+    if ISet.mem var.var_id (ExprDep.node_memory_variables node)
+    then Disjunction.CISet.empty
+    else Disjunction.CISet.filter (eligible node ctx heads var) ctx.evaluated in
   let quasi_dead, live = Disjunction.CISet.partition locally_reusable eligibles in
   let disjoint_live = Disjunction.CISet.inter disjoint live in
   let dead = Disjunction.CISet.filter (fun v -> is_graph_root v.var_id ctx.dep_graph) quasi_dead in
