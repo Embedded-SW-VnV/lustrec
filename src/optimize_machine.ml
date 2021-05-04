@@ -283,7 +283,8 @@ let instr_of_const top_const =
   let vdecl = { vdecl with var_type = const.const_type } in
   let lustre_eq = mkeq loc ([const.const_id], mkexpr loc (Expr_const const.const_value)) in
   mkinstr
-    ~lustre_eq:lustre_eq 
+    ~lustre_eq
+    True
     (MLocalAssign (vdecl, mk_val (Cst const.const_value) vdecl.var_type))
 
 (* We do not perform this optimization on contract nodes since there

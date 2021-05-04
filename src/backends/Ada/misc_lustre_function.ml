@@ -267,7 +267,8 @@ let rec push_if_in_expr = function
               in
               let assign = if state then MStateAssign (ident, value) else MLocalAssign (ident, value) in
               { instr_desc = assign;
-                lustre_eq  = None
+                lustre_eq  = None;
+                instr_spec = Spec_types.True
               }
             in
             let mkval_var id = {

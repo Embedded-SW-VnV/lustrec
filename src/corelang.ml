@@ -257,12 +257,12 @@ let update_expr_annot node_id e annot =
   e
 
 
-let mkinstr ?lustre_eq i =
-  {
-    instr_desc = i;
-    (* lustre_expr = lustre_expr; *)
-    lustre_eq = lustre_eq;
-  }
+let mkinstr ?lustre_eq instr_spec instr_desc = {
+  instr_desc;
+  (* lustre_expr = lustre_expr; *)
+  instr_spec;
+  lustre_eq;
+}
 
 let get_instr_desc i = i.instr_desc
 let update_instr_desc i id = { i with instr_desc = id }

@@ -45,7 +45,7 @@ val mk_new_node_name: node_desc -> ident -> ident
 val mktop: top_decl_desc -> top_decl
 
 (* constructor for machine types *)
-val mkinstr: (* ?lustre_expr:expr ->  *)?lustre_eq: eq -> Machine_code_types.instr_t_desc -> Machine_code_types.instr_t
+val mkinstr: (* ?lustre_expr:expr ->  *)?lustre_eq: eq -> Machine_code_types.value_t Spec_types.formula_t -> Machine_code_types.instr_t_desc -> Machine_code_types.instr_t
 val get_instr_desc: Machine_code_types.instr_t -> Machine_code_types.instr_t_desc
 val update_instr_desc: Machine_code_types.instr_t -> Machine_code_types.instr_t_desc -> Machine_code_types.instr_t
   

@@ -127,8 +127,7 @@ struct
   let pp_step_definition env typed_submachines fmt (m, m_spec_opt, guarantees) =
     let transform_local_to_state_assign instr = match instr.instr_desc with
       | MLocalAssign (ident, value) -> 
-          { instr_desc = MStateAssign (ident, value);
-            lustre_eq= instr.lustre_eq }
+        { instr with instr_desc = MStateAssign (ident, value) }
       | _ -> instr
     in
     let pp_local_ghost_list, spec_instrs = match m_spec_opt with
@@ -150,7 +149,7 @@ struct
   **)
   let pp_reset_definition env typed_submachines fmt (m, m_spec_opt) =
     let build_assign = function var ->
-      mkinstr (MStateAssign (var, mk_default_value var.var_type))
+      mkinstr Spec_types.True (MStateAssign (var, mk_default_value var.var_type))
     in
     let env, memory = match m_spec_opt with
       | None -> env, m.mmemory

@@ -32,7 +32,15 @@ struct (* Node module *)
   let equal n1 n2 = n1 = n2
 end
 
-module IMap = Map.Make(IdentModule)
+module IMap = struct
+  include Map.Make(IdentModule)
+  let union_l m1 m2 =
+    merge (fun _ o1 o2 -> match o1, o2 with
+        | None, None -> None
+        | Some _, _ -> o1
+        | _, Some _ -> o2) m1 m2
+end
+
 module ISet = Set.Make(IdentModule)
 module IdentDepGraph = Imperative.Digraph.ConcreteBidirectional (IdentModule)
 module TopologicalDepGraph = Topological.Make(IdentDepGraph)

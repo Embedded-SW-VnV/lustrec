@@ -1,5 +1,7 @@
 open Lustre_types
 open Machine_code_types
+open Spec_types
+open Spec_common
 open Corelang
   
 let print_statelocaltag = true
@@ -153,11 +155,28 @@ let is_stateless m = m.minstances = [] && m.mmemory = []
 let is_output m id =
   List.exists (fun o -> o.var_id = id.var_id) m.mstep.step_outputs
 
+let get_instr_spec i = i.instr_spec
 
 let mk_conditional ?lustre_eq c t e =
-  mkinstr ?lustre_eq:lustre_eq  (MBranch(c, [ (tag_true, t); (tag_false, e) ]))
+  mkinstr ?lustre_eq
+    (Ternary (Val c,
+              And (List.map get_instr_spec t),
+              And (List.map get_instr_spec e)))
+    (MBranch(c, [
+         (tag_true, t);
+         (tag_false, e) ]))
 
+let mk_branch ?lustre_eq c br =
+  mkinstr ?lustre_eq
+    (And (List.map (fun (l, instrs) ->
+         Imply (Equal (Val c, Tag l), And (List.map get_instr_spec instrs)))
+         br))
+    (MBranch (c, br))
 
+let mk_assign ?lustre_eq x v =
+  mkinstr ?lustre_eq
+    (Equal (Var x, Val v))
+    (MLocalAssign (x, v))
 
 let mk_val v t =
   { value_desc = v; 
@@ -178,7 +197,7 @@ let arrow_machine =
     mmemory = [var_state];
     mcalls = [];
     minstances = [];
-    minit = [mkinstr (MStateAssign(var_state, cst true))];
+    minit = [mkinstr True (MStateAssign(var_state, cst true))];
     mstatic = [];
     mconst = [];
     mstep = {
@@ -187,10 +206,10 @@ let arrow_machine =
       step_locals = [];
       step_checks = [];
       step_instrs = [mk_conditional (mk_val (Var var_state) Type_predef.type_bool)
-			(List.map mkinstr
+			(List.map (mkinstr True)
 			[MStateAssign(var_state, cst false);
 			 MLocalAssign(var_output, mk_val (Var var_input1) t_arg)])
-                        (List.map mkinstr
+                        (List.map (mkinstr True)
 			[MLocalAssign(var_output, mk_val (Var var_input2) t_arg)]) ];
       step_asserts = [];
     };
@@ -354,7 +373,7 @@ and join_guards inst1 insts2 =
  | _                   , []                               ->
    [inst1]
  | MBranch (x1, hl1), MBranch (x2, hl2) :: _ when x1 = x2 ->
-    mkinstr
+    mkinstr True
       (* TODO on pourrait uniquement concatener les lustres de inst1 et hd(inst2) *)
       (MBranch (x1, join_branches (sort_handlers hl1) (sort_handlers hl2)))
    :: (List.tl insts2)

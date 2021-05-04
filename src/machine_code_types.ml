@@ -1,7 +1,7 @@
 (************ Machine code types *************)
 open Lustre_types
 open Spec_types
-  
+
 type value_t =
   {
     value_desc: value_t_desc;
@@ -16,11 +16,14 @@ and value_t_desc =
   | Access of value_t * value_t
   | Power of value_t * value_t
 
+type mc_formula_t = value_t formula_t
+
 type instr_t =
   {
     instr_desc: instr_t_desc; (* main data: the content *)
     (* lustre_expr: expr option; (* possible representation as a lustre expression *) *)
     lustre_eq: eq option;     (* possible representation as a lustre flow equation *)
+    instr_spec: mc_formula_t
   }
 and instr_t_desc =
   | MLocalAssign of var_decl * value_t
@@ -45,7 +48,7 @@ type static_call = top_decl * (Dimension.dim_expr list)
 
 type machine_spec = {
   mnode_spec: node_spec_t option;
-  mtransitions: transition_t list
+  mtransitions: value_t transition_t list
 }
   
 type machine_t = {
