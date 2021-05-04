@@ -77,16 +77,17 @@ let compile dirname basename extension =
         assert false
     )
   in
-  Log.report ~level:3 (fun fmt -> fprintf fmt ".. Normalized program:@ %a@ "Printers.pp_prog prog);
-  Log.report ~level:1 (fun fmt -> fprintf fmt "@]@,");
+  Log.report ~level:3 (fun fmt -> fprintf fmt "@ @[<v 2>.. Normalized program:@ %a@]"
+                          Printers.pp_prog prog);
 
-  Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>.. Phase 2 : Machines generation@,");
+  Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ @ @[<v 2>.. Phase 2 : Machines generation@,");
 
   let prog, machine_code = 
     Compiler_stages.stage2 params prog 
   in
 
-  Log.report ~level:3 (fun fmt -> fprintf fmt ".. Generated machines:@ %a@ " Machine_code_common.pp_machines machine_code);
+  Log.report ~level:3 (fun fmt -> fprintf fmt "@ @[<v 2>.. Generated machines:@ %a@]"
+                          Machine_code_common.pp_machines machine_code);
 
   if Scopes.Plugin.show_scopes () then
     begin
@@ -103,7 +104,7 @@ let compile dirname basename extension =
   
   Compiler_stages.stage3 prog machine_code dependencies basename extension;
   begin
-    Log.report ~level:1 (fun fmt -> fprintf fmt ".. done !@ @]@.");
+    Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. done !@]@.");
     (* We stop the process here *)
     exit 0
   end

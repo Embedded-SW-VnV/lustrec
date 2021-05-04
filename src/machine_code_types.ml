@@ -1,5 +1,6 @@
 (************ Machine code types *************)
 open Lustre_types
+open Spec_types
   
 type value_t =
   {
@@ -42,6 +43,10 @@ type step_t = {
 
 type static_call = top_decl * (Dimension.dim_expr list)
 
+type machine_spec = {
+  mnode_spec: node_spec_t option;
+  mtransitions: transition_t list
+}
   
 type machine_t = {
   mname: node_desc;
@@ -52,7 +57,7 @@ type machine_t = {
   mstatic: var_decl list; (* static inputs only *)
   mconst: instr_t list; (* assignments of node constant locals *)
   mstep: step_t;
-  mspec: node_spec_t option;
+  mspec: machine_spec;
   mannot: expr_annot list;
   msch: Scheduling_type.schedule_report option; (* Equations scheduling *)
 }

@@ -46,7 +46,8 @@ let sort prog =
   in
   
   Log.report ~level:3 
-    (fun fmt -> Format.fprintf fmt "Ordered list of declarations:@.%a@.@?" (Utils.fprintf_list ~sep:"@." Printers.pp_short_decl) sorted);
+    (fun fmt -> Format.fprintf fmt "@ @[<v 2>.. ordered list of declarations:@ %a@]@ "
+        (Utils.fprintf_list ~sep:"@ " Printers.pp_short_decl) sorted);
   	  not_nodes@sorted
 
 

@@ -536,7 +536,9 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
            expr.expr_type <- Expr_type_hub.export typ_out;
            typ_out
       in 
-      Log.report ~level:3 (fun fmt -> Format.fprintf fmt "Type of expr %a: %a@." Printers.pp_expr expr (* Types. *)print_ty resulting_ty);
+      Log.report ~level:3 (fun fmt ->
+          Format.fprintf fmt "Type of expr %a: %a@ "
+            Printers.pp_expr expr (* Types. *)print_ty resulting_ty);
       resulting_ty
 
     and type_branches ?(is_annot=false) env in_main loc const hl =

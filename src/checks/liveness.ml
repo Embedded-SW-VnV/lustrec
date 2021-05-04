@@ -39,11 +39,9 @@ let compute_fanin n g =
   end
  
 let pp_fanin fmt fanin =
-  begin
-    Format.fprintf fmt "{ /* locals fanin: */@.";
-    Hashtbl.iter (fun s t -> Format.fprintf fmt "%s -> %d@." s t) fanin;
-    Format.fprintf fmt "}@."
-  end
+  Format.fprintf fmt "@[<v 0>@[<v 2>{ /* locals fanin: */";
+  Hashtbl.iter (fun s t -> Format.fprintf fmt "@ %s -> %d" s t) fanin;
+  Format.fprintf fmt "@]@ }@]"
 
 (* computes the cone of influence of a given [var] wrt a dependency graph [g].
 *)

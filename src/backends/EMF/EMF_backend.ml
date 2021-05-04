@@ -454,7 +454,9 @@ let pp_machine fmt m =
   try
     fprintf fmt "@[<v 2>\"%a\": {@ "
       print_protect (fun fmt -> pp_print_string fmt m.mname.node_id);
-    (match m.mspec with Some (Contract _) -> fprintf fmt "\"contract\": \"true\",@ " | _ -> ());
+    (match m.mspec.mnode_spec with
+     | Some (Contract _) -> fprintf fmt "\"contract\": \"true\",@ "
+     | _ -> ());
     fprintf fmt "\"imported\": \"false\",@ ";
     fprintf fmt "\"kind\": %t,@ "
       (fun fmt -> if not ( snd (get_stateless_status m) )
@@ -471,12 +473,13 @@ let pp_machine fmt m =
     fprintf fmt "\"original_name\": \"%s\",@ " m.mname.node_id;
     fprintf fmt "\"instrs\": {@[<v 0> %a@]@ },@ "
       (pp_emf_instrs m) instrs;
-    (match m.mspec with | None -> () 
-                        | Some (Contract c) -> (
-                          assert (c.locals = [] && c.consts = [] && c.stmts = [] && c.imports = []);
-                          fprintf fmt "\"spec\": %a,@ " pp_emf_spec c
-                        )
-                        | Some (NodeSpec id) -> fprintf fmt "\"contract\": \"%s\",@ " id
+    (match m.mspec.mnode_spec with
+     | None -> ()
+     | Some (Contract c) -> (
+         assert (c.locals = [] && c.consts = [] && c.stmts = [] && c.imports = []);
+         fprintf fmt "\"spec\": %a,@ " pp_emf_spec c
+       )
+     | Some (NodeSpec id) -> fprintf fmt "\"contract\": \"%s\",@ " id
     );
     fprintf fmt "\"annots\": {@[<v 0> %a@]@ }" (pp_emf_annots_list (ref 0)) m.mannot;
     fprintf fmt "@]@ }"

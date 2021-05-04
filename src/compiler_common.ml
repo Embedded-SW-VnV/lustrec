@@ -72,7 +72,7 @@ let parse filename extension =
     
 
 let expand_automata decls =
-  Log.report ~level:1 (fun fmt -> fprintf fmt ".. expanding automata@ ");
+  Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. expanding automata@ ");
   try
     Automata.expand_decls decls
   with (Error.Error (loc, err)) as exc ->
@@ -82,7 +82,7 @@ let expand_automata decls =
     raise exc
 
 let check_stateless_decls decls =
-  Log.report ~level:1 (fun fmt -> fprintf fmt ".. checking stateless/stateful status@ ");
+  Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. checking stateless/stateful status@ ");
   try
     Stateless.check_prog decls
   with (Stateless.Error (loc, err)) as exc ->
@@ -92,7 +92,7 @@ let check_stateless_decls decls =
     raise exc
 
 let force_stateful_decls decls =
-  Log.report ~level:1 (fun fmt -> fprintf fmt ".. forcing stateful status@ ");
+  Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. forcing stateful status@ ");
   try
     Stateless.force_prog decls
   with (Stateless.Error (loc, err)) as exc ->
@@ -102,33 +102,31 @@ let force_stateful_decls decls =
     raise exc
 
 let type_decls env decls =  
-  Log.report ~level:1 (fun fmt -> fprintf fmt ".. typing@ ");
+  Log.report ~level:1 (fun fmt -> fprintf fmt "@ @[<v 2>.. typing@ ");
   let new_env = 
-    begin
-      try
-	Typing.type_prog env decls
-      with (Types.Error (loc,err)) as exc ->
-	eprintf "Typing error: %a%a@."
-	  Types.pp_error err
-	  Location.pp_loc loc;
-	raise exc
-    end 
+    try
+      Typing.type_prog env decls
+    with Types.Error (loc,err) as exc ->
+      eprintf "Typing error: %a%a@."
+        Types.pp_error err
+        Location.pp_loc loc;
+      raise exc
   in
+  Log.report ~level:1 (fun fmt -> fprintf fmt "@]");
   if !Options.print_types || !Options.verbose_level > 2 then
     Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>  %a@]@ " Corelang.pp_prog_type decls);
   new_env
       
 let clock_decls env decls = 
-  Log.report ~level:1 (fun fmt -> fprintf fmt ".. clock calculus@ ");
+  Log.report ~level:1 (fun fmt -> fprintf fmt "@ @[<v 2>.. clock calculus@ ");
   let new_env =
-    begin
-      try
-	Clock_calculus.clock_prog env decls
-      with (Clocks.Error (loc,err)) as exc ->
-	eprintf "Clock calculus error: %a%a@." Clocks.pp_error err Location.pp_loc loc;
-	raise exc
-    end
+    try
+      Clock_calculus.clock_prog env decls
+    with (Clocks.Error (loc,err)) as exc ->
+      eprintf "Clock calculus error: %a%a@." Clocks.pp_error err Location.pp_loc loc;
+      raise exc
   in
+  Log.report ~level:1 (fun fmt -> fprintf fmt "@]");
   if !Options.print_clocks  || !Options.verbose_level > 2 then
     Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>  %a@]@ " Corelang.pp_prog_clock decls);
   new_env

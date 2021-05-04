@@ -32,7 +32,8 @@ let compile_source_to_header prog computed_types_env computed_clocks_env dirname
           not lusic.Lusic.from_lusi)
     then
       begin
-        Log.report ~level:1 (fun fmt -> fprintf fmt ".. generating compiled header file %s@," header_name);
+        Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. generating compiled header file %s@,"
+                                header_name);
         Lusic.write_lusic
           from_lusi (* is it a lusi file ? *)
           (if from_lusi then prog else Lusic.extract_header dirname basename prog)
@@ -42,7 +43,8 @@ let compile_source_to_header prog computed_types_env computed_clocks_env dirname
       end
     else (* Lusic exists and is usable. Checking compatibility *)
       begin
-        Log.report ~level:1 (fun fmt -> fprintf fmt ".. loading compiled header file %s@," header_name);
+        Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. loading compiled header file %s@,"
+                                header_name);
         let lusic = Lusic.read_lusic destname lusic_ext in
         Lusic.check_obsolete lusic destname;
         let header = lusic.Lusic.contents in
@@ -61,7 +63,11 @@ let stage1 params prog dirname basename extension =
 
   (* Removing automata *)
   let prog = expand_automata prog in
-  Log.report ~level:4 (fun fmt -> fprintf fmt ".. after automata expansion:@,  @[<v 2>@,%a@]@ " Printers.pp_prog prog);
+  Log.report ~level:4 (fun fmt ->
+      fprintf fmt "@[<v 2>.. after automata expansion:@ %a@]@ "
+        Printers.pp_prog prog
+        (* Utils.Format.pp_print_nothing () *)
+    );
 
   (* Importing source *)
   let prog, dependencies, (typ_env, clk_env) = Modules.load ~is_header:(extension = ".lusi") prog in
@@ -78,7 +84,7 @@ let stage1 params prog dirname basename extension =
   let prog = resolve_contracts prog in
   let prog = SortProg.sort prog in
   Log.report ~level:3 (fun fmt ->
-      Format.fprintf fmt "@[<v 0>Contracts resolved:@ %a@ @]@ " Printers.pp_prog prog);
+      Format.fprintf fmt "@ @[<v 2>.. contracts resolved:@ %a@ @]@ " Printers.pp_prog prog);
 
   (* Consolidating main node *)
   let _ =
@@ -201,10 +207,12 @@ let stage1 params prog dirname basename extension =
   (* Machine_types.load prog; *)
 
   (* Normalization phase *)
-  Log.report ~level:1 (fun fmt -> fprintf fmt ".. normalization@,");
+  Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. normalization@ ");
   let prog = Normalization.normalize_prog params prog in
-  Log.report ~level:2 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog_short prog);
-  Log.report ~level:3  (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog prog);
+  Log.report ~level:2 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@ "
+                          Printers.pp_prog_short prog);
+  Log.report ~level:3  (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@ "
+                           Printers.pp_prog prog);
   
   (* Compatibility with Lusi *)
   (* If compiling a lusi, generate the lusic. If this is a lus file, Check the existence of a lusi (Lustre Interface file) *)
@@ -217,12 +225,12 @@ let stage1 params prog dirname basename extension =
     if !Options.mpfr
     then
       begin
-	Log.report ~level:1 (fun fmt -> fprintf fmt ".. targetting MPFR library@,");
+	Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. targetting MPFR library@,");
 	Mpfr.inject_prog prog
       end
     else
       begin
-	Log.report ~level:1 (fun fmt -> fprintf fmt ".. keeping floating-point numbers@,");
+	Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. keeping floating-point numbers@,");
 	prog
       end in
   Log.report ~level:3 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog prog);
@@ -230,7 +238,7 @@ let stage1 params prog dirname basename extension =
   (* Checking array accesses *)
   if !Options.check then
     begin
-      Log.report ~level:1 (fun fmt -> fprintf fmt ".. checking array accesses@,");
+      Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. checking array accesses@,");
       Access.check_prog prog;
     end;
 
@@ -244,7 +252,7 @@ let stage1 params prog dirname basename extension =
 let stage2 params prog =
   (* Computation of node equation scheduling. It also breaks dependency cycles
      and warns about unused input or memory variables *)
-  Log.report ~level:1 (fun fmt -> fprintf fmt ".. @[<v 2>scheduling@ ");
+  Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>.. scheduling@ ");
   let prog, node_schs =
     try
       Scheduling.schedule_prog prog
@@ -252,12 +260,13 @@ let stage2 params prog =
 				 systemtic way in AlgebraicLoop module *)
       AlgebraicLoop.analyze prog
   in
-  Log.report ~level:1 (fun fmt -> fprintf fmt "%a"              Scheduling.pp_warning_unused node_schs);
-  Log.report ~level:3 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Scheduling.pp_schedule node_schs);
-  Log.report ~level:3 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Scheduling.pp_fanin_table node_schs);
-  Log.report ~level:5 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Scheduling.pp_dep_graph node_schs);
-  Log.report ~level:3 (fun fmt -> fprintf fmt "@[<v 2>@ %a@]@," Printers.pp_prog prog);
-  Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ ");
+  Scheduling.(
+    Log.report ~level:1 (fun fmt -> pp_warning_unused fmt node_schs);
+    Log.report ~level:3 (fun fmt -> fprintf fmt "@ %a" pp_schedule node_schs);
+    Log.report ~level:3 (fun fmt -> fprintf fmt "@ %a" pp_fanin_table node_schs);
+    Log.report ~level:5 (fun fmt -> fprintf fmt "@ %a" pp_dep_graph node_schs);
+    Log.report ~level:3 (fun fmt -> fprintf fmt "@ %a" Printers.pp_prog prog);
+    Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ "));
 
   (* TODO Salsa optimize prog:
      - emits warning for programs with pre inside expressions
@@ -265,10 +274,12 @@ let stage2 params prog =
      - introduce fresh local variables for each real pure subexpression
   *)
   (* DFS with modular code generation *)
-  Log.report ~level:1 (fun fmt -> fprintf fmt ".. machines generation@,");
+  Log.report ~level:1 (fun fmt -> fprintf fmt "@ @[<v 2>.. machines generation@ ");
   let machine_code = Machine_code.translate_prog prog node_schs in
+  Log.report ~level:1 (fun fmt -> fprintf fmt "@]");
 
-  Log.report ~level:3 (fun fmt -> fprintf fmt ".. generated machines (unoptimized):@ %a@ " Machine_code_common.pp_machines machine_code);
+  Log.report ~level:3 (fun fmt -> fprintf fmt "@ @[<v 2>.. generated machines (unoptimized):@ %a@]@ "
+                          Machine_code_common.pp_machines machine_code);
 
   (* Optimize machine code *)
   Optimize_machine.optimize params prog node_schs machine_code

@@ -99,16 +99,25 @@ let pp_static_call fmt (node, args) =
 
 let pp_machine fmt m =
   Format.fprintf fmt
-    "@[<v 2>machine %s@ mem      : %a@ instances: %a@ init     : %a@ const    : %a@ step     :@   @[<v 2>%a@]@ @  spec : @[%t@]@  annot : @[%a@]@]@ "
+    "@[<v 2>machine %s@ \
+     mem      : %a@ \
+     instances: %a@ \
+     init     : %a@ \
+     const    : %a@ \
+     step     :@   \
+     @[<v 2>%a@]@ \
+     spec     : @[%t@]@ \
+     annot    : @[%a@]@]@ "
     m.mname.node_id
     (Utils.fprintf_list ~sep:", " Printers.pp_var) m.mmemory
     (Utils.fprintf_list ~sep:", " (fun fmt (o1, o2) -> Format.fprintf fmt "(%s, %a)" o1 pp_static_call o2)) m.minstances
     (Utils.fprintf_list ~sep:"@ " (pp_instr m)) m.minit
     (Utils.fprintf_list ~sep:"@ " (pp_instr m)) m.mconst
     (pp_step m) m.mstep
-    (fun fmt -> match m.mspec with | None -> ()
-                                   | Some (NodeSpec id) -> Format.fprintf fmt "cocospec: %s" id
-                                   | Some (Contract spec) -> Printers.pp_spec fmt spec)
+    (fun fmt -> match m.mspec.mnode_spec with
+       | None -> ()
+       | Some (NodeSpec id) -> Format.fprintf fmt "cocospec: %s" id
+       | Some (Contract spec) -> Printers.pp_spec fmt spec)
     (Utils.fprintf_list ~sep:"@ " Printers.pp_expr_annot) m.mannot
 
 let pp_machines fmt ml =
@@ -185,7 +194,7 @@ let arrow_machine =
 			[MLocalAssign(var_output, mk_val (Var var_input2) t_arg)]) ];
       step_asserts = [];
     };
-    mspec = None;
+    mspec = { mnode_spec = None; mtransitions = [] };
     mannot = [];
     msch = None
   }
@@ -226,7 +235,7 @@ let empty_machine =
       step_instrs = [];
       step_asserts = [];
     };
-    mspec = None;
+    mspec = { mnode_spec = None; mtransitions = [] };
     mannot = [];
     msch = None
   }

@@ -393,19 +393,15 @@ let pp_array a pp_fun beg_str end_str sep_str =
     print_string end_str
 
 let pp_iset fmt t =
-  begin
-    Format.fprintf fmt "{@ ";
-    ISet.iter (fun s -> Format.fprintf fmt "%s@ " s) t;
-    Format.fprintf fmt "}@."
-  end
+  Format.fprintf fmt "@[<hv 0>@[<hv 2>{";
+  ISet.iter (fun s -> Format.fprintf fmt "@ %s" s) t;
+  Format.fprintf fmt "@]@ }@]"
 
-let pp_imap pp_val fmt m =
-  begin
-    Format.fprintf fmt "@[{@ ";
-    IMap.iter (fun key v -> Format.fprintf fmt "%s -> %a@ " key pp_val v) m;
-    Format.fprintf fmt "}@ @]"
-  end
-    
+let pp_imap ?(comment="") pp_val fmt m =
+  Format.fprintf fmt "@[<hv 0>@[<hv 2>{ %s" comment;
+  IMap.iter (fun key v -> Format.fprintf fmt "@ %s -> %a" key pp_val v) m;
+  Format.fprintf fmt "@]@ }@]"
+
 let pp_hashtbl t pp_fun beg_str end_str sep_str =
   if (beg_str="\n") then
     print_newline ()

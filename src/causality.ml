@@ -609,9 +609,9 @@ end
 
   
 let pp_dep_graph fmt g =
-  Format.fprintf fmt "@[<v 2>{ /* graph */%t@] }"
+  Format.fprintf fmt "@[<v 0>@[<v 2>{ /* graph */%t@]@ }@]"
     (fun fmt ->
-       IdentDepGraph.iter_edges (fun s t -> Format.fprintf fmt "@,%s -> %s" s t) g)
+       IdentDepGraph.iter_edges (fun s t -> Format.fprintf fmt "@ %s -> %s" s t) g)
 
 let pp_error fmt err =
   match err with

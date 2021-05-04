@@ -10,8 +10,8 @@
 (********************************************************************)
 
 open Lustre_types
-open Format
 open Utils
+open Format
 
 let kind2_language_cst =
   [ "initial" ]
@@ -348,7 +348,11 @@ and pp_node_stmt fmt stmt =
   | Eq eq -> pp_node_eq fmt eq
   | Aut aut -> pp_node_aut fmt aut
 
-and pp_node_stmts fmt stmts = fprintf_list ~sep:"@ " pp_node_stmt fmt stmts
+and pp_node_stmts fmt stmts =
+  pp_print_list
+    ~pp_open_box:pp_open_vbox0
+    ~pp_sep:pp_print_cut
+    pp_node_stmt fmt stmts
 
 and pp_node_aut fmt aut =
   fprintf fmt "@[<v 0>automaton %s@,%a@]"
@@ -475,7 +479,6 @@ let pp_node_vs_function fmt nd =
   fprintf fmt "%s" (if nd.node_dec_stateless then "function" else "node")
   
 let pp_node fmt nd =
-  fprintf fmt "@[<v 0>";
   (* Prototype *)
   fprintf fmt  "%a @[<hov 0>%s (@[%a)@]@ returns (@[%a)@]@]@ "
     pp_node_vs_function nd
@@ -484,35 +487,41 @@ let pp_node fmt nd =
     pp_node_args nd.node_outputs;
   (* Contracts *)
   fprintf fmt "%a"
-    (fun fmt s -> match s with Some s -> pp_spec_as_comment fmt (nd.node_inputs, nd.node_outputs, s) | _ -> ()) nd.node_spec
+    (fun fmt s -> match s with
+       | Some s -> pp_spec_as_comment fmt (nd.node_inputs, nd.node_outputs, s)
+       | _ -> ()) nd.node_spec
     (* (fun fmt -> match nd.node_spec with None -> () | Some _ -> fprintf fmt "@ ") *);
   (* Locals *)
   fprintf fmt "%a" (fun fmt locals ->
-      match locals with [] -> () | _ ->
-                                    fprintf fmt "@[<v 4>var %a@]@ " 
-                                      (fprintf_list ~sep:"@ " 
-	                                 (fun fmt v -> fprintf fmt "%a;" pp_node_var v))
-                                      locals
+      match locals with
+      | [] -> ()
+      | _ ->
+        fprintf fmt "@[<v 4>var %a@]@ "
+          (fprintf_list ~sep:"@ "
+	           (fun fmt v -> fprintf fmt "%a;" pp_node_var v))
+          locals
     ) nd.node_locals;
   (* Checks *)
   fprintf fmt "%a"
     (fun fmt checks ->
-      match checks with [] -> () | _ ->
-                                    fprintf fmt "@[<v 4>check@ %a@]@ " 
-                                      (fprintf_list ~sep:"@ " 
-	                                 (fun fmt d -> fprintf fmt "%a" Dimension.pp_dimension d))
-                                      checks
+       match checks with
+       | [] -> ()
+       | _ ->
+         fprintf fmt "@[<v 4>check@ %a@]@ "
+           (fprintf_list ~sep:"@ "
+	            (fun fmt d -> fprintf fmt "%a" Dimension.pp_dimension d))
+           checks
     ) nd.node_checks;
   (* Body *)
-  fprintf fmt "let@[<h 2>   @ @[<v>";
+  fprintf fmt "@[<v 2>let@ ";
   (* Annotations *)
-  fprintf fmt "%a@ " (fprintf_list ~sep:"@ " pp_expr_annot) nd.node_annot;
+  fprintf fmt "%a" (fprintf_list ~sep:"@ " pp_expr_annot) nd.node_annot;
   (* Statements *)
-  fprintf fmt "%a@ " pp_node_stmts nd.node_stmts;
+  fprintf fmt "%a" pp_node_stmts nd.node_stmts;
   (* Asserts *)    
   fprintf fmt "%a" pp_asserts nd.node_asserts;
   (* closing boxes body (2)  and node (1) *) 
-  fprintf fmt "@]@]@ tel@]@ "
+  fprintf fmt "@]@ tel"
 
 
 (*fprintf fmt "@ /* Scheduling: %a */ @ " (fprintf_list ~sep:", " pp_print_string) (Scheduling.schedule_node nd)*)
@@ -520,10 +529,12 @@ let pp_node fmt nd =
 let pp_node fmt nd =
   match nd.node_spec, nd.node_iscontract with
   | None, false
-    | Some (NodeSpec _), false 
-    -> pp_node fmt nd
-  | Some (Contract _), false -> pp_node fmt nd (* may happen early in the compil process *)
-  | Some (Contract _), true -> pp_contract fmt nd 
+  | Some (NodeSpec _), false ->
+    pp_node fmt nd
+  | Some (Contract _), false ->
+    pp_node fmt nd (* may happen early in the compil process *)
+  | Some (Contract _), true ->
+    pp_contract fmt nd
   | _ -> assert false
      
 let pp_imported_node fmt ind = 
@@ -547,29 +558,40 @@ let pp_const_decl fmt cdecl =
 let pp_const_decl_list fmt clist = 
   fprintf_list ~sep:"@ " pp_const_decl fmt clist
 
-
   
 let pp_decl fmt decl =
   match decl.top_decl_desc with
-  | Node nd -> fprintf fmt "%a" pp_node nd
+  | Node nd ->
+    fprintf fmt "%a" pp_node nd
   | ImportedNode ind -> (* We do not print imported nodes *)
      fprintf fmt "(* imported %a; *)" pp_imported_node ind
-  | Const c -> fprintf fmt "const %a" pp_const_decl c
-  | Open (local, s) -> if local then fprintf fmt "#open \"%s\"" s else fprintf fmt "#open <%s>" s
-  | Include s -> fprintf fmt "include \"%s\"" s
-  | TypeDef tdef -> fprintf fmt "%a" pp_typedef tdef
+  | Const c ->
+    fprintf fmt "const %a" pp_const_decl c
+  | Open (local, s) ->
+    if local then fprintf fmt "#open \"%s\"" s else fprintf fmt "#open <%s>" s
+  | Include s ->
+    fprintf fmt "include \"%s\"" s
+  | TypeDef tdef ->
+    fprintf fmt "%a" pp_typedef tdef
   
 let pp_prog pp_decl fmt prog =
   (* we first print types: the function SortProg.sort could do the job but ut
      introduces a cyclic dependance *)
 
   let open_decl, prog =
-    List.partition (fun decl -> match decl.top_decl_desc with Open _ -> true | _ -> false) prog
+    List.partition (fun decl -> match decl.top_decl_desc with
+          Open _ -> true | _ -> false) prog
   in
   let type_decl, prog =
-    List.partition (fun decl -> match decl.top_decl_desc with TypeDef _ -> true | _ -> false) prog
+    List.partition (fun decl -> match decl.top_decl_desc with
+          TypeDef _ -> true | _ -> false) prog
   in
-  fprintf fmt "@[<v 0>%a@]" (fprintf_list ~sep:"@ " pp_decl) (open_decl@type_decl@prog)
+  pp_print_list
+    ~pp_open_box:pp_open_vbox0
+    ~pp_sep:pp_print_cutcut
+    pp_decl
+    fmt
+    (open_decl @ type_decl @ prog)
 
 (* Gives a short overview of model content. Do not print all node content *)
 let pp_short_decl fmt decl =

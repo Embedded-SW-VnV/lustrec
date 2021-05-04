@@ -92,12 +92,12 @@ let extract_contract machines m =
       | Expr_appl call -> assert false
       *)
   in
-  match m.mspec with
+  match m.mspec.mnode_spec with
     | Some (NodeSpec ident) ->
       begin
         let machine_spec = find_submachine_from_ident ident machines in
         let guarantees =
-          match machine_spec.mspec with
+          match machine_spec.mspec.mnode_spec with
             | Some (Contract contract) ->
                 assert (contract.consts=[]);
                 assert (contract.locals=[]);
@@ -126,7 +126,7 @@ let translate_to_ada basename machines =
   let module Wrapper = Ada_backend_wrapper.Main in
 
   let is_real_machine m =
-    match m.mspec with
+    match m.mspec.mnode_spec with
       | Some (Contract _) -> false
       | _ -> true
   in

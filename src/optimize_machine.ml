@@ -20,11 +20,10 @@ module Mpfr = Lustrec_mpfr
 
 
 let pp_elim m fmt elim =
-  begin
-    Format.fprintf fmt "@[{ /* elim table: */@ ";
-    IMap.iter (fun v expr -> Format.fprintf fmt "%s |-> %a@ " v (pp_val m) expr) elim;
-    Format.fprintf fmt "}@ @]";
-  end
+  pp_imap ~comment:"/* elim table: */" (pp_val m) fmt elim
+  (* Format.fprintf fmt "@[<hv 0>@[<hv 2>{ /* elim table: */";
+   * IMap.iter (fun v expr -> Format.fprintf fmt "@ %s |-> %a," v (pp_val m) expr) elim;
+   * Format.fprintf fmt "@]@ }@]" *)
 
 let rec eliminate m elim instr =
   let e_expr = eliminate_expr m elim in
@@ -246,7 +245,8 @@ let static_call_unfold elim (inst, (n, args)) =
     
 *)
 let machine_unfold fanin elim machine =
-  Log.report ~level:3 (fun fmt -> Format.fprintf fmt "machine_unfold %s %a@." machine.mname.node_id (pp_elim machine) (IMap.map fst elim)); 
+  Log.report ~level:3 (fun fmt -> Format.fprintf fmt "machine_unfold %s %a@ "
+                          machine.mname.node_id (pp_elim machine) (IMap.map fst elim));
   let elim_consts, mconst = instrs_unfold machine fanin elim machine.mconst in
   let elim_vars, instrs = instrs_unfold machine fanin elim_consts machine.mstep.step_instrs in
   let instrs = simplify_instrs_offset machine instrs in
@@ -291,9 +291,11 @@ let instr_of_const top_const =
    contracts. *)
 let machines_unfold consts node_schs machines =
   List.fold_right (fun m (machines, removed) ->
-      let is_contract = match m.mspec with Some (Contract _) -> true | _ -> false in
+      let is_contract = match m.mspec.mnode_spec with
+        | Some (Contract _) -> true
+        | _ -> false in
       if is_contract then
-        m::machines, removed
+        m :: machines, removed
       else 
         let fanin = (IMap.find m.mname.node_id node_schs).Scheduling_type.fanin_table in
         let elim_consts, _ = instrs_unfold m fanin IMap.empty (List.map instr_of_const consts) in
@@ -688,42 +690,42 @@ The function returns both the (possibly updated) prog as well as the machines
 *)
 let optimize params prog node_schs machine_code =
   let machine_code =
-    if !Options.optimization >= 4 (* && !Options.output <> "horn" *) then
-      begin
-	Log.report ~level:1 
-	  (fun fmt -> Format.fprintf fmt ".. machines optimization: sub-expression elimination@,");
-	let machine_code = machines_cse machine_code in
-	Log.report ~level:3 (fun fmt -> Format.fprintf fmt ".. generated machines (sub-expr elim):@ %a@ "pp_machines machine_code);
-	machine_code
-      end
-    else
+    if !Options.optimization >= 4 (* && !Options.output <> "horn" *) then begin
+      Log.report ~level:1
+        (fun fmt -> Format.fprintf fmt "@ @[<v 2>.. machines optimization: sub-expression elimination@ ");
+      let machine_code = machines_cse machine_code in
+      Log.report ~level:3 (fun fmt -> Format.fprintf fmt "@[<v 2>.. generated machines (sub-expr elim):@ %a@]@ "
+                              pp_machines machine_code);
+      Log.report ~level:1 (fun fmt -> Format.fprintf fmt "@]");
+      machine_code
+    end else
       machine_code
   in
   (* Optimize machine code *)
   let prog, machine_code, removed_table = 
     if !Options.optimization >= 2
-       && !Options.output <> "emf" (*&& !Options.output <> "horn"*)
-    then
-      begin
-	Log.report ~level:1
-          (fun fmt ->
-            Format.fprintf fmt 
-	      ".. machines optimization: const. inlining (partial eval. with const)@,");
-	let machine_code, removed_table =
-          machines_unfold (Corelang.get_consts prog) node_schs machine_code in
-  Log.report ~level:3
-          (fun fmt ->
-            Format.fprintf fmt "\t@[Eliminated flows: @[%a@]@]@ "
-	      (pp_imap (fun fmt m -> pp_elim empty_machine fmt (IMap.map fst m))) removed_table); 
-	Log.report ~level:3
-          (fun fmt ->
-            Format.fprintf fmt
-              ".. generated machines (const inlining):@ %a@ "
-              pp_machines machine_code);
-        (* If variables were eliminated, relaunch the
-           normalization/machine generation *)
+    && !Options.output <> "emf" (*&& !Options.output <> "horn"*)
+    then begin
+      Log.report ~level:1
+        (fun fmt ->
+           Format.fprintf fmt
+             "@ @[<v 2>.. machines optimization: const. inlining (partial eval. with const)@ ");
+      let machine_code, removed_table =
+        machines_unfold (Corelang.get_consts prog) node_schs machine_code in
+      Log.report ~level:3
+        (fun fmt ->
+           Format.fprintf fmt "@ Eliminated flows: %a@ "
+             (pp_imap (fun fmt m -> pp_elim empty_machine fmt (IMap.map fst m))) removed_table);
+      Log.report ~level:3
+        (fun fmt ->
+           Format.fprintf fmt
+             "@ @[<v 2>.. generated machines (const inlining):@ %a@]@ "
+             pp_machines machine_code);
+      (* If variables were eliminated, relaunch the
+         normalization/machine generation *)
+      let prog, machine_code, removed_table =
         if IMap.is_empty removed_table then
-	  (* stopping here, no need to reupdate the prog *)
+          (* stopping here, no need to reupdate the prog *)
           prog, machine_code, removed_table
         else (
           let prog = elim_prog_variables prog removed_table in
@@ -734,32 +736,34 @@ let optimize params prog node_schs machine_code =
              alg. loop since this should have been handled before *)
           let prog, node_schs = Scheduling.schedule_prog prog in
           let machine_code = Machine_code.translate_prog prog node_schs in
-	  (* Mini stage2 machine optimiation *)
+          (* Mini stage2 machine optimiation *)
           let machine_code, removed_table =
             machines_unfold (Corelang.get_consts prog) node_schs machine_code in
-	  prog, machine_code, removed_table
+          prog, machine_code, removed_table
         )
+        in
+        Log.report ~level:1 (fun fmt -> Format.fprintf fmt "@]");
+        prog, machine_code, removed_table
 
-      end
-    else
+    end else
       prog, machine_code, IMap.empty
   in  
   (* Optimize machine code *)
   let machine_code =
     if !Options.optimization >= 3 && not (Backends.is_functional ()) then
       begin
-	Log.report ~level:1 (fun fmt -> Format.fprintf fmt ".. machines optimization: minimize stack usage by reusing variables@,");
-	let node_schs    = Scheduling.remove_prog_inlined_locals removed_table node_schs in
-	let reuse_tables = Scheduling.compute_prog_reuse_table node_schs in
-	machines_fusion (machines_reuse_variables machine_code reuse_tables)
+        Log.report ~level:1 (fun fmt -> Format.fprintf fmt ".. machines optimization: minimize stack usage by reusing variables@,");
+        let node_schs    = Scheduling.remove_prog_inlined_locals removed_table node_schs in
+        let reuse_tables = Scheduling.compute_prog_reuse_table node_schs in
+        machines_fusion (machines_reuse_variables machine_code reuse_tables)
       end
     else
       machine_code
   in
-  
+
 
   prog, List.rev machine_code  
-          
+
           
                  (* Local Variables: *)
                  (* compile-command:"make -C .." *)

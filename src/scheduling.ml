@@ -120,7 +120,7 @@ let eq_equiv eq_equiv_hash =
 
 let schedule_node n =
   (* let node_vars = get_node_vars n in *)
-  Log.report ~level:5 (fun fmt -> Format.fprintf fmt "scheduling node %s@," n.node_id);
+  Log.report ~level:5 (fun fmt -> Format.fprintf fmt "scheduling node %s@ " n.node_id);
   let eq_equiv = eq_equiv (ExprDep.node_eq_equiv n) in
 
   let n', g = global_dependency n in
@@ -177,14 +177,14 @@ let schedule_prog prog =
     fun top_decl (accu_prog, sch_map)  ->
       match top_decl.top_decl_desc with
       | Node nd ->
-	let report = schedule_node nd in
-	{top_decl with top_decl_desc = Node report.node}::accu_prog, 
-	IMap.add nd.node_id report sch_map
-	| _ -> top_decl::accu_prog, sch_map
-    ) 
+        let report = schedule_node nd in
+        {top_decl with top_decl_desc = Node report.node}::accu_prog,
+        IMap.add nd.node_id report sch_map
+      | _ -> top_decl::accu_prog, sch_map
+  )
     prog
     ([],IMap.empty)
-  
+
 
 let compute_prog_reuse_table report =
   IMap.map compute_node_reuse_table report
@@ -216,38 +216,39 @@ let pp_eq_schedule fmt vl =
 let pp_schedule fmt node_schs =
  IMap.iter
    (fun nd report ->
-     Format.fprintf fmt "%s schedule: %a@."
+     Format.(fprintf fmt "%s schedule: %a@ "
        nd
-       (fprintf_list ~sep:" ; " pp_eq_schedule) report.schedule)
+       (pp_print_list ~pp_sep:pp_print_semicolon pp_eq_schedule)
+       report.schedule))
    node_schs
 
 let pp_fanin_table fmt node_schs =
   IMap.iter
     (fun nd report ->
-      Format.fprintf fmt "%s: %a" nd Liveness.pp_fanin report.fanin_table)
+      Format.fprintf fmt "%s: %a@ " nd Liveness.pp_fanin report.fanin_table)
     node_schs
 
 let pp_dep_graph fmt node_schs =
   IMap.iter
     (fun nd report ->
-      Format.fprintf fmt "%s dependency graph: %a" nd pp_dep_graph report.dep_graph)
+      Format.fprintf fmt "%s dependency graph: %a@ " nd pp_dep_graph report.dep_graph)
     node_schs
 
 let pp_warning_unused fmt node_schs =
- IMap.iter
-   (fun nd report ->
-     let unused = report.unused_vars in
-     if not (ISet.is_empty unused)
-     then
-       let nd = match (Corelang.node_from_name nd).top_decl_desc with Node nd -> nd | _ -> assert false in
-       ISet.iter
-	 (fun u ->
-	   let vu = get_node_var u nd in
-	   if vu.var_orig
-	   then Format.fprintf fmt "  Warning: variable '%s' seems unused@,  %a@,@," u Location.pp_loc vu.var_loc)
-	 unused
-   )
-   node_schs
+  IMap.iter
+    (fun nd report ->
+       let unused = report.unused_vars in
+       if not (ISet.is_empty unused)
+       then
+         let nd = match (Corelang.node_from_name nd).top_decl_desc with Node nd -> nd | _ -> assert false in
+         ISet.iter
+           (fun u ->
+              let vu = get_node_var u nd in
+              if vu.var_orig
+              then Format.fprintf fmt "  Warning: variable '%s' seems unused@,  %a@,@," u Location.pp_loc vu.var_loc)
+	       unused
+    )
+    node_schs
 
 
 (* Sort eqs according to schedule *)
@@ -256,8 +257,9 @@ let pp_warning_unused fmt node_schs =
 *)
 let sort_equations_from_schedule eqs sch =
   Log.report ~level:10 (fun fmt ->
-      Format.fprintf fmt "schedule: %a@."
-  	(Utils.fprintf_list ~sep:" ; " pp_eq_schedule) sch);
+      Format.fprintf fmt "schedule: %a@ "
+        (Format.pp_print_list
+           ~pp_sep:Format.pp_print_semicolon pp_eq_schedule) sch);
   let split_eqs = Splitting.tuple_split_eq_list eqs in
   (* Flatten schedule *)
    let sch = List.fold_right (fun vl res -> (List.map (fun v -> [v]) vl)@res) sch [] in 

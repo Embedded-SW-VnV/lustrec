@@ -600,7 +600,8 @@ and clock_expr ?(nocarrier=true) env expr =
       expr.expr_clock <- cres;
       cres
   in
-  Log.report ~level:4 (fun fmt -> Format.fprintf fmt "Clock of expr %a: %a@." Printers.pp_expr expr Clocks.print_ck resulting_ck);
+  Log.report ~level:4 (fun fmt -> Format.fprintf fmt "Clock of expr %a: %a@ "
+                          Printers.pp_expr expr Clocks.print_ck resulting_ck);
   resulting_ck
 
 let clock_of_vlist vars =
@@ -686,7 +687,7 @@ let clock_node env loc nd =
   let ck_outs = clock_of_vlist nd.node_outputs in
   let ck_node = new_ck (Carrow (ck_ins,ck_outs)) false in
   unify_imported_clock None ck_node loc;
-  Log.report ~level:3 (fun fmt -> print_ck fmt ck_node);
+  Log.report ~level:3 (fun fmt -> Format.fprintf fmt "%a@ " print_ck ck_node);
   (* Local variables may contain first-order carrier variables that should be generalized.
      That's not the case for types. *)
   try_generalize ck_node loc;
@@ -698,7 +699,7 @@ let clock_node env loc nd =
   (*  if (is_main && is_polymorphic ck_node) then
       raise (Error (loc,(Cannot_be_polymorphic ck_node)));
   *)
-  Log.report ~level:3 (fun fmt -> print_ck fmt ck_node);
+  Log.report ~level:3 (fun fmt -> Format.fprintf fmt "%a@ " print_ck ck_node);
   nd.node_clock <- ck_node;
   Env.add_value env nd.node_id ck_node
 

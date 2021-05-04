@@ -21,6 +21,7 @@
    clocks
    delay
    machine_code_types
+   spec_types
    scheduling_type
    log
    printers
