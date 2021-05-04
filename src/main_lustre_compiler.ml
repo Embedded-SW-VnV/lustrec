@@ -57,7 +57,7 @@ let compile dirname basename extension =
   let params = Backends.get_normalization_params () in
 
   let prog, dependencies = 
-    Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>.. Phase 1 : Normalisation@,");
+    Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>.. Phase 1: Normalisation@,");
     try 
       Compiler_stages.stage1 params prog dirname basename extension
     with Compiler_stages.StopPhase1 prog -> (
@@ -124,11 +124,12 @@ let anonymous filename =
       else
 	ok, ext)
     (false, "") extensions in
-  if ok_ext then
+  if ok_ext then begin
+    Options_management.setup();
     let dirname = Filename.dirname filename in
     let basename = Filename.chop_suffix (Filename.basename filename) ext in
     compile dirname basename ext
-  else
+  end else
     raise (Arg.Bad ("Can only compile *.lusi, *.lus or *.ec files"))
 
 let _ =

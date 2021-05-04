@@ -65,8 +65,7 @@ let al_nb_max = ref 15
 
 (* Printer options *)
 let kind2_print = ref false
-                    
-                  
+
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

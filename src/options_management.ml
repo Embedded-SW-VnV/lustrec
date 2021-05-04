@@ -88,9 +88,11 @@ let set_real_type s =
     )
   | _ -> real_type := s
 
-let set_backend s =
-  output := s;
+let setup () =
   Backends.setup ()
+
+let set_backend s =
+  output := s
 
 let common_options =
   [ "-d", Arg.Set_string dest_dir, "uses the specified \x1b[4mdirectory\x1b[0m as root for generated/imported object and C files <default: .>";
