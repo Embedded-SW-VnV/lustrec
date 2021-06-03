@@ -187,7 +187,7 @@ and print_ty_param pp_basic fmt ty =
   | Tarray (e, ty) ->
     fprintf fmt "%a^%a" print_ty ty Dimension.pp_dimension e
   | Tlink ty ->
-      print_ty fmt ty
+    print_ty fmt ty
   | Tunivar ->
     fprintf fmt "'%s" (name_of_type ty.tid)
 

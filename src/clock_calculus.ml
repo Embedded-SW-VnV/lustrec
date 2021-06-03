@@ -49,37 +49,38 @@ let rec generalize_carrier cr =
   match cr.carrier_desc with
   | Carry_const _
   | Carry_name ->
-      if cr.carrier_scoped then
-        raise (Scope_carrier cr);
-      cr.carrier_desc <- Carry_var
+    if cr.carrier_scoped then
+      raise (Scope_carrier cr);
+    cr.carrier_desc <- Carry_var
   | Carry_var -> ()
   | Carry_link cr' -> generalize_carrier cr'
 
 (** Promote monomorphic clock variables to polymorphic clock variables. *)
 (* Generalize by side-effects *)
 let rec generalize ck =
-    match ck.cdesc with
-    | Carrow (ck1,ck2) ->
-        generalize ck1; generalize ck2
-    | Ctuple clist ->
-        List.iter generalize clist
-    | Con (ck',cr,_) -> generalize ck'; generalize_carrier cr
-    | Cvar ->
-        if ck.cscoped then
-          raise (Scope_clock ck);
-        ck.cdesc <- Cunivar 
-    | Cunivar -> () 
-    | Clink ck' ->
-        generalize ck'
-    | Ccarrying (cr,ck') ->
-        generalize_carrier cr; generalize ck'
+  match ck.cdesc with
+  | Carrow (ck1,ck2) ->
+    generalize ck1; generalize ck2
+  | Ctuple clist ->
+    List.iter generalize clist
+  | Con (ck',cr,_) -> generalize ck'; generalize_carrier cr
+  | Cvar ->
+    if ck.cscoped then
+      raise (Scope_clock ck);
+    ck.cdesc <- Cunivar
+  | Cunivar -> ()
+  | Clink ck' ->
+    generalize ck'
+  | Ccarrying (cr,ck') ->
+    generalize_carrier cr; generalize ck'
 
 let try_generalize ck_node loc =
   try 
     generalize ck_node
-  with (Scope_carrier cr) ->
+  with
+  | Scope_carrier cr ->
     raise (Error (loc, Carrier_extrusion (ck_node, cr)))
-  | (Scope_clock ck) ->
+  | Scope_clock ck ->
     raise (Error (loc, Clock_extrusion (ck_node, ck)))
 
 (* Clocks instanciation *)
@@ -414,20 +415,20 @@ let unify_imported_clock ref_ck_opt ck loc =
   let rec aux ck =
     match (repr ck).cdesc with
     | Cvar ->
-        begin
-          match !ck_var with
-          | None ->
-              ck_var:=Some ck
-          | Some v ->
-              (* cannot fail *)
-              try_unify ck v loc
-        end
+      begin
+        match !ck_var with
+        | None ->
+          ck_var := Some ck
+        | Some v ->
+          (* cannot fail *)
+          try_unify ck v loc
+      end
     | Ctuple cl ->
-        List.iter aux cl
+      List.iter aux cl
     | Carrow (ck1,ck2) ->
-        aux ck1; aux ck2
+      aux ck1; aux ck2
     | Ccarrying (_, ck1) ->
-        aux ck1
+      aux ck1
     | Con (ck1, _, _) -> aux ck1
     | _ -> ()
   in
@@ -611,7 +612,8 @@ let clock_of_vlist vars =
 (** [clock_eq env eq] performs the clock-calculus for equation [eq] in
     environment [env] *)
 let clock_eq env eq =
-  let expr_lhs = expr_of_expr_list eq.eq_loc (List.map (fun v -> expr_of_ident v eq.eq_loc) eq.eq_lhs) in
+  let expr_lhs = expr_of_expr_list eq.eq_loc
+      (List.map (fun v -> expr_of_ident v eq.eq_loc) eq.eq_lhs) in
   let ck_rhs = clock_expr env eq.eq_rhs in
   clock_subtyping_arg env expr_lhs ck_rhs
 
@@ -649,7 +651,7 @@ let clock_var_decl scoped env vdecl =
     else
  *)
       if Types.get_clock_base_type vdecl.var_type <> None
-      then new_ck (Ccarrying ((new_carrier Carry_name scoped),ck)) scoped
+      then new_ck (Ccarrying (new_carrier Carry_name scoped, ck)) scoped
       else ck in
   (if vdecl.var_dec_const
    then match vdecl.var_dec_value with
@@ -685,9 +687,9 @@ let clock_node env loc nd =
   List.iter (clock_eq new_env) eqs;
   let ck_ins = clock_of_vlist nd.node_inputs in
   let ck_outs = clock_of_vlist nd.node_outputs in
-  let ck_node = new_ck (Carrow (ck_ins,ck_outs)) false in
+  let ck_node = new_ck (Carrow (ck_ins, ck_outs)) false in
   unify_imported_clock None ck_node loc;
-  Log.report ~level:3 (fun fmt -> Format.fprintf fmt "%a@ " print_ck ck_node);
+  Log.report ~level:3 (fun fmt -> Format.fprintf fmt "Clock of %s: %a@ " nd.node_id print_ck ck_node);
   (* Local variables may contain first-order carrier variables that should be generalized.
      That's not the case for types. *)
   try_generalize ck_node loc;
@@ -699,7 +701,7 @@ let clock_node env loc nd =
   (*  if (is_main && is_polymorphic ck_node) then
       raise (Error (loc,(Cannot_be_polymorphic ck_node)));
   *)
-  Log.report ~level:3 (fun fmt -> Format.fprintf fmt "%a@ " print_ck ck_node);
+  Log.report ~level:3 (fun fmt -> Format.fprintf fmt "Generalized clock of %s: %a@ @ " nd.node_id print_ck ck_node);
   nd.node_clock <- ck_node;
   Env.add_value env nd.node_id ck_node
 

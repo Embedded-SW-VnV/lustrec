@@ -14,7 +14,7 @@ type 'a expression_t =
 type predicate_t =
   (* | Memory_pack *)
   | Clocked_on of ident
-  | Transition
+  | Transition of ident * int option
   | Initialization
 
 type 'a formula_t =

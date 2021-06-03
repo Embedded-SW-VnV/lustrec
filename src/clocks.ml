@@ -191,7 +191,10 @@ let clock_on ck cr l =
  clock_of_clock_list (List.map (fun ck -> new_ck (Con (ck,cr,l)) true) (clock_list_of_clock ck))
 
 let clock_current ck =
- clock_of_clock_list (List.map (fun ck -> match (repr ck).cdesc with Con(ck',_,_) -> ck' | _ -> assert false) (clock_list_of_clock ck))
+  clock_of_clock_list (List.map (fun ck -> match (repr ck).cdesc with
+      | Con(ck',_,_) -> ck'
+      | _ -> Format.eprintf "internal error: Clocks.clock_current %a@." print_ck_long (repr ck);
+        assert false) (clock_list_of_clock ck))
 
 let clock_of_impnode_clock ck =
   let ck = repr ck in
@@ -394,11 +397,11 @@ let pp_error fmt = function
   | Factor_zero ->
     fprintf fmt "Cannot apply clock transformation with factor 0@."
   | Carrier_extrusion (ck,cr) ->
-    fprintf fmt "This node has clock@.%a@.It is invalid as %a escapes its scope@."
+    fprintf fmt "This node has clock@.%a@.It is invalid as the carrier %a escapes its scope@."
       print_ck ck
       print_carrier cr
   | Clock_extrusion (ck_node,ck) ->
-    fprintf fmt "This node has clock@.%a@.It is invalid as %a escapes its scope@."
+    fprintf fmt "This node has clock@.%a@.It is invalid as the clock %a escapes its scope@."
       print_ck ck_node
       print_ck ck
 

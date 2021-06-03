@@ -46,9 +46,11 @@ type step_t = {
 
 type static_call = top_decl * (Dimension.dim_expr list)
 
+type mc_transition_t = value_t transition_t
+
 type machine_spec = {
   mnode_spec: node_spec_t option;
-  mtransitions: value_t transition_t list
+  mtransitions: mc_transition_t list
 }
   
 type machine_t = {

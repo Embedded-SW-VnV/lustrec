@@ -208,63 +208,63 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       let rec unif t1 t2 =
         let t1 = repr t1 in
         let t2 = repr t2 in
-        if t1==t2 then
+        if t1 == t2 then
           ()
         else
           match t1.tdesc,t2.tdesc with
           (* strictly subtyping cases first *)
           | _ , Tclock t2 when sub && (get_clock_base_type t1 = None) ->
-	     unif t1 t2
+            unif t1 t2
           | _ , Tstatic (_, t2) when sub && (get_static_value t1 = None) ->
-	     unif t1 t2
+            unif t1 t2
           (* This case is not mandatory but will keep "older" types *)
           | Tvar, Tvar ->
-             if t1.tid < t2.tid then
-               t2.tdesc <- Tlink t1
-             else
-               t1.tdesc <- Tlink t2
+            if t1.tid < t2.tid then
+              t2.tdesc <- Tlink t1
+            else
+              t1.tdesc <- Tlink t2
           | Tvar, _ when (not semi) && (not (occurs t1 t2)) ->
-             t1.tdesc <- Tlink t2
+            t1.tdesc <- Tlink t2
           | _, Tvar when (not (occurs t2 t1)) ->
-             t2.tdesc <- Tlink t1
+            t2.tdesc <- Tlink t1
           | Tarrow (t1,t2), Tarrow (t1',t2') ->
-	     begin
-               unif t2 t2';
-	       unif t1' t1
-	     end
+            begin
+              unif t2 t2';
+              unif t1' t1
+            end
           | Ttuple tl, Ttuple tl' when List.length tl = List.length tl' ->
-	     List.iter2 unif tl tl'
+            List.iter2 unif tl tl'
           | Ttuple [t1]        , _                  -> unif t1 t2
           | _                  , Ttuple [t2]        -> unif t1 t2
           | Tstruct fl, Tstruct fl' when List.map fst fl = List.map fst fl' ->
-	     List.iter2 (fun (_, t) (_, t') -> unif t t') fl fl'
+            List.iter2 (fun (_, t) (_, t') -> unif t t') fl fl'
           | Tclock _, Tstatic _
-            | Tstatic _, Tclock _ -> raise (Unify (t1, t2))
+          | Tstatic _, Tclock _ -> raise (Unify (t1, t2))
           | Tclock t1', Tclock t2' -> unif t1' t2'
-          | Tbasic t1, Tbasic t2 when t1 == t2 -> ()
+          (* | Tbasic t1, Tbasic t2 when t1 == t2 -> () *)
           | Tunivar, _ | _, Tunivar -> ()
           | (Tconst t, _) ->
-	     let def_t = get_type_definition t in
-	     unif def_t t2
+            let def_t = get_type_definition t in
+            unif def_t t2
           | (_, Tconst t)  ->
-	     let def_t = get_type_definition t in
-	     unif t1 def_t
+            let def_t = get_type_definition t in
+            unif t1 def_t
           | Tenum tl, Tenum tl' when tl == tl' -> ()
           | Tstatic (e1, t1'), Tstatic (e2, t2')
-            | Tarray (e1, t1'), Tarray (e2, t2') ->
-	     let eval_const =
-	       if semi
-	       then (fun c -> Some (Dimension.mkdim_ident Location.dummy_loc c))
-	       else (fun _ -> None) in
-	     begin
-	       unif t1' t2';
-	       Dimension.eval Basic_library.eval_dim_env eval_const e1;
-	       Dimension.eval Basic_library.eval_dim_env eval_const e2;
-	       Dimension.unify ~semi:semi e1 e2;
-	     end
+          | Tarray (e1, t1'), Tarray (e2, t2') ->
+            let eval_const =
+              if semi
+              then (fun c -> Some (Dimension.mkdim_ident Location.dummy_loc c))
+              else (fun _ -> None) in
+            begin
+              unif t1' t2';
+              Dimension.eval Basic_library.eval_dim_env eval_const e1;
+              Dimension.eval Basic_library.eval_dim_env eval_const e2;
+              Dimension.unify ~semi:semi e1 e2;
+            end
           (* Special cases for machine_types. Rules to unify static types infered
-      	 for numerical constants with non static ones for variables with
-      	 possible machine types *)
+             for numerical constants with non static ones for variables with
+             possible machine types *)
           | Tbasic bt1, Tbasic bt2 when BasicT.is_unifiable bt1 bt2 -> BasicT.unify bt1 bt2
           | _,_ -> raise (Unify (t1, t2))
       in unif t1 t2
@@ -274,7 +274,7 @@ module Make (T: Types.S) (Expr_type_hub: EXPR_TYPE_HUB with type type_expr = T.t
       try
         unify ~sub:sub ~semi:semi ty1 ty2
       with
-      | Unify _ ->
+      | Unify (t1', t2') ->
          raise (Error (loc, Type_clash (ty1,ty2)))
       | Dimension.Unify _ ->
          raise (Error (loc, Type_clash (ty1,ty2)))

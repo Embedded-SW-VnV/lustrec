@@ -165,6 +165,8 @@ let rec translate_act env (y, expr) =
 
 (* Datastructure updated while visiting equations *)
 type machine_ctx = {
+  (* machine name *)
+  id: ident;
   (* Memories *)
   m: VSet.t;
   (* Reset instructions *)
@@ -181,7 +183,8 @@ type machine_ctx = {
   t: mc_formula_t list;
 }
 
-let ctx_init = {
+let ctx_init id = {
+  id;
   m = VSet.empty;
   si = [];
   j = IMap.empty;
@@ -191,18 +194,21 @@ let ctx_init = {
   t = []
 }
 
+let ctx_dummy = ctx_init ""
+
 (****************************************************************)
 (* Main function to translate equations into this machine context we
    are building *) 
 (****************************************************************)
 
-let mk_control id vs v l inst =
+let mk_control v l inst =
   mkinstr
-    (Imply (mk_clocked_on id vs, inst.instr_spec))
+    True
+    (* (Imply (mk_clocked_on id vs, inst.instr_spec)) *)
     (MBranch (v, [l, [inst]]))
 
-let control_on_clock env ctx ck inst =
-  let rec aux (ck_ids, vs, ctx, inst as acc) ck =
+let control_on_clock env ctx ck spec inst =
+  let rec aux (ck_ids, vs, ctx, spec, inst as acc) ck =
     match (Clocks.repr ck).cdesc with
     | Con (ck, cr, l) ->
       let id = Clocks.const_of_carrier cr in
@@ -212,66 +218,79 @@ let control_on_clock env ctx ck inst =
       let ck_spec = mk_condition v l in
       aux (id :: ck_ids,
            v :: vs,
-           { ctx
-             with c = IMap.add id ck_spec
-                      (IMap.add id'
-                         (And [ck_spec; mk_clocked_on ck_ids' vs]) ctx.c)
+           { ctx with
+             c = IMap.add id ck_spec
+                 (IMap.add id' (And [ck_spec; mk_clocked_on ck_ids' vs]) ctx.c)
            },
-           mk_control id' (v :: vs) v l inst) ck
+           Imply (mk_clocked_on id' (v :: vs), spec),
+           mk_control v l inst) ck
     | _ -> acc
   in
-  let _, _, ctx, inst = aux ([], [], ctx, inst) ck in
-  ctx, inst
+  let _, _, ctx, spec, inst = aux ([], [], ctx, spec, inst) ck in
+  ctx, spec, inst
 
 let reset_instance env i r c =
   match r with
   | Some r ->
-    [snd (control_on_clock env ctx_init c
-            (mk_conditional
-               (translate_guard env r)
-               [mkinstr True (MReset i)]
-               [mkinstr True (MNoReset i)]))]
+    let _, _, inst = control_on_clock env ctx_dummy c True
+        (mk_conditional
+           (translate_guard env r)
+           [mkinstr True (MReset i)]
+           [mkinstr True (MNoReset i)]) in
+    [ inst ]
   | None -> []
 
 
-let translate_eq env ctx eq =
+let translate_eq env ctx i eq =
   let translate_expr = translate_expr env in
   let translate_act = translate_act env in
-  let control_on_clock ck inst =
-    let ctx, ins = control_on_clock env ctx ck inst in
-    { ctx with s = ins :: ctx.s }
+  let control_on_clock ck spec inst =
+    let ctx, _spec, inst = control_on_clock env ctx ck spec inst in
+    { ctx with
+      s = { inst with
+            instr_spec = mk_transition ~i ctx.id [] } :: ctx.s }
   in
   let reset_instance = reset_instance env in
   let mkinstr' = mkinstr ~lustre_eq:eq True in
-  let ctl ?(ck=eq.eq_rhs.expr_clock) instr =
-    control_on_clock ck (mkinstr' instr) in
+  let ctl ?(ck=eq.eq_rhs.expr_clock) spec instr =
+    control_on_clock ck spec (mkinstr' instr) in
 
   (* Format.eprintf "translate_eq %a with clock %a@." 
      Printers.pp_node_eq eq Clocks.print_ck eq.eq_rhs.expr_clock;  *)
   match eq.eq_lhs, eq.eq_rhs.expr_desc with
   | [x], Expr_arrow (e1, e2)                     ->
     let var_x = env.get_var x in
-    let o = new_instance (Arrow.arrow_top_decl ()) eq.eq_rhs.expr_tag in
+    let td = Arrow.arrow_top_decl () in
+    let o = new_instance td eq.eq_rhs.expr_tag in
     let c1 = translate_expr e1 in
     let c2 = translate_expr e2 in
-    let ctx = ctl (MStep ([var_x], o, [c1;c2])) in
+    let ctx = ctl
+        (mk_transition (node_name td) [])
+        (MStep ([var_x], o, [c1;c2])) in
     { ctx with
       si = mkinstr True (MReset o) :: ctx.si;
-      j = IMap.add o (Arrow.arrow_top_decl (), []) ctx.j;
+      j = IMap.add o (td, []) ctx.j;
     }
+
   | [x], Expr_pre e1 when env.is_local x    ->
     let var_x = env.get_var x in
-    let ctx = ctl (MStateAssign (var_x, translate_expr e1)) in
+    let ctx = ctl
+        True
+        (MStateAssign (var_x, translate_expr e1)) in
     { ctx with
       m = VSet.add var_x ctx.m;
     }
+
   | [x], Expr_fby (e1, e2) when env.is_local x ->
     let var_x = env.get_var x in
-    let ctx = ctl (MStateAssign (var_x, translate_expr e2)) in
+    let ctx = ctl
+        True
+        (MStateAssign (var_x, translate_expr e2)) in
     { ctx with
       m = VSet.add var_x ctx.m;
       si = mkinstr' (MStateAssign (var_x, translate_expr e1)) :: ctx.si;
     }
+
   | p, Expr_appl (f, arg, r)
     when not (Basic_library.is_expr_internal_fun eq.eq_rhs) ->
     let var_p = List.map (fun v -> env.get_var v) p in
@@ -284,7 +303,10 @@ let translate_eq env ctx eq =
         el [eq.eq_rhs.expr_clock] in
     let call_ck = Clock_calculus.compute_root_clock
         (Clock_predef.ck_tuple env_cks) in
-    let ctx = ctl ~ck:call_ck (MStep (var_p, o, vl)) in
+    let ctx = ctl
+        ~ck:call_ck
+        True
+        (MStep (var_p, o, vl)) in
     (*Clocks.new_var true in
       Clock_calculus.unify_imported_clock (Some call_ck) eq.eq_rhs.expr_clock eq.eq_rhs.expr_loc;
       Format.eprintf "call %a: %a: %a@," Printers.pp_expr eq.eq_rhs Clocks.print_ck (Clock_predef.ck_tuple env_cks) Clocks.print_ck call_ck;*)
@@ -297,9 +319,11 @@ let translate_eq env ctx eq =
            else reset_instance o r call_ck)
           @ ctx.s
     }
+
   | [x], _ ->
     let var_x = env.get_var x in
-    control_on_clock eq.eq_rhs.expr_clock (translate_act (var_x, eq.eq_rhs))
+    control_on_clock eq.eq_rhs.expr_clock True (translate_act (var_x, eq.eq_rhs))
+
   | _ ->
     Format.eprintf "internal error: Machine_code.translate_eq %a@?"
       Printers.pp_node_eq eq;
@@ -317,7 +341,11 @@ let constant_equations locals =
     locals []
 
 let translate_eqs env ctx eqs =
-  List.fold_right (fun eq ctx -> translate_eq env ctx eq) eqs ctx
+  List.fold_right (fun eq (ctx, i) ->
+      let ctx = translate_eq env ctx i eq in
+      ctx, i - 1)
+    eqs (ctx, List.length eqs)
+  |> fst
 
 
 (****************************************************************)
@@ -357,19 +385,19 @@ let process_asserts nd =
     in
     vars, eql, assertl
 
-let translate_core sorted_eqs locals other_vars =
+let translate_core nid sorted_eqs locals other_vars =
   let constant_eqs = constant_equations locals in
 
   let env = build_env locals other_vars  in
 
   (* Compute constants' instructions  *)
-  let ctx0 = translate_eqs env ctx_init constant_eqs in
+  let ctx0 = translate_eqs env (ctx_init nid) constant_eqs in
   assert (VSet.is_empty ctx0.m);
   assert (ctx0.si = []);
   assert (IMap.is_empty ctx0.j);
 
   (* Compute ctx for all eqs *)
-  let ctx = translate_eqs env ctx_init sorted_eqs in
+  let ctx = translate_eqs env (ctx_init nid) sorted_eqs in
 
   ctx, ctx0.s
 
@@ -402,7 +430,8 @@ let translate_decl nd sch =
    *   VSet.pp inout_vars
    * ; *)
 
-  let ctx, ctx0_s = translate_core (assert_instrs@sorted_eqs) locals inout_vars in
+  let ctx, ctx0_s = translate_core
+      nd.node_id (assert_instrs@sorted_eqs) locals inout_vars in
 
   (* Format.eprintf "ok4@.@?"; *)
 

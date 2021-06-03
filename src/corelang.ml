@@ -1009,15 +1009,17 @@ let pp_decl_type fmt tdecl =
   | Node nd ->
     fprintf fmt "%s: " nd.node_id;
     Utils.reset_names ();
-    fprintf fmt "%a@ " Types.print_ty nd.node_type
+    fprintf fmt "%a" Types.print_ty nd.node_type
   | ImportedNode ind ->
     fprintf fmt "%s: " ind.nodei_id;
     Utils.reset_names ();
-    fprintf fmt "%a@ " Types.print_ty ind.nodei_type
+    fprintf fmt "%a" Types.print_ty ind.nodei_type
   | Const _ | Include _ | Open _ | TypeDef _ -> ()
 
 let pp_prog_type fmt tdecl_list =
-  Utils.fprintf_list ~sep:"" pp_decl_type fmt tdecl_list
+  Utils.Format.(pp_print_list
+                  ~pp_open_box:pp_open_vbox0
+                  pp_decl_type fmt tdecl_list)
 
 let pp_decl_clock fmt cdecl =
   match cdecl.top_decl_desc with

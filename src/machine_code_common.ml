@@ -3,7 +3,8 @@ open Machine_code_types
 open Spec_types
 open Spec_common
 open Corelang
-  
+open Utils.Format
+
 let print_statelocaltag = true
 
 let is_memory m id =
@@ -16,55 +17,64 @@ let rec pp_val m fmt v =
   | Var v    ->
      if is_memory m v then
        if print_statelocaltag then
-	 Format.fprintf fmt "%s(S)" v.var_id
+	 fprintf fmt "{%s}" v.var_id
        else
-	 Format.pp_print_string fmt v.var_id 
+	 pp_print_string fmt v.var_id
      else     
        if print_statelocaltag then
-	 Format.fprintf fmt "%s(L)" v.var_id
+	 fprintf fmt "%s" v.var_id
        else
-	 Format.pp_print_string fmt v.var_id
-  | Array vl      -> Format.fprintf fmt "[%a]" (Utils.fprintf_list ~sep:", " pp_val)  vl
-  | Access (t, i) -> Format.fprintf fmt "%a[%a]" pp_val t pp_val i
-  | Power (v, n)  -> Format.fprintf fmt "(%a^%a)" pp_val v pp_val n
-  | Fun (n, vl)   -> Format.fprintf fmt "%s (%a)" n (Utils.fprintf_list ~sep:", " pp_val)  vl
+	 pp_print_string fmt v.var_id
+  | Array vl      -> fprintf fmt "[%a]" (Utils.fprintf_list ~sep:", " pp_val)  vl
+  | Access (t, i) -> fprintf fmt "%a[%a]" pp_val t pp_val i
+  | Power (v, n)  -> fprintf fmt "(%a^%a)" pp_val v pp_val n
+  | Fun (n, vl)   -> fprintf fmt "%s (%a)" n (Utils.fprintf_list ~sep:", " pp_val)  vl
+
+module PrintSpec = PrintSpec(struct
+    type t = value_t
+    type ctx = machine_t
+    let pp_val = pp_val
+  end)
 
 let rec  pp_instr m fmt i =
  let     pp_val = pp_val m and
       pp_branch = pp_branch m in
   let _ =
     match i.instr_desc with
-    | MLocalAssign (i,v) -> Format.fprintf fmt "%s<-l- %a" i.var_id pp_val v
-    | MStateAssign (i,v) -> Format.fprintf fmt "%s<-s- %a" i.var_id pp_val v
-    | MReset i           -> Format.fprintf fmt "reset %s" i
-    | MNoReset i         -> Format.fprintf fmt "noreset %s" i
+    | MLocalAssign (i,v) -> fprintf fmt "%s := %a" i.var_id pp_val v
+    | MStateAssign (i,v) -> fprintf fmt "{%s} := %a" i.var_id pp_val v
+    | MReset i           -> fprintf fmt "reset %s" i
+    | MNoReset i         -> fprintf fmt "noreset %s" i
     | MStep (il, i, vl)  ->
-       Format.fprintf fmt "%a = %s (%a)"
-	 (Utils.fprintf_list ~sep:", " (fun fmt v -> Format.pp_print_string fmt v.var_id)) il
+       fprintf fmt "%a = %s (%a)"
+	 (Utils.fprintf_list ~sep:", " (fun fmt v -> pp_print_string fmt v.var_id)) il
 	 i
 	 (Utils.fprintf_list ~sep:", " pp_val) vl
     | MBranch (g,hl)     ->
-       Format.fprintf fmt "@[<v 2>case(%a) {@,%a@,}@]"
+       fprintf fmt "@[<v 2>case(%a) {@,%a@,}@]"
 	 pp_val g
 	 (Utils.fprintf_list ~sep:"@," pp_branch) hl
-    | MComment s -> Format.pp_print_string fmt s
-    | MSpec s -> Format.pp_print_string fmt ("@" ^ s)
+    | MComment s -> pp_print_string fmt s
+    | MSpec s -> pp_print_string fmt ("@" ^ s)
        
   in
   (* Annotation *)
   (* let _ = *)
-  (*   match i.lustre_expr with None -> () | Some e -> Format.fprintf fmt " -- original expr: %a" Printers.pp_expr e *)
+  (*   match i.lustre_expr with None -> () | Some e -> fprintf fmt " -- original expr: %a" Printers.pp_expr e *)
   (* in *)
-  let _ = 
-    match i.lustre_eq with None -> () | Some eq -> Format.fprintf fmt " -- original eq: %a" Printers.pp_node_eq eq
-  in
-  ()
-    
-and pp_branch m fmt (t, h) =
-  Format.fprintf fmt "@[<v 2>%s:@,%a@]" t (Utils.fprintf_list ~sep:"@," (pp_instr m)) h
+  begin match i.lustre_eq with
+  | None -> ()
+  | Some eq -> fprintf fmt " -- original eq: %a" Printers.pp_node_eq eq
+  end;
+  fprintf fmt "@ --%@ %a" (PrintSpec.pp_spec m) i.instr_spec
 
-and pp_instrs m fmt il =
-  Format.fprintf fmt "@[<v 2>%a@]" (Utils.fprintf_list ~sep:"@," (pp_instr m)) il
+
+and pp_branch m fmt (t, h) =
+  fprintf fmt "@[<v 2>%s:@,%a@]" t
+    (pp_print_list ~pp_open_box:pp_open_vbox0 (pp_instr m)) h
+
+let pp_instrs m =
+  pp_print_list ~pp_open_box:pp_open_vbox0 (pp_instr m)
 
 
 (* merge log: get_node_def was in c0f8 *)
@@ -74,9 +84,9 @@ let get_node_def id m =
     let (decl, _) = List.assoc id m.mcalls in
     Corelang.node_of_top decl
   with Not_found -> ( 
-    (* Format.eprintf "Unable to find node %s in list [%a]@.@?" *)
+    (* eprintf "Unable to find node %s in list [%a]@.@?" *)
     (*   id *)
-    (*   (Utils.fprintf_list ~sep:", " (fun fmt (n,_) -> Format.fprintf fmt "%s" n)) m.mcalls *)
+    (*   (Utils.fprintf_list ~sep:", " (fun fmt (n,_) -> fprintf fmt "%s" n)) m.mcalls *)
     (* ; *)
     raise Not_found
   )
@@ -85,22 +95,24 @@ let get_node_def id m =
 let machine_vars m = m.mstep.step_inputs @ m.mstep.step_locals @ m.mstep.step_outputs @ m.mmemory
 
 let pp_step m fmt s =
-  Format.fprintf fmt "@[<v>inputs : %a@ outputs: %a@ locals : %a@ checks : %a@ instrs : @[%a@]@ asserts : @[%a@]@]@ "
-    (Utils.fprintf_list ~sep:", " Printers.pp_var) s.step_inputs
-    (Utils.fprintf_list ~sep:", " Printers.pp_var) s.step_outputs
-    (Utils.fprintf_list ~sep:", " Printers.pp_var) s.step_locals
-    (Utils.fprintf_list ~sep:", " (fun fmt (_, c) -> pp_val m fmt c)) s.step_checks
-    (Utils.fprintf_list ~sep:"@ " (pp_instr m)) s.step_instrs
-    (Utils.fprintf_list ~sep:", " (pp_val m)) s.step_asserts
+  let pp_list = pp_print_list ~pp_sep:pp_print_comma in
+  fprintf fmt "@[<v>inputs : %a@ outputs: %a@ locals : %a@ checks : %a@ instrs : @[%a@]@ asserts : @[%a@]@]@ "
+    (pp_list Printers.pp_var) s.step_inputs
+    (pp_list Printers.pp_var) s.step_outputs
+    (pp_list Printers.pp_var) s.step_locals
+    (pp_list (fun fmt (_, c) -> pp_val m fmt c))
+    s.step_checks
+    (pp_instrs m) s.step_instrs
+    (pp_list (pp_val m)) s.step_asserts
 
 
 let pp_static_call fmt (node, args) =
- Format.fprintf fmt "%s<%a>"
+ fprintf fmt "%s<%a>"
    (node_name node)
    (Utils.fprintf_list ~sep:", " Dimension.pp_dimension) args
 
 let pp_machine fmt m =
-  Format.fprintf fmt
+  fprintf fmt
     "@[<v 2>machine %s@ \
      mem      : %a@ \
      instances: %a@ \
@@ -112,18 +124,18 @@ let pp_machine fmt m =
      annot    : @[%a@]@]@ "
     m.mname.node_id
     (Utils.fprintf_list ~sep:", " Printers.pp_var) m.mmemory
-    (Utils.fprintf_list ~sep:", " (fun fmt (o1, o2) -> Format.fprintf fmt "(%s, %a)" o1 pp_static_call o2)) m.minstances
+    (Utils.fprintf_list ~sep:", " (fun fmt (o1, o2) -> fprintf fmt "(%s, %a)" o1 pp_static_call o2)) m.minstances
     (Utils.fprintf_list ~sep:"@ " (pp_instr m)) m.minit
     (Utils.fprintf_list ~sep:"@ " (pp_instr m)) m.mconst
     (pp_step m) m.mstep
     (fun fmt -> match m.mspec.mnode_spec with
        | None -> ()
-       | Some (NodeSpec id) -> Format.fprintf fmt "cocospec: %s" id
+       | Some (NodeSpec id) -> fprintf fmt "cocospec: %s" id
        | Some (Contract spec) -> Printers.pp_spec fmt spec)
     (Utils.fprintf_list ~sep:"@ " Printers.pp_expr_annot) m.mannot
 
 let pp_machines fmt ml =
-  Format.fprintf fmt "@[<v 0>%a@]" (Utils.fprintf_list ~sep:"@," pp_machine) ml
+  fprintf fmt "@[<v 0>%a@]" (Utils.fprintf_list ~sep:"@," pp_machine) ml
 
   
 let rec is_const_value v =
@@ -159,23 +171,26 @@ let get_instr_spec i = i.instr_spec
 
 let mk_conditional ?lustre_eq c t e =
   mkinstr ?lustre_eq
-    (Ternary (Val c,
-              And (List.map get_instr_spec t),
-              And (List.map get_instr_spec e)))
+    (* (Ternary (Val c,
+     *           And (List.map get_instr_spec t),
+     *           And (List.map get_instr_spec e))) *)
+    True
     (MBranch(c, [
          (tag_true, t);
          (tag_false, e) ]))
 
 let mk_branch ?lustre_eq c br =
   mkinstr ?lustre_eq
-    (And (List.map (fun (l, instrs) ->
-         Imply (Equal (Val c, Tag l), And (List.map get_instr_spec instrs)))
-         br))
+    (* (And (List.map (fun (l, instrs) ->
+     *      Imply (Equal (Val c, Tag l), And (List.map get_instr_spec instrs)))
+     *      br)) *)
+    True
     (MBranch (c, br))
 
 let mk_assign ?lustre_eq x v =
   mkinstr ?lustre_eq
-    (Equal (Var x, Val v))
+    (* (Equal (Var x, Val v)) *)
+    True
     (MLocalAssign (x, v))
 
 let mk_val v t =
@@ -290,9 +305,9 @@ let get_machine machines node_name =
  try
     Utils.desome (get_machine_opt machines node_name) 
  with Utils.DeSome ->
-   Format.eprintf "Unable to find machine %s in machines %a@.@?"
+   eprintf "Unable to find machine %s in machines %a@.@?"
      node_name
-     (Utils.fprintf_list ~sep:", " (fun fmt m -> Format.pp_print_string fmt m.mname.node_id)) machines
+     (Utils.fprintf_list ~sep:", " (fun fmt m -> pp_print_string fmt m.mname.node_id)) machines
       ; assert false
      
 let get_const_assign m id =
