@@ -85,8 +85,10 @@ struct
     match get_instr_desc instr with
       (* no reset *)
       | MNoReset _ -> ()
+      (* TODO: handle clear_reset *)
+      | MClearReset -> ()
       (* reset  *)
-      | MReset i when List.mem_assoc i typed_submachines ->
+      | MSetReset i when List.mem_assoc i typed_submachines ->
           let (substitution, submachine) = get_instance i typed_submachines in
           let pp_package = pp_package_name_with_polymorphic substitution submachine in
           let args = if is_machine_statefull submachine then [[pp_state i]] else [] in
@@ -149,7 +151,7 @@ struct
   **)
   let pp_reset_definition env typed_submachines fmt (m, m_spec_opt) =
     let build_assign = function var ->
-      mkinstr Spec_types.True (MStateAssign (var, mk_default_value var.var_type))
+      mkinstr (MStateAssign (var, mk_default_value var.var_type))
     in
     let env, memory = match m_spec_opt with
       | None -> env, m.mmemory

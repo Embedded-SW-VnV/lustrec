@@ -284,6 +284,8 @@ module Format = struct
 
   let pp_print_opar fmt () = pp_print_string fmt "("
   let pp_print_cpar fmt () = pp_print_string fmt ")"
+  let pp_print_obracket fmt () = pp_print_string fmt "["
+  let pp_print_cbracket fmt () = pp_print_string fmt "]"
   let pp_print_obrace fmt () = pp_print_string fmt "{"
   let pp_print_cbrace fmt () = pp_print_string fmt "}"
   let pp_print_opar' fmt () = pp_print_string fmt "( "
@@ -315,6 +317,8 @@ module Format = struct
       pp_cl ()
       (fun fmt l -> if l <> [] then pp_epilogue fmt ()) l
 
+  let pp_comma_list = pp_print_list ~pp_sep:pp_print_comma
+
   let pp_print_list_i
       ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol ?pp_sep
       pp_v =
@@ -341,6 +345,12 @@ module Format = struct
     pp_print_list
       ~pp_op:pp_print_opar
       ~pp_cl:pp_print_cpar
+      ~pp_sep
+
+  let pp_print_bracketed ?(pp_sep=pp_print_comma) =
+    pp_print_list
+      ~pp_op:pp_print_obracket
+      ~pp_cl:pp_print_cbracket
       ~pp_sep
 
   let pp_print_braced ?(pp_sep=pp_print_comma) =

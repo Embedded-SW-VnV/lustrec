@@ -28,11 +28,13 @@ let pp_elim m fmt elim =
 let rec eliminate m elim instr =
   let e_expr = eliminate_expr m elim in
   match get_instr_desc instr with
-  | MSpec _ | MComment _         -> instr
   | MLocalAssign (i,v) -> update_instr_desc instr (MLocalAssign (i, e_expr v))
   | MStateAssign (i,v) -> update_instr_desc instr (MStateAssign (i, e_expr v))
-  | MReset _           -> instr
-  | MNoReset _         -> instr
+  | MSetReset _
+  | MNoReset _
+  | MClearReset
+  | MSpec _
+  | MComment _         -> instr
   | MStep (il, i, vl)  -> update_instr_desc instr (MStep(il, i, List.map e_expr vl))
   | MBranch (g,hl)     -> 
      update_instr_desc instr (
@@ -115,14 +117,16 @@ let rec simplify_instr_offset m instr =
   match get_instr_desc instr with
   | MLocalAssign (v, expr) -> update_instr_desc instr (MLocalAssign (v, simplify_expr_offset m expr))
   | MStateAssign (v, expr) -> update_instr_desc instr (MStateAssign (v, simplify_expr_offset m expr))
-  | MReset _               -> instr
-  | MNoReset _             -> instr
+  | MSetReset _
+  | MNoReset _
+  | MClearReset
+  | MSpec _
+  | MComment _             -> instr
   | MStep (outputs, id, inputs) -> update_instr_desc instr (MStep (outputs, id, List.map (simplify_expr_offset m) inputs))
   | MBranch (cond, brl)
     -> update_instr_desc instr (
       MBranch(simplify_expr_offset m cond, List.map (fun (l, il) -> l, simplify_instrs_offset m il) brl)
     )
-  | MSpec _ | MComment _             -> instr
 
 and simplify_instrs_offset m instrs =
   List.map (simplify_instr_offset m) instrs
@@ -284,7 +288,6 @@ let instr_of_const top_const =
   let lustre_eq = mkeq loc ([const.const_id], mkexpr loc (Expr_const const.const_value)) in
   mkinstr
     ~lustre_eq
-    True
     (MLocalAssign (vdecl, mk_val (Cst const.const_value) vdecl.var_type))
 
 (* We do not perform this optimization on contract nodes since there
@@ -499,11 +502,13 @@ let rec value_replace_var fvar value =
 
 let rec instr_replace_var fvar instr cont =
   match get_instr_desc instr with
-  | MSpec _ | MComment _          -> instr_cons instr cont
   | MLocalAssign (i, v) -> instr_cons (update_instr_desc instr (MLocalAssign (fvar i, value_replace_var fvar v))) cont
   | MStateAssign (i, v) -> instr_cons (update_instr_desc instr (MStateAssign (i, value_replace_var fvar v))) cont
-  | MReset _            -> instr_cons instr cont
-  | MNoReset _          -> instr_cons instr cont
+  | MSetReset _
+  | MNoReset _
+  | MClearReset
+  | MSpec _
+  | MComment _          -> instr_cons instr cont
   | MStep (il, i, vl)   -> instr_cons (update_instr_desc instr (MStep (List.map fvar il, i, List.map (value_replace_var fvar) vl))) cont
   | MBranch (g, hl)     -> instr_cons (update_instr_desc instr (MBranch (value_replace_var fvar g, List.map (fun (h, il) -> (h, instrs_replace_var fvar il [])) hl))) cont
 
@@ -763,7 +768,7 @@ let optimize params prog node_schs machine_code =
   in
 
 
-  prog, List.rev machine_code  
+  prog, machine_code
 
           
                  (* Local Variables: *)

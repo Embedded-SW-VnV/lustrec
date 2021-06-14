@@ -165,7 +165,9 @@ let branch_cpt = ref 0
 let get_instr_id fmt i =
   match Corelang.get_instr_desc i with
   | MLocalAssign(lhs,_) | MStateAssign (lhs, _) -> pp_var_name fmt lhs
-  | MReset i | MNoReset i -> fprintf fmt "%s" (reset_name i)
+  | MSetReset i | MNoReset i -> fprintf fmt "%s" (reset_name i)
+  (* TODO: handle clear_reset *)
+  | MClearReset -> ()
   | MBranch _ -> incr branch_cpt; fprintf fmt "branch_%i" !branch_cpt
   | MStep (outs, id, _) ->
      print_protect fmt 
@@ -242,10 +244,12 @@ and branch_instr_vars m i =
 
      all_def_vars, def_vars, VSet.union read_guard read_vars
   | MBranch _ -> assert false (* branch instruction should admit at least one case *)
-  | MReset ni           
-    | MNoReset ni ->
-     let write = ISet.singleton (reset_name ni) in
-     write, write, VSet.empty
+  | MSetReset ni
+  | MNoReset ni ->
+    let write = ISet.singleton (reset_name ni) in
+    write, write, VSet.empty
+  (* TODO: handle clear_reset *)
+  | MClearReset -> ISet.empty, ISet.empty, VSet.empty
   | MSpec _ | MComment _ -> assert false (* not  available for EMF output *)
      
 (* A kind of super join_guards: all MBranch are postponed and sorted by
@@ -298,7 +302,7 @@ let rec pp_emf_instr m fmt i =
 	  (pp_emf_cst_or_var m) expr
       )
        
-    | MReset id           
+    | MSetReset id
       -> (
 	fprintf fmt "\"kind\": \"reset\",@ \"lhs\": \"%s\",@ \"rhs\": \"true\""
 	  (reset_name id)
@@ -308,6 +312,8 @@ let rec pp_emf_instr m fmt i =
 	fprintf fmt "\"kind\": \"reset\",@ \"lhs\": \"%s\",@ \"rhs\": \"false\""
 	  (reset_name id)
       )
+  (* TODO: handle clear_reset *)
+  | MClearReset -> ()
        
     | MBranch (g, hl) -> (
       let all_outputs, outputs, inputs = branch_instr_vars m i in

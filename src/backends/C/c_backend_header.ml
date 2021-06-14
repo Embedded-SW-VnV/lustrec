@@ -22,16 +22,20 @@ open C_backend_common
 
 
 module type MODIFIERS_HDR = sig
+  module GhostProto: MODIFIERS_GHOST_PROTO
   val print_machine_decl_prefix: Format.formatter -> machine_t -> unit
   val pp_import_standard_spec: formatter -> unit -> unit
 end
 
 module EmptyMod = struct
+  module GhostProto = EmptyGhostProto
   let print_machine_decl_prefix = fun _ _ -> ()
   let pp_import_standard_spec _ _ = ()
 end
 
 module Main = functor (Mod: MODIFIERS_HDR) -> struct
+
+  module Protos = Protos(Mod.GhostProto)
 
   let print_import_standard fmt () =
     (* if Machine_types.has_machine_type () then *)
@@ -231,7 +235,7 @@ module Main = functor (Mod: MODIFIERS_HDR) -> struct
         assert false
       end
     else if inode.nodei_stateless then
-      fprintf fmt "extern %a;" print_stateless_prototype prototype
+      fprintf fmt "extern %a;" Protos.print_stateless_prototype prototype
     else
       let static_inputs = List.filter (fun v -> v.var_dec_const)
           inode.nodei_inputs in
@@ -239,16 +243,19 @@ module Main = functor (Mod: MODIFIERS_HDR) -> struct
         List.exists (fun v -> v.var_id = name)
           (inode.nodei_inputs @ inode.nodei_outputs) in
       let self = mk_new_name used "self" in
+      let mem = mk_new_name used "mem" in
       let static_prototype = (inode.nodei_id, static_inputs) in
       fprintf fmt
         "extern %a;@,\
          extern %a;@,\
          extern %a;@,\
+         extern %a;@,\
          extern %a;"
-        (print_reset_prototype self) static_prototype
-        (print_init_prototype self) static_prototype
-        (print_clear_prototype self) static_prototype
-        (print_step_prototype self) prototype
+        (Protos.print_set_reset_prototype self mem) static_prototype
+        (Protos.print_clear_reset_prototype self mem) static_prototype
+        (Protos.print_init_prototype self) static_prototype
+        (Protos.print_clear_prototype self) static_prototype
+        (Protos.print_step_prototype self mem) prototype
 
   let print_const_top_decl fmt tdecl =
     let cdecl = const_of_top tdecl in

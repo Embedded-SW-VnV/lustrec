@@ -23,6 +23,7 @@
    machine_code_types
    spec_types
    spec_common
+   lustre_live
    scheduling_type
    log
    printers

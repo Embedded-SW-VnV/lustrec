@@ -12,6 +12,11 @@
 
 open Lustre_types
 
+module VDeclModule: sig
+  type t
+  val compare: t -> t -> int
+end with type t = Lustre_types.var_decl
+
 module VSet: sig
   include Set.S
   val pp: Format.formatter -> t -> unit 
@@ -45,7 +50,7 @@ val mk_new_node_name: node_desc -> ident -> ident
 val mktop: top_decl_desc -> top_decl
 
 (* constructor for machine types *)
-val mkinstr: (* ?lustre_expr:expr ->  *)?lustre_eq: eq -> Machine_code_types.value_t Spec_types.formula_t -> Machine_code_types.instr_t_desc -> Machine_code_types.instr_t
+val mkinstr: (* ?lustre_expr:expr ->  *)?lustre_eq: eq -> ?instr_spec: Machine_code_types.value_t Spec_types.formula_t list -> Machine_code_types.instr_t_desc -> Machine_code_types.instr_t
 val get_instr_desc: Machine_code_types.instr_t -> Machine_code_types.instr_t_desc
 val update_instr_desc: Machine_code_types.instr_t -> Machine_code_types.instr_t_desc -> Machine_code_types.instr_t
   

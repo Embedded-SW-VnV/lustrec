@@ -295,10 +295,12 @@ let pp_instance_call machines reset_instances m fmt i inputs outputs =
 let rec pp_machine_instr machines reset_instances (m: machine_t) fmt instr : ident list =
   match get_instr_desc instr with
   | MSpec _ | MComment _ -> reset_instances
+  (* TODO: handle clear_reset *)
+  | MClearReset -> reset_instances
   | MNoReset i -> (* we assign middle_mem with mem_m. And declare i as reset *)
     pp_no_reset machines m fmt i;
     i::reset_instances
-  | MReset i -> (* we assign middle_mem with reset: reset(mem_m) *)
+  | MSetReset i -> (* we assign middle_mem with reset: reset(mem_m) *)
     pp_instance_reset machines m fmt i;
     i::reset_instances
   | MLocalAssign (i,v) ->

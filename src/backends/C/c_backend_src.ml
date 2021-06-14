@@ -17,20 +17,28 @@ open Machine_code_common
 open C_backend_common
 
 module type MODIFIERS_SRC = sig
-  val pp_predicates: dep_t list -> formatter -> machine_t list -> unit
-  val pp_reset_spec: formatter -> machine_t list -> ident -> machine_t -> unit
-  val pp_step_spec: formatter -> machine_t list -> ident -> machine_t -> unit
-  val pp_step_instr_spec: machine_t -> ident -> formatter -> (int * instr_t) -> unit
+  module GhostProto: MODIFIERS_GHOST_PROTO
+  val pp_predicates: formatter -> machine_t list -> unit
+  val pp_set_reset_spec: formatter -> ident -> ident -> machine_t -> unit
+  val pp_clear_reset_spec: formatter -> machine_t list -> ident -> ident -> machine_t -> unit
+  val pp_step_spec: formatter -> machine_t list -> ident -> ident -> machine_t -> unit
+  val pp_step_instr_spec: machine_t -> ident -> formatter -> instr_t -> unit
+  val pp_ghost_set_reset_spec: formatter -> ident -> unit
 end
 
 module EmptyMod = struct
-  let pp_predicates _ _ _ = ()
-  let pp_reset_spec _ _ _ _ = ()
-  let pp_step_spec _ _ _ _ = ()
+  module GhostProto = EmptyGhostProto
+  let pp_predicates _ _ = ()
+  let pp_set_reset_spec _ _ _ _ = ()
+  let pp_clear_reset_spec _ _ _ _ _ = ()
+  let pp_step_spec _ _ _ _ _ = ()
   let pp_step_instr_spec _ _ _ _ = ()
+  let pp_ghost_set_reset_spec _ _ = ()
 end
 
 module Main = functor (Mod: MODIFIERS_SRC) -> struct
+
+  module Protos = Protos(Mod.GhostProto)
 
   (********************************************************************************************)
   (*                    Instruction Printing functions                                        *)
@@ -119,50 +127,70 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
       (*eprintf "end pp_assign@.";*)
     end
 
-  let pp_machine_ pp_machine_name fn_name m self fmt inst =
-    let (node, static) = try List.assoc inst m.minstances with Not_found ->
-      eprintf "internal error: %s %s %s %s:@." fn_name m.mname.node_id self inst;
-      raise Not_found
+  let pp_machine_ pp_machine_name fn_name m fmt ?inst self =
+    let name, static =
+      match inst with
+      | Some inst ->
+        let node, static = try List.assoc inst m.minstances with Not_found ->
+          eprintf "internal error: %s %s %s %s:@."
+            fn_name m.mname.node_id self inst;
+          raise Not_found
+        in
+        node_name node, static
+      | None ->
+        m.mname.node_id, []
     in
-    fprintf fmt "%a(%a%s->%s);"
-      pp_machine_name (node_name node)
-      (pp_print_list ~pp_sep:pp_print_comma ~pp_eol:pp_print_comma
-         Dimension.pp_dimension) static
-      self inst
+    fprintf fmt "%a(%a%s%a);"
+      pp_machine_name name
+      (pp_comma_list ~pp_eol:pp_print_comma Dimension.pp_dimension) static
+      self
+      (pp_print_option (fun fmt -> fprintf fmt "->%s")) inst
 
-  let pp_machine_reset =
-    pp_machine_ pp_machine_reset_name "pp_machine_reset"
+  let pp_machine_set_reset m self fmt inst =
+    pp_machine_ pp_machine_set_reset_name "pp_machine_set_reset" m fmt ~inst self
 
-  let pp_machine_init =
-    pp_machine_ pp_machine_init_name "pp_machine_init"
+  let pp_machine_clear_reset m self fmt =
+    pp_machine_ pp_machine_clear_reset_name "pp_machine_clear_reset" m fmt self
 
-  let pp_machine_clear =
-    pp_machine_ pp_machine_clear_name "pp_machine_clear"
+  let pp_machine_init m self fmt inst =
+    pp_machine_ pp_machine_init_name "pp_machine_init" m fmt ~inst self
 
-  let pp_call m self pp_read pp_write fmt i
-      (inputs: Machine_code_types.value_t list) (outputs: var_decl list) =
+  let pp_machine_clear m self fmt inst =
+    pp_machine_ pp_machine_clear_name "pp_machine_clear" m fmt ~inst self
+
+  let pp_call m self pp_read pp_write fmt i inputs outputs =
     try (* stateful node instance *)
       let n, _ = List.assoc i m.minstances in
-      fprintf fmt "%a (%a%a%s->%s);"
+      fprintf fmt "%a(%a%a%s->%s);"
         pp_machine_step_name (node_name n)
-        (pp_print_list ~pp_sep:pp_print_comma ~pp_eol:pp_print_comma
+        (pp_comma_list ~pp_eol:pp_print_comma
            (pp_c_val m self pp_read)) inputs
-        (pp_print_list ~pp_sep:pp_print_comma ~pp_eol:pp_print_comma
+        (pp_comma_list ~pp_eol:pp_print_comma
            pp_write) outputs
         self
         i
     with Not_found -> (* stateless node instance *)
       let n, _ = List.assoc i m.mcalls in
-      fprintf fmt "%a (%a%a);"
+      fprintf fmt "%a(%a%a);"
         pp_machine_step_name (node_name n)
-        (pp_print_list ~pp_sep:pp_print_comma ~pp_eol:pp_print_comma
+        (pp_comma_list ~pp_eol:pp_print_comma
            (pp_c_val m self pp_read)) inputs
-        (pp_print_list ~pp_sep:pp_print_comma pp_write) outputs
+        (pp_comma_list pp_write) outputs
 
   let pp_basic_instance_call m self =
     pp_call m self (pp_c_var_read m) (pp_c_var_write m)
 
-  let pp_instance_call m self fmt i (inputs: Machine_code_types.value_t list) (outputs: var_decl list) =
+  let pp_arrow_call m self fmt i outputs =
+    match outputs with
+    | [x] ->
+      fprintf fmt "%a = %a(%s->%s);"
+        (pp_c_var_read m) x
+        pp_machine_step_name Arrow.arrow_id
+        self
+        i
+    | _ -> assert false
+
+  let pp_instance_call m self fmt i inputs outputs =
     let pp_offset pp_var indices fmt var =
       fprintf fmt "%a%a"
         pp_var var
@@ -196,8 +224,11 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
   and pp_machine_instr dependencies (m: machine_t) self fmt instr =
     match get_instr_desc instr with
     | MNoReset _ -> ()
-    | MReset i ->
-      pp_machine_reset m self fmt i
+    | MSetReset inst ->
+      pp_machine_set_reset m self fmt inst
+    | MClearReset ->
+      fprintf fmt "%t@,%a"
+        (pp_machine_clear_reset m self) pp_label reset_label
     | MLocalAssign (i,v) ->
       pp_assign
         m self (pp_c_var_read m) fmt
@@ -217,7 +248,11 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
         i
         (pp_print_parenthesized (pp_c_val m self (pp_c_var_read m))) vl
     | MStep (il, i, vl) ->
-      pp_basic_instance_call m self fmt i vl il
+      let td, _ = List.assoc i m.minstances in
+      if Arrow.td_is_arrow td then
+        pp_arrow_call m self fmt i il
+      else
+        pp_basic_instance_call m self fmt i vl il
     | MBranch (_, []) ->
       eprintf "internal error: C_backend_src.pp_machine_instr %a@."
         (pp_instr m) instr;
@@ -249,15 +284,10 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
   let pp_machine_nospec_instr dependencies m self fmt _i instr =
     pp_machine_instr dependencies m self fmt instr
 
-  let pp_machine_step_instr dependencies m self fmt i instr =
-    fprintf fmt "%a%a%a"
-      (if i = 0 then
-         (fun fmt () -> fprintf fmt "%a@,"
-             (Mod.pp_step_instr_spec m self) (i, instr))
-       else
-         pp_print_nothing) ()
+  let pp_machine_step_instr dependencies m self fmt _i instr =
+    fprintf fmt "%a%a"
       (pp_machine_instr dependencies m self) instr
-      (Mod.pp_step_instr_spec m self) (i+1, instr)
+      (Mod.pp_step_instr_spec m self) instr
 
   (********************************************************************************************)
   (*                         C file Printing functions                                        *)
@@ -438,8 +468,8 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
     then
       (* C99 code *)
       pp_print_function
-        ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt machines self m)
-        ~pp_prototype:print_stateless_prototype
+        ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt machines self self m)
+        ~pp_prototype:Protos.print_stateless_prototype
         ~prototype:(m.mname.node_id, m.mstep.step_inputs, m.mstep.step_outputs)
         ~pp_local:(pp_c_decl_local_var m)
         ~base_locals:m.mstep.step_locals
@@ -459,7 +489,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
           let (id, _, _) = call_of_expr e
           in mk_call_var_decl e.expr_loc id) m.mname.node_gencalls in
       pp_print_function
-        ~pp_prototype:print_stateless_prototype
+        ~pp_prototype:Protos.print_stateless_prototype
         ~prototype:(m.mname.node_id,
                     m.mstep.step_inputs @ gen_locals @ gen_calls,
                     m.mstep.step_outputs)
@@ -474,10 +504,10 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
         ~instrs:m.mstep.step_instrs
         fmt
 
-  let print_reset_code machines dependencies self fmt m =
+  let print_clear_reset_code machines dependencies self mem fmt m =
     pp_print_function
-      ~pp_spec:(fun fmt () -> Mod.pp_reset_spec fmt machines self m)
-      ~pp_prototype:(print_reset_prototype self)
+      ~pp_spec:(fun fmt () -> Mod.pp_clear_reset_spec fmt machines self mem m)
+      ~pp_prototype:(Protos.print_clear_reset_prototype self mem)
       ~prototype:(m.mname.node_id, m.mstatic)
       ~pp_local:(pp_c_decl_local_var m)
       ~base_locals:(const_locals m)
@@ -485,11 +515,23 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
       ~instrs:m.minit
       fmt
 
+  let print_set_reset_code self mem fmt m =
+    pp_print_function
+      ~pp_spec:(fun fmt () -> Mod.pp_set_reset_spec fmt self mem m)
+      ~pp_prototype:(Protos.print_set_reset_prototype self mem)
+      ~prototype:(m.mname.node_id, m.mstatic)
+      ~pp_extra:(fun fmt () -> fprintf fmt "self->_reset = 1;%a"
+                    Mod.pp_ghost_set_reset_spec mem)
+      fmt
+
   let print_init_code self fmt m =
     let minit = List.map (fun i ->
-        match get_instr_desc i with MReset i -> i | _ -> assert false) m.minit in
+        match get_instr_desc i with
+        | MSetReset i -> i
+        | _ -> assert false)
+        m.minit in
     pp_print_function
-      ~pp_prototype:(print_init_prototype self)
+      ~pp_prototype:(Protos.print_init_prototype self)
       ~prototype:(m.mname.node_id, m.mstatic)
       ~pp_array_mem:(pp_c_decl_array_mem self)
       ~array_mems:(array_mems m)
@@ -505,9 +547,11 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
 
   let print_clear_code self fmt m =
     let minit = List.map (fun i ->
-        match get_instr_desc i with MReset i -> i | _ -> assert false) m.minit in
+        match get_instr_desc i with
+        | MSetReset i -> i
+        | _ -> assert false) m.minit in
     pp_print_function
-      ~pp_prototype:(print_clear_prototype self)
+      ~pp_prototype:(Protos.print_clear_prototype self)
       ~prototype:(m.mname.node_id, m.mstatic)
       ~pp_array_mem:(pp_c_decl_array_mem self)
       ~array_mems:(array_mems m)
@@ -521,13 +565,13 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
             fmt minit)
       fmt
 
-  let print_step_code machines dependencies self fmt m =
+  let print_step_code machines dependencies self mem fmt m =
     if not (!Options.ansi && is_generic_node (node_of_machine m))
     then
       (* C99 code *)
       pp_print_function
-        ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt machines self m)
-        ~pp_prototype:(print_step_prototype self)
+        ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt machines self mem m)
+        ~pp_prototype:(Protos.print_step_prototype self mem)
         ~prototype:(m.mname.node_id, m.mstep.step_inputs, m.mstep.step_outputs)
         ~pp_local:(pp_c_decl_local_var m)
         ~base_locals:m.mstep.step_locals
@@ -549,8 +593,8 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
           let id, _, _ = call_of_expr e in
           mk_call_var_decl e.expr_loc id) m.mname.node_gencalls in
       pp_print_function
-        ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt machines self m)
-        ~pp_prototype:(print_step_prototype self)
+        ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt machines self mem m)
+        ~pp_prototype:(Protos.print_step_prototype self mem)
         ~prototype:(m.mname.node_id,
                     m.mstep.step_inputs @ gen_locals @ gen_calls,
                     m.mstep.step_outputs)
@@ -706,12 +750,14 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
       print_stateless_code machines dependencies fmt m
     else
       let self = mk_self m in
-      fprintf fmt "@[<v>%a%a@,@,%a%a@]"
+      let mem = mk_mem m in
+      fprintf fmt "@[<v>%a%a@,@,%a@,@,%a%a@]"
         print_alloc_function m
-        (* Reset function *)
-        (print_reset_code machines dependencies self) m
+        (* Reset functions *)
+        (print_clear_reset_code machines dependencies self mem) m
+        (print_set_reset_code self mem) m
         (* Step function *)
-        (print_step_code machines dependencies self) m
+        (print_step_code machines dependencies self mem) m
         (print_mpfr_code self) m
 
   let print_import_standard source_fmt () =
@@ -826,7 +872,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
          ~pp_epilogue:pp_print_cutcut) machines
 
       (* Print the spec predicates *)
-      (Mod.pp_predicates dependencies) machines
+      Mod.pp_predicates machines
 
       (* Print nodes one by one (in the previous order) *)
       (pp_print_list

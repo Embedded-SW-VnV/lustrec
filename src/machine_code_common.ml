@@ -1,7 +1,6 @@
 open Lustre_types
 open Machine_code_types
 open Spec_types
-open Spec_common
 open Corelang
 open Utils.Format
 
@@ -10,63 +9,142 @@ let print_statelocaltag = true
 let is_memory m id =
   (List.exists (fun o -> o.var_id = id.var_id) m.mmemory) 
 
+let is_reset_flag id =
+  id.var_id = "_reset"
+
+let pp_vdecl fmt v =
+  pp_print_string fmt v.var_id
+
 let rec pp_val m fmt v =
   let pp_val = pp_val m in
   match v.value_desc with
   | Cst c         -> Printers.pp_const fmt c 
   | Var v    ->
-     if is_memory m v then
-       if print_statelocaltag then
-	 fprintf fmt "{%s}" v.var_id
-       else
-	 pp_print_string fmt v.var_id
-     else     
-       if print_statelocaltag then
-	 fprintf fmt "%s" v.var_id
-       else
-	 pp_print_string fmt v.var_id
-  | Array vl      -> fprintf fmt "[%a]" (Utils.fprintf_list ~sep:", " pp_val)  vl
+    if is_memory m v then
+      if print_statelocaltag then
+        fprintf fmt "{%s}" v.var_id
+      else
+        pp_print_string fmt v.var_id
+    else
+    if print_statelocaltag then
+      fprintf fmt "%s" v.var_id
+    else
+      pp_vdecl fmt v
+  | Array vl      -> pp_print_bracketed pp_val fmt vl
   | Access (t, i) -> fprintf fmt "%a[%a]" pp_val t pp_val i
   | Power (v, n)  -> fprintf fmt "(%a^%a)" pp_val v pp_val n
-  | Fun (n, vl)   -> fprintf fmt "%s (%a)" n (Utils.fprintf_list ~sep:", " pp_val)  vl
+  | Fun (n, vl)   -> fprintf fmt "%s%a" n (pp_print_parenthesized pp_val) vl
 
-module PrintSpec = PrintSpec(struct
-    type t = value_t
-    type ctx = machine_t
-    let pp_val = pp_val
-  end)
+module PrintSpec = struct
 
-let rec  pp_instr m fmt i =
- let     pp_val = pp_val m and
-      pp_branch = pp_branch m in
-  let _ =
-    match i.instr_desc with
+  let pp_reg fmt = function
+    | ResetFlag -> pp_print_string fmt "{RESET}"
+    | StateVar v -> fprintf fmt "{OUT:%a}" pp_vdecl v
+
+  let pp_expr: type a. machine_t -> formatter -> (value_t, a) expression_t -> unit =
+    fun m fmt -> function
+      | Val v -> pp_val m fmt v
+      | Tag t -> pp_print_string fmt t
+      | Var v -> pp_vdecl fmt v
+      | Memory r -> pp_reg fmt r
+
+  let pp_predicate m fmt p =
+    let pp_expr: type a. formatter -> (value_t, a) expression_t -> unit =
+      fun fmt e -> pp_expr m fmt e
+    in
+    match p with
+    | Transition (f, inst, i, inputs, locals, outputs) ->
+      fprintf fmt "Transition_%a<%a>%a%a"
+        pp_print_string f
+        (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "SELF")
+           pp_print_string) inst
+        (pp_print_option pp_print_int) i
+        (pp_print_parenthesized pp_expr) (inputs @ locals @ outputs)
+    | MemoryPack (f, inst, i) ->
+      fprintf fmt "MemoryPack_%a<%a>%a"
+        pp_print_string f
+        (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "SELF")
+           pp_print_string) inst
+        (pp_print_option pp_print_int) i
+    | ResetCleared f ->
+      fprintf fmt "ResetCleared_%a" pp_print_string f
+    | Initialization -> ()
+
+  let pp_spec m =
+    let pp_expr: type a. formatter -> (value_t, a) expression_t -> unit =
+      fun fmt e -> pp_expr m fmt e
+    in
+    let rec pp_spec fmt f =
+      match f with
+      | True -> pp_print_string fmt "true"
+      | False -> pp_print_string fmt "false"
+      | Equal (a, b) ->
+        fprintf fmt "%a == %a" pp_expr a pp_expr b
+      | And fs ->
+        pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ ∧ ")
+          (fun fmt spec -> fprintf fmt "@[%a@]" pp_spec spec) fmt fs
+      | Or fs ->
+        pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ ∨ ")
+          (fun fmt spec -> fprintf fmt "@[%a@]" pp_spec spec) fmt fs
+      | Imply (a, b) ->
+        fprintf fmt "%a@ -> %a" pp_spec a pp_spec b
+      | Exists (xs, a) ->
+        fprintf fmt "@[<hv 2>∃ @[<h>%a,@]@ %a@]"
+          (pp_comma_list Printers.pp_var) xs pp_spec a
+      | Forall (xs, a) ->
+        fprintf fmt "@[<hv 2>∀ @[<h>%a,@]@ %a@]"
+          (pp_comma_list Printers.pp_var) xs pp_spec a
+      | Ternary (e, a, b) ->
+        fprintf fmt "If %a Then (@[<hov>%a@]) Else (@[<hov>%a@])"
+          pp_expr e pp_spec a pp_spec b
+      | Predicate p ->
+        pp_predicate m fmt p
+      | StateVarPack r ->
+        fprintf fmt "StateVarPack<%a>" pp_reg r
+      | ExistsMem (rc, tr) ->
+        fprintf fmt "@[<hv 2>∃ MEM,@ %a@]" pp_spec (And [rc; tr])
+    in
+    pp_spec
+
+end
+
+let pp_spec m =
+  pp_print_list
+    ~pp_open_box:pp_open_vbox0
+    ~pp_prologue:pp_print_cut
+    (fun fmt -> fprintf fmt "@[<h>--%@ %a@]" (PrintSpec.pp_spec m))
+
+let rec pp_instr m fmt i =
+  let pp_val = pp_val m in
+  let pp_branch = pp_branch m in
+  begin match i.instr_desc with
     | MLocalAssign (i,v) -> fprintf fmt "%s := %a" i.var_id pp_val v
     | MStateAssign (i,v) -> fprintf fmt "{%s} := %a" i.var_id pp_val v
-    | MReset i           -> fprintf fmt "reset %s" i
+    | MSetReset i        -> fprintf fmt "set_reset %s" i
+    | MClearReset        -> fprintf fmt "clear_reset %s" m.mname.node_id
     | MNoReset i         -> fprintf fmt "noreset %s" i
     | MStep (il, i, vl)  ->
-       fprintf fmt "%a = %s (%a)"
-	 (Utils.fprintf_list ~sep:", " (fun fmt v -> pp_print_string fmt v.var_id)) il
-	 i
-	 (Utils.fprintf_list ~sep:", " pp_val) vl
+      fprintf fmt "%a := %s%a"
+        (pp_comma_list pp_vdecl) il
+        i
+        (pp_print_parenthesized pp_val) vl
     | MBranch (g,hl)     ->
-       fprintf fmt "@[<v 2>case(%a) {@,%a@,}@]"
-	 pp_val g
-	 (Utils.fprintf_list ~sep:"@," pp_branch) hl
+      fprintf fmt "@[<v 2>case(%a) {@,%a@]@,}"
+        pp_val g
+        (pp_print_list ~pp_open_box:pp_open_vbox0 pp_branch) hl
     | MComment s -> pp_print_string fmt s
     | MSpec s -> pp_print_string fmt ("@" ^ s)
-       
-  in
+
+  end;
   (* Annotation *)
   (* let _ = *)
   (*   match i.lustre_expr with None -> () | Some e -> fprintf fmt " -- original expr: %a" Printers.pp_expr e *)
   (* in *)
   begin match i.lustre_eq with
   | None -> ()
-  | Some eq -> fprintf fmt " -- original eq: %a" Printers.pp_node_eq eq
+  | Some eq -> fprintf fmt " @[<h>-- original eq: %a@]" Printers.pp_node_eq eq
   end;
-  fprintf fmt "@ --%@ %a" (PrintSpec.pp_spec m) i.instr_spec
+  pp_spec m fmt i.instr_spec
 
 
 and pp_branch m fmt (t, h) =
@@ -95,21 +173,56 @@ let get_node_def id m =
 let machine_vars m = m.mstep.step_inputs @ m.mstep.step_locals @ m.mstep.step_outputs @ m.mmemory
 
 let pp_step m fmt s =
-  let pp_list = pp_print_list ~pp_sep:pp_print_comma in
-  fprintf fmt "@[<v>inputs : %a@ outputs: %a@ locals : %a@ checks : %a@ instrs : @[%a@]@ asserts : @[%a@]@]@ "
-    (pp_list Printers.pp_var) s.step_inputs
-    (pp_list Printers.pp_var) s.step_outputs
-    (pp_list Printers.pp_var) s.step_locals
-    (pp_list (fun fmt (_, c) -> pp_val m fmt c))
+  fprintf fmt
+    "@[<v>\
+     inputs : %a@ \
+     outputs: %a@ \
+     locals : %a@ \
+     checks : %a@ \
+     instrs : @[%a@]@ \
+     asserts : @[%a@]@]@ "
+    (pp_comma_list Printers.pp_var) s.step_inputs
+    (pp_comma_list Printers.pp_var) s.step_outputs
+    (pp_comma_list Printers.pp_var) s.step_locals
+    (pp_comma_list (fun fmt (_, c) -> pp_val m fmt c))
     s.step_checks
     (pp_instrs m) s.step_instrs
-    (pp_list (pp_val m)) s.step_asserts
-
+    (pp_comma_list (pp_val m)) s.step_asserts
 
 let pp_static_call fmt (node, args) =
- fprintf fmt "%s<%a>"
-   (node_name node)
-   (Utils.fprintf_list ~sep:", " Dimension.pp_dimension) args
+  fprintf fmt "%s<%a>"
+    (node_name node)
+    (pp_comma_list Dimension.pp_dimension) args
+
+let pp_instance fmt (o1, o2) =
+  fprintf fmt "(%s, %a)"
+    o1
+    pp_static_call o2
+
+let pp_memory_pack m fmt mp =
+  fprintf fmt
+    "@[<v 2>MemoryPack_%a<SELF>%a =@ %a@]"
+    pp_print_string mp.mpname.node_id
+    (pp_print_option pp_print_int) mp.mpindex
+    (PrintSpec.pp_spec m) mp.mpformula
+
+let pp_memory_packs m fmt =
+  fprintf fmt
+    "@[<v 2>memory_packs:@ %a@]"
+    (pp_print_list (pp_memory_pack m))
+
+let pp_transition m fmt t =
+  fprintf fmt
+    "@[<v 2>Transition_%a<SELF>%a%a =@ %a@]"
+    pp_print_string t.tname.node_id
+    (pp_print_option pp_print_int) t.tindex
+    (pp_print_parenthesized pp_vdecl) (t.tinputs @ t.tlocals @ t.toutputs)
+    (PrintSpec.pp_spec m) t.tformula
+
+let pp_transitions m fmt =
+  fprintf fmt
+    "@[<v 2>transitions:@ %a@]"
+    (pp_print_list (pp_transition m))
 
 let pp_machine fmt m =
   fprintf fmt
@@ -120,24 +233,25 @@ let pp_machine fmt m =
      const    : %a@ \
      step     :@   \
      @[<v 2>%a@]@ \
-     spec     : @[%t@]@ \
+     spec     : @[<v>%t@ %a@ @ %a@]@ \
      annot    : @[%a@]@]@ "
     m.mname.node_id
-    (Utils.fprintf_list ~sep:", " Printers.pp_var) m.mmemory
-    (Utils.fprintf_list ~sep:", " (fun fmt (o1, o2) -> fprintf fmt "(%s, %a)" o1 pp_static_call o2)) m.minstances
-    (Utils.fprintf_list ~sep:"@ " (pp_instr m)) m.minit
-    (Utils.fprintf_list ~sep:"@ " (pp_instr m)) m.mconst
+    (pp_comma_list Printers.pp_var) m.mmemory
+    (pp_comma_list pp_instance) m.minstances
+    (pp_instrs m) m.minit
+    (pp_instrs m) m.mconst
     (pp_step m) m.mstep
     (fun fmt -> match m.mspec.mnode_spec with
        | None -> ()
        | Some (NodeSpec id) -> fprintf fmt "cocospec: %s" id
        | Some (Contract spec) -> Printers.pp_spec fmt spec)
-    (Utils.fprintf_list ~sep:"@ " Printers.pp_expr_annot) m.mannot
+    (pp_memory_packs m) m.mspec.mmemory_packs
+    (pp_transitions m) m.mspec.mtransitions
+    (pp_print_list Printers.pp_expr_annot) m.mannot
 
-let pp_machines fmt ml =
-  fprintf fmt "@[<v 0>%a@]" (Utils.fprintf_list ~sep:"@," pp_machine) ml
+let pp_machines =
+  pp_print_list ~pp_open_box:pp_open_vbox0 pp_machine
 
-  
 let rec is_const_value v =
   match v.value_desc with
   | Cst _          -> true
@@ -169,12 +283,26 @@ let is_output m id =
 
 let get_instr_spec i = i.instr_spec
 
+let mk_val v t =
+  { value_desc = v;
+    value_type = t;
+    value_annot = None }
+
+let vdecl_to_val vd =
+  mk_val (Var vd) vd.var_type
+
+let vdecls_to_vals =
+  List.map vdecl_to_val
+
+let id_to_tag id =
+  let typ = (typedef_of_top (Hashtbl.find Corelang.tag_table id)).tydef_id in
+  mk_val (Cst (Const_tag id)) (Type_predef.type_const typ)
+
 let mk_conditional ?lustre_eq c t e =
   mkinstr ?lustre_eq
     (* (Ternary (Val c,
      *           And (List.map get_instr_spec t),
      *           And (List.map get_instr_spec e))) *)
-    True
     (MBranch(c, [
          (tag_true, t);
          (tag_false, e) ]))
@@ -184,20 +312,13 @@ let mk_branch ?lustre_eq c br =
     (* (And (List.map (fun (l, instrs) ->
      *      Imply (Equal (Val c, Tag l), And (List.map get_instr_spec instrs)))
      *      br)) *)
-    True
-    (MBranch (c, br))
+    (MBranch (vdecl_to_val c, br))
 
 let mk_assign ?lustre_eq x v =
   mkinstr ?lustre_eq
     (* (Equal (Var x, Val v)) *)
-    True
     (MLocalAssign (x, v))
 
-let mk_val v t =
-  { value_desc = v; 
-    value_type = t; 
-    value_annot = None }
-    
 let arrow_machine =
   let state = "_first" in
   let var_state = dummy_var_decl state Type_predef.type_bool(* (Types.new_ty Types.Tbool) *) in
@@ -212,7 +333,7 @@ let arrow_machine =
     mmemory = [var_state];
     mcalls = [];
     minstances = [];
-    minit = [mkinstr True (MStateAssign(var_state, cst true))];
+    minit = [mkinstr (MStateAssign(var_state, cst true))];
     mstatic = [];
     mconst = [];
     mstep = {
@@ -221,14 +342,14 @@ let arrow_machine =
       step_locals = [];
       step_checks = [];
       step_instrs = [mk_conditional (mk_val (Var var_state) Type_predef.type_bool)
-			(List.map (mkinstr True)
-			[MStateAssign(var_state, cst false);
-			 MLocalAssign(var_output, mk_val (Var var_input1) t_arg)])
-                        (List.map (mkinstr True)
-			[MLocalAssign(var_output, mk_val (Var var_input2) t_arg)]) ];
+                       (List.map mkinstr
+                          [MStateAssign(var_state, cst false);
+                           MLocalAssign(var_output, mk_val (Var var_input1) t_arg)])
+                       (List.map mkinstr
+                          [MLocalAssign(var_output, mk_val (Var var_input2) t_arg)]) ];
       step_asserts = [];
     };
-    mspec = { mnode_spec = None; mtransitions = [] };
+    mspec = { mnode_spec = None; mtransitions = []; mmemory_packs = [] };
     mannot = [];
     msch = None
   }
@@ -269,7 +390,7 @@ let empty_machine =
       step_instrs = [];
       step_asserts = [];
     };
-    mspec = { mnode_spec = None; mtransitions = [] };
+    mspec = { mnode_spec = None; mtransitions = []; mmemory_packs = [] };
     mannot = [];
     msch = None
   }
@@ -374,7 +495,7 @@ let rec dimension_of_value value =
   | _                                             -> assert false
 
 
-     let rec join_branches hl1 hl2 =
+let rec join_branches hl1 hl2 =
  match hl1, hl2 with
  | []          , _            -> hl2
  | _           , []           -> hl1
@@ -384,15 +505,16 @@ let rec dimension_of_value value =
    else (t1, List.fold_right join_guards h1 h2) :: join_branches q1 q2
 
 and join_guards inst1 insts2 =
- match get_instr_desc inst1, List.map get_instr_desc insts2 with
- | _                   , []                               ->
-   [inst1]
- | MBranch (x1, hl1), MBranch (x2, hl2) :: _ when x1 = x2 ->
-    mkinstr True
-      (* TODO on pourrait uniquement concatener les lustres de inst1 et hd(inst2) *)
-      (MBranch (x1, join_branches (sort_handlers hl1) (sort_handlers hl2)))
-   :: (List.tl insts2)
- | _ -> inst1 :: insts2
+ match get_instr_desc inst1, insts2 with
+   | MBranch (x1, hl1),
+     ({ instr_desc = MBranch (x2, hl2); _ } as inst2) :: insts2
+     when x1 = x2 ->
+     mkinstr
+       ~instr_spec:(get_instr_spec inst1 @ get_instr_spec inst2)
+       (* TODO on pourrait uniquement concatener les lustres de inst1 et hd(inst2) *)
+       (MBranch (x1, join_branches (sort_handlers hl1) (sort_handlers hl2)))
+     :: insts2
+   | _ -> inst1 :: insts2
 
 let join_guards_list insts =
  List.fold_right join_guards insts []

@@ -220,7 +220,7 @@ let pp_scopes fmt scopes =
                         
 let update_machine main_node machine scopes =
   let stateassign (vdecl_mem, vdecl_orig) =
-    mkinstr True
+    mkinstr
     (MStateAssign (vdecl_mem, mk_val (Var vdecl_orig) vdecl_orig.var_type))
   in
   let selection =
@@ -248,7 +248,7 @@ let update_machine main_node machine scopes =
     mstep = { 
       machine.mstep with 
         step_instrs = machine.mstep.step_instrs
-        @ (mkinstr True (MComment "Registering all flows"))::(List.map stateassign new_mems)
+        @ (mkinstr (MComment "Registering all flows"))::(List.map stateassign new_mems)
           
     }
   }

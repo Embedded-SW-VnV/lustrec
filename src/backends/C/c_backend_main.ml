@@ -87,7 +87,7 @@ module Main = functor (Mod: MODIFIERS_MAINSRC) -> struct
              fprintf fmt "%a *main_mem = %a();"
                (pp_machine_memtype_name ~ghost:false) mname
                pp_machine_alloc_name mname) ()
-        pp_machine_reset_name mname
+        pp_machine_set_reset_name mname
         main_mem
 
   let print_global_initialize fmt basename =

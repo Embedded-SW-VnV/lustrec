@@ -257,7 +257,7 @@ let update_expr_annot node_id e annot =
   e
 
 
-let mkinstr ?lustre_eq instr_spec instr_desc = {
+let mkinstr ?lustre_eq ?(instr_spec=[]) instr_desc = {
   instr_desc;
   (* lustre_expr = lustre_expr; *)
   instr_spec;
@@ -662,9 +662,10 @@ let get_nodes prog =
   List.fold_left (
     fun nodes decl ->
       match decl.top_decl_desc with
-	| Node _ -> decl::nodes
-	| Const _ | ImportedNode _ | Include _ | Open _ | TypeDef _ -> nodes  
+      | Node _ -> decl::nodes
+      | Const _ | ImportedNode _ | Include _ | Open _ | TypeDef _ -> nodes
   ) [] prog
+  |> List.rev
 
 let get_imported_nodes prog = 
   List.fold_left (

@@ -30,3 +30,6 @@ let arrow_top_decl () =
     top_decl_itf = false;
     top_decl_loc = Location.dummy_loc
   }
+
+let td_is_arrow td =
+  Corelang.node_name td = arrow_id

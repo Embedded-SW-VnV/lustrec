@@ -37,6 +37,14 @@ let file_to_module_name basename =
   let baseNAME = protect_filename baseNAME in
   baseNAME
 
+let pp_ptr fmt =
+  fprintf fmt "*%s"
+
+let reset_label = "Reset"
+
+let pp_label fmt =
+  fprintf fmt "%s:"
+
 let var_is name v =
   v.var_id = name
 
@@ -55,6 +63,7 @@ let mk_self = mk_local "self"
 let mk_mem = mk_local "mem"
 let mk_mem_in = mk_local "mem_in"
 let mk_mem_out = mk_local "mem_out"
+let mk_mem_reset = mk_local "mem_reset"
 
 (* Generation of a non-clashing name for the instance variable of static allocation macro *)
 let mk_instance m =
@@ -118,13 +127,18 @@ let pp_global_init_name fmt id = fprintf fmt "%s_INIT" id
 let pp_global_clear_name fmt id = fprintf fmt "%s_CLEAR" id
 let pp_machine_memtype_name ?(ghost=false) fmt id =
   fprintf fmt "struct %s_mem%s" id (if ghost then "_ghost" else "")
+let pp_machine_decl ?(ghost=false) pp_var fmt (id, var) =
+  fprintf fmt "%a %a" (pp_machine_memtype_name ~ghost) id pp_var var
+let pp_machine_decl' ?(ghost=false) fmt =
+  pp_machine_decl ~ghost pp_print_string fmt
 let pp_machine_regtype_name fmt id = fprintf fmt "struct %s_reg" id
 let pp_machine_alloc_name fmt id = fprintf fmt "%s_alloc" id
 let pp_machine_dealloc_name fmt id = fprintf fmt "%s_dealloc" id
 let pp_machine_static_declare_name fmt id = fprintf fmt "%s_DECLARE" id
 let pp_machine_static_link_name fmt id = fprintf fmt "%s_LINK" id
 let pp_machine_static_alloc_name fmt id = fprintf fmt "%s_ALLOC" id
-let pp_machine_reset_name fmt id = fprintf fmt "%s_reset" id
+let pp_machine_set_reset_name fmt id = fprintf fmt "%s_set_reset" id
+let pp_machine_clear_reset_name fmt id = fprintf fmt "%s_clear_reset" id
 let pp_machine_init_name fmt id = fprintf fmt "%s_init" id
 let pp_machine_clear_name fmt id = fprintf fmt "%s_clear" id
 let pp_machine_step_name fmt id = fprintf fmt "%s_step" id
@@ -583,6 +597,9 @@ let rec pp_value_suffix ?(indirect=true) m self var_type loop_vars pp_var fmt va
       then fprintf fmt "%a%a" pp_var v pp_suffix loop_vars
       else fprintf fmt "%s%s_reg.%a%a"
           self (if indirect then "->" else ".") pp_var v pp_suffix loop_vars
+    else if is_reset_flag v then
+      fprintf fmt "%s%s%a%a"
+          self (if indirect then "->" else ".") pp_var v pp_suffix loop_vars
     else
       fprintf fmt "%a%a" pp_var v pp_suffix loop_vars
   | _, Cst cst ->
@@ -610,7 +627,7 @@ let rec pp_value_suffix ?(indirect=true) m self var_type loop_vars pp_var fmt va
 let print_machine_struct ?(ghost=false) fmt m =
   if not (fst (Machine_code_common.get_stateless_status m)) then
     (* Define struct *)
-    fprintf fmt "@[<v 2>%a {%a%a@]@,};"
+    fprintf fmt "@[<v 2>%a {@,_Bool _reset;%a%a@]@,};"
       (pp_machine_memtype_name ~ghost) m.mname.node_id
       (if ghost then
          (fun fmt -> function
@@ -658,46 +675,74 @@ let print_dealloc_prototype fmt name =
     pp_machine_dealloc_name name
     (pp_machine_memtype_name ~ghost:false) name
 
-let print_reset_prototype self fmt (name, static) =
-  fprintf fmt "void %a (%a%a *%s)"
-    pp_machine_reset_name name
-    (pp_print_list ~pp_sep:pp_print_comma ~pp_eol:pp_print_comma
-       pp_c_decl_input_var) static
-    (pp_machine_memtype_name ~ghost:false) name
-    self
+module type MODIFIERS_GHOST_PROTO = sig
+  val pp_ghost_parameters: formatter -> (string * (formatter -> string -> unit)) list -> unit
+end
 
-let print_init_prototype self fmt (name, static) =
-  fprintf fmt "void %a (%a%a *%s)"
-    pp_machine_init_name name
-    (pp_print_list ~pp_sep:pp_print_comma ~pp_eol:pp_print_comma
-       pp_c_decl_input_var) static
-    (pp_machine_memtype_name ~ghost:false) name
-    self
+module EmptyGhostProto: MODIFIERS_GHOST_PROTO = struct
+  let pp_ghost_parameters _ _ = ()
+end
 
-let print_clear_prototype self fmt (name, static) =
-  fprintf fmt "void %a (%a%a *%s)"
-    pp_machine_clear_name name
-    (pp_print_list ~pp_sep:pp_print_comma ~pp_eol:pp_print_comma
-       pp_c_decl_input_var) static
-    (pp_machine_memtype_name ~ghost:false) name
-    self
+module Protos (Mod: MODIFIERS_GHOST_PROTO) = struct
 
-let print_stateless_prototype fmt (name, inputs, outputs) =
-  fprintf fmt "void %a (@[<v>%a%a@])"
-    pp_machine_step_name name
-    (pp_print_list ~pp_sep:pp_print_comma ~pp_eol:pp_print_comma
-       ~pp_epilogue:pp_print_cut pp_c_decl_input_var) inputs
-    (pp_print_list ~pp_sep:pp_print_comma pp_c_decl_output_var) outputs
+  let pp_mem_ghost name fmt mem =
+    pp_machine_decl ~ghost:true
+      (fun fmt mem -> fprintf fmt "\ghost %a" pp_ptr mem) fmt
+      (name, mem)
 
-let print_step_prototype self fmt (name, inputs, outputs) =
-  fprintf fmt "void %a (@[<v>%a%a%a *%s@])"
-    pp_machine_step_name name
-    (pp_print_list ~pp_sep:pp_print_comma ~pp_eol:pp_print_comma
-       ~pp_epilogue:pp_print_cut pp_c_decl_input_var) inputs
-    (pp_print_list ~pp_sep:pp_print_comma ~pp_eol:pp_print_comma
-       ~pp_epilogue:pp_print_cut pp_c_decl_output_var) outputs
-    (pp_machine_memtype_name ~ghost:false) name
-    self
+  let print_clear_reset_prototype self mem fmt (name, static) =
+    fprintf fmt "@[<v>void %a (%a%a *%s)%a@]"
+      pp_machine_clear_reset_name name
+      (pp_comma_list ~pp_eol:pp_print_comma
+         pp_c_decl_input_var) static
+      (pp_machine_memtype_name ~ghost:false) name
+      self
+      Mod.pp_ghost_parameters [mem, pp_mem_ghost name]
+
+  let print_set_reset_prototype self mem fmt (name, static) =
+    fprintf fmt "@[<v>void %a (%a%a *%s)%a@]"
+      pp_machine_set_reset_name name
+      (pp_comma_list ~pp_eol:pp_print_comma
+         pp_c_decl_input_var) static
+      (pp_machine_memtype_name ~ghost:false) name
+      self
+      Mod.pp_ghost_parameters [mem, pp_mem_ghost name]
+
+  let print_step_prototype self mem fmt (name, inputs, outputs) =
+    fprintf fmt "@[<v>void %a (@[<v>%a%a%a *%s@])%a@]"
+      pp_machine_step_name name
+      (pp_comma_list ~pp_eol:pp_print_comma
+         ~pp_epilogue:pp_print_cut pp_c_decl_input_var) inputs
+      (pp_comma_list ~pp_eol:pp_print_comma
+         ~pp_epilogue:pp_print_cut pp_c_decl_output_var) outputs
+      (pp_machine_memtype_name ~ghost:false) name
+      self
+      Mod.pp_ghost_parameters [mem, pp_mem_ghost name]
+
+  let print_init_prototype self fmt (name, static) =
+    fprintf fmt "void %a (%a%a *%s)"
+      pp_machine_init_name name
+      (pp_comma_list ~pp_eol:pp_print_comma
+         pp_c_decl_input_var) static
+      (pp_machine_memtype_name ~ghost:false) name
+      self
+
+  let print_clear_prototype self fmt (name, static) =
+    fprintf fmt "void %a (%a%a *%s)"
+      pp_machine_clear_name name
+      (pp_comma_list ~pp_eol:pp_print_comma
+         pp_c_decl_input_var) static
+      (pp_machine_memtype_name ~ghost:false) name
+      self
+
+  let print_stateless_prototype fmt (name, inputs, outputs) =
+    fprintf fmt "void %a (@[<v>%a%a@])"
+      pp_machine_step_name name
+      (pp_comma_list ~pp_eol:pp_print_comma
+         ~pp_epilogue:pp_print_cut pp_c_decl_input_var) inputs
+      (pp_comma_list pp_c_decl_output_var) outputs
+
+end
 
 let print_import_prototype fmt dep =
   fprintf fmt "#include \"%s.h\"" dep.name

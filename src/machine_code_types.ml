@@ -23,12 +23,13 @@ type instr_t =
     instr_desc: instr_t_desc; (* main data: the content *)
     (* lustre_expr: expr option; (* possible representation as a lustre expression *) *)
     lustre_eq: eq option;     (* possible representation as a lustre flow equation *)
-    instr_spec: mc_formula_t
+    instr_spec: mc_formula_t list
   }
 and instr_t_desc =
   | MLocalAssign of var_decl * value_t
   | MStateAssign of var_decl * value_t
-  | MReset of ident
+  | MClearReset
+  | MSetReset of ident
   | MNoReset of ident
   | MStep of var_decl list * ident * value_t list
   | MBranch of value_t * (label * instr_t list) list
@@ -47,10 +48,12 @@ type step_t = {
 type static_call = top_decl * (Dimension.dim_expr list)
 
 type mc_transition_t = value_t transition_t
+type mc_memory_pack_t = value_t memory_pack_t
 
 type machine_spec = {
   mnode_spec: node_spec_t option;
-  mtransitions: mc_transition_t list
+  mtransitions: mc_transition_t list;
+  mmemory_packs: mc_memory_pack_t list
 }
   
 type machine_t = {
