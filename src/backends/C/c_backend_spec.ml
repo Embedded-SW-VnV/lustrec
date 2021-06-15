@@ -49,6 +49,12 @@ let pp_acsl_cut pp fmt =
 let pp_acsl_line pp fmt =
   fprintf fmt "//%@ @[<h>%a@]" pp
 
+let pp_acsl_line' pp fmt =
+  fprintf fmt "/*%@ @[<h>%a@] */" pp
+
+let pp_acsl_line_cut pp fmt =
+  fprintf fmt "%a@," (pp_acsl_line pp)
+
 let pp_requires pp_req fmt =
   fprintf fmt "requires %a;" pp_req
 
@@ -362,7 +368,7 @@ module PrintSpec = struct
 
   let pp_reg pp_mem fmt = function
     | ResetFlag ->
-      fprintf fmt "%t_reset" pp_mem
+      fprintf fmt "%t%s" pp_mem reset_flag_name
     | StateVar x ->
       fprintf fmt "%t%a" pp_mem pp_var_decl x
 
@@ -695,7 +701,7 @@ let label_pre = "Pre"
 let pp_at_pre pp_p fmt p =
   pp_at pp_p fmt (p, label_pre)
 
-let pp_register ?(indirect=true) ptr =
+let pp_register_chain ?(indirect=true) ptr =
   pp_print_list
     ~pp_prologue:(fun fmt () -> fprintf fmt "%s->" ptr)
     ~pp_epilogue:(fun fmt () -> fprintf fmt "%s_reg._first"
@@ -703,19 +709,24 @@ let pp_register ?(indirect=true) ptr =
     ~pp_sep:(fun fmt () -> pp_print_string fmt (if indirect then "->" else "."))
     (fun fmt (i, _) -> pp_print_string fmt i)
 
-let pp_reset_flag ?(indirect=true) ptr fmt mems =
+let pp_reset_flag_chain ?(indirect=true) ptr fmt mems =
   pp_print_list
     ~pp_prologue:(fun fmt () -> fprintf fmt "%s->" ptr)
-    ~pp_epilogue:(fun fmt () -> fprintf fmt "%s_reset"
-                     (if indirect then "->" else "."))
+    ~pp_epilogue:(fun fmt () -> pp_reset_flag ~indirect fmt "")
     ~pp_sep:(fun fmt () -> pp_print_string fmt (if indirect then "->" else "."))
     (fun fmt (i, _) -> pp_print_string fmt i)
     fmt mems
 
+let pp_arrow_reset_ghost mem fmt inst =
+  fprintf fmt "%s_reset_ghost(%a)" Arrow.arrow_id pp_indirect' (mem, inst)
+
 module GhostProto: MODIFIERS_GHOST_PROTO = struct
-  let pp_ghost_parameters fmt vs =
-    fprintf fmt "@;%a"
-      (pp_acsl (pp_ghost (pp_print_parenthesized (fun fmt (x, pp) -> pp fmt x))))
+  let pp_ghost_parameters ?(cut=true) fmt vs =
+    fprintf fmt "%a%a"
+      (if cut then pp_print_cut else pp_print_nothing) ()
+      (pp_acsl_line'
+         (pp_ghost
+            (pp_print_parenthesized (fun fmt (x, pp) -> pp fmt x))))
       vs
 end
 
@@ -763,33 +774,37 @@ module SrcMod = struct
          pp_transition_defs
          ~pp_epilogue:pp_print_cutcut) machines
 
-  let pp_clear_reset_spec fmt machines self mem m =
+  let pp_clear_reset_spec fmt self mem m =
     let name = m.mname.node_id in
     let arws, narws = List.partition (fun (_, (td, _)) -> Arrow.td_is_arrow td)
         m.minstances in
     let mk_insts = List.map (fun x -> [x]) in
     pp_acsl_cut (fun fmt () ->
         fprintf fmt
-          "%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,\
+          "%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,\
           @[<v 2>behavior reset:@;\
           %a@,%a@]@,\
           @[<v 2>behavior no_reset:@;\
-          %a@,%a@]"
+          %a@,%a@]@,\
+          complete behaviors;@,\
+          disjoint behaviors;"
           (pp_requires pp_mem_valid') (name, self)
           (pp_requires (pp_separated self mem)) (mk_insts m.minstances, [])
+          (pp_requires (pp_memory_pack_aux pp_ptr pp_print_string))
+          (name, mem, self)
           (pp_ensures (pp_memory_pack_aux
                          ~i:(List.length m.mspec.mmemory_packs - 2)
                          pp_ptr pp_print_string))
           (name, mem, self)
-          (pp_assigns pp_indirect') [self, "_reset"]
-          (pp_assigns (pp_register self)) (mk_insts arws)
-          (pp_assigns (pp_reset_flag self)) (mk_insts narws)
-          (pp_assigns pp_indirect') [mem, "_reset"]
-          (pp_assigns (pp_register ~indirect:false mem)) (mk_insts arws)
-          (pp_assigns (pp_reset_flag ~indirect:false mem)) (mk_insts narws)
-          (pp_assumes (pp_equal pp_indirect' pp_print_int)) ((mem, "_reset"), 1)
+          (pp_assigns pp_reset_flag) [self]
+          (pp_assigns (pp_register_chain self)) (mk_insts arws)
+          (pp_assigns (pp_reset_flag_chain self)) (mk_insts narws)
+          (pp_assigns pp_reset_flag) [mem]
+          (pp_assigns (pp_register_chain ~indirect:false mem)) (mk_insts arws)
+          (pp_assigns (pp_reset_flag_chain ~indirect:false mem)) (mk_insts narws)
+          (pp_assumes (pp_equal pp_reset_flag pp_print_int)) (mem, 1)
           (pp_ensures (pp_initialization pp_ptr)) (name, mem)
-          (pp_assumes (pp_equal pp_indirect' pp_print_int)) ((mem, "_reset"), 0)
+          (pp_assumes (pp_equal pp_reset_flag pp_print_int)) (mem, 0)
           (pp_ensures (pp_equal pp_ptr (pp_old pp_ptr))) (mem, mem)
       )
       fmt ()
@@ -800,8 +815,8 @@ module SrcMod = struct
         fprintf fmt
           "%a@,%a@,%a"
           (pp_ensures (pp_memory_pack_aux pp_ptr pp_print_string)) (name, mem, self)
-          (pp_ensures (pp_equal pp_indirect' pp_print_string)) ((mem, "_reset"), "1")
-          (pp_assigns (fun fmt ptr -> pp_indirect' fmt (ptr, "_reset"))) [self; mem])
+          (pp_ensures (pp_equal pp_reset_flag pp_print_string)) (mem, "1")
+          (pp_assigns pp_reset_flag) [self; mem])
       fmt ()
 
   let pp_step_spec fmt machines self mem m =
@@ -833,29 +848,56 @@ module SrcMod = struct
             (pp_assigns pp_ptr_decl) outputs
             (pp_assigns (pp_reg self)) m.mmemory
             (pp_assigns (pp_memory self)) (memories insts')
-            (pp_assigns (pp_register self)) insts
-            (pp_assigns (pp_reset_flag self)) insts''
+            (pp_assigns (pp_register_chain self)) insts
+            (pp_assigns (pp_reset_flag_chain self)) insts''
             (pp_assigns (pp_reg mem)) m.mmemory
             (pp_assigns (pp_memory ~indirect:false mem)) (memories insts')
-            (pp_assigns (pp_register ~indirect:false mem)) insts
-            (pp_assigns (pp_reset_flag ~indirect:false mem)) insts''
+            (pp_assigns (pp_register_chain ~indirect:false mem)) insts
+            (pp_assigns (pp_reset_flag_chain ~indirect:false mem)) insts''
             (pp_ensures (pp_transition_aux m (pp_old pp_ptr)
                            pp_ptr pp_var_decl pp_ptr_decl))
             (name, inputs, [], outputs, mem, mem)
       )
       fmt ()
 
-  let pp_step_instr_spec m self fmt instr =
-    fprintf fmt "@,%a"
-      (pp_print_list ~pp_open_box:pp_open_vbox0
-         (pp_acsl (pp_assert (PrintSpec.pp_spec (InstrMode self) m))))
+  let pp_ghost_instr_code m self fmt instr = match instr.instr_desc with
+    | MStateAssign (x, v) ->
+      fprintf fmt "@,%a"
+        (pp_acsl_line
+           (pp_ghost
+              (pp_assign m self (pp_c_var_read m))))
+        (x, v)
+    | MResetAssign b ->
+      fprintf fmt "@,%a"
+        (pp_acsl_line
+           (pp_ghost
+              (pp_reset_assign self)))
+        b
+    | MSetReset inst ->
+      let td, _ = List.assoc inst m.minstances in
+      if Arrow.td_is_arrow td then
+         fprintf fmt "@,%a"
+           (pp_acsl_line
+              (pp_ghost
+                 (pp_arrow_reset_ghost self)))
+           inst
+    | _ -> ()
+
+  let pp_step_instr_spec m self mem fmt instr =
+    fprintf fmt "%a%a"
+      (pp_ghost_instr_code m mem) instr
+      (pp_print_list ~pp_open_box:pp_open_vbox0 ~pp_prologue:pp_print_cut
+         (pp_acsl_line' (pp_assert (PrintSpec.pp_spec (InstrMode self) m))))
       instr.instr_spec
 
-  let pp_ghost_set_reset_spec fmt =
-    fprintf fmt "@;%a@;"
-      (pp_acsl_line
-         (pp_ghost
-            (fun fmt mem -> fprintf fmt "%a = 1;" pp_indirect' (mem, "_reset"))))
+  let pp_ghost_parameter mem fmt inst =
+    GhostProto.pp_ghost_parameters ~cut:false fmt
+      (match inst with
+       | Some inst ->
+         [inst, fun fmt inst -> fprintf fmt "&%a" pp_indirect' (mem, inst)]
+       | None ->
+         [mem, pp_print_string])
+
 end
 
 (**************************************************************************)

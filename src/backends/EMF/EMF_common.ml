@@ -316,6 +316,9 @@ let rec pp_emf_cst_or_var m fmt v =
      fprintf fmt "@]}"
   )
   | Fun _ -> eprintf "Fun expression should have been normalized: %a@." (pp_val m) v ; assert false (* Invalid argument *)
+  | ResetFlag ->
+    (* TODO: handle reset flag *)
+    assert false
 
 and pp_emf_cst_or_var_list m =
   Utils.fprintf_list ~sep:",@ " (pp_emf_cst_or_var m)

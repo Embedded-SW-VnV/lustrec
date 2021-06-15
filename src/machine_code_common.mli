@@ -12,7 +12,8 @@ val vdecl_to_val: Lustre_types.var_decl -> Machine_code_types.value_t
 val vdecls_to_vals: Lustre_types.var_decl list -> Machine_code_types.value_t list
 val id_to_tag: Lustre_types.ident -> Machine_code_types.value_t
 val mk_conditional: ?lustre_eq:Lustre_types.eq -> Machine_code_types.value_t -> Machine_code_types.instr_t list -> Machine_code_types.instr_t list -> Machine_code_types.instr_t
-val mk_branch: ?lustre_eq:Lustre_types.eq -> Lustre_types.var_decl -> (Lustre_types.label * Machine_code_types.instr_t list) list -> Machine_code_types.instr_t
+val mk_branch: ?lustre_eq:Lustre_types.eq -> Machine_code_types.value_t -> (Lustre_types.label * Machine_code_types.instr_t list) list -> Machine_code_types.instr_t
+val mk_branch': ?lustre_eq:Lustre_types.eq -> Lustre_types.var_decl -> (Lustre_types.label * Machine_code_types.instr_t list) list -> Machine_code_types.instr_t
 val mk_assign: ?lustre_eq:Lustre_types.eq -> Lustre_types.var_decl -> Machine_code_types.value_t -> Machine_code_types.instr_t
 val empty_machine: Machine_code_types.machine_t
 val arrow_machine: Machine_code_types.machine_t

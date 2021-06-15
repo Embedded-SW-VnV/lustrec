@@ -161,7 +161,7 @@ let rec translate_act env (y, expr) =
         let h, spec_h = translate_act (y, h) in
         (t, [h]), (t, spec_h))
         hl)) in
-    mk_branch ~lustre_eq var_x hl,
+    mk_branch' ~lustre_eq var_x hl,
     mk_branch_tr var_x spec_hl
   | _ ->
     let e = translate_expr expr in

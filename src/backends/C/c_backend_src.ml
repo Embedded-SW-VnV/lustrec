@@ -20,20 +20,20 @@ module type MODIFIERS_SRC = sig
   module GhostProto: MODIFIERS_GHOST_PROTO
   val pp_predicates: formatter -> machine_t list -> unit
   val pp_set_reset_spec: formatter -> ident -> ident -> machine_t -> unit
-  val pp_clear_reset_spec: formatter -> machine_t list -> ident -> ident -> machine_t -> unit
+  val pp_clear_reset_spec: formatter -> ident -> ident -> machine_t -> unit
   val pp_step_spec: formatter -> machine_t list -> ident -> ident -> machine_t -> unit
-  val pp_step_instr_spec: machine_t -> ident -> formatter -> instr_t -> unit
-  val pp_ghost_set_reset_spec: formatter -> ident -> unit
+  val pp_step_instr_spec: machine_t -> ident -> ident -> formatter -> instr_t -> unit
+  val pp_ghost_parameter: ident -> formatter -> ident option -> unit
 end
 
 module EmptyMod = struct
   module GhostProto = EmptyGhostProto
   let pp_predicates _ _ = ()
   let pp_set_reset_spec _ _ _ _ = ()
-  let pp_clear_reset_spec _ _ _ _ _ = ()
+  let pp_clear_reset_spec _ _ _ _ = ()
   let pp_step_spec _ _ _ _ _ = ()
-  let pp_step_instr_spec _ _ _ _ = ()
-  let pp_ghost_set_reset_spec _ _ = ()
+  let pp_step_instr_spec _ _ _ _ _ = ()
+  let pp_ghost_parameter _ _ _ = ()
 end
 
 module Main = functor (Mod: MODIFIERS_SRC) -> struct
@@ -55,7 +55,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
   let rec static_loop_profile v =
     match v.value_desc with
     | Cst cst  -> static_loop_profile_cst cst
-    | Var _  -> []
+    | Var _  | ResetFlag -> []
     | Fun (_, vl) ->
       List.fold_right
         (fun v lp -> merge_static_loop_profiles lp (static_loop_profile v)) vl []
@@ -81,54 +81,8 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
   let pp_c_val m self pp_var fmt v =
     pp_value_suffix m self v.value_type [] pp_var fmt v
 
-  let pp_basic_assign pp_var fmt typ var_name value =
-    if Types.is_real_type typ && !Options.mpfr
-    then
-      Mpfr.pp_inject_assign pp_var fmt (var_name, value)
-    else
-      fprintf fmt "%a = %a;"
-        pp_var var_name
-        pp_var value
-
-  (* type_directed assignment: array vs. statically sized type
-     - [var_type]: type of variable to be assigned
-     - [var_name]: name of variable to be assigned
-     - [value]: assigned value
-     - [pp_var]: printer for variables
-  *)
-  let pp_assign m self pp_var fmt var_type var_name value =
-    let depth = expansion_depth value in
-    (*eprintf "pp_assign %a %a %a %d@." Types.print_ty var_type pp_val var_name pp_val value depth;*)
-    let loop_vars = mk_loop_variables m var_type depth in
-    let reordered_loop_vars = reorder_loop_variables loop_vars in
-    let rec aux typ fmt vars =
-      match vars with
-      | [] ->
-        pp_basic_assign (pp_value_suffix m self var_type loop_vars pp_var)
-          fmt typ var_name value
-      | (d, LVar i) :: q ->
-        let typ' = Types.array_element_type typ in
-        (*eprintf "pp_aux %a %s@." Dimension.pp_dimension d i;*)
-        fprintf fmt "@[<v 2>{@,int %s;@,for(%s=0;%s<%a;%s++)@,%a @]@,}"
-          i i i pp_c_dimension d i
-          (aux typ') q
-      | (d, LInt r) :: q ->
-        (*eprintf "pp_aux %a %d@." Dimension.pp_dimension d (!r);*)
-        let typ' = Types.array_element_type typ in
-        let szl = Utils.enumerate (Dimension.size_const_dimension d) in
-        fprintf fmt "@[<v 2>{@,%a@]@,}"
-          (pp_print_list (fun fmt i -> r := i; aux typ' fmt q)) szl
-      | _ -> assert false
-    in
-    begin
-      reset_loop_counter ();
-      (*reset_addr_counter ();*)
-      aux var_type fmt reordered_loop_vars;
-      (*eprintf "end pp_assign@.";*)
-    end
-
-  let pp_machine_ pp_machine_name fn_name m fmt ?inst self =
-    let name, static =
+  let pp_machine_ pp_machine_name fn_name m fmt ?inst self mem =
+    let name, is_arrow, static =
       match inst with
       | Some inst ->
         let node, static = try List.assoc inst m.minstances with Not_found ->
@@ -136,32 +90,40 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
             fn_name m.mname.node_id self inst;
           raise Not_found
         in
-        node_name node, static
+        node_name node, Arrow.td_is_arrow node, static
       | None ->
-        m.mname.node_id, []
+        m.mname.node_id, false, []
     in
-    fprintf fmt "%a(%a%s%a);"
-      pp_machine_name name
+    let is_arrow_reset = is_arrow && fn_name = "pp_machine_set_reset" in
+    fprintf fmt "%a(%a%s%a)%a;"
+      (if is_arrow_reset then
+         (fun fmt -> fprintf fmt "%s_reset")
+       else
+         pp_machine_name) name
       (pp_comma_list ~pp_eol:pp_print_comma Dimension.pp_dimension) static
       self
       (pp_print_option (fun fmt -> fprintf fmt "->%s")) inst
+      (if is_arrow_reset then pp_print_nothing else Mod.pp_ghost_parameter mem)
+      inst
 
-  let pp_machine_set_reset m self fmt inst =
-    pp_machine_ pp_machine_set_reset_name "pp_machine_set_reset" m fmt ~inst self
+  let pp_machine_set_reset m self mem fmt inst =
+    pp_machine_ pp_machine_set_reset_name "pp_machine_set_reset" m fmt ~inst
+      self mem
 
-  let pp_machine_clear_reset m self fmt =
-    pp_machine_ pp_machine_clear_reset_name "pp_machine_clear_reset" m fmt self
+  let pp_machine_clear_reset m self mem fmt =
+    pp_machine_ pp_machine_clear_reset_name "pp_machine_clear_reset" m fmt
+      self mem
 
-  let pp_machine_init m self fmt inst =
-    pp_machine_ pp_machine_init_name "pp_machine_init" m fmt ~inst self
+  let pp_machine_init m self mem fmt inst =
+    pp_machine_ pp_machine_init_name "pp_machine_init" m fmt ~inst self mem
 
-  let pp_machine_clear m self fmt inst =
-    pp_machine_ pp_machine_clear_name "pp_machine_clear" m fmt ~inst self
+  let pp_machine_clear m self mem fmt inst =
+    pp_machine_ pp_machine_clear_name "pp_machine_clear" m fmt ~inst self mem
 
-  let pp_call m self pp_read pp_write fmt i inputs outputs =
+  let pp_call m self mem pp_read pp_write fmt i inputs outputs =
     try (* stateful node instance *)
       let n, _ = List.assoc i m.minstances in
-      fprintf fmt "%a(%a%a%s->%s);"
+      fprintf fmt "%a(%a%a%s->%s)%a;"
         pp_machine_step_name (node_name n)
         (pp_comma_list ~pp_eol:pp_print_comma
            (pp_c_val m self pp_read)) inputs
@@ -169,6 +131,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
            pp_write) outputs
         self
         i
+        (Mod.pp_ghost_parameter mem) (Some i)
     with Not_found -> (* stateless node instance *)
       let n, _ = List.assoc i m.mcalls in
       fprintf fmt "%a(%a%a);"
@@ -177,20 +140,21 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
            (pp_c_val m self pp_read)) inputs
         (pp_comma_list pp_write) outputs
 
-  let pp_basic_instance_call m self =
-    pp_call m self (pp_c_var_read m) (pp_c_var_write m)
+  let pp_basic_instance_call m self mem =
+    pp_call m self mem (pp_c_var_read m) (pp_c_var_write m)
 
-  let pp_arrow_call m self fmt i outputs =
+  let pp_arrow_call m self mem fmt i outputs =
     match outputs with
     | [x] ->
-      fprintf fmt "%a = %a(%s->%s);"
+      fprintf fmt "%a = %a(%s->%s)%a;"
         (pp_c_var_read m) x
         pp_machine_step_name Arrow.arrow_id
         self
         i
+        (Mod.pp_ghost_parameter mem) (Some i)
     | _ -> assert false
 
-  let pp_instance_call m self fmt i inputs outputs =
+  let pp_instance_call m self mem fmt i inputs outputs =
     let pp_offset pp_var indices fmt var =
       fprintf fmt "%a%a"
         pp_var var
@@ -208,86 +172,103 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
       else
         let pp_read  = pp_offset (pp_c_var_read  m) indices in
         let pp_write = pp_offset (pp_c_var_write m) indices in
-        pp_call m self pp_read pp_write fmt i inputs outputs
+        pp_call m self mem pp_read pp_write fmt i inputs outputs
     in
     reset_loop_counter ();
     aux [] fmt (List.hd inputs).Machine_code_types.value_type
 
-  let rec pp_conditional dependencies (m: machine_t) self fmt c tl el =
-    fprintf fmt "@[<v 2>if (%a) {%a@]@,@[<v 2>} else {%a@]@,}"
-      (pp_c_val m self (pp_c_var_read m)) c
-      (pp_print_list ~pp_prologue:pp_print_cut
-         (pp_machine_instr dependencies m self)) tl
-      (pp_print_list ~pp_prologue:pp_print_cut
-         (pp_machine_instr dependencies m self)) el
+  let rec pp_conditional dependencies m self mem fmt c tl el =
+    let pp_machine_instrs =
+      pp_print_list ~pp_open_box:pp_open_vbox0 ~pp_prologue:pp_print_cut
+        (pp_machine_instr dependencies m self mem) in
+    let pp_cond = pp_c_val m self (pp_c_var_read m) in
+    match tl, el with
+    | [], _ :: _ ->
+      fprintf fmt "@[<v 2>if (!%a) {%a@]@,}"
+        pp_cond c
+        pp_machine_instrs el
+    | _, [] ->
+      fprintf fmt "@[<v 2>if (%a) {%a@]@,}"
+        pp_cond c
+        pp_machine_instrs tl
+    | _, _ ->
+      fprintf fmt "@[<v 2>if (%a) {%a@]@,@[<v 2>} else {%a@]@,}"
+        pp_cond c
+        pp_machine_instrs tl
+        pp_machine_instrs el
 
-  and pp_machine_instr dependencies (m: machine_t) self fmt instr =
-    match get_instr_desc instr with
-    | MNoReset _ -> ()
-    | MSetReset inst ->
-      pp_machine_set_reset m self fmt inst
-    | MClearReset ->
-      fprintf fmt "%t@,%a"
-        (pp_machine_clear_reset m self) pp_label reset_label
-    | MLocalAssign (i,v) ->
-      pp_assign
-        m self (pp_c_var_read m) fmt
-        i.var_type (mk_val (Var i) i.var_type) v
-    | MStateAssign (i,v) ->
-      pp_assign
-        m self (pp_c_var_read m) fmt
-        i.var_type (mk_val (Var i) i.var_type) v
-    | MStep ([i0], i, vl) when Basic_library.is_value_internal_fun (mk_val (Fun (i, vl)) i0.var_type)  ->
-      pp_machine_instr dependencies m self fmt
-        (update_instr_desc instr (MLocalAssign (i0, mk_val (Fun (i, vl)) i0.var_type)))
-    | MStep (il, i, vl) when !Options.mpfr && Mpfr.is_homomorphic_fun i ->
-      pp_instance_call m self fmt i vl il
-    | MStep ([i0], i, vl) when has_c_prototype i dependencies ->
-      fprintf fmt "%a = %s%a;"
-        (pp_c_val m self (pp_c_var_read m)) (mk_val (Var i0) i0.var_type)
-        i
-        (pp_print_parenthesized (pp_c_val m self (pp_c_var_read m))) vl
-    | MStep (il, i, vl) ->
-      let td, _ = List.assoc i m.minstances in
-      if Arrow.td_is_arrow td then
-        pp_arrow_call m self fmt i il
-      else
-        pp_basic_instance_call m self fmt i vl il
-    | MBranch (_, []) ->
-      eprintf "internal error: C_backend_src.pp_machine_instr %a@."
-        (pp_instr m) instr;
-      assert false
-    | MBranch (g, hl) ->
-      if let t = fst (List.hd hl) in t = tag_true || t = tag_false
-      then (* boolean case, needs special treatment in C because truth value is not unique *)
-        (* may disappear if we optimize code by replacing last branch test with default *)
-        let tl = try List.assoc tag_true  hl with Not_found -> [] in
-        let el = try List.assoc tag_false hl with Not_found -> [] in
-        pp_conditional dependencies m self fmt g tl el
-      else (* enum type case *)
-        (*let g_typ = Typing.type_const Location.dummy_loc (Const_tag (fst (List.hd hl))) in*)
-        fprintf fmt "@[<v 2>switch(%a) {@,%a@,}@]"
-          (pp_c_val m self (pp_c_var_read m)) g
-          (pp_print_list ~pp_open_box:pp_open_vbox0
-             (pp_machine_branch dependencies m self)) hl
-    | MSpec s ->
-      fprintf fmt "@[/*@@ %s */@]@ " s
-    | MComment s  ->
-      fprintf fmt "/*%s*/@ " s
+  and pp_machine_instr dependencies m self mem fmt instr =
+    let pp_instr fmt instr = match get_instr_desc instr with
+      | MNoReset _ -> ()
+      | MSetReset inst ->
+        pp_machine_set_reset m self mem fmt inst
+      | MClearReset ->
+        fprintf fmt "%t@,%a"
+          (pp_machine_clear_reset m self mem) pp_label reset_label
+      | MResetAssign b ->
+        pp_reset_assign self fmt b
+      | MLocalAssign (i, v) ->
+        pp_assign m self (pp_c_var_read m) fmt (i, v)
+      | MStateAssign (i, v) ->
+        pp_assign m self (pp_c_var_read m) fmt (i, v)
+      | MStep ([i0], i, vl) when Basic_library.is_value_internal_fun (mk_val (Fun (i, vl)) i0.var_type)  ->
+        pp_machine_instr dependencies m self mem fmt
+          (update_instr_desc instr (MLocalAssign (i0, mk_val (Fun (i, vl)) i0.var_type)))
+      | MStep (il, i, vl) when !Options.mpfr && Mpfr.is_homomorphic_fun i ->
+        pp_instance_call m self mem fmt i vl il
+      | MStep ([i0], i, vl) when has_c_prototype i dependencies ->
+        fprintf fmt "%a = %s%a;"
+          (pp_c_val m self (pp_c_var_read m)) (mk_val (Var i0) i0.var_type)
+          i
+          (pp_print_parenthesized (pp_c_val m self (pp_c_var_read m))) vl
+      | MStep (il, i, vl) ->
+        let td, _ = List.assoc i m.minstances in
+        if Arrow.td_is_arrow td then
+          pp_arrow_call m self mem fmt i il
+        else
+          pp_basic_instance_call m self mem fmt i vl il
+      | MBranch (_, []) ->
+        eprintf "internal error: C_backend_src.pp_machine_instr %a@."
+          (pp_instr m) instr;
+        assert false
+      | MBranch (g, hl) ->
+        if let t = fst (List.hd hl) in t = tag_true || t = tag_false
+        then (* boolean case, needs special treatment in C because truth value is not unique *)
+          (* may disappear if we optimize code by replacing last branch test with default *)
+          let tl = try List.assoc tag_true  hl with Not_found -> [] in
+          let el = try List.assoc tag_false hl with Not_found -> [] in
+          let no_noreset = List.filter (fun i -> match i.instr_desc with
+              | MNoReset _ -> false
+              | _ -> true)
+          in
+          pp_conditional dependencies m self mem fmt g
+            (no_noreset tl) (no_noreset el)
+        else (* enum type case *)
+          (*let g_typ = Typing.type_const Location.dummy_loc (Const_tag (fst (List.hd hl))) in*)
+          fprintf fmt "@[<v 2>switch(%a) {@,%a@,}@]"
+            (pp_c_val m self (pp_c_var_read m)) g
+            (pp_print_list ~pp_open_box:pp_open_vbox0
+               (pp_machine_branch dependencies m self mem)) hl
+      | MSpec s ->
+        fprintf fmt "@[/*@@ %s */@]@ " s
+      | MComment s  ->
+        fprintf fmt "/*%s*/@ " s
+    in
+    fprintf fmt "%a%a" pp_instr instr (Mod.pp_step_instr_spec m self mem) instr
 
-  and pp_machine_branch dependencies m self fmt (t, h) =
+  and pp_machine_branch dependencies m self mem fmt (t, h) =
     fprintf fmt "@[<v 2>case %a:@,%a@,break;@]"
       pp_c_tag t
       (pp_print_list ~pp_open_box:pp_open_vbox0
-         (pp_machine_instr dependencies m self)) h
+         (pp_machine_instr dependencies m self mem)) h
 
-  let pp_machine_nospec_instr dependencies m self fmt _i instr =
-    pp_machine_instr dependencies m self fmt instr
-
-  let pp_machine_step_instr dependencies m self fmt _i instr =
-    fprintf fmt "%a%a"
-      (pp_machine_instr dependencies m self) instr
-      (Mod.pp_step_instr_spec m self) instr
+  (* let pp_machine_nospec_instr dependencies m self fmt instr =
+   *   pp_machine_instr dependencies m self fmt instr
+   *
+   * let pp_machine_step_instr dependencies m self mem fmt instr =
+   *   fprintf fmt "%a%a"
+   *     (pp_machine_instr dependencies m self) instr
+   *     (Mod.pp_step_instr_spec m self mem) instr *)
 
   (********************************************************************************************)
   (*                         C file Printing functions                                        *)
@@ -414,7 +395,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
       ?(mpfr_locals=[])
       ?(pp_check=pp_print_nothing) ?(checks=[])
       ?(pp_extra=pp_print_nothing)
-      ?(pp_instr=fun fmt _ _ -> pp_print_nothing fmt ()) ?(instrs=[])
+      ?(pp_instr=fun fmt _ -> pp_print_nothing fmt ()) ?(instrs=[])
       fmt =
     fprintf fmt
       "%a@[<v 2>%a {@,\
@@ -444,7 +425,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
       (* check assertions *)
       (pp_print_list pp_check) checks
       (* instrs *)
-      (pp_print_list_i
+      (pp_print_list
          ~pp_open_box:pp_open_vbox0
          ~pp_epilogue:pp_print_cut
          pp_instr) instrs
@@ -478,7 +459,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
         ~mpfr_locals:m.mstep.step_locals
         ~pp_check:(pp_c_check m self)
         ~checks:m.mstep.step_checks
-        ~pp_instr:(pp_machine_step_instr dependencies m self)
+        ~pp_instr:(pp_machine_instr dependencies m self self)
         ~instrs:m.mstep.step_instrs
         fmt
     else
@@ -500,28 +481,30 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
         ~mpfr_locals:m.mstep.step_locals
         ~pp_check:(pp_c_check m self)
         ~checks:m.mstep.step_checks
-        ~pp_instr:(pp_machine_step_instr dependencies m self)
+        ~pp_instr:(pp_machine_instr dependencies m self self)
         ~instrs:m.mstep.step_instrs
         fmt
 
-  let print_clear_reset_code machines dependencies self mem fmt m =
+  let print_clear_reset_code dependencies self mem fmt m =
     pp_print_function
-      ~pp_spec:(fun fmt () -> Mod.pp_clear_reset_spec fmt machines self mem m)
+      ~pp_spec:(fun fmt () -> Mod.pp_clear_reset_spec fmt self mem m)
       ~pp_prototype:(Protos.print_clear_reset_prototype self mem)
       ~prototype:(m.mname.node_id, m.mstatic)
       ~pp_local:(pp_c_decl_local_var m)
       ~base_locals:(const_locals m)
-      ~pp_instr:(pp_machine_nospec_instr dependencies m self)
-      ~instrs:m.minit
+      ~pp_instr:(pp_machine_instr dependencies m self mem)
+      ~instrs:[mk_branch
+                 (mk_val ResetFlag Type_predef.type_bool)
+                 ["true", mkinstr (MResetAssign false) :: m.minit]]
       fmt
 
-  let print_set_reset_code self mem fmt m =
+  let print_set_reset_code dependencies self mem fmt m =
     pp_print_function
       ~pp_spec:(fun fmt () -> Mod.pp_set_reset_spec fmt self mem m)
       ~pp_prototype:(Protos.print_set_reset_prototype self mem)
       ~prototype:(m.mname.node_id, m.mstatic)
-      ~pp_extra:(fun fmt () -> fprintf fmt "self->_reset = 1;%a"
-                    Mod.pp_ghost_set_reset_spec mem)
+      ~pp_instr:(pp_machine_instr dependencies m self mem)
+      ~instrs:[mkinstr (MResetAssign true)]
       fmt
 
   let print_init_code self fmt m =
@@ -541,7 +524,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
           pp_print_list
             ~pp_open_box:pp_open_vbox0
             ~pp_epilogue:pp_print_cut
-            (pp_machine_init m self)
+            (pp_machine_init m self self)
             fmt minit)
       fmt
 
@@ -561,7 +544,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
           pp_print_list
             ~pp_open_box:pp_open_vbox0
             ~pp_epilogue:pp_print_cut
-            (pp_machine_clear m self)
+            (pp_machine_clear m self self)
             fmt minit)
       fmt
 
@@ -582,7 +565,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
         ~mpfr_locals:m.mstep.step_locals
         ~pp_check:(pp_c_check m self)
         ~checks:m.mstep.step_checks
-        ~pp_instr:(pp_machine_step_instr dependencies m self)
+        ~pp_instr:(pp_machine_instr dependencies m self mem)
         ~instrs:m.mstep.step_instrs
         fmt
     else
@@ -605,7 +588,7 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
         ~mpfr_locals:m.mstep.step_locals
         ~pp_check:(pp_c_check m self)
         ~checks:m.mstep.step_checks
-        ~pp_instr:(pp_machine_step_instr dependencies m self)
+        ~pp_instr:(pp_machine_instr dependencies m self mem)
         ~instrs:m.mstep.step_instrs
         fmt
 
@@ -754,8 +737,8 @@ module Main = functor (Mod: MODIFIERS_SRC) -> struct
       fprintf fmt "@[<v>%a%a@,@,%a@,@,%a%a@]"
         print_alloc_function m
         (* Reset functions *)
-        (print_clear_reset_code machines dependencies self mem) m
-        (print_set_reset_code self mem) m
+        (print_clear_reset_code dependencies self mem) m
+        (print_set_reset_code dependencies self mem) m
         (* Step function *)
         (print_step_code machines dependencies self mem) m
         (print_mpfr_code self) m

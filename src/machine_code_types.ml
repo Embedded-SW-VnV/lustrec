@@ -15,6 +15,7 @@ and value_t_desc =
   | Array of value_t list
   | Access of value_t * value_t
   | Power of value_t * value_t
+  | ResetFlag
 
 type mc_formula_t = value_t formula_t
 
@@ -28,6 +29,7 @@ type instr_t =
 and instr_t_desc =
   | MLocalAssign of var_decl * value_t
   | MStateAssign of var_decl * value_t
+  | MResetAssign of bool
   | MClearReset
   | MSetReset of ident
   | MNoReset of ident

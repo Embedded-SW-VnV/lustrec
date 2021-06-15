@@ -298,7 +298,14 @@ let rec pp_c_const fmt c =
   | Const_string _
   | Const_modeid _ -> assert false (* string occurs in annotations not in C *)
 
-                  
+let reset_flag_name = "_reset"
+let pp_reset_flag ?(indirect=true) fmt self =
+  fprintf fmt "%s%s%s" self (if indirect then "->" else ".") reset_flag_name
+
+let pp_reset_assign self fmt b =
+  fprintf fmt "%a = %i;"
+    (pp_reset_flag ~indirect:true) self (if b then 1 else 0)
+
 (* Prints a value expression [v], with internal function calls only.
    [pp_var] is a printer for variables (typically [pp_c_var_read]),
    but an offset suffix may be added for array variables
@@ -329,6 +336,9 @@ let rec pp_c_val m self pp_var fmt v =
        pp_var fmt v
   | Fun (n, vl) ->
     pp_basic_lib_fun (Types.is_int_type v.value_type) n pp_c_val fmt vl
+  | ResetFlag ->
+    pp_reset_flag fmt self
+
 
 (* Access to the value of a variable:
    - if it's not a scalar output, then its name is enough
@@ -472,6 +482,7 @@ let rec expansion_depth v =
   | Array vl    -> 1 + List.fold_right (fun v -> max (expansion_depth v)) vl 0
   | Access (v, _) -> max 0 (expansion_depth v - 1)
   | Power _  -> 0 (*1 + expansion_depth v*)
+  | ResetFlag -> 0
 and expansion_depth_cst c =
   match c with
   | Const_array cl ->
@@ -604,6 +615,8 @@ let rec pp_value_suffix ?(indirect=true) m self var_type loop_vars pp_var fmt va
       fprintf fmt "%a%a" pp_var v pp_suffix loop_vars
   | _, Cst cst ->
     pp_c_const_suffix var_type fmt cst
+  | _, ResetFlag ->
+    pp_reset_flag fmt self
   | _, _ ->
     eprintf "internal error: C_backend_src.pp_value_suffix %a %a %a@."
       Types.print_ty var_type (pp_val m) value pp_suffix loop_vars;
@@ -676,18 +689,18 @@ let print_dealloc_prototype fmt name =
     (pp_machine_memtype_name ~ghost:false) name
 
 module type MODIFIERS_GHOST_PROTO = sig
-  val pp_ghost_parameters: formatter -> (string * (formatter -> string -> unit)) list -> unit
+  val pp_ghost_parameters: ?cut:bool -> formatter -> (string * (formatter -> string -> unit)) list -> unit
 end
 
 module EmptyGhostProto: MODIFIERS_GHOST_PROTO = struct
-  let pp_ghost_parameters _ _ = ()
+  let pp_ghost_parameters ?cut _ _ = ()
 end
 
 module Protos (Mod: MODIFIERS_GHOST_PROTO) = struct
 
   let pp_mem_ghost name fmt mem =
     pp_machine_decl ~ghost:true
-      (fun fmt mem -> fprintf fmt "\ghost %a" pp_ptr mem) fmt
+      (fun fmt mem -> fprintf fmt "\\ghost %a" pp_ptr mem) fmt
       (name, mem)
 
   let print_clear_reset_prototype self mem fmt (name, static) =
@@ -697,7 +710,7 @@ module Protos (Mod: MODIFIERS_GHOST_PROTO) = struct
          pp_c_decl_input_var) static
       (pp_machine_memtype_name ~ghost:false) name
       self
-      Mod.pp_ghost_parameters [mem, pp_mem_ghost name]
+      (Mod.pp_ghost_parameters ~cut:true) [mem, pp_mem_ghost name]
 
   let print_set_reset_prototype self mem fmt (name, static) =
     fprintf fmt "@[<v>void %a (%a%a *%s)%a@]"
@@ -706,7 +719,7 @@ module Protos (Mod: MODIFIERS_GHOST_PROTO) = struct
          pp_c_decl_input_var) static
       (pp_machine_memtype_name ~ghost:false) name
       self
-      Mod.pp_ghost_parameters [mem, pp_mem_ghost name]
+      (Mod.pp_ghost_parameters ~cut:true) [mem, pp_mem_ghost name]
 
   let print_step_prototype self mem fmt (name, inputs, outputs) =
     fprintf fmt "@[<v>void %a (@[<v>%a%a%a *%s@])%a@]"
@@ -717,7 +730,7 @@ module Protos (Mod: MODIFIERS_GHOST_PROTO) = struct
          ~pp_epilogue:pp_print_cut pp_c_decl_output_var) outputs
       (pp_machine_memtype_name ~ghost:false) name
       self
-      Mod.pp_ghost_parameters [mem, pp_mem_ghost name]
+      (Mod.pp_ghost_parameters ~cut:true) [mem, pp_mem_ghost name]
 
   let print_init_prototype self fmt (name, static) =
     fprintf fmt "void %a (%a%a *%s)"
@@ -879,6 +892,53 @@ let pp_file_open fmt inout idx =
     inout idx;
   "f_" ^ inout ^ string_of_int idx
 
+let pp_basic_assign pp_var fmt typ var_name value =
+  if Types.is_real_type typ && !Options.mpfr
+  then
+    Mpfr.pp_inject_assign pp_var fmt (var_name, value)
+  else
+    fprintf fmt "%a = %a;"
+      pp_var var_name
+      pp_var value
+
+(* type_directed assignment: array vs. statically sized type
+   - [var_type]: type of variable to be assigned
+   - [var_name]: name of variable to be assigned
+   - [value]: assigned value
+   - [pp_var]: printer for variables
+*)
+let pp_assign m self pp_var fmt (var, value) =
+  let depth = expansion_depth value in
+  let var_type = var.var_type in
+  let var = mk_val (Var var) var_type in
+  (*eprintf "pp_assign %a %a %a %d@." Types.print_ty var_type pp_val var_name pp_val value depth;*)
+  let loop_vars = mk_loop_variables m var_type depth in
+  let reordered_loop_vars = reorder_loop_variables loop_vars in
+  let rec aux typ fmt vars =
+    match vars with
+    | [] ->
+      pp_basic_assign (pp_value_suffix m self var_type loop_vars pp_var)
+        fmt typ var value
+    | (d, LVar i) :: q ->
+      let typ' = Types.array_element_type typ in
+      (*eprintf "pp_aux %a %s@." Dimension.pp_dimension d i;*)
+      fprintf fmt "@[<v 2>{@,int %s;@,for(%s=0;%s<%a;%s++)@,%a @]@,}"
+        i i i pp_c_dimension d i
+        (aux typ') q
+    | (d, LInt r) :: q ->
+      (*eprintf "pp_aux %a %d@." Dimension.pp_dimension d (!r);*)
+      let typ' = Types.array_element_type typ in
+      let szl = Utils.enumerate (Dimension.size_const_dimension d) in
+      fprintf fmt "@[<v 2>{@,%a@]@,}"
+        (pp_print_list (fun fmt i -> r := i; aux typ' fmt q)) szl
+    | _ -> assert false
+  in
+  begin
+    reset_loop_counter ();
+    (*reset_addr_counter ();*)
+    aux var_type fmt reordered_loop_vars;
+    (*eprintf "end pp_assign@.";*)
+  end
 
 (* Local Variables: *)
 (* compile-command:"make -C ../../.." *)

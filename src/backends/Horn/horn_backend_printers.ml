@@ -163,6 +163,9 @@ let rec pp_horn_val ?(is_lhs=false) m self pp_var fmt v =
        pp_var fmt (rename_machine self v)
     
   | Fun (n, vl)   -> fprintf fmt "%a" (pp_basic_lib_fun n (pp_horn_val m self pp_var)) vl
+  | ResetFlag ->
+    (* TODO: handle reset flag *)
+    assert false
 
 (* Prints a [value] indexed by the suffix list [loop_vars] *)
 let rec pp_value_suffix m self pp_value fmt value =
@@ -295,6 +298,8 @@ let pp_instance_call machines reset_instances m fmt i inputs outputs =
 let rec pp_machine_instr machines reset_instances (m: machine_t) fmt instr : ident list =
   match get_instr_desc instr with
   | MSpec _ | MComment _ -> reset_instances
+  (* TODO: handle reset flag *)
+  | MResetAssign _ -> reset_instances
   (* TODO: handle clear_reset *)
   | MClearReset -> reset_instances
   | MNoReset i -> (* we assign middle_mem with mem_m. And declare i as reset *)

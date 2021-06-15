@@ -33,6 +33,7 @@ let rec eliminate m elim instr =
   | MSetReset _
   | MNoReset _
   | MClearReset
+  | MResetAssign _
   | MSpec _
   | MComment _         -> instr
   | MStep (il, i, vl)  -> update_instr_desc instr (MStep(il, i, List.map e_expr vl))
@@ -58,7 +59,7 @@ and eliminate_expr m elim expr =
   | Array(vl) -> {expr with value_desc = Array(List.map (eliminate_expr elim) vl)}
   | Access(v1, v2) -> { expr with value_desc = Access(eliminate_expr elim v1, eliminate_expr elim v2)}
   | Power(v1, v2) -> { expr with value_desc = Power(eliminate_expr elim v1, eliminate_expr elim v2)}
-  | Cst _ -> expr
+  | Cst _ | ResetFlag -> expr
 
 let eliminate_dim elim dim =
   Dimension.expr_replace_expr 
@@ -74,9 +75,13 @@ let eliminate_dim elim dim =
 
 let unfold_expr_offset m offset expr =
   List.fold_left
-    (fun res -> (function | Index i -> mk_val (Access (res, value_of_dimension m i))
-					      (Types.array_element_type res.value_type)
-                          | Field _ -> Format.eprintf "internal error: not yet implemented !"; assert false))
+    (fun res -> function
+       | Index i ->
+         mk_val (Access (res, value_of_dimension m i))
+           (Types.array_element_type res.value_type)
+       | Field _ ->
+         Format.eprintf "internal error: not yet implemented !";
+         assert false)
     expr offset
 
 let rec simplify_cst_expr m offset typ cst =
@@ -104,6 +109,7 @@ let simplify_expr_offset m expr =
     | _           , Var _            -> unfold_expr_offset m offset expr
     | _           , Cst cst          -> simplify_cst_expr m offset expr.value_type cst
     | _           , Access (expr, i) -> simplify (Index (dimension_of_value i) :: offset) expr
+    | _           , ResetFlag        -> expr
     | []          , _                -> expr
     | Index _ :: q, Power (expr, _)  -> simplify q expr
     | Index i :: q, Array vl when Dimension.is_dimension_const i
@@ -120,6 +126,7 @@ let rec simplify_instr_offset m instr =
   | MSetReset _
   | MNoReset _
   | MClearReset
+  | MResetAssign _
   | MSpec _
   | MComment _             -> instr
   | MStep (outputs, id, inputs) -> update_instr_desc instr (MStep (outputs, id, List.map (simplify_expr_offset m) inputs))
@@ -493,7 +500,7 @@ and instrs_remove_skip instrs cont =
 
 let rec value_replace_var fvar value =
   match value.value_desc with
-  | Cst _ -> value
+  | Cst _ | ResetFlag -> value
   | Var v -> { value with value_desc = Var (fvar v) }
   | Fun (id, args) -> { value with value_desc = Fun (id, List.map (value_replace_var fvar) args) }
   | Array vl -> { value with value_desc = Array (List.map (value_replace_var fvar) vl)}
@@ -507,6 +514,7 @@ let rec instr_replace_var fvar instr cont =
   | MSetReset _
   | MNoReset _
   | MClearReset
+  | MResetAssign _
   | MSpec _
   | MComment _          -> instr_cons instr cont
   | MStep (il, i, vl)   -> instr_cons (update_instr_desc instr (MStep (List.map fvar il, i, List.map (value_replace_var fvar) vl))) cont

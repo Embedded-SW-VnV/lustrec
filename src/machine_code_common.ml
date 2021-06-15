@@ -34,6 +34,7 @@ let rec pp_val m fmt v =
   | Access (t, i) -> fprintf fmt "%a[%a]" pp_val t pp_val i
   | Power (v, n)  -> fprintf fmt "(%a^%a)" pp_val v pp_val n
   | Fun (n, vl)   -> fprintf fmt "%s%a" n (pp_print_parenthesized pp_val) vl
+  | ResetFlag     -> fprintf fmt "RESET"
 
 module PrintSpec = struct
 
@@ -120,6 +121,7 @@ let rec pp_instr m fmt i =
   begin match i.instr_desc with
     | MLocalAssign (i,v) -> fprintf fmt "%s := %a" i.var_id pp_val v
     | MStateAssign (i,v) -> fprintf fmt "{%s} := %a" i.var_id pp_val v
+    | MResetAssign b     -> fprintf fmt "RESET := %a" pp_print_bool b
     | MSetReset i        -> fprintf fmt "set_reset %s" i
     | MClearReset        -> fprintf fmt "clear_reset %s" m.mname.node_id
     | MNoReset i         -> fprintf fmt "noreset %s" i
@@ -312,7 +314,10 @@ let mk_branch ?lustre_eq c br =
     (* (And (List.map (fun (l, instrs) ->
      *      Imply (Equal (Val c, Tag l), And (List.map get_instr_spec instrs)))
      *      br)) *)
-    (MBranch (vdecl_to_val c, br))
+    (MBranch (c, br))
+
+let mk_branch' ?lustre_eq v =
+  mk_branch ?lustre_eq (vdecl_to_val v)
 
 let mk_assign ?lustre_eq x v =
   mkinstr ?lustre_eq
