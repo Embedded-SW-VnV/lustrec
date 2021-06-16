@@ -623,69 +623,63 @@ let machines_fusion prog =
 (* Additional function to modify the prog according to removed variables map *)
 
 let elim_prog_variables prog removed_table =
-  List.map (
-      fun t ->
-      match t.top_decl_desc with
-        Node nd ->
-         if IMap.mem nd.node_id removed_table then
-           let nd_elim_map = IMap.find nd.node_id removed_table in
-           (* Iterating through the elim map to compute
-              - the list of variables to remove
-              - the associated list of lustre definitions x = expr to
-                be used when removing these variables *)
-           let vars_to_replace, defs = (* Recovering vid from node locals *)
-             IMap.fold (fun v (_,eq) (accu_locals, accu_defs) ->
-                 let locals =
-                   try
-                     (List.find (fun v' -> v'.var_id = v) nd.node_locals)::accu_locals
-                   with Not_found -> accu_locals (* Variable v shall
-                                                    be a global
-                                                    constant, we do no
-                                                    need to eliminate
-                                                    it from the locals
-                                                    *)
-                 in
-                 (* xxx let new_eq = { eq_lhs = [v]; eq_rhs = e; eq_loc = e.expr_loc } in *)
-                 let defs = eq::accu_defs in
-                 locals, defs
-               ) nd_elim_map ([], [])
-           in
-            
-           let new_locals, new_stmts =
-             List.fold_right (fun stmt (locals, res_stmts) ->
-                 match stmt with
-                   Aut _ -> assert false (* should be processed by now *)
-                 | Eq eq -> (
-                   match eq.eq_lhs with
-                   | [] -> assert false (* shall not happen *)
-                   | _::_::_ ->
-                      (* When more than one lhs we just keep the
-                         equation and do not delete it *)
-                      let eq_rhs' = substitute_expr vars_to_replace defs eq.eq_rhs in
-                      locals, (Eq { eq with eq_rhs = eq_rhs' })::res_stmts
-                   | [lhs] -> 
-                      if List.exists (fun v -> v.var_id = lhs) vars_to_replace then 
-                        (* We remove the def *)
-                        List.filter (fun l -> l.var_id != lhs) locals,
-                        res_stmts
-                      else (* We keep it but modify any use of an eliminatend var *)
-                        let eq_rhs' = substitute_expr vars_to_replace defs eq.eq_rhs in 
-                        locals,
-                        (Eq { eq with eq_rhs = eq_rhs' })::res_stmts
-                        
-                 )
-               ) nd.node_stmts (nd.node_locals,[])
-           in
-           let nd' = { nd with
-                       node_locals = new_locals;
-                       node_stmts = new_stmts;
-                     }
-           in
-           { t with top_decl_desc = Node nd' }
-         else
-           t
+  List.map (fun t -> match t.top_decl_desc with
+      | Node nd ->
+        begin match IMap.find_opt nd.node_id removed_table with
+          | Some nd_elim_map ->
+            (* Iterating through the elim map to compute
+               - the list of variables to remove
+               - the associated list of lustre definitions x = expr to
+                 be used when removing these variables *)
+            let vars_to_replace, defs = (* Recovering vid from node locals *)
+              IMap.fold (fun v (_,eq) (accu_locals, accu_defs) ->
+                  let locals =
+                    try
+                      List.find (fun v' -> v'.var_id = v) nd.node_locals
+                      :: accu_locals
+                    with Not_found -> accu_locals (* Variable v shall
+                                                     be a global
+                                                     constant, we do no
+                                                     need to eliminate
+                                                     it from the locals
+                                                  *)
+                  in
+                  (* xxx let new_eq = { eq_lhs = [v]; eq_rhs = e; eq_loc = e.expr_loc } in *)
+                  let defs = eq::accu_defs in
+                  locals, defs
+                ) nd_elim_map ([], [])
+            in
+
+            let node_locals, node_stmts =
+              List.fold_right (fun stmt (locals, res_stmts) ->
+                  match stmt with
+                  | Aut _ -> assert false (* should be processed by now *)
+                  | Eq eq ->
+                    begin match eq.eq_lhs with
+                      | [] -> assert false (* shall not happen *)
+                      | _::_::_ ->
+                        (* When more than one lhs we just keep the
+                           equation and do not delete it *)
+                        let eq_rhs' = substitute_expr vars_to_replace defs eq.eq_rhs in
+                        locals, (Eq { eq with eq_rhs = eq_rhs' })::res_stmts
+                      | [lhs] ->
+                        if List.exists (fun v -> v.var_id = lhs) vars_to_replace then
+                          (* We remove the def *)
+                          List.filter (fun v -> v.var_id <> lhs) locals,
+                          res_stmts
+                        else (* We keep it but modify any use of an eliminatend var *)
+                          let eq_rhs' = substitute_expr vars_to_replace defs eq.eq_rhs in
+                          locals,
+                          (Eq { eq with eq_rhs = eq_rhs' })::res_stmts
+                    end
+                ) nd.node_stmts (nd.node_locals, [])
+            in
+            let nd' = { nd with node_locals; node_stmts } in
+            { t with top_decl_desc = Node nd' }
+          | None -> t
+        end
       | _ -> t
-    ) prog
+  ) prog
 
 (*** Main function ***)
 
