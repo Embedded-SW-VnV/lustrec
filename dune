@@ -21,6 +21,7 @@
    include/arrow.c
    include/arrow.h
    include/arrow_spec.h
+   include/arrow_spec.c
    include/arrow.cpp
    include/arrow.hpp
    include/io_frontend.c

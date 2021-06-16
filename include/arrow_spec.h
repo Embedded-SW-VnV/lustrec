@@ -44,15 +44,15 @@ extern void _arrow_dealloc (struct _arrow_mem *);
                              : (mem_out._reg._first == mem_in._reg._first));
 */
 
-/*@ predicate _arrow_ghost(struct _arrow_mem_ghost mem,
-                           struct _arrow_mem *self) =
+/*@ predicate _arrow_pack(struct _arrow_mem_ghost mem,
+                          struct _arrow_mem *self) =
       mem._reg._first == self->_reg._first;
 */
 
 /*@
   requires \separated(mem, self);
-  requires _arrow_ghost(*mem, self);
-  ensures  _arrow_ghost(*mem, self);
+  requires _arrow_pack(*mem, self);
+  ensures  _arrow_pack(*mem, self);
   ensures \result == \old(self->_reg._first);
   ensures self->_reg._first == 0;
   ensures !\old(mem->_reg._first) ==> *mem == \old(*mem);

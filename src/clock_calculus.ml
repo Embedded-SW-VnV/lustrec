@@ -517,72 +517,72 @@ and clock_carrier env c loc ce =
 and clock_expr ?(nocarrier=true) env expr =
   let resulting_ck = 
     match expr.expr_desc with
-      | Expr_const _ ->
+    | Expr_const _ ->
       let ck = new_var true in
       expr.expr_clock <- ck;
       ck
-  | Expr_ident v ->
+    | Expr_ident v ->
       let ckv =
         try
           Env.lookup_value env v
         with Not_found -> 
-	  failwith ("Internal error, variable \""^v^"\" not found")
+          failwith ("Internal error, variable \""^v^"\" not found")
       in
       let ck = instantiate (ref []) (ref []) ckv in
       expr.expr_clock <- ck;
       ck
-  | Expr_array elist ->
-    let ck = clock_standard_args env elist in
-    expr.expr_clock <- ck;
-    ck
-  | Expr_access (e1, _) ->
-    (* dimension, being a static value, doesn't need to be clocked *)
-    let ck = clock_standard_args env [e1] in
-    expr.expr_clock <- ck;
-    ck
-  | Expr_power (e1, _) ->
-    (* dimension, being a static value, doesn't need to be clocked *)
-    let ck = clock_standard_args env [e1] in
-    expr.expr_clock <- ck;
-    ck
-  | Expr_tuple elist ->
-    let ck = new_ck (Ctuple (List.map (clock_expr env) elist)) true in
-    expr.expr_clock <- ck;
-    ck
-  | Expr_ite (c, t, e) ->
-    let ck_c = clock_standard_args env [c] in
-    let ck = clock_standard_args env [t; e] in
-    (* Here, the branches may exhibit a tuple clock, not the condition *)
-    unify_tuple_clock (Some ck_c) ck expr.expr_loc;
-    expr.expr_clock <- ck;
-    ck
-  | Expr_appl (id, args, r) ->
-    (try
-(* for a modular compilation scheme, all inputs/outputs must share the same clock !
-   this is also the reset clock !
-*)
-    let cr =
-      match r with
-      | None        -> new_var true
-      | Some c      -> clock_standard_args env [c] in
-    let couts = clock_appl env id args (clock_uncarry cr) expr.expr_loc in
-    expr.expr_clock <- couts;
-    couts
-    with exn -> (
-      Format.eprintf "Current expr: %a@." Printers.pp_expr expr; 
-      raise exn
-    ))
-  | Expr_fby (e1,e2)
-  | Expr_arrow (e1,e2) ->
-    let ck = clock_standard_args env [e1; e2] in
-    unify_tuple_clock None ck expr.expr_loc;
-    expr.expr_clock <- ck;
-    ck
-  | Expr_pre e -> (* todo : deal with phases as in tail ? *)
+    | Expr_array elist ->
+      let ck = clock_standard_args env elist in
+      expr.expr_clock <- ck;
+      ck
+    | Expr_access (e1, _) ->
+      (* dimension, being a static value, doesn't need to be clocked *)
+      let ck = clock_standard_args env [e1] in
+      expr.expr_clock <- ck;
+      ck
+    | Expr_power (e1, _) ->
+      (* dimension, being a static value, doesn't need to be clocked *)
+      let ck = clock_standard_args env [e1] in
+      expr.expr_clock <- ck;
+      ck
+    | Expr_tuple elist ->
+      let ck = new_ck (Ctuple (List.map (clock_expr env) elist)) true in
+      expr.expr_clock <- ck;
+      ck
+    | Expr_ite (c, t, e) ->
+      let ck_c = clock_standard_args env [c] in
+      let ck = clock_standard_args env [t; e] in
+      (* Here, the branches may exhibit a tuple clock, not the condition *)
+      unify_tuple_clock (Some ck_c) ck expr.expr_loc;
+      expr.expr_clock <- ck;
+      ck
+    | Expr_appl (id, args, r) ->
+      (try
+         (* for a modular compilation scheme, all inputs/outputs must share the same clock !
+            this is also the reset clock !
+         *)
+         let cr =
+           match r with
+           | None        -> new_var true
+           | Some c      -> clock_standard_args env [c] in
+         let couts = clock_appl env id args (clock_uncarry cr) expr.expr_loc in
+         expr.expr_clock <- couts;
+         couts
+       with exn -> (
+           Format.eprintf "Current expr: %a@." Printers.pp_expr expr;
+           raise exn
+         ))
+    | Expr_fby (e1,e2)
+    | Expr_arrow (e1,e2) ->
+      let ck = clock_standard_args env [e1; e2] in
+      unify_tuple_clock None ck expr.expr_loc;
+      expr.expr_clock <- ck;
+      ck
+    | Expr_pre e -> (* todo : deal with phases as in tail ? *)
       let ck = clock_standard_args env [e] in
       expr.expr_clock <- ck;
       ck
-  | Expr_when (e,c,l) ->
+    | Expr_when (e,c,l) ->
       let ce = clock_standard_args env [e] in
       let c_loc = loc_of_cond expr.expr_loc c in
       let cr = clock_carrier env c c_loc ce in
@@ -591,10 +591,12 @@ and clock_expr ?(nocarrier=true) env expr =
       let ck' = clock_on ce cr' l in
       expr.expr_clock <- ck';
       ck
-  | Expr_merge (c,hl) ->
+    | Expr_merge (c,hl) ->
       let cvar = new_var true in
       let crvar = new_carrier Carry_name true in
-      List.iter (fun (t, h) -> let ckh = clock_uncarry (clock_expr env h) in unify_tuple_clock (Some (new_ck (Con (cvar,crvar,t)) true)) ckh h.expr_loc) hl;
+      List.iter (fun (t, h) ->
+          let ckh = clock_uncarry (clock_expr env h) in
+          unify_tuple_clock (Some (new_ck (Con (cvar,crvar,t)) true)) ckh h.expr_loc) hl;
       let cr = clock_carrier env c expr.expr_loc cvar in
       try_unify_carrier cr crvar expr.expr_loc;
       let cres = clock_current ((snd (List.hd hl)).expr_clock) in

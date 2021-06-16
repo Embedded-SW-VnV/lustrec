@@ -123,7 +123,7 @@ let schedule_node n =
   Log.report ~level:5 (fun fmt -> Format.fprintf fmt "scheduling node %s@ " n.node_id);
   let eq_equiv = eq_equiv (ExprDep.node_eq_equiv n) in
 
-  let n', g = global_dependency n in
+  let node, g = global_dependency n in
   
   (* TODO X: extend the graph with inputs (adapt the causality analysis to deal with inputs
      compute: coi predecessors of outputs
@@ -131,11 +131,11 @@ let schedule_node n =
      DONE !
   *)
 
-  let gg = IdentDepGraph.copy g in
-  let sort = topological_sort eq_equiv g in
-  let unused = Liveness.compute_unused_variables n gg in
-  let fanin = Liveness.compute_fanin n gg in
-  { node = n'; schedule = sort; unused_vars = unused; fanin_table = fanin; dep_graph = gg; }
+  let dep_graph = IdentDepGraph.copy g in
+  let schedule = topological_sort eq_equiv g in
+  let unused_vars = Liveness.compute_unused_variables n dep_graph in
+  let fanin_table = Liveness.compute_fanin n dep_graph in
+  { node; schedule; unused_vars; fanin_table; dep_graph }
 
 (* let schedule_eqs eqs =
  *   let eq_equiv = eq_equiv (ExprDep.eqs_eq_equiv eqs) in

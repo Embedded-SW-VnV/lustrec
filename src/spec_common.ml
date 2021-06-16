@@ -1,4 +1,3 @@
-open Lustre_types
 open Spec_types
 
 (* a small reduction engine *)
@@ -85,9 +84,16 @@ let mk_pred_call pred =
 (* let mk_clocked_on id =
  *   mk_pred_call (Clocked_on id) *)
 
-let mk_transition ?i ?inst id inputs locals outputs =
-  mk_pred_call
-    (Transition (id, inst, i, vals inputs, vals locals, vals outputs))
+let mk_transition ?(mems=Utils.ISet.empty) ?r ?i ?inst id inputs locals outputs =
+  let tr =
+    mk_pred_call
+      (Transition (id, inst, i, vals inputs, vals locals, vals outputs,
+                  (match r with Some _ -> true | None -> false), mems)) in
+    (match r, inst with
+     | Some r, Some inst ->
+       ExistsMem (id, mk_pred_call (Reset (id, inst, r)), tr)
+     | _ ->
+       tr)
 
 let mk_memory_pack ?i ?inst id =
   mk_pred_call (MemoryPack (id, inst, i))

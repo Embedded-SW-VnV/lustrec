@@ -248,8 +248,8 @@ and branch_instr_vars m i =
   | MNoReset ni ->
     let write = ISet.singleton (reset_name ni) in
     write, write, VSet.empty
-  (* TODO: handle clear_reset *)
-  | MClearReset -> ISet.empty, ISet.empty, VSet.empty
+  (* TODO: handle clear_reset and reset flag *)
+  | MClearReset | MResetAssign _ -> ISet.empty, ISet.empty, VSet.empty
   | MSpec _ | MComment _ -> assert false (* not  available for EMF output *)
      
 (* A kind of super join_guards: all MBranch are postponed and sorted by
@@ -274,58 +274,59 @@ let merge_branches instrs =
 let rec pp_emf_instr m fmt i =
   let pp_content fmt i =
     match Corelang.get_instr_desc i with
-    | MLocalAssign(lhs, expr)
-      -> (
-	(match expr.value_desc with
-	| Fun (fun_id, vl) -> (
-	  (* Thanks to normalization, vl shall only contain constant or
-	     local/state vars but not calls to other functions *)
-	  fprintf fmt "\"kind\": \"operator\",@ ";
-	  fprintf fmt "\"lhs\": \"%a\",@ " pp_var_name lhs;
-	  fprintf fmt "\"name\": \"%s\",@ \"args\": [@[%a@]]"
-	    fun_id
-	    (pp_emf_cst_or_var_list m) vl
-	)	 
-	| Array _ | Access _ | Power _ 
-	| Cst _ 
-	| Var _ -> (
-	  fprintf fmt "\"kind\": \"local_assign\",@ \"lhs\": \"%a\",@ \"rhs\": %a"
-	    pp_var_name lhs
-	    (pp_emf_cst_or_var m) expr
-	))    )
+    | MLocalAssign(lhs, expr) ->
+      begin match expr.value_desc with
+        | Fun (fun_id, vl) ->
+          (* Thanks to normalization, vl shall only contain constant or
+             local/state vars but not calls to other functions *)
+          fprintf fmt "\"kind\": \"operator\",@ ";
+          fprintf fmt "\"lhs\": \"%a\",@ " pp_var_name lhs;
+          fprintf fmt "\"name\": \"%s\",@ \"args\": [@[%a@]]"
+            fun_id
+            (pp_emf_cst_or_var_list m) vl
+        | Array _ | Access _ | Power _
+        | Cst _
+        | Var _ ->
+          fprintf fmt "\"kind\": \"local_assign\",@ \"lhs\": \"%a\",@ \"rhs\": %a"
+            pp_var_name lhs
+            (pp_emf_cst_or_var m) expr
+        | ResetFlag ->
+          (* TODO: handle reset flag *)
+          assert false
+      end
 
     | MStateAssign(lhs, expr) (* a Pre construct Shall only be defined by a
-				 variable or a constant, no function anymore! *)
+                                 variable or a constant, no function anymore! *)
       -> (
-	fprintf fmt "\"kind\": \"pre\",@ \"lhs\": \"%a\",@ \"rhs\": %a"
-	  pp_var_name lhs
-	  (pp_emf_cst_or_var m) expr
-      )
-       
+          fprintf fmt "\"kind\": \"pre\",@ \"lhs\": \"%a\",@ \"rhs\": %a"
+            pp_var_name lhs
+            (pp_emf_cst_or_var m) expr
+        )
+
     | MSetReset id
       -> (
-	fprintf fmt "\"kind\": \"reset\",@ \"lhs\": \"%s\",@ \"rhs\": \"true\""
-	  (reset_name id)
-      )
+          fprintf fmt "\"kind\": \"reset\",@ \"lhs\": \"%s\",@ \"rhs\": \"true\""
+            (reset_name id)
+        )
     | MNoReset id           
       -> (
-	fprintf fmt "\"kind\": \"reset\",@ \"lhs\": \"%s\",@ \"rhs\": \"false\""
-	  (reset_name id)
-      )
-  (* TODO: handle clear_reset *)
-  | MClearReset -> ()
-       
-    | MBranch (g, hl) -> (
-      let all_outputs, outputs, inputs = branch_instr_vars m i in
-      (* Format.eprintf "Mbranch %a@.vars: all_out: %a, out:%a, in:%a@.@." *)
-      (* 	Machine_code.pp_instr i *)
-      (* 	(fprintf_list ~sep:", " pp_var_string) (ISet.elements all_outputs) *)
-      (* 	(fprintf_list ~sep:", " pp_var_string) (ISet.elements outputs) *)
-      (* 	pp_emf_vars_decl *)
-      (* 	(VSet.elements inputs) *)
+          fprintf fmt "\"kind\": \"reset\",@ \"lhs\": \"%s\",@ \"rhs\": \"false\""
+            (reset_name id)
+        )
+    (* TODO: handle clear_reset and reset flag *)
+    | MClearReset | MResetAssign _ -> ()
 
-      (* ; *)
-      let inputs = VSet.filter (fun v -> not (ISet.mem v.var_id all_outputs)) inputs in
+    | MBranch (g, hl) -> (
+        let all_outputs, outputs, inputs = branch_instr_vars m i in
+        (* Format.eprintf "Mbranch %a@.vars: all_out: %a, out:%a, in:%a@.@." *)
+        (* 	Machine_code.pp_instr i *)
+        (* 	(fprintf_list ~sep:", " pp_var_string) (ISet.elements all_outputs) *)
+        (* 	(fprintf_list ~sep:", " pp_var_string) (ISet.elements outputs) *)
+        (* 	pp_emf_vars_decl *)
+        (* 	(VSet.elements inputs) *)
+
+        (* ; *)
+        let inputs = VSet.filter (fun v -> not (ISet.mem v.var_id all_outputs)) inputs in
       (* Format.eprintf "Filtering in: %a@.@." *)
       (* 	pp_emf_vars_decl *)
       (* 	(VSet.elements inputs) *)

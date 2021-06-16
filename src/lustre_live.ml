@@ -80,14 +80,13 @@ let set_live_of nid outputs locals sorted_eqs =
       let asg = inter (assigned asg eq) vars in
       let noc = no_occur_after i in
       let liv = diff asg noc in
-      Format.printf "asg %i: %a@." (i+1) pp_iset asg;
-      Format.printf "noc %i: %a@." (i+1) pp_iset noc;
-      Format.printf "liv %i: %a@." (i+1) pp_iset liv;
       Live.add (i + 1) liv l, asg, i + 1)
       (Live.add 0 empty Live.empty, empty, 0) sorted_eqs in
-  Format.(printf "@;%a@." (pp_print_list ~pp_open_box:pp_open_vbox0
-                           (fun fmt (i, l) -> fprintf fmt "%i : %a" i pp_iset l))
-                           (Live.bindings l));
+  Log.report ~level:6 (fun fmt ->
+      Format.(fprintf fmt "Live variables of %s: %a@;@;" nid
+                (pp_print_list ~pp_open_box:pp_open_vbox0
+                   (fun fmt (i, l) -> fprintf fmt "%i: %a" i pp_iset l))
+                (Live.bindings l)));
   Hashtbl.add live nid l
 
 let live_i nid i =

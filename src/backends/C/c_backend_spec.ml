@@ -16,7 +16,6 @@ open Machine_code_types
 open C_backend_common
 open Corelang
 open Spec_types
-open Spec_common
 open Machine_code_common
 
 (**************************************************************************)
@@ -34,7 +33,7 @@ let pp_acsl_basic_type_desc t_desc =
     "_Bool"
   else if Types.is_int_type t_desc then
     (* !Options.int_type *)
-    "integer"
+    if t_desc.tid = -1 then "int" else "integer"
   else if Types.is_real_type t_desc then
     if !Options.mpfr then Mpfr.mpfr_t else !Options.real_type
   else
@@ -90,9 +89,6 @@ let pp_access pp_stru pp_field fmt (stru, field) =
   fprintf fmt "%a.%a" pp_stru stru pp_field field
 
 let pp_access' = pp_access pp_print_string pp_print_string
-
-let pp_inst self fmt (name, _) =
-  pp_indirect' fmt (self, name)
 
 let pp_var_decl fmt v =
   pp_print_string fmt v.var_id
@@ -251,10 +247,13 @@ let pp_initialization pp_mem fmt (name, mem) =
 
 let pp_initialization' = pp_initialization pp_print_string
 
+let pp_local m =
+  pp_c_decl_local_var ~pp_c_basic_type_desc:pp_acsl_basic_type_desc m
+
 let pp_locals m =
   pp_comma_list
-    ~pp_open_box:pp_open_hbox
-    (pp_c_decl_local_var ~pp_c_basic_type_desc:pp_acsl_basic_type_desc m)
+    ~pp_open_box:(fun fmt () -> pp_open_hovbox fmt 0)
+    (pp_local m)
 
 let pp_ptr_decl fmt v =
   pp_ptr fmt v.var_id
@@ -272,7 +271,7 @@ let pp_assign_spec m self_l pp_var_l indirect_l self_r pp_var_r indirect_r fmt
   let depth = expansion_depth value in
   let loop_vars = mk_loop_variables m var_type depth in
   let reordered_loop_vars = reorder_loop_variables loop_vars in
-  let rec aux typ fmt vars =
+  let aux typ fmt vars =
     match vars with
     | [] ->
       pp_basic_assign_spec
@@ -297,17 +296,6 @@ let pp_assign_spec m self_l pp_var_l indirect_l self_r pp_var_r indirect_r fmt
     reset_loop_counter ();
     aux var_type fmt reordered_loop_vars;
   end
-
-let pp_c_var_read m fmt id =
-  (* mpfr_t is a static array, not treated as general arrays *)
-  if Types.is_address_type id.var_type
-  then
-    if is_memory m id
-    && not (Types.is_real_type id.var_type && !Options.mpfr)
-    then fprintf fmt "(*%s)" id.var_id
-    else fprintf fmt "%s" id.var_id
-  else
-    fprintf fmt "%s" id.var_id
 
 let pp_nothing fmt () =
   pp_print_string fmt "\\nothing"
@@ -334,8 +322,10 @@ let pp_transition_aux ?i m pp_mem_in pp_mem_out pp_input pp_output fmt
   fprintf fmt "%s_transition%a(@[<hov>%t%a%a%t%a@])"
     name
     (pp_print_option pp_print_int) i
-    (fun fmt -> if not stateless then fprintf fmt "%a,@ " pp_mem_in mem_in)
-    (pp_comma_list pp_input) inputs
+    (fun fmt -> if not stateless then pp_mem_in fmt mem_in)
+    (pp_comma_list
+       ~pp_prologue:(fun fmt () -> if not stateless then pp_print_comma fmt ())
+       pp_input) inputs
     (pp_print_option (fun fmt _ ->
          pp_comma_list ~pp_prologue:pp_print_comma pp_input fmt locals))
     i
@@ -364,37 +354,80 @@ let pp_reset_cleared pp_mem_in pp_mem_out fmt (name, mem_in, mem_out) =
 
 let pp_reset_cleared' = pp_reset_cleared pp_print_string pp_print_string
 
+let pp_functional_update mems fmt mem =
+  let rec aux fmt mems =
+    match mems with
+    | [] -> pp_print_string fmt mem
+    | x :: mems ->
+      fprintf fmt "{ @[<hov>%a@ \\with ._reg.%s = %s@] }" aux mems x x
+  in
+  aux fmt
+  (* if Utils.ISet.is_empty mems then
+   *   pp_print_string fmt mem
+   *     else
+   *   fprintf fmt "{ %s @[<hov>\\with %a@] }"
+   *     mem
+   *     (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@;<1 -6>\\with ")
+   *        (fun fmt x -> fprintf fmt "._reg.%s = %s" x x)) *)
+      (Utils.ISet.elements mems)
+
 module PrintSpec = struct
 
-  let pp_reg pp_mem fmt = function
+  type mode =
+    | MemoryPackMode
+    | TransitionMode
+    | TransitionFootprintMode
+    | ResetIn
+    | ResetOut
+    | InstrMode of ident
+
+  let pp_reg mem fmt = function
     | ResetFlag ->
-      fprintf fmt "%t%s" pp_mem reset_flag_name
+      fprintf fmt "%s.%s" mem reset_flag_name
     | StateVar x ->
-      fprintf fmt "%t%a" pp_mem pp_var_decl x
+      fprintf fmt "%s.%a" mem pp_var_decl x
 
   let pp_expr:
-    type a. machine_t -> (formatter -> unit) -> formatter -> (value_t, a) expression_t -> unit =
-    fun m pp_mem fmt -> function
-    | Val v -> pp_val m fmt v
+    type a. ?output:bool -> machine_t -> ident -> formatter
+    -> (value_t, a) expression_t -> unit =
+    fun ?(output=false) m mem fmt -> function
+    | Val v -> pp_c_val m mem (pp_c_var_read ~test_output:output m) fmt v
     | Tag t -> pp_print_string fmt t
     | Var v -> pp_var_decl fmt v
-    | Memory r -> pp_reg pp_mem fmt r
+    | Memory r -> pp_reg mem fmt r
 
-  let pp_predicate m mem_in mem_in' mem_out mem_out' fmt p =
-    let pp_expr: type a. formatter -> (value_t, a) expression_t -> unit =
-      fun fmt e -> pp_expr m (fun fmt -> fprintf fmt "%s." mem_out) fmt e
+  let pp_predicate mode m mem_in mem_in' mem_out mem_out' fmt p =
+    let output, mem_update = match mode with
+      | InstrMode _ -> true, false
+      | TransitionFootprintMode -> false, true
+      | _ -> false, false
+    in
+    let pp_expr:
+      type a. ?output:bool -> formatter -> (value_t, a) expression_t -> unit =
+      fun ?output fmt e -> pp_expr ?output m mem_out fmt e
     in
     match p with
-    | Transition (f, inst, i, inputs, locals, outputs) ->
+    | Transition (f, inst, i, inputs, locals, outputs, r, mems) ->
       let pp_mem_in, pp_mem_out = match inst with
         | None ->
-          pp_print_string, pp_print_string
+          pp_print_string,
+          if mem_update then pp_functional_update mems else pp_print_string
         | Some inst ->
-          (fun fmt mem_in -> pp_access' fmt (mem_in, inst)),
+          (fun fmt mem_in ->
+             if r then pp_print_string fmt mem_in
+             else pp_access' fmt (mem_in, inst)),
           (fun fmt mem_out -> pp_access' fmt (mem_out, inst))
       in
-      pp_transition_aux ?i m pp_mem_in pp_mem_out pp_expr pp_expr fmt
+      pp_transition_aux ?i m pp_mem_in pp_mem_out pp_expr (pp_expr ~output)
+        fmt
         (f, inputs, locals, outputs, mem_in', mem_out')
+    | Reset (_f, inst, r) ->
+      pp_ite
+        (pp_c_val m mem_in (pp_c_var_read m))
+        (pp_equal (pp_reset_flag' ~indirect:false) pp_print_int)
+        (pp_equal pp_print_string pp_access')
+        fmt
+        (r, (mem_out, 1), (mem_out, (mem_in, inst)))
     | MemoryPack (f, inst, i) ->
       let pp_mem, pp_self = match inst with
         | None ->
@@ -418,20 +451,13 @@ module PrintSpec = struct
     | Memory (StateVar v) -> vdecl_to_val v
     | Memory ResetFlag -> vdecl_to_val reset_flag
 
-  type mode =
-    | MemoryPackMode
-    | TransitionMode
-    | ResetIn
-    | ResetOut
-    | InstrMode of ident
-
   let find_arrow m =
     try
       List.find (fun (_, (td, _)) -> Arrow.td_is_arrow td) m.minstances
       |> fst
     with Not_found -> eprintf "Internal error: arrow not found"; raise Not_found
 
-  let pp_spec mode m =
+  let pp_spec mode m fmt f =
     let rec pp_spec mode fmt f =
       let mem_in, mem_in', indirect_r, mem_out, mem_out', indirect_l =
         let self = mk_self m in
@@ -444,10 +470,12 @@ module PrintSpec = struct
           self, self, true, mem, mem, false
         | TransitionMode ->
           mem_in, mem_in, false, mem_out, mem_out, false
+        | TransitionFootprintMode ->
+          mem_in, mem_in, false, mem_out, mem_out, false
         | ResetIn ->
-          mem_in, mem_in, false, mem_reset, mem_reset, false
-        | ResetOut ->
           mem_reset, mem_reset, false, mem_out, mem_out, false
+        | ResetOut ->
+          mem_in, mem_in, false, mem_reset, mem_reset, false
         | InstrMode self ->
           let mem = "*" ^ mem in
           fprintf str_formatter "%a" (pp_at pp_print_string) (mem, reset_label);
@@ -455,7 +483,7 @@ module PrintSpec = struct
           mem, mem, false
       in
       let pp_expr: type a. formatter -> (value_t, a) expression_t -> unit =
-        fun fmt e -> pp_expr m (fun fmt -> fprintf fmt "%s." mem_out) fmt e
+        fun fmt e -> pp_expr m mem_out fmt e
       in
       let pp_spec' = pp_spec mode in
       match f with
@@ -465,8 +493,8 @@ module PrintSpec = struct
         pp_false fmt ()
       | Equal (a, b) ->
         pp_assign_spec m
-          mem_out (pp_c_var_read m) indirect_l
-          mem_in (pp_c_var_read m) indirect_r
+          mem_out (pp_c_var_read ~test_output:false m) indirect_l
+          mem_in (pp_c_var_read ~test_output:false m) indirect_r
           fmt
           (type_of_l_value a, val_of_expr a, val_of_expr b)
       | And fs ->
@@ -482,12 +510,12 @@ module PrintSpec = struct
       | Ternary (e, a, b) ->
         pp_ite pp_expr pp_spec' pp_spec' fmt (e, a, b)
       | Predicate p ->
-        pp_predicate m mem_in mem_in' mem_out mem_out' fmt p
+        pp_predicate mode m mem_in mem_in' mem_out mem_out' fmt p
       | StateVarPack ResetFlag ->
         let r = vdecl_to_val reset_flag in
         pp_assign_spec m
-          mem_out (pp_c_var_read m) indirect_l
-          mem_in (pp_c_var_read m) indirect_r
+          mem_out (pp_c_var_read ~test_output:false m) indirect_l
+          mem_in (pp_c_var_read ~test_output:false m) indirect_r
           fmt
           (Type_predef.type_bool, r, r)
       | StateVarPack (StateVar v) ->
@@ -496,21 +524,29 @@ module PrintSpec = struct
         pp_par (pp_implies
                   (pp_not (pp_initialization pp_access'))
                   (pp_assign_spec m
-                     mem_out (pp_c_var_read m) indirect_l
-                     mem_in (pp_c_var_read m) indirect_r))
+                     mem_out (pp_c_var_read ~test_output:false m) indirect_l
+                     mem_in (pp_c_var_read ~test_output:false m) indirect_r))
           fmt
           ((Arrow.arrow_id, (mem_out, inst)),
            (v.var_type, v', v'))
-      | ExistsMem (rc, tr) ->
+      | ExistsMem (f, rc, tr) ->
         pp_exists
           (pp_machine_decl' ~ghost:true)
-          (pp_and (pp_spec ResetIn) (pp_spec ResetOut))
+          (pp_and (pp_spec ResetOut) (pp_spec ResetIn))
           fmt
-          ((m.mname.node_id, mk_mem_reset m),
+          ((f, mk_mem_reset m),
            (rc, tr))
-          (* fprintf fmt "@[<hv 2>∃ MEM,@ %a@]" pp_spec f *)
     in
-    pp_spec mode
+    match mode with
+    | TransitionFootprintMode ->
+      let mem_in = mk_mem_in m in
+      let mem_out = mk_mem_out m in
+      pp_forall
+        (pp_machine_decl ~ghost:true (pp_comma_list pp_print_string))
+        (pp_spec mode)
+        fmt ((m.mname.node_id, [mem_in; mem_out]), f)
+    | _ ->
+      pp_spec mode fmt f
 
 end
 
@@ -519,7 +555,12 @@ let pp_predicate pp_l pp_r fmt (l, r) =
     pp_l l
     pp_r r
 
-let print_machine_valid_predicate fmt m =
+let pp_lemma pp_l pp_r fmt (l, r) =
+  fprintf fmt "@[<v 2>lemma %a:@,%a;@]"
+    pp_l l
+    pp_r r
+
+let pp_mem_valid_def fmt m =
   if not (fst (get_stateless_status m)) then
     let name = m.mname.node_id in
     let self = mk_self m in
@@ -527,13 +568,15 @@ let print_machine_valid_predicate fmt m =
       (pp_predicate
          (pp_mem_valid (pp_machine_decl pp_ptr))
          (pp_and
-            (pp_and_l (fun fmt (_, (td, _) as inst) ->
-                 pp_mem_valid (pp_inst self) fmt (node_name td, inst)))
+            (pp_and_l (fun fmt (inst, (td, _)) ->
+                 if Arrow.td_is_arrow td then
+                   pp_valid pp_indirect' fmt [self, inst]
+                 else
+                   pp_mem_valid pp_indirect' fmt (node_name td, (self, inst))))
             (pp_valid pp_print_string)))
       fmt
       ((name, (name, self)),
        (m.minstances, [self]))
-
 
 let pp_memory_pack_def m fmt mp =
   let name = mp.mpname.node_id in
@@ -567,121 +610,59 @@ let pp_transition_def m fmt t =
     (pp_predicate
        (pp_transition m
           (pp_machine_decl' ~ghost:true) (pp_machine_decl' ~ghost:true)
-          (pp_c_decl_local_var ~pp_c_basic_type_desc:pp_acsl_basic_type_desc m)
-          (pp_c_decl_local_var ~pp_c_basic_type_desc:pp_acsl_basic_type_desc m))
+          (pp_local m)
+          (pp_local m))
        (PrintSpec.pp_spec TransitionMode m))
     fmt
     ((t, (name, mem_in), (name, mem_out)),
      t.tformula)
 
-(* let print_trans_simulation dependencies m fmt (i, instr) =
- *   let mem_in = mk_mem_in m in
- *   let mem_out = mk_mem_out m in
- *   let d = VDSet.(diff (union (live_i m i) (assigned empty instr))
- *                    (live_i m (i+1))) in
- *   (\* XXX *\)
- *   (\* printf "%d : %a\n%d : %a\nocc: %a\n\n"
- *    *   i
- *    *   (pp_print_parenthesized pp_var_decl) (VDSet.elements (live_i m i))
- *    *   (i+1)
- *    *   (pp_print_parenthesized pp_var_decl) (VDSet.elements (live_i m (i+1)))
- *    *   (pp_print_parenthesized pp_var_decl) VDSet.(elements (assigned empty instr)); *\)
- *   let prev_trans fmt () = pp_mem_trans' ~i fmt (m, mem_in, mem_out) in
- *   let pred pp v =
- *     let vars = VDSet.(union (of_list m.mstep.step_locals)
- *                         (of_list m.mstep.step_outputs)) in
- *     let locals = VDSet.(inter vars d |> elements) in
- *     if locals = []
- *     then pp_and prev_trans pp fmt ((), v)
- *     else pp_exists (pp_locals m) (pp_and prev_trans pp) fmt (locals, ((), v))
- *   in
- *   let rec aux fmt instr = match instr.instr_desc with
- *     | MLocalAssign (x, v)
- *     | MStateAssign (x, v) ->
- *       pp_assign_spec m mem_out (pp_c_var_read m) mem_in (pp_c_var_read m) fmt
- *         (x.var_type, mk_val (Var x) x.var_type, v)
- *     | MStep ([i0], i, vl)
- *       when Basic_library.is_value_internal_fun
- *           (mk_val (Fun (i, vl)) i0.var_type)  ->
- *       pp_true fmt ()
- *     | MStep (_, i, _) when !Options.mpfr && Mpfr.is_homomorphic_fun i ->
- *       pp_true fmt ()
- *     | MStep ([_], i, _) when has_c_prototype i dependencies ->
- *       pp_true fmt ()
- *     | MStep (xs, i, ys) ->
- *       begin try
- *           let n, _ = List.assoc i m.minstances in
- *           pp_mem_trans_aux
- *             (fst (get_stateless_status_top_decl n))
- *             pp_access' pp_access'
- *             (pp_c_val m mem_in (pp_c_var_read m))
- *             pp_var_decl
- *             fmt
- *             (node_name n, ys, [], xs, (mem_in, i), (mem_out, i))
- *         with Not_found -> pp_true fmt ()
- *       end
- *     | MReset i ->
- *       begin try
- *           let n, _ = List.assoc i m.minstances in
- *           pp_mem_init' fmt (node_name n, mem_out)
- *         with Not_found -> pp_true fmt ()
- *       end
- *     | MBranch (v, brs) ->
- *       if let t = fst (List.hd brs) in t = tag_true || t = tag_false
- *       then (\* boolean case *\)
- *         pp_ite (pp_c_val m mem_in (pp_c_var_read m))
- *           (fun fmt () ->
- *              match List.assoc tag_true brs with
- *              | _ :: _ as l -> pp_paren (pp_and_l aux) fmt l
- *              | []
- *              | exception Not_found -> pp_true fmt ())
- *           (fun fmt () ->
- *              match List.assoc tag_false brs with
- *              | _ :: _ as l -> pp_paren (pp_and_l aux) fmt l
- *              | []
- *              | exception Not_found -> pp_true fmt ())
- *           fmt (v, (), ())
- *       else (\* enum type case *\)
- *       pp_and_l (fun fmt (l, instrs) ->
- *             let pp_val = pp_c_val m mem_in (pp_c_var_read m) in
- *             pp_paren (pp_implies
- *                         (pp_equal pp_val pp_c_tag)
- *                         (pp_and_l aux))
- *               fmt
- *               ((v, l), instrs))
- *         fmt brs
- *     | _ -> pp_true fmt ()
- *   in
- *   pred aux instr *)
-
-(* let print_machine_trans_simulation dependencies m fmt i instr =
- *   print_machine_trans_simulation_aux m
- *     (print_trans_simulation dependencies m)
- *     ~i:(i+1)
- *     fmt (i, instr) *)
-
 let pp_transition_defs fmt m =
-  (* set_live_of m; *)
-  (* let i = List.length m.mstep.step_instrs in *)
-  (* let mem_in = mk_mem_in m in
-   * let mem_out = mk_mem_out m in *)
-  (* let last_trans fmt () =
-   *   let locals = VDSet.(inter
-   *                         (of_list m.mstep.step_locals)
-   *                         (live_i m i)
-   *                       |> elements) in
-   *   if locals = []
-   *   then pp_mem_trans' ~i fmt (m, mem_in, mem_out)
-   *   else pp_exists (pp_locals m) (pp_mem_trans' ~i) fmt
-   *       (locals, (m, mem_in, mem_out))
-   * in *)
-  fprintf fmt "%a"
-    (pp_print_list
-       ~pp_epilogue:pp_print_cut
-       ~pp_open_box:pp_open_vbox0
-       (pp_transition_def m)) m.mspec.mtransitions
+  pp_print_list
+    ~pp_epilogue:pp_print_cut
+    ~pp_open_box:pp_open_vbox0
+    (pp_transition_def m) fmt m.mspec.mtransitions
 
-let print_machine_init_predicate fmt m =
+let pp_transition_footprint fmt t =
+  fprintf fmt "%s_transition%a_footprint"
+    t.tname.node_id
+    (pp_print_option pp_print_int) t.tindex
+
+let pp_transition_footprint_lemma m fmt t =
+  let open Utils.ISet in
+  let name = t.tname.node_id in
+  let mems = diff (of_list (List.map (fun v -> v.var_id) m.mmemory)) t.tfootprint in
+  let memories = List.map (fun v ->
+      { v with var_type = { v.var_type with tid = -1 }})
+      (List.filter (fun v -> not (mem v.var_id t.tfootprint)) m.mmemory)
+  in
+  if not (is_empty mems) then
+    pp_acsl
+      (pp_lemma
+         pp_transition_footprint
+         (PrintSpec.pp_spec TransitionFootprintMode m))
+      fmt
+      (t,
+       Forall (
+         memories @ t.tinputs @ t.tlocals @ t.toutputs,
+         Imply (Spec_common.mk_transition ?i:t.tindex name
+                  (vdecls_to_vals t.tinputs)
+                  (vdecls_to_vals t.tlocals)
+                  (vdecls_to_vals t.toutputs),
+                Spec_common.mk_transition ~mems ?i:t.tindex name
+                  (vdecls_to_vals t.tinputs)
+                  (vdecls_to_vals t.tlocals)
+                  (vdecls_to_vals t.toutputs))))
+
+let pp_transition_footprint_lemmas fmt m =
+  pp_print_list
+    ~pp_epilogue:pp_print_cut
+    ~pp_open_box:pp_open_vbox0
+    (pp_transition_footprint_lemma m) fmt
+    (List.filter (fun t -> match t.tindex with Some i when i > 0 -> true | _ -> false)
+         m.mspec.mtransitions)
+
+let pp_initialization_def fmt m =
   if not (fst (get_stateless_status m)) then
     let name = m.mname.node_id in
     let mem_in = mk_mem_in m in
@@ -689,9 +670,35 @@ let print_machine_init_predicate fmt m =
       (pp_predicate
          (pp_initialization (pp_machine_decl' ~ghost:true))
          (pp_and_l (fun fmt (i, (td, _)) ->
-              pp_initialization pp_access' fmt (node_name td, (mem_in, i)))))
+              if Arrow.td_is_arrow td then
+                pp_initialization pp_access' fmt (node_name td, (mem_in, i))
+              else
+                pp_equal (pp_reset_flag ~indirect:false pp_access') pp_print_int
+                  fmt
+                  ((mem_in, i), 1))))
       fmt
       ((name, (name, mem_in)), m.minstances)
+
+let pp_reset_cleared_def fmt m =
+  if not (fst (get_stateless_status m)) then
+    let name = m.mname.node_id in
+    let mem_in = mk_mem_in m in
+    let mem_out = mk_mem_out m in
+    pp_acsl
+      (pp_predicate
+         (pp_reset_cleared
+            (pp_machine_decl' ~ghost:true) (pp_machine_decl' ~ghost:true))
+         (pp_ite
+            (pp_reset_flag' ~indirect:false)
+            (pp_and
+               (pp_equal (pp_reset_flag' ~indirect:false) pp_print_int)
+               pp_initialization')
+            (pp_equal pp_print_string pp_print_string)))
+      fmt
+      ((name, (name, mem_in), (name, mem_out)),
+       (mem_in,
+        ((mem_out, 0), (name, mem_out)),
+        (mem_out, mem_in)))
 
 let pp_at pp_p fmt (p, l) =
   fprintf fmt "\\at(%a, %s)" pp_p p l
@@ -712,7 +719,7 @@ let pp_register_chain ?(indirect=true) ptr =
 let pp_reset_flag_chain ?(indirect=true) ptr fmt mems =
   pp_print_list
     ~pp_prologue:(fun fmt () -> fprintf fmt "%s->" ptr)
-    ~pp_epilogue:(fun fmt () -> pp_reset_flag ~indirect fmt "")
+    ~pp_epilogue:(fun fmt () -> pp_reset_flag' ~indirect fmt "")
     ~pp_sep:(fun fmt () -> pp_print_string fmt (if indirect then "->" else "."))
     (fun fmt (i, _) -> pp_print_string fmt i)
     fmt mems
@@ -736,8 +743,8 @@ module HdrMod = struct
 
   let print_machine_decl_prefix = fun _ _ -> ()
 
-  let pp_import_standard_spec fmt () =
-    fprintf fmt "@,#include \"%s/arrow_spec.h%s\""
+  let pp_import_arrow fmt () =
+    fprintf fmt "#include \"%s/arrow_spec.h%s\""
       (Arrow.arrow_top_decl ()).top_decl_owner
       (if !Options.cpp then "pp" else "")
 
@@ -748,31 +755,26 @@ module SrcMod = struct
   module GhostProto = GhostProto
 
   let pp_predicates (* dependencies *) fmt machines =
+    let pp_preds comment pp =
+      pp_print_list
+        ~pp_open_box:pp_open_vbox0
+        ~pp_prologue:(pp_print_endcut comment)
+        pp
+        ~pp_epilogue:pp_print_cutcut in
     fprintf fmt
-      "%a%a%a%a"
-      (pp_print_list
-         ~pp_open_box:pp_open_vbox0
-         ~pp_prologue:(pp_print_endcut "/* ACSL `valid` predicates */")
-         print_machine_valid_predicate
-         ~pp_epilogue:pp_print_cutcut) machines
-      (pp_print_list
-         ~pp_open_box:pp_open_vbox0
-         ~pp_sep:pp_print_cutcut
-         ~pp_prologue:(pp_print_endcut "/* ACSL ghost simulations */")
-         pp_memory_pack_defs
-         ~pp_epilogue:pp_print_cutcut) machines
-      (pp_print_list
-         ~pp_open_box:pp_open_vbox0
-         ~pp_sep:pp_print_cutcut
-         ~pp_prologue:(pp_print_endcut "/* ACSL initialization annotations */")
-         print_machine_init_predicate
-         ~pp_epilogue:pp_print_cutcut) machines
-      (pp_print_list
-         ~pp_open_box:pp_open_vbox0
-         ~pp_sep:pp_print_cutcut
-         ~pp_prologue:(pp_print_endcut "/* ACSL transition annotations */")
-         pp_transition_defs
-         ~pp_epilogue:pp_print_cutcut) machines
+      "%a%a%a%a%a%a"
+      (pp_preds "/* ACSL `valid` predicates */"
+         pp_mem_valid_def) machines
+      (pp_preds "/* ACSL `memory pack` simulations */"
+         pp_memory_pack_defs) machines
+      (pp_preds "/* ACSL initialization annotations */"
+         pp_initialization_def) machines
+      (pp_preds "/* ACSL reset cleared annotations */"
+         pp_reset_cleared_def) machines
+      (pp_preds "/* ACSL transition annotations */"
+         pp_transition_defs) machines
+      (pp_preds "/* ACSL transition memory footprints lemmas */"
+         pp_transition_footprint_lemmas) machines
 
   let pp_clear_reset_spec fmt self mem m =
     let name = m.mname.node_id in
@@ -796,15 +798,15 @@ module SrcMod = struct
                          ~i:(List.length m.mspec.mmemory_packs - 2)
                          pp_ptr pp_print_string))
           (name, mem, self)
-          (pp_assigns pp_reset_flag) [self]
+          (pp_assigns pp_reset_flag') [self]
           (pp_assigns (pp_register_chain self)) (mk_insts arws)
           (pp_assigns (pp_reset_flag_chain self)) (mk_insts narws)
-          (pp_assigns pp_reset_flag) [mem]
+          (pp_assigns pp_reset_flag') [mem]
           (pp_assigns (pp_register_chain ~indirect:false mem)) (mk_insts arws)
           (pp_assigns (pp_reset_flag_chain ~indirect:false mem)) (mk_insts narws)
-          (pp_assumes (pp_equal pp_reset_flag pp_print_int)) (mem, 1)
+          (pp_assumes (pp_equal pp_reset_flag' pp_print_int)) (mem, 1)
           (pp_ensures (pp_initialization pp_ptr)) (name, mem)
-          (pp_assumes (pp_equal pp_reset_flag pp_print_int)) (mem, 0)
+          (pp_assumes (pp_equal pp_reset_flag' pp_print_int)) (mem, 0)
           (pp_ensures (pp_equal pp_ptr (pp_old pp_ptr))) (mem, mem)
       )
       fmt ()
@@ -815,8 +817,8 @@ module SrcMod = struct
         fprintf fmt
           "%a@,%a@,%a"
           (pp_ensures (pp_memory_pack_aux pp_ptr pp_print_string)) (name, mem, self)
-          (pp_ensures (pp_equal pp_reset_flag pp_print_string)) (mem, "1")
-          (pp_assigns pp_reset_flag) [self; mem])
+          (pp_ensures (pp_equal pp_reset_flag' pp_print_int)) (mem, 1)
+          (pp_assigns pp_reset_flag') [self; mem])
       fmt ()
 
   let pp_step_spec fmt machines self mem m =
@@ -839,24 +841,28 @@ module SrcMod = struct
             (name, inputs, [], outputs, "", "")
         else
           fprintf fmt
-            "%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a"
+            "%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a"
             (pp_requires (pp_valid pp_var_decl)) outputs
             (pp_requires pp_mem_valid') (name, self)
             (pp_requires (pp_separated self mem)) (insts', outputs)
             (pp_requires (pp_memory_pack_aux pp_ptr pp_print_string))
             (name, mem, self)
+            (pp_ensures (pp_memory_pack_aux pp_ptr pp_print_string))
+            (name, mem, self)
+            (pp_ensures (pp_transition_aux m (pp_old pp_ptr)
+                           pp_ptr pp_var_decl pp_ptr_decl))
+            (name, inputs, [], outputs, mem, mem)
             (pp_assigns pp_ptr_decl) outputs
             (pp_assigns (pp_reg self)) m.mmemory
+            (pp_assigns pp_reset_flag') [self]
             (pp_assigns (pp_memory self)) (memories insts')
             (pp_assigns (pp_register_chain self)) insts
             (pp_assigns (pp_reset_flag_chain self)) insts''
             (pp_assigns (pp_reg mem)) m.mmemory
+            (pp_assigns pp_reset_flag') [mem]
             (pp_assigns (pp_memory ~indirect:false mem)) (memories insts')
             (pp_assigns (pp_register_chain ~indirect:false mem)) insts
             (pp_assigns (pp_reset_flag_chain ~indirect:false mem)) insts''
-            (pp_ensures (pp_transition_aux m (pp_old pp_ptr)
-                           pp_ptr pp_var_decl pp_ptr_decl))
-            (name, inputs, [], outputs, mem, mem)
       )
       fmt ()
 
@@ -876,7 +882,7 @@ module SrcMod = struct
     | MSetReset inst ->
       let td, _ = List.assoc inst m.minstances in
       if Arrow.td_is_arrow td then
-         fprintf fmt "@,%a"
+         fprintf fmt "@,%a;"
            (pp_acsl_line
               (pp_ghost
                  (pp_arrow_reset_ghost self)))

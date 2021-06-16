@@ -179,6 +179,8 @@ let get_memories env =
 
 (* Datastructure updated while visiting equations *)
 type machine_ctx = {
+  (* memories *)
+  m: ISet.t;
   (* Reset instructions *)
   si: instr_t list;
   (* Instances *)
@@ -188,10 +190,16 @@ type machine_ctx = {
   (* Memory pack spec *)
   mp: mc_formula_t list;
   (* Transition spec *)
-  t: (var_decl list * var_decl list * var_decl list * mc_formula_t) list;
+  t: (var_decl list             (* inputs *)
+      * var_decl list           (* locals *)
+      * var_decl list           (* outputs *)
+      * ISet.t                  (* memory footprint *)
+      * mc_formula_t            (* formula *)
+     ) list;
 }
 
 let ctx_init = {
+  m = ISet.empty;
   si = [];
   j = IMap.empty;
   s = [];
@@ -225,13 +233,14 @@ let control_on_clock env ck inst =
 let reset_instance env i r c =
   match r with
   | Some r ->
+    let r = translate_guard env r in
     let _, inst = control_on_clock env c
         (mk_conditional
-           (translate_guard env r)
+           r
            [mkinstr (MSetReset i)]
            [mkinstr (MNoReset i)]) in
-    [ inst ]
-  | None -> []
+    Some r, [ inst ]
+  | None -> None, []
 
 let translate_eq env ctx id inputs locals outputs i eq =
   let translate_expr = translate_expr env in
@@ -243,7 +252,7 @@ let translate_eq env ctx id inputs locals outputs i eq =
   let pred_mp ctx a =
     And [mk_memory_pack ~i:(i-1) id; a] :: ctx.mp in
   let pred_t ctx a =
-    (inputs, locals_i, outputs_i,
+    (inputs, locals_i, outputs_i, ctx.m,
      Exists
        (Lustre_live.existential_vars id i eq (locals @ outputs),
         And [
@@ -254,7 +263,7 @@ let translate_eq env ctx id inputs locals outputs i eq =
           a
         ]))
     :: ctx.t in
-  let control_on_clock ck inst spec_mp spec_t =
+  let control_on_clock ck inst spec_mp spec_t ctx =
     let fspec, inst = control_on_clock env ck inst in
     { ctx with
       s = { inst with
@@ -272,8 +281,8 @@ let translate_eq env ctx id inputs locals outputs i eq =
   in
   let reset_instance = reset_instance env in
   let mkinstr' = mkinstr ~lustre_eq:eq in
-  let ctl ?(ck=eq.eq_rhs.expr_clock) instr spec_mp spec_t =
-    control_on_clock ck (mkinstr' instr) spec_mp spec_t in
+  let ctl ?(ck=eq.eq_rhs.expr_clock) instr =
+    control_on_clock ck (mkinstr' instr) in
 
   (* Format.eprintf "translate_eq %a with clock %a@." 
      Printers.pp_node_eq eq Clocks.print_ck eq.eq_rhs.expr_clock;  *)
@@ -290,6 +299,7 @@ let translate_eq env ctx id inputs locals outputs i eq =
         (MStep ([var_x], inst, [c1; c2]))
         (mk_memory_pack ~inst (node_name td))
         (mk_transition ~inst (node_name td) [] [] [vdecl_to_val var_x])
+        ctx
     in
     { ctx with
       si = mkinstr (MSetReset inst) :: ctx.si;
@@ -303,6 +313,7 @@ let translate_eq env ctx id inputs locals outputs i eq =
       (MStateAssign (var_x, e))
       (mk_state_variable_pack var_x)
       (mk_state_assign_tr var_x e)
+      { ctx with m = ISet.add x ctx.m }
 
   | [x], Expr_fby (e1, e2) when env.is_local x ->
     let var_x = env.get_var x in
@@ -311,6 +322,7 @@ let translate_eq env ctx id inputs locals outputs i eq =
         (MStateAssign (var_x, e2))
         (mk_state_variable_pack var_x)
         (mk_state_assign_tr var_x e2)
+        { ctx with m = ISet.add x ctx.m }
     in
     { ctx with
       si = mkinstr' (MStateAssign (var_x, translate_expr e1)) :: ctx.si;
@@ -328,11 +340,13 @@ let translate_eq env ctx id inputs locals outputs i eq =
         el [eq.eq_rhs.expr_clock] in
     let call_ck = Clock_calculus.compute_root_clock
         (Clock_predef.ck_tuple env_cks) in
+    let r, reset_inst = reset_instance inst r call_ck in
     let ctx = ctl
         ~ck:call_ck
         (MStep (var_p, inst, vl))
         (mk_memory_pack ~inst (node_name node_f))
-        (mk_transition ~inst (node_name node_f) vl [] (vdecls_to_vals var_p))
+        (mk_transition ?r ~inst (node_name node_f) vl [] (vdecls_to_vals var_p))
+        ctx
     in
     (*Clocks.new_var true in
       Clock_calculus.unify_imported_clock (Some call_ck) eq.eq_rhs.expr_clock eq.eq_rhs.expr_loc;
@@ -341,16 +355,14 @@ let translate_eq env ctx id inputs locals outputs i eq =
       si = if Stateless.check_node node_f
         then ctx.si else mkinstr (MSetReset inst) :: ctx.si;
       j = IMap.add inst call_f ctx.j;
-      s = (if Stateless.check_node node_f
-           then []
-           else reset_instance inst r call_ck)
+      s = (if Stateless.check_node node_f then [] else reset_inst)
           @ ctx.s;
     }
 
   | [x], _ ->
     let var_x = env.get_var x in
     let instr, spec = translate_act (var_x, eq.eq_rhs) in
-    control_on_clock eq.eq_rhs.expr_clock instr True spec
+    control_on_clock eq.eq_rhs.expr_clock instr True spec ctx
 
   | _ ->
     Format.eprintf "internal error: Machine_code.translate_eq %a@?"
@@ -369,10 +381,10 @@ let constant_equations locals =
     [] locals
 
 let translate_eqs env ctx id inputs locals outputs eqs =
-  List.fold_right (fun eq (ctx, i) ->
+  List.fold_left (fun (ctx, i) eq ->
       let ctx = translate_eq env ctx id inputs locals outputs i eq in
-      ctx, i - 1)
-    eqs (ctx, List.length eqs)
+      ctx, i + 1)
+    (ctx, 1) eqs
   |> fst
 
 
@@ -452,6 +464,7 @@ let transition_0 nd =
     tlocals = [];
     toutputs = [];
     tformula = True;
+    tfootprint = ISet.empty
   }
 
 let transition_toplevel nd i =
@@ -461,11 +474,13 @@ let transition_toplevel nd i =
     tinputs = nd.node_inputs;
     tlocals = [];
     toutputs = nd.node_outputs;
-    tformula = ExistsMem (Predicate (ResetCleared nd.node_id),
+    tformula = ExistsMem (nd.node_id,
+                          Predicate (ResetCleared nd.node_id),
                           mk_transition nd.node_id ~i
                             (vdecls_to_vals (nd.node_inputs))
                             []
                             (vdecls_to_vals nd.node_outputs));
+    tfootprint = ISet.empty;
   }
 
 let translate_decl nd sch =
@@ -519,12 +534,12 @@ let translate_decl nd sch =
         mpname = nd;
         mpindex = Some (i + 1);
         mpformula = red f
-      }) ctx.mp
+      }) (List.rev ctx.mp)
     @ [memory_pack_toplevel nd (List.length ctx.mp)]
   in
   let mtransitions =
     transition_0 nd
-    :: List.mapi (fun i (tinputs, tlocals, toutputs, f) ->
+    :: List.mapi (fun i (tinputs, tlocals, toutputs, tfootprint, f) ->
         {
           tname = nd;
           tindex = Some (i + 1);
@@ -532,7 +547,8 @@ let translate_decl nd sch =
           tlocals;
           toutputs;
           tformula = red f;
-        }) ctx.t
+          tfootprint
+        }) (List.rev ctx.t)
     @ [transition_toplevel nd (List.length ctx.t)]
   in
   let clear_reset = mkinstr ~instr_spec:[
@@ -546,8 +562,8 @@ let translate_decl nd sch =
     mmemory = VSet.elements mems;
     mcalls = mmap;
     minstances = List.filter (fun (_, (n,_)) -> not (Stateless.check_node n)) mmap;
-    minit = ctx.si;
-    mconst = ctx0_s;
+    minit = List.rev ctx.si;
+    mconst = List.rev ctx0_s;
     mstatic = List.filter (fun v -> v.var_dec_const) nd.node_inputs;
     mstep = {
       step_inputs = nd.node_inputs;
@@ -562,9 +578,9 @@ let translate_decl nd sch =
                        common branches are not merged while they are in C or Java
                        backends. *)
                     (if !Backends.join_guards then
-                       join_guards_list ctx.s
+                       join_guards_list (List.rev ctx.s)
                      else
-                       ctx.s);
+                       List.rev ctx.s);
       step_asserts = List.map (translate_expr env) nd_node_asserts;
     };
 

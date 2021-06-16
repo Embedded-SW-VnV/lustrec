@@ -54,13 +54,18 @@ module PrintSpec = struct
       fun fmt e -> pp_expr m fmt e
     in
     match p with
-    | Transition (f, inst, i, inputs, locals, outputs) ->
+    | Transition (f, inst, i, inputs, locals, outputs, _r, _mems) ->
       fprintf fmt "Transition_%a<%a>%a%a"
         pp_print_string f
         (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "SELF")
            pp_print_string) inst
         (pp_print_option pp_print_int) i
         (pp_print_parenthesized pp_expr) (inputs @ locals @ outputs)
+    | Reset (f, inst, r) ->
+      fprintf fmt "Reset_%a<%a> on %a"
+        pp_print_string f
+        pp_print_string inst
+        (pp_val m) r
     | MemoryPack (f, inst, i) ->
       fprintf fmt "MemoryPack_%a<%a>%a"
         pp_print_string f
@@ -102,8 +107,8 @@ module PrintSpec = struct
         pp_predicate m fmt p
       | StateVarPack r ->
         fprintf fmt "StateVarPack<%a>" pp_reg r
-      | ExistsMem (rc, tr) ->
-        fprintf fmt "@[<hv 2>∃ MEM,@ %a@]" pp_spec (And [rc; tr])
+      | ExistsMem (_f, a, b) ->
+        fprintf fmt "@[<hv 2>∃ MEM,@ %a@]" pp_spec (And [a; b])
     in
     pp_spec
 

@@ -23,10 +23,16 @@ let type_of_l_value: type a. (a, left_v) expression_t -> Types.type_expr =
 type ('a, 'b) expressions_t = ('a, 'b) expression_t list
 
 type 'a predicate_t =
-  | Transition: ident * ident option * int option
-                * ('a, 'b) expressions_t
-                * ('a, 'b) expressions_t
-                * ('a, 'b) expressions_t -> 'a predicate_t
+  | Transition: ident                        (* node name *)
+                * ident option               (* instance *)
+                * int option                 (* transition index *)
+                * ('a, 'b) expressions_t       (* inputs *)
+                * ('a, 'b) expressions_t       (* locals *)
+                * ('a, 'b) expressions_t       (* outputs *)
+                * bool                       (* reset *)
+                * Utils.ISet.t               (* memory footprint *)
+      -> 'a predicate_t
+  | Reset of ident * ident * 'a
   | MemoryPack of ident * ident option * int option
   | Initialization
   | ResetCleared of ident
@@ -43,7 +49,7 @@ type 'a formula_t =
   | Ternary: ('a, 'b) expression_t * 'a formula_t * 'a formula_t -> 'a formula_t
   | Predicate: 'a predicate_t -> 'a formula_t
   | StateVarPack of register_t
-  | ExistsMem of 'a formula_t * 'a formula_t
+  | ExistsMem of ident * 'a formula_t * 'a formula_t
 
 (* type 'a simulation_t = {
  *   sname: node_desc;
@@ -64,5 +70,6 @@ type 'a transition_t = {
   tlocals: var_decl list;
   toutputs: var_decl list;
   tformula: 'a formula_t;
+  tfootprint: Utils.ISet.t;
 }
 

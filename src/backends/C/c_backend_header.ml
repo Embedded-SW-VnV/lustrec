@@ -24,13 +24,16 @@ open C_backend_common
 module type MODIFIERS_HDR = sig
   module GhostProto: MODIFIERS_GHOST_PROTO
   val print_machine_decl_prefix: Format.formatter -> machine_t -> unit
-  val pp_import_standard_spec: formatter -> unit -> unit
+  val pp_import_arrow: formatter -> unit -> unit
 end
 
 module EmptyMod = struct
   module GhostProto = EmptyGhostProto
   let print_machine_decl_prefix = fun _ _ -> ()
-  let pp_import_standard_spec _ _ = ()
+  let pp_import_arrow fmt () =
+    fprintf fmt "#include \"%s/arrow.h%s\""
+      (Arrow.arrow_top_decl ()).top_decl_owner
+      (if !Options.cpp then "pp" else "")
 end
 
 module Main = functor (Mod: MODIFIERS_HDR) -> struct
@@ -42,14 +45,11 @@ module Main = functor (Mod: MODIFIERS_HDR) -> struct
     fprintf fmt
       "#include <stdint.h>@,\
        %a\
-       #include \"%s/arrow.h%s\"\
        %a"
       (if !Options.mpfr then
          pp_print_endcut "#include <mpfr.h>"
        else pp_print_nothing) ()
-      (Arrow.arrow_top_decl ()).top_decl_owner
-      (if !Options.cpp then "pp" else "")
-      Mod.pp_import_standard_spec ()
+      Mod.pp_import_arrow ()
 
   let rec print_static_val pp_var fmt v =
     match v.value_desc with

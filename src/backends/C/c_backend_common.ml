@@ -299,12 +299,17 @@ let rec pp_c_const fmt c =
   | Const_modeid _ -> assert false (* string occurs in annotations not in C *)
 
 let reset_flag_name = "_reset"
-let pp_reset_flag ?(indirect=true) fmt self =
-  fprintf fmt "%s%s%s" self (if indirect then "->" else ".") reset_flag_name
+let pp_reset_flag ?(indirect=true) pp_stru fmt stru =
+  fprintf fmt "%a%s%s"
+    pp_stru stru
+    (if indirect then "->" else ".")
+    reset_flag_name
+let pp_reset_flag' ?indirect fmt =
+  pp_reset_flag ?indirect pp_print_string fmt
 
 let pp_reset_assign self fmt b =
   fprintf fmt "%a = %i;"
-    (pp_reset_flag ~indirect:true) self (if b then 1 else 0)
+    (pp_reset_flag' ~indirect:true) self (if b then 1 else 0)
 
 (* Prints a value expression [v], with internal function calls only.
    [pp_var] is a printer for variables (typically [pp_c_var_read]),
@@ -337,7 +342,7 @@ let rec pp_c_val m self pp_var fmt v =
   | Fun (n, vl) ->
     pp_basic_lib_fun (Types.is_int_type v.value_type) n pp_c_val fmt vl
   | ResetFlag ->
-    pp_reset_flag fmt self
+    pp_reset_flag' fmt self
 
 
 (* Access to the value of a variable:
@@ -346,7 +351,7 @@ let rec pp_c_val m self pp_var fmt v =
      despite its scalar Lustre type)
    - moreover, dereference memory array variables.
 *)
-let pp_c_var_read m fmt id =
+let pp_c_var_read ?(test_output=true) m fmt id =
   (* mpfr_t is a static array, not treated as general arrays *)
   if Types.is_address_type id.var_type
   then
@@ -355,7 +360,7 @@ let pp_c_var_read m fmt id =
     then fprintf fmt "(*%s)" id.var_id
     else fprintf fmt "%s" id.var_id
   else
-    if Machine_code_common.is_output m id
+    if test_output && Machine_code_common.is_output m id
     then fprintf fmt "*%s" id.var_id
     else fprintf fmt "%s" id.var_id
 
@@ -616,7 +621,7 @@ let rec pp_value_suffix ?(indirect=true) m self var_type loop_vars pp_var fmt va
   | _, Cst cst ->
     pp_c_const_suffix var_type fmt cst
   | _, ResetFlag ->
-    pp_reset_flag fmt self
+    pp_reset_flag' fmt self
   | _, _ ->
     eprintf "internal error: C_backend_src.pp_value_suffix %a %a %a@."
       Types.print_ty var_type (pp_val m) value pp_suffix loop_vars;
