@@ -69,10 +69,7 @@ let graph_roots g =
 let add_edges src tgt g =
  (*List.iter (fun s -> List.iter (fun t -> Format.eprintf "add %s -> %s@." s t) tgt) src;*)
   List.iter
-    (fun s ->
-      List.iter
-	(fun t -> IdentDepGraph.add_edge g s t)
-	tgt)
+    (fun s -> List.iter (IdentDepGraph.add_edge g s) tgt)
     src;
   g
 
@@ -209,40 +206,44 @@ module ExprDep = struct
   let add_eq_dependencies mems inputs node_vars eq (g, g') =
     let add_var lhs_is_mem lhs x (g, g') =
       if is_instance_var x || ISet.mem x node_vars then
-	if ISet.mem x mems
-	then
-	  let g = add_edges lhs [mk_read_var x] g in
-	  if lhs_is_mem
-	  then
-	    (g, add_edges [x] lhs g')
-	  else
-	    (add_edges [x] lhs g, g')
-	else
-	  let x = if ISet.mem x inputs then mk_read_var x else x in
-	  (add_edges lhs [x] g, g')
+        if ISet.mem x mems
+        then
+          let g = add_edges lhs [mk_read_var x] g in
+          if lhs_is_mem
+          then
+            (g, add_edges [x] lhs g')
+          else
+            (add_edges [x] lhs g, g')
+        else
+          let x = if ISet.mem x inputs then mk_read_var x else x in
+          (add_edges lhs [x] g, g')
       else (add_edges lhs [mk_read_var x] g, g') (* x is a global constant, treated as a read var *)
     in
-  (* Add dependencies from [lhs] to rhs clock [ck]. *)
+    (* Add dependencies from [lhs] to rhs clock [ck]. *)
     let rec add_clock lhs_is_mem lhs ck g =
-    (*Format.eprintf "add_clock %a@." Clocks.print_ck ck;*)
+      (*Format.eprintf "add_clock %a@." Clocks.print_ck ck;*)
       match (Clocks.repr ck).Clocks.cdesc with
-      | Clocks.Con (ck', cr, _)   -> add_var lhs_is_mem lhs (Clocks.const_of_carrier cr) (add_clock lhs_is_mem lhs ck' g)
-      | Clocks.Ccarrying (_, ck') -> add_clock lhs_is_mem lhs ck' g
+      | Clocks.Con (ck', cr, _)   ->
+        add_var lhs_is_mem lhs (Clocks.const_of_carrier cr)
+          (add_clock lhs_is_mem lhs ck' g)
+      | Clocks.Ccarrying (_, ck') ->
+        add_clock lhs_is_mem lhs ck' g
       | _                         -> g 
     in
     let rec add_dep lhs_is_mem lhs rhs g =
-    (* Add mashup dependencies for a user-defined node instance [lhs] = [f]([e]) *)
-    (* i.e every input is connected to every output, through a ghost var *)
+      (* Add mashup dependencies for a user-defined node instance [lhs] = [f]([e]) *)
+      (* i.e every input is connected to every output, through a ghost var *)
       let mashup_appl_dependencies f e g =
-	let f_var = mk_instance_var (Format.sprintf "%s_%d" f (fst eq.eq_loc).Lexing.pos_lnum) in
-	List.fold_right (fun rhs -> add_dep lhs_is_mem (adjust_tuple f_var rhs) rhs)
-	  (expr_list_of_expr e) (add_var lhs_is_mem lhs f_var g) 
+        let f_var = mk_instance_var (Format.sprintf "%s_%d" f (fst eq.eq_loc).Lexing.pos_lnum) in
+        List.fold_right (fun rhs -> add_dep lhs_is_mem (adjust_tuple f_var rhs) rhs)
+          (expr_list_of_expr e) (add_var lhs_is_mem lhs f_var g)
       in
+      let g = add_clock lhs_is_mem lhs rhs.expr_clock g in
       match rhs.expr_desc with
       | Expr_const _    -> g
       | Expr_fby (e1, e2)  -> add_dep true lhs e2 (add_dep false lhs e1 g)
       | Expr_pre e      -> add_dep true lhs e g
-      | Expr_ident x -> add_var lhs_is_mem lhs x (add_clock lhs_is_mem lhs rhs.expr_clock g)
+      | Expr_ident x -> add_var lhs_is_mem lhs x g
       | Expr_access (e1, d)
       | Expr_power (e1, d) -> add_dep lhs_is_mem lhs e1 (add_dep lhs_is_mem lhs (expr_of_dimension d) g)
       | Expr_array a -> List.fold_right (add_dep lhs_is_mem lhs) a g
@@ -252,35 +253,33 @@ module ExprDep = struct
       | Expr_arrow (e1, e2)  -> add_dep lhs_is_mem lhs e2 (add_dep lhs_is_mem lhs e1 g)
       | Expr_when  (e, c, _)  -> add_dep lhs_is_mem lhs e (add_var lhs_is_mem lhs c g)
       | Expr_appl (f, e, None) ->
-	 if Basic_library.is_expr_internal_fun rhs
-      (* tuple component-wise dependency for internal operators *)
-	 then
-	   List.fold_right (add_dep lhs_is_mem lhs) (expr_list_of_expr e) g
-      (* mashed up dependency for user-defined operators *)
-	 else
-	   mashup_appl_dependencies f e g
+        if Basic_library.is_expr_internal_fun rhs
+        (* tuple component-wise dependency for internal operators *)
+        then
+          List.fold_right (add_dep lhs_is_mem lhs) (expr_list_of_expr e) g
+          (* mashed up dependency for user-defined operators *)
+        else
+          mashup_appl_dependencies f e g
       | Expr_appl (f, e, Some c) ->
-	 mashup_appl_dependencies f e (add_dep lhs_is_mem lhs c g)
+        mashup_appl_dependencies f e (add_dep lhs_is_mem lhs c g)
     in
-    let g =
-      List.fold_left
-	(fun g lhs ->
-	  if ISet.mem lhs mems then
-	    add_vertices [lhs; mk_read_var lhs] g
-	  else
-	    add_vertices [lhs] g
-	)
-	g eq.eq_lhs
+    let g = List.fold_left (fun g lhs ->
+        if ISet.mem lhs mems then
+          add_vertices [lhs; mk_read_var lhs] g
+        else
+	      add_vertices [lhs] g)
+	    g eq.eq_lhs
     in
     add_dep false eq.eq_lhs eq.eq_rhs (g, g')
-      
+
 
   (* Returns the dependence graph for node [n] *)
   let dependence_graph mems inputs node_vars n =
     instance_var_cpt := 0;
     let g = new_graph (), new_graph () in
     (* Basic dependencies *)
-    let g = List.fold_right (add_eq_dependencies mems inputs node_vars) (get_node_eqs n) g in
+    let g = List.fold_right (add_eq_dependencies mems inputs node_vars)
+        (get_node_eqs n) g in
     (* TODO Xavier: un essai ci dessous. Ca n'a pas l'air de résoudre le pb. Il
        faut imposer que les outputs dépendent des asserts pour identifier que les
        fcn calls des asserts sont évalués avant le noeuds *)
@@ -665,12 +664,13 @@ let global_dependency node =
     begin
       merge_with g_non_mems g_mems';
       add_external_dependency outputs mems g_non_mems;
-      { node with node_stmts = List.map (fun eq -> Eq eq) eqs'; node_locals = vdecls'@node.node_locals }, 
+      { node with
+        node_stmts = List.map (fun eq -> Eq eq) eqs';
+        node_locals = vdecls' @ node.node_locals },
       g_non_mems
     end
-  with Error (DataCycle _ as exc) -> (
-      raise (Error (exc))
-  )
+  with Error (DataCycle _ as exc) ->
+    raise (Error (exc))
 
 (* A module to sort dependencies among local variables when relying on clocked declarations *)
 module VarClockDep =
