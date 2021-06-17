@@ -115,10 +115,13 @@ module PrintSpec = struct
 end
 
 let pp_spec m =
-  pp_print_list
-    ~pp_open_box:pp_open_vbox0
-    ~pp_prologue:pp_print_cut
-    (fun fmt -> fprintf fmt "@[<h>--%@ %a@]" (PrintSpec.pp_spec m))
+  if !Options.spec <> "no" then
+    pp_print_list
+      ~pp_open_box:pp_open_vbox0
+      ~pp_prologue:pp_print_cut
+      (fun fmt -> fprintf fmt "@[<h>--%@ %a@]" (PrintSpec.pp_spec m))
+  else
+    pp_print_nothing
 
 let rec pp_instr m fmt i =
   let pp_val = pp_val m in
@@ -214,9 +217,12 @@ let pp_memory_pack m fmt mp =
     (PrintSpec.pp_spec m) mp.mpformula
 
 let pp_memory_packs m fmt =
-  fprintf fmt
-    "@[<v 2>memory_packs:@ %a@]"
-    (pp_print_list (pp_memory_pack m))
+  if !Options.spec <> "no" then
+    fprintf fmt
+      "@[<v 2>memory_packs:@ %a@]"
+      (pp_print_list (pp_memory_pack m))
+  else
+    pp_print_nothing fmt
 
 let pp_transition m fmt t =
   fprintf fmt
@@ -227,9 +233,12 @@ let pp_transition m fmt t =
     (PrintSpec.pp_spec m) t.tformula
 
 let pp_transitions m fmt =
-  fprintf fmt
-    "@[<v 2>transitions:@ %a@]"
-    (pp_print_list (pp_transition m))
+  if !Options.spec <> "no" then
+    fprintf fmt
+      "@[<v 2>transitions:@ %a@]"
+      (pp_print_list (pp_transition m))
+  else
+    pp_print_nothing fmt
 
 let pp_machine fmt m =
   fprintf fmt
