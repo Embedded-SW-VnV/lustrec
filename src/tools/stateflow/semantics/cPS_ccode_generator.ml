@@ -1,25 +1,24 @@
 open CPS_transformer
 
-module CodeGenerator : ComparableTransformerType =
-struct
+module CodeGenerator : ComparableTransformerType = struct
   include TransformerStub
 
-  type t =
-  | Bot
-  | Act of act_t
-  | Seq of t list
-  | Ite of cond_t * t * t
+  type t = Bot | Act of act_t | Seq of t list | Ite of cond_t * t * t
 
   let null = Seq []
 
   let bot = Bot
- 
+
   let ( >> ) tr1 tr2 =
     match tr1, tr2 with
-    | Seq trl1, Seq trl2 -> Seq (trl1@trl2)
-    | Seq trl1, _        -> Seq (trl1@[tr2])
-    | _       , Seq trl2 -> Seq (tr1::trl2)
-    | _                  -> Seq ([tr1;tr2])
+    | Seq trl1, Seq trl2 ->
+      Seq (trl1 @ trl2)
+    | Seq trl1, _ ->
+      Seq (trl1 @ [ tr2 ])
+    | _, Seq trl2 ->
+      Seq (tr1 :: trl2)
+    | _ ->
+      Seq [ tr1; tr2 ]
 
   let ( == ) tr1 tr2 = tr1 = tr2
 
@@ -27,11 +26,12 @@ struct
     (*Format.printf "----- action = %a@." Action.pp_act action;*)
     Act action
 
-  (*if (match trans.event with None -> true | _ -> e = trans.event) && trans.condition rho*)
+  (*if (match trans.event with None -> true | _ -> e = trans.event) &&
+    trans.condition rho*)
   let eval_cond condition ok ko =
     (*Format.printf "----- cond = %a@." Condition.pp_cond condition;*)
     Ite (condition, ok, ko)
-    
+
   (* let rec pp_transformer fmt tr =
    *   match tr with
    *   | Bot           -> Format.fprintf fmt "bot"
@@ -46,7 +46,7 @@ struct
 
   (* let pp_principal fmt tr =
    *   Format.fprintf fmt "principal =@.%a" pp_transformer tr *)
-      
+
   (* let pp_component : type c. Format.formatter -> c call_t -> c -> t -> unit =
    *   fun fmt call -> match call with
    *   | Ecall -> (fun (p, p', f) tr ->
@@ -56,9 +56,8 @@ struct
    *   | Xcall -> (fun (p, f) tr ->
    *     Format.fprintf fmt "component %a(%a, %a) =@.@[<v 2>begin@ %a@]@.end" pp_call call pp_path p pp_frontier f pp_transformer tr) *)
 
-		     let mkcomponent _  = assert false
-		     let mkprincipal _  = assert false
-		     (* let mktransformer _  = assert false *)
-		       
-end
+  let mkcomponent _ = assert false
 
+  let mkprincipal _ = assert false
+  (* let mktransformer _ = assert false *)
+end

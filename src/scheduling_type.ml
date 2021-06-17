@@ -1,8 +1,7 @@
 open Utils
 open Lustre_types
 
-type schedule_report =
-{
+type schedule_report = {
   (* the scheduled node *)
   node : node_desc;
   (* a schedule computed wrt the dependency graph *)
@@ -12,8 +11,7 @@ type schedule_report =
   (* the table mapping each local var to its in-degree *)
   fanin_table : (ident, int) Hashtbl.t;
   (* the dependency graph *)
-  dep_graph   : IdentDepGraph.t;
-  (* the table mapping each assignment to a reusable variable *)
-  (*reuse_table : (ident, var_decl) Hashtbl.t*)
+  dep_graph : IdentDepGraph.t;
+      (* the table mapping each assignment to a reusable variable *)
+      (*reuse_table : (ident, var_decl) Hashtbl.t*)
 }
- 

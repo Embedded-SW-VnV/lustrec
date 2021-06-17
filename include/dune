@@ -4,20 +4,24 @@
 
 (rule
  (target conv.lusic)
- (action (run lustrec -verbose 0 -I . -d . %{dep:conv.lusi}))
+ (action
+  (run lustrec -verbose 0 -I . -d . %{dep:conv.lusi}))
  (alias install))
 
 (rule
  (targets simulink_math_fcn.lusic simulink_math_fcn.h)
- (action (run lustrec -verbose 0 -I . -d . %{dep:simulink_math_fcn.lusi}))
+ (action
+  (run lustrec -verbose 0 -I . -d . %{dep:simulink_math_fcn.lusi}))
  (alias install))
 
 (rule
  (targets lustrec_math.lusic lustrec_math.h)
- (action (run lustrec -verbose 0 -I . -d . %{dep:lustrec_math.lusi}))
+ (action
+  (run lustrec -verbose 0 -I . -d . %{dep:lustrec_math.lusi}))
  (alias install))
 
 (rule
  (targets mpfr_lustre.lusic mpfr_lustre.h)
- (action (run lustrec -verbose 0 -mpfr 1 -d . %{dep:mpfr_lustre.lusi}))
+ (action
+  (run lustrec -verbose 0 -mpfr 1 -d . %{dep:mpfr_lustre.lusi}))
  (alias install))

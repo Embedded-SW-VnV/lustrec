@@ -11,5 +11,6 @@
 (plugin
  (name zustre_verifier)
  (libraries lustrec.zustre_verifier)
- (site (lustrec verifiers))
+ (site
+  (lustrec verifiers))
  (optional))

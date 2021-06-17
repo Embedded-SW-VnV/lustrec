@@ -1,0 +1,5 @@
+version=0.18.0
+parens-tuple=multi-line-only
+wrap-comments=true
+cases-exp-indent=2
+break-cases=nested

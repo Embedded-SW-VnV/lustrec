@@ -9,5 +9,6 @@
 (plugin
  (name seal_verifier)
  (libraries lustrec.seal_verifier)
- (site (lustrec verifiers))
+ (site
+  (lustrec verifiers))
  (optional))

@@ -9,5 +9,6 @@
 (plugin
  (name tiny_verifier)
  (libraries lustrec.tiny_verifier)
- (site (lustrec verifiers))
+ (site
+  (lustrec verifiers))
  (optional))

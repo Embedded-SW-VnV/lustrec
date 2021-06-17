@@ -9,17 +9,12 @@
 (*                                                                  *)
 (********************************************************************)
 
-let report
-    ?plugin:(modulename="")
-    ?(verbose_level=Options.verbose_level)
-    ~level:level p =
-if !verbose_level >= level then
-  if modulename="" then
-    Format.eprintf "%t" p
-  else
-    Format.eprintf "[%s] @[%t@]" modulename p
+let report ?plugin:(modulename = "") ?(verbose_level = Options.verbose_level)
+    ~level p =
+  if !verbose_level >= level then
+    if modulename = "" then Format.eprintf "%t" p
+    else Format.eprintf "[%s] @[%t@]" modulename p
 
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)
-

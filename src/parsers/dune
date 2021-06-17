@@ -5,6 +5,7 @@
 ;; The use of [--external-tokens Parser] is required for the two parsers
 ;; to share a single [token] type. This makes them usable with the same
 ;; lexer.
+
 (menhir
  (modules parser_lustre)
  (merge_into parser_lustre_table)
@@ -22,16 +23,21 @@
 
 (rule
  (deps parser_lustre.check)
- (action (with-stdout-to parser_lustre_messages.ml
-          (run menhir
-               %{dep:parser_lustre.mly}
-               --compile-errors %{dep:parser_lustre.messages}))))
+ (action
+  (with-stdout-to
+   parser_lustre_messages.ml
+   (run
+    menhir
+    %{dep:parser_lustre.mly}
+    --compile-errors
+    %{dep:parser_lustre.messages}))))
 
 ;; This rule generates a file "parser_lustre.auto.messages" that contains a
 ;; list of all error states. It is used by the completeness check.
 
 (rule
- (with-stdout-to parser_lustre.auto.messages
+ (with-stdout-to
+  parser_lustre.auto.messages
   (run menhir %{dep:parser_lustre.mly} --list-errors)))
 
 ;; This rule implements the completeness check. It checks that every error
@@ -40,8 +46,12 @@
 ;; by the programmer.
 
 (rule
- (with-stdout-to parser_lustre.check
-  (run menhir
-       %{dep:parser_lustre.mly}
-       --compare-errors %{dep:parser_lustre.auto.messages}
-       --compare-errors %{dep:parser_lustre.messages})))
+ (with-stdout-to
+  parser_lustre.check
+  (run
+   menhir
+   %{dep:parser_lustre.mly}
+   --compare-errors
+   %{dep:parser_lustre.auto.messages}
+   --compare-errors
+   %{dep:parser_lustre.messages})))

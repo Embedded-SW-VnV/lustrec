@@ -1,74 +1,76 @@
 open Spec_types
 
 (* a small reduction engine *)
-let is_true = function
-  | True -> true
-  | _ -> false
+let is_true = function True -> true | _ -> false
 
-let is_false = function
-  | False -> true
-  | _ -> false
+let is_false = function False -> true | _ -> false
 
-let expr_eq: type a b. (a, left_v) expression_t -> (a, b) expression_t -> bool =
-  fun a b ->
+let expr_eq : type a b. (a, left_v) expression_t -> (a, b) expression_t -> bool
+    =
+ fun a b ->
   match a, b with
-  | Var x, Var y -> x = y
-  | Memory r1, Memory r2 -> r1 = r2
-  | _ -> false
+  | Var x, Var y ->
+    x = y
+  | Memory r1, Memory r2 ->
+    r1 = r2
+  | _ ->
+    false
 
-let rec red: type a. a formula_t -> a formula_t = function
+let rec red : type a. a formula_t -> a formula_t = function
   | Equal (a, b) when expr_eq a b ->
     True
-
-  | And l ->
-    let l' = List.filter_map (fun a ->
-        let a' = red a in
-        if is_true a' then None else Some a') l in
-    begin match l' with
-      | [] -> True
-      | [a] -> a
-      | l' when List.exists is_false l' -> False
-      | _ -> And l'
-    end
-
-  | Or l ->
-    let l' = List.filter_map (fun a ->
-        let a' = red a in
-        if is_false a' then None else Some a') l in
-    begin match l' with
-      | [] -> assert false
-      | [a] -> a
-      | l' when List.exists is_true l' -> True
-      | _ -> Or l'
-    end
-
+  | And l -> (
+    let l' =
+      List.filter_map
+        (fun a ->
+          let a' = red a in
+          if is_true a' then None else Some a')
+        l
+    in
+    match l' with
+    | [] ->
+      True
+    | [ a ] ->
+      a
+    | l' when List.exists is_false l' ->
+      False
+    | _ ->
+      And l')
+  | Or l -> (
+    let l' =
+      List.filter_map
+        (fun a ->
+          let a' = red a in
+          if is_false a' then None else Some a')
+        l
+    in
+    match l' with
+    | [] ->
+      assert false
+    | [ a ] ->
+      a
+    | l' when List.exists is_true l' ->
+      True
+    | _ ->
+      Or l')
   | Imply (a, b) ->
     let a' = red a in
     let b' = red b in
     if a' = b' || is_false a' || is_true b' then True
     else if is_true a' && is_false b' then False
     else Imply (a', b')
-
-  | Exists (x, p) ->
+  | Exists (x, p) -> (
     let p' = red p in
-    if is_true p' then True else begin match x with
-      | [] -> p'
-      | x -> Exists (x, p')
-    end
-
-  | Forall (x, p) ->
+    if is_true p' then True else match x with [] -> p' | x -> Exists (x, p'))
+  | Forall (x, p) -> (
     let p' = red p in
-    if is_true p' then True else begin match x with
-      | [] -> p'
-      | x -> Forall (x, p')
-    end
-
+    if is_true p' then True else match x with [] -> p' | x -> Forall (x, p'))
   | Ternary (x, a, b) ->
     let a' = red a in
     let b' = red b in
     Ternary (x, a', b')
-
-  | f -> f
+  | f ->
+    f
 
 (* smart constructors *)
 (* let mk_condition x l =
@@ -78,38 +80,40 @@ let rec red: type a. a formula_t -> a formula_t = function
 
 let vals vs = List.map (fun v -> Val v) vs
 
-let mk_pred_call pred =
-  Predicate pred
+let mk_pred_call pred = Predicate pred
 
 (* let mk_clocked_on id =
  *   mk_pred_call (Clocked_on id) *)
 
-let mk_transition ?(mems=Utils.ISet.empty) ?r ?i ?inst id inputs locals outputs =
+let mk_transition ?(mems = Utils.ISet.empty) ?r ?i ?inst id inputs locals
+    outputs =
   let tr =
     mk_pred_call
-      (Transition (id, inst, i, vals inputs, vals locals, vals outputs,
-                  (match r with Some _ -> true | None -> false), mems)) in
-    (match r, inst with
-     | Some r, Some inst ->
-       ExistsMem (id, mk_pred_call (Reset (id, inst, r)), tr)
-     | _ ->
-       tr)
+      (Transition
+         ( id,
+           inst,
+           i,
+           vals inputs,
+           vals locals,
+           vals outputs,
+           (match r with Some _ -> true | None -> false),
+           mems ))
+  in
+  match r, inst with
+  | Some r, Some inst ->
+    ExistsMem (id, mk_pred_call (Reset (id, inst, r)), tr)
+  | _ ->
+    tr
 
-let mk_memory_pack ?i ?inst id =
-  mk_pred_call (MemoryPack (id, inst, i))
+let mk_memory_pack ?i ?inst id = mk_pred_call (MemoryPack (id, inst, i))
 
-let mk_state_variable_pack x =
-  StateVarPack (StateVar x)
+let mk_state_variable_pack x = StateVarPack (StateVar x)
 
-let mk_state_assign_tr x v =
-  Equal (Memory (StateVar x), Val v)
+let mk_state_assign_tr x v = Equal (Memory (StateVar x), Val v)
 
-let mk_conditional_tr v t f =
-  Ternary (Val v, t, f)
+let mk_conditional_tr v t f = Ternary (Val v, t, f)
 
 let mk_branch_tr x hl =
   And (List.map (fun (t, spec) -> Imply (Equal (Var x, Tag t), spec)) hl)
 
-let mk_assign_tr x v =
-  Equal (Var x, Val v)
-
+let mk_assign_tr x v = Equal (Var x, Val v)

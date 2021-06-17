@@ -1,45 +1,63 @@
 ; too bad dune does not support glob in install stanza
 ; (see https://discuss.ocaml.org/t/installing-many-files-with-dune/4143)
 ; TODO: open an issue?
-(install
- (section (site (lustrec include_)))
- (files
-   include/conv.c
-   include/conv.lusi
-   include/conv.lusic
-   include/mpfr_lustre.c
-   include/mpfr_lustre.lusi
-   include/mpfr_lustre.lusic
-   include/mpfr_lustre.h
-   include/simulink_math_fcn.c
-   include/simulink_math_fcn.lusi
-   include/simulink_math_fcn.lusic
-   include/simulink_math_fcn.h
-   include/lustrec_math.lusi
-   include/lustrec_math.lusic
-   include/lustrec_math.h
-   include/arrow.c
-   include/arrow.h
-   include/arrow_spec.h
-   include/arrow_spec.c
-   include/arrow.cpp
-   include/arrow.hpp
-   include/io_frontend.c
-   include/io_frontend.h
-   include/io_frontend.hpp
-   include/lustrec_math.smt2
-   include/StdIn.java))
 
 (install
- (section (site (lustrec testgen)))
+ (section
+  (site
+   (lustrec include_)))
  (files
-   share/FindLustre.cmake
-   share/helpful_functions.cmake))
+  include/conv.c
+  include/conv.lusi
+  include/conv.lusic
+  include/mpfr_lustre.c
+  include/mpfr_lustre.lusi
+  include/mpfr_lustre.lusic
+  include/mpfr_lustre.h
+  include/simulink_math_fcn.c
+  include/simulink_math_fcn.lusi
+  include/simulink_math_fcn.lusic
+  include/simulink_math_fcn.h
+  include/lustrec_math.lusi
+  include/lustrec_math.lusic
+  include/lustrec_math.h
+  include/arrow.c
+  include/arrow.h
+  include/arrow_spec.h
+  include/arrow_spec.c
+  include/arrow.cpp
+  include/arrow.hpp
+  include/io_frontend.c
+  include/io_frontend.h
+  include/io_frontend.hpp
+  include/lustrec_math.smt2
+  include/StdIn.java))
+
+(install
+ (section
+  (site
+   (lustrec testgen)))
+ (files share/FindLustre.cmake share/helpful_functions.cmake))
 
 (rule
  (alias runtest)
- (deps (source_tree tests/regression_tests))
- (action (chdir tests/regression_tests
-          (progn
-           (run cmake "-DSUBPROJ=\"unstable\"" "-DLUSTRE_INCLUDE_DIR=%{project_root}/include" .)
-           (run ctest -D Experimental -R "COMPIL_LUS|MAKE|BIN|DIFF" -E LUSTRET --progress)))))
+ (deps
+  (source_tree tests/regression_tests))
+ (action
+  (chdir
+   tests/regression_tests
+   (progn
+    (run
+     cmake
+     "-DSUBPROJ=\"unstable\""
+     "-DLUSTRE_INCLUDE_DIR=%{project_root}/include"
+     .)
+    (run
+     ctest
+     -D
+     Experimental
+     -R
+     "COMPIL_LUS|MAKE|BIN|DIFF"
+     -E
+     LUSTRET
+     --progress)))))

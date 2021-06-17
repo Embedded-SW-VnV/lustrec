@@ -8,4 +8,5 @@
 (plugin
  (name scopes_plugin)
  (libraries lustrec.scopes)
- (site (lustrec plugins)))
+ (site
+  (lustrec plugins)))

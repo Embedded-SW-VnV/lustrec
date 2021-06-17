@@ -9,5 +9,6 @@
 (plugin
  (name salsa_plugin)
  (libraries lustrec.salsa_plugin)
- (site (lustrec plugins))
+ (site
+  (lustrec plugins))
  (optional))

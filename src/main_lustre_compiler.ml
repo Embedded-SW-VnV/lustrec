@@ -11,13 +11,11 @@
 
 open Format
 open Compiler_common
-
 open Utils
-
 
 let usage = "Usage: lustrec [options] \x1b[4msource file\x1b[0m"
 
-let extensions = [".ec"; ".lus"; ".lusi"]
+let extensions = [ ".ec"; ".lus"; ".lusi" ]
 
 (* print a .lusi header file from a source prog *)
 let print_lusi prog dirname basename extension =
@@ -25,17 +23,10 @@ let print_lusi prog dirname basename extension =
   let header_name = dirname ^ "/" ^ basename ^ extension in
   let h_out = open_out header_name in
   let h_fmt = formatter_of_out_channel h_out in
-  begin
-    Typing.uneval_prog_generics header;
-    Clock_calculus.uneval_prog_generics header;
-    Printers.pp_lusi_header h_fmt basename header;
-    close_out h_out
-  end
-
-
-
-
-
+  Typing.uneval_prog_generics header;
+  Clock_calculus.uneval_prog_generics header;
+  Printers.pp_lusi_header h_fmt basename header;
+  close_out h_out
 
 (* compile a .lus source file *)
 let compile dirname basename extension =
@@ -45,92 +36,81 @@ let compile dirname basename extension =
 
   (* Parsing source *)
   let prog = parse source_name extension in
-  
+
   let prog =
-    if !Options.mpfr &&
-         extension = ".lus" (* trying to avoid the injection of the module for lusi files *) 
-    then
-      Lustrec_mpfr.mpfr_module::prog
-    else
-      prog
+    if
+      !Options.mpfr && extension = ".lus"
+      (* trying to avoid the injection of the module for lusi files *)
+    then Lustrec_mpfr.mpfr_module :: prog
+    else prog
   in
   let params = Backends.get_normalization_params () in
 
-  let prog, dependencies = 
-    Log.report ~level:1 (fun fmt -> fprintf fmt "@[<v 2>.. Phase 1: Normalisation@,");
-    try 
-      Compiler_stages.stage1 params prog dirname basename extension
-    with Compiler_stages.StopPhase1 prog -> (
-      if !Options.lusi then
-	begin
-	  let lusi_ext = extension ^ "i" in
-	  Log.report ~level:1 (fun fmt -> fprintf fmt ".. generating interface file %s@ " (basename ^ lusi_ext));
-	  print_lusi prog dirname basename lusi_ext;
-	  Log.report ~level:1 (fun fmt -> fprintf fmt ".. done !@ @]@.");
-	  exit 0
-	end
+  let prog, dependencies =
+    Log.report ~level:1 (fun fmt ->
+        fprintf fmt "@[<v 2>.. Phase 1: Normalisation@,");
+    try Compiler_stages.stage1 params prog dirname basename extension
+    with Compiler_stages.StopPhase1 prog ->
+      if !Options.lusi then (
+        let lusi_ext = extension ^ "i" in
+        Log.report ~level:1 (fun fmt ->
+            fprintf fmt ".. generating interface file %s@ " (basename ^ lusi_ext));
+        print_lusi prog dirname basename lusi_ext;
+        Log.report ~level:1 (fun fmt -> fprintf fmt ".. done !@ @]@.");
+        exit 0)
       else if !Options.print_nodes then (
         Format.printf "%a@.@?" Printers.pp_node_list prog;
-        exit 0
-      )
-      else
-        assert false
-    )
+        exit 0)
+      else assert false
   in
-  Log.report ~level:3 (fun fmt -> fprintf fmt "@ @[<v 2>.. Normalized program:@ %a@]"
-                          Printers.pp_prog prog);
+  Log.report ~level:3 (fun fmt ->
+      fprintf fmt "@ @[<v 2>.. Normalized program:@ %a@]" Printers.pp_prog prog);
 
-  Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ @ @[<v 2>.. Phase 2 : Machines generation@,");
+  Log.report ~level:1 (fun fmt ->
+      fprintf fmt "@]@ @ @[<v 2>.. Phase 2 : Machines generation@,");
 
-  let prog, machine_code = 
-    Compiler_stages.stage2 params prog 
-  in
+  let prog, machine_code = Compiler_stages.stage2 params prog in
 
-  Log.report ~level:3 (fun fmt -> fprintf fmt "@ @[<v 2>.. Generated machines:@ %a@]"
-                          Machine_code_common.pp_machines machine_code);
+  Log.report ~level:3 (fun fmt ->
+      fprintf fmt "@ @[<v 2>.. Generated machines:@ %a@]"
+        Machine_code_common.pp_machines machine_code);
 
-  if Scopes.Plugin.show_scopes () then
-    begin
-      let all_scopes = Scopes.compute_scopes prog !Options.main_node in
-      (* Printing scopes *)
-      if !Options.verbose_level >= 1 then
-	Format.printf "Possible scopes are:@   ";
-      Format.printf "@[<v>%a@ @]@ @?" Scopes.print_scopes all_scopes;
-      exit 0
-	
-    end;
+  if Scopes.Plugin.show_scopes () then (
+    let all_scopes = Scopes.compute_scopes prog !Options.main_node in
+    (* Printing scopes *)
+    if !Options.verbose_level >= 1 then Format.printf "Possible scopes are:@   ";
+    Format.printf "@[<v>%a@ @]@ @?" Scopes.print_scopes all_scopes;
+    exit 0);
   let machine_code = Plugins.refine_machine_code prog machine_code in
   Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ @ ");
-  
+
   Compiler_stages.stage3 prog machine_code dependencies basename extension;
-  begin
-    Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. done !@]@.");
-    (* We stop the process here *)
-    exit 0
-  end
+  Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. done !@]@.");
+  (* We stop the process here *)
+  exit 0
 
 let compile dirname basename extension =
   Plugins.init ();
   match extension with
-  | ".lusi"  
-  | ".lus"   -> compile dirname basename extension
-  | _        -> assert false
+  | ".lusi" | ".lus" ->
+    compile dirname basename extension
+  | _ ->
+    assert false
 
 let anonymous filename =
-  let ok_ext, ext = List.fold_left
-    (fun (ok, ext) ext' ->
-      if not ok && Filename.check_suffix filename ext' then
-	true, ext'
-      else
-	ok, ext)
-    (false, "") extensions in
-  if ok_ext then begin
-    Options_management.setup();
+  let ok_ext, ext =
+    List.fold_left
+      (fun (ok, ext) ext' ->
+        if (not ok) && Filename.check_suffix filename ext' then true, ext'
+        else ok, ext)
+      (false, "") extensions
+  in
+  if ok_ext then (
+    Options_management.setup ();
     let dirname = Filename.dirname filename in
     let basename = Filename.chop_suffix (Filename.basename filename) ext in
-    compile dirname basename ext
-  end else
-    raise (Arg.Bad ("Can only compile *.lusi, *.lus or *.ec files"))
+    compile dirname basename ext)
+  else raise (Arg.Bad "Can only compile *.lusi, *.lus or *.ec files")
 
 let _ =
   Global.initialize ();
@@ -138,20 +118,22 @@ let _ =
   try
     Printexc.record_backtrace true;
 
-    let options = Options_management.lustrec_options @ (Plugins.options ()) in
-    
+    let options = Options_management.lustrec_options @ Plugins.options () in
+
     Arg.parse options anonymous usage
   with
-  | Parse.Error | Types.Error (_,_) | Clocks.Error (_,_) ->
+  | Parse.Error | Types.Error (_, _) | Clocks.Error (_, _) ->
     exit 1
-  | Error.Error (loc , kind) (*| Task_set.Error _*) ->
+  | Error.Error (loc, kind) (*| Task_set.Error _*) ->
     Error.pp_error loc (fun fmt -> Error.pp_error_msg fmt kind);
     exit (Error.return_code kind)
-  (* | Causality.Error _  -> exit (Error.return_code Error.AlgebraicLoop) *)
+  (* | Causality.Error _ -> exit (Error.return_code Error.AlgebraicLoop) *)
   | Sys_error msg ->
-    (eprintf "Failure: %s@." msg); exit 1
+    eprintf "Failure: %s@." msg;
+    exit 1
   | exc ->
-    (track_exception (); raise exc)
+    track_exception ();
+    raise exc
 
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
