@@ -236,7 +236,8 @@ let reset_instance env i r c =
   | None ->
     None, []
 
-let translate_eq env ctx id inputs locals outputs i eq =
+let translate_eq env ctx nd inputs locals outputs i eq =
+  let id = nd.node_id in
   let translate_expr = translate_expr env in
   let translate_act = translate_act env in
   let locals_pi = Lustre_live.inter_live_i_with id (i - 1) locals in
@@ -268,11 +269,12 @@ let translate_eq env ctx id inputs locals outputs i eq =
         {
           inst with
           instr_spec =
-            [
-              mk_memory_pack ~i id;
-              mk_transition ~i id (vdecls_to_vals inputs)
-                (vdecls_to_vals locals_i) (vdecls_to_vals outputs_i);
-            ];
+            (if fst (get_stateless_status_node nd) then []
+            else [ mk_memory_pack ~i id ])
+            @ [
+                mk_transition ~i id (vdecls_to_vals inputs)
+                  (vdecls_to_vals locals_i) (vdecls_to_vals outputs_i);
+              ];
         }
         :: ctx.s;
       mp = pred_mp ctx spec_mp;
@@ -388,10 +390,10 @@ let constant_equations locals =
       else eqs)
     [] locals
 
-let translate_eqs env ctx id inputs locals outputs eqs =
+let translate_eqs env ctx nd inputs locals outputs eqs =
   List.fold_left
     (fun (ctx, i) eq ->
-      let ctx = translate_eq env ctx id inputs locals outputs i eq in
+      let ctx = translate_eq env ctx nd inputs locals outputs i eq in
       ctx, i + 1)
     (ctx, 1) eqs
   |> fst
@@ -434,18 +436,16 @@ let process_asserts nd =
     in
     vars, eql, assertl
 
-let translate_core env nid sorted_eqs inputs locals outputs =
+let translate_core env nd sorted_eqs inputs locals outputs =
   let constant_eqs = constant_equations locals in
 
   (* Compute constants' instructions *)
-  let ctx0 =
-    translate_eqs env ctx_init nid inputs locals outputs constant_eqs
-  in
+  let ctx0 = translate_eqs env ctx_init nd inputs locals outputs constant_eqs in
   assert (ctx0.si = []);
   assert (IMap.is_empty ctx0.j);
 
   (* Compute ctx for all eqs *)
-  let ctx = translate_eqs env ctx_init nid inputs locals outputs sorted_eqs in
+  let ctx = translate_eqs env ctx_init nd inputs locals outputs sorted_eqs in
 
   ctx, ctx0.s
 
@@ -480,6 +480,12 @@ let transition_0 nd =
   }
 
 let transition_toplevel nd i =
+  let tr =
+    mk_transition nd.node_id ~i
+      (vdecls_to_vals nd.node_inputs)
+      []
+      (vdecls_to_vals nd.node_outputs)
+  in
   {
     tname = nd;
     tindex = None;
@@ -487,13 +493,8 @@ let transition_toplevel nd i =
     tlocals = [];
     toutputs = nd.node_outputs;
     tformula =
-      ExistsMem
-        ( nd.node_id,
-          Predicate (ResetCleared nd.node_id),
-          mk_transition nd.node_id ~i
-            (vdecls_to_vals nd.node_inputs)
-            []
-            (vdecls_to_vals nd.node_outputs) );
+      (if fst (get_stateless_status_node nd) then tr
+      else ExistsMem (nd.node_id, Predicate (ResetCleared nd.node_id), tr));
     tfootprint = ISet.empty;
   }
 
@@ -542,8 +543,7 @@ let translate_decl nd sch =
 
   (* Translate equations *)
   let ctx, ctx0_s =
-    translate_core env nd.node_id equations nd.node_inputs locals
-      nd.node_outputs
+    translate_core env nd equations nd.node_inputs locals nd.node_outputs
   in
 
   (* Format.eprintf "ok4@.@?"; *)
@@ -578,10 +578,11 @@ let translate_decl nd sch =
   let clear_reset =
     mkinstr
       ~instr_spec:
-        [
-          mk_memory_pack ~i:0 nd.node_id;
-          mk_transition ~i:0 nd.node_id (vdecls_to_vals nd.node_inputs) [] [];
-        ]
+        ((if fst (get_stateless_status_node nd) then []
+         else [ mk_memory_pack ~i:0 nd.node_id ])
+        @ [
+            mk_transition ~i:0 nd.node_id (vdecls_to_vals nd.node_inputs) [] [];
+          ])
       MClearReset
   in
   {

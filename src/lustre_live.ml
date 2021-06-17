@@ -15,8 +15,6 @@ open Utils
 open ISet
 module Live = Map.Make (Int)
 
-let pp_live fmt l = Live.bindings
-
 let assigned s eq = union s (of_list eq.eq_lhs)
 
 let rec occur_dim_expr s d =

@@ -228,9 +228,10 @@ functor
         | MSetReset inst ->
           pp_machine_set_reset m self mem fmt inst
         | MClearReset ->
-          fprintf fmt "%t@,%a"
-            (pp_machine_clear_reset m self mem)
-            pp_label reset_label
+          if not (fst (get_stateless_status m)) then
+            fprintf fmt "%t@,%a"
+              (pp_machine_clear_reset m self mem)
+              pp_label reset_label
         | MResetAssign b ->
           pp_reset_assign self fmt b
         | MLocalAssign (i, v) ->

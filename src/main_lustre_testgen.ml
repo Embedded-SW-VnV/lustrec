@@ -192,7 +192,7 @@ let _ =
 
     Arg.parse options anonymous usage
   with
-  | Parse.Error _
+  | Parse.Error
   | Types.Error (_, _)
   | Clocks.Error (_, _)
   | Error.Error _

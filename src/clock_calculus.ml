@@ -480,19 +480,18 @@ and clock_appl env f args clock_reset loc =
 
 and clock_call env f args clock_reset loc =
   (* Format.eprintf "Clocking call %s@." f; *)
-  let cfun = clock_ident false env f loc in
+  let cfun = clock_ident env f loc in
   let cins, couts = split_arrow cfun in
   let cins = clock_list_of_clock cins in
   List.iter2 (clock_subtyping_arg env) args cins;
   unify_imported_clock (Some clock_reset) cfun loc;
   couts
 
-and clock_ident nocarrier env id loc =
-  clock_expr ~nocarrier env (expr_of_ident id loc)
+and clock_ident env id loc = clock_expr env (expr_of_ident id loc)
 
 and clock_carrier env c loc ce =
   let expr_c = expr_of_ident c loc in
-  let ck = clock_expr ~nocarrier:false env expr_c in
+  let ck = clock_expr env expr_c in
   let cr = new_carrier Carry_name (*Carry_const c*) ck.cscoped in
   let ckb = new_var true in
   let ckcarry = new_ck (Ccarrying (cr, ckb)) ck.cscoped in
@@ -502,7 +501,7 @@ and clock_carrier env c loc ce =
 
 (** [clock_expr env expr] performs the clock calculus for expression [expr] in
     environment [env] *)
-and clock_expr ?(nocarrier = true) env expr =
+and clock_expr env expr =
   let resulting_ck =
     match expr.expr_desc with
     | Expr_const _ ->

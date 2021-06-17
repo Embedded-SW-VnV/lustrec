@@ -302,8 +302,7 @@ functor
     (* MAIN Header Printing functions *)
     (********************************************************************************************)
 
-    let print_alloc_header header_fmt basename _prog machines dependencies spec
-        =
+    let print_alloc_header header_fmt basename machines dependencies =
       (* Include once: start *)
       let baseNAME = file_to_module_name basename in
       fprintf header_fmt

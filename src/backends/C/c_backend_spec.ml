@@ -22,10 +22,6 @@ open Machine_code_common
 
 (**************************************************************************)
 
-(* TODO ACSL Return updates machines (eg with local annotations) and acsl
-   preamble *)
-let preprocess_acsl machines = machines, []
-
 let pp_acsl_basic_type_desc t_desc =
   if Types.is_bool_type t_desc then
     (* if !Options.cpp then "bool" else "_Bool" *)
@@ -187,11 +183,7 @@ let pp_or_l pp_v fmt =
 
 let pp_not pp fmt = fprintf fmt "!%a" pp
 
-let pp_valid pp =
-  pp_and_l
-    (* pp_print_list *)
-    (* ~pp_sep:pp_print_cut *)
-    (fun fmt x -> fprintf fmt "\\valid(%a)" pp x)
+let pp_valid pp = pp_and_l (fun fmt x -> fprintf fmt "\\valid(%a)" pp x)
 
 let pp_old pp fmt = fprintf fmt "\\old(%a)" pp
 

@@ -41,18 +41,15 @@ let gen_files
     ( print_alloc_header,
       print_lib_c,
       print_main_c,
-      print_makefile,
-      preprocess
+      print_makefile
     (* , print_cmake *) ) basename prog machines dependencies =
   let destname = !Options.dest_dir ^ "/" ^ basename in
-
-  let machines, spec = preprocess machines in
 
   (* Generating H alloc file *)
   let alloc_header_file = destname ^ "_alloc.h" in
   (* Could be changed *)
   with_out_file alloc_header_file (fun header_fmt ->
-      print_alloc_header header_fmt basename prog machines dependencies spec);
+      print_alloc_header header_fmt basename machines dependencies);
 
   (* Generating Lib C file *)
   let source_lib_file = c_or_cpp destname in
@@ -124,21 +121,19 @@ let print_c_header basename =
       Header.print_header_from_header header_fmt basename lusic.contents)
 
 let translate_to_c generate_c_header basename prog machines dependencies =
-  let header_m, source_m, source_main_m, makefile_m, preprocess =
+  let header_m, source_m, source_main_m, makefile_m =
     match !Options.spec with
     | "no" ->
       ( C_backend_header.((module EmptyMod : MODIFIERS_HDR)),
         C_backend_src.((module EmptyMod : MODIFIERS_SRC)),
         C_backend_main.((module EmptyMod : MODIFIERS_MAINSRC)),
-        C_backend_makefile.((module EmptyMod : MODIFIERS_MKF)),
-        fun m -> m, [] )
+        C_backend_makefile.((module EmptyMod : MODIFIERS_MKF)) )
     | "acsl" ->
       let open C_backend_spec in
       ( C_backend_header.((module HdrMod : MODIFIERS_HDR)),
         C_backend_src.((module SrcMod : MODIFIERS_SRC)),
         C_backend_main.((module EmptyMod : MODIFIERS_MAINSRC)),
-        C_backend_makefile.((module MakefileMod : MODIFIERS_MKF)),
-        preprocess_acsl )
+        C_backend_makefile.((module MakefileMod : MODIFIERS_MKF)) )
     | "c" ->
       assert false (* not implemented yet *)
     | _ ->
@@ -153,8 +148,7 @@ let translate_to_c generate_c_header basename prog machines dependencies =
     ( Header.print_alloc_header,
       Source.print_lib_c,
       SourceMain.print_main_c,
-      Makefile.print_makefile,
-      preprocess )
+      Makefile.print_makefile )
     (* CMakefile.print_makefile *)
   in
   if generate_c_header then print_c_header basename;

@@ -17,6 +17,8 @@ val get_const_assign :
   Lustre_types.var_decl ->
   Machine_code_types.value_t
 
+val get_stateless_status_node : Lustre_types.node_desc -> bool * bool
+
 val get_stateless_status : Machine_code_types.machine_t -> bool * bool
 
 val get_stateless_status_top_decl : Lustre_types.top_decl -> bool * bool

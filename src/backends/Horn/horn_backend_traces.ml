@@ -27,7 +27,7 @@ let pp_traces =
 
 (* Compute memories associated to each machine *)
 let compute_mems machines m =
-  let rec aux fst prefix m =
+  let rec aux prefix m =
     List.map (fun mem -> prefix, mem) m.mmemory
     @ List.fold_left
         (fun accu (id, (n, _)) ->
@@ -35,10 +35,10 @@ let compute_mems machines m =
           if name = "_arrow" then accu
           else
             let machine_n = get_machine machines name in
-            aux false ((id, machine_n) :: prefix) machine_n @ accu)
+            aux ((id, machine_n) :: prefix) machine_n @ accu)
         [] m.minstances
   in
-  aux true [] m
+  aux [] m
 
 (* We extract the annotation dealing with traceability *)
 let machines_traces machines =

@@ -720,7 +720,7 @@ module type MODIFIERS_GHOST_PROTO = sig
 end
 
 module EmptyGhostProto : MODIFIERS_GHOST_PROTO = struct
-  let pp_ghost_parameters ?cut _ _ = ()
+  let pp_ghost_parameters ?cut _ _ = ignore cut
 end
 
 module Protos (Mod : MODIFIERS_GHOST_PROTO) = struct

@@ -332,7 +332,7 @@ struct
   (* Expected type ty1, got type ty2 *)
   let try_unify ?(sub = false) ?(semi = false) ty1 ty2 loc =
     try unify ~sub ~semi ty1 ty2 with
-    | Unify (t1', t2') ->
+    | Unify _ ->
       raise (Error (loc, Type_clash (ty1, ty2)))
     | Dimension.Unify _ ->
       raise (Error (loc, Type_clash (ty1, ty2)))
