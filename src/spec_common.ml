@@ -79,17 +79,15 @@ let vals vs = List.map (fun v -> Val v) vs
 
 let mk_pred_call pred = Predicate pred
 
-let mk_transition ?(mems = ISet.empty) ?(insts = IMap.empty) ?r ?i ?inst id
-    inputs locals outputs =
+let mk_transition ?(mems = ISet.empty) ?(insts = IMap.empty) ?r ?i ?inst id vars
+    =
   let tr =
     mk_pred_call
       (Transition
          ( id,
            inst,
            i,
-           vals inputs,
-           vals locals,
-           vals outputs,
+           vals vars,
            (match r with Some _ -> true | None -> false),
            mems,
            insts ))

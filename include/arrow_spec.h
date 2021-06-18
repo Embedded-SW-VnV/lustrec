@@ -37,8 +37,8 @@ extern void _arrow_dealloc (struct _arrow_mem *);
  */
 
 /*@ predicate _arrow_transition(struct _arrow_mem_ghost mem_in,
-                                struct _arrow_mem_ghost mem_out,
-                                _Bool out) =
+                                _Bool out,
+                                struct _arrow_mem_ghost mem_out) =
       out == mem_in._reg._first
       && (mem_in._reg._first ? (mem_out._reg._first == 0)
                              : (mem_out._reg._first == mem_in._reg._first));

@@ -11,6 +11,7 @@
 
 open Utils
 open Lustre_types
+open Spec_types
 open Machine_code_types
 open Corelang
 open Causality
@@ -597,36 +598,75 @@ let rec value_replace_var fvar value =
   | Power (v, n) ->
     { value with value_desc = Power (value_replace_var fvar v, n) }
 
-let rec instr_replace_var fvar instr cont =
-  match get_instr_desc instr with
-  | MLocalAssign (i, v) ->
-    instr_cons
-      (update_instr_desc instr
-         (MLocalAssign (fvar i, value_replace_var fvar v)))
-      cont
-  | MStateAssign (i, v) ->
-    instr_cons
-      (update_instr_desc instr (MStateAssign (i, value_replace_var fvar v)))
-      cont
-  | MSetReset _
-  | MNoReset _
-  | MClearReset
-  | MResetAssign _
-  | MSpec _
-  | MComment _ ->
-    instr_cons instr cont
-  | MStep (il, i, vl) ->
-    instr_cons
-      (update_instr_desc instr
-         (MStep (List.map fvar il, i, List.map (value_replace_var fvar) vl)))
-      cont
-  | MBranch (g, hl) ->
-    instr_cons
-      (update_instr_desc instr
-         (MBranch
-            ( value_replace_var fvar g,
-              List.map (fun (h, il) -> h, instrs_replace_var fvar il []) hl )))
-      cont
+let expr_spec_replace :
+    type a.
+    (var_decl -> var_decl) ->
+    (value_t, a) expression_t ->
+    (value_t, a) expression_t =
+ fun fvar -> function
+  | Val v ->
+    Val (value_replace_var fvar v)
+  | Var v ->
+    Var (fvar v)
+  | e ->
+    e
+
+let predicate_spec_replace fvar = function
+  | Transition (f, inst, i, vars, r, mems, insts) ->
+    Transition
+      (f, inst, i, List.map (expr_spec_replace fvar) vars, r, mems, insts)
+  | p ->
+    p
+
+let rec instr_spec_replace fvar =
+  let aux instr = instr_spec_replace fvar instr in
+  function
+  | Equal (e1, e2) ->
+    Equal (expr_spec_replace fvar e1, expr_spec_replace fvar e2)
+  | And f ->
+    And (List.map aux f)
+  | Or f ->
+    Or (List.map aux f)
+  | Imply (a, b) ->
+    Imply (aux a, aux b)
+  | Exists (xs, a) ->
+    let fvar v = if List.mem v xs then v else fvar v in
+    Exists (xs, instr_spec_replace fvar a)
+  | Forall (xs, a) ->
+    let fvar v = if List.mem v xs then v else fvar v in
+    Forall (xs, instr_spec_replace fvar a)
+  | Ternary (e, a, b) ->
+    Ternary (expr_spec_replace fvar e, aux a, aux b)
+  | Predicate p ->
+    Predicate (predicate_spec_replace fvar p)
+  | ExistsMem (f, a, b) ->
+    ExistsMem (f, aux a, aux b)
+  | f ->
+    f
+
+let rec instr_replace_var fvar instr =
+  let instr_desc =
+    match instr.instr_desc with
+    | MLocalAssign (i, v) ->
+      MLocalAssign (fvar i, value_replace_var fvar v)
+    | MStateAssign (i, v) ->
+      MStateAssign (i, value_replace_var fvar v)
+    | MStep (il, i, vl) ->
+      MStep (List.map fvar il, i, List.map (value_replace_var fvar) vl)
+    | MBranch (g, hl) ->
+      MBranch
+        ( value_replace_var fvar g,
+          List.map (fun (h, il) -> h, instrs_replace_var fvar il []) hl )
+    | MSetReset _
+    | MNoReset _
+    | MClearReset
+    | MResetAssign _
+    | MSpec _
+    | MComment _ ->
+      instr.instr_desc
+  in
+  let instr_spec = List.map (instr_spec_replace fvar) instr.instr_spec in
+  instr_cons { instr with instr_desc; instr_spec }
 
 and instrs_replace_var fvar instrs cont =
   List.fold_right (instr_replace_var fvar) instrs cont
@@ -657,15 +697,13 @@ let step_replace_var fvar step =
 let machine_replace_variables fvar m =
   { m with mstep = step_replace_var fvar m.mstep }
 
-let machine_reuse_variables m reuse =
+let machine_reuse_variables reuse m =
   let fvar v = try Hashtbl.find reuse v.var_id with Not_found -> v in
   machine_replace_variables fvar m
 
-let machines_reuse_variables prog reuse_tables =
-  List.map
-    (fun m ->
-      machine_reuse_variables m (Utils.IMap.find m.mname.node_id reuse_tables))
-    prog
+let machines_reuse_variables reuse_tables =
+  List.map (fun m ->
+      machine_reuse_variables (Utils.IMap.find m.mname.node_id reuse_tables) m)
 
 let rec instr_assign res instr =
   match get_instr_desc instr with
@@ -723,19 +761,18 @@ and instrs_reduce branches instrs cont =
     i1 :: instrs_reduce branches (i2 :: q) cont
 
 let rec instrs_fusion instrs =
-  match instrs, List.map get_instr_desc instrs with
-  | [], [] | [ _ ], [ _ ] ->
+  match instrs with
+  | [] | [ _ ] ->
     instrs
-  | i1 :: _ :: q, _ :: MBranch ({ value_desc = Var v; _ }, hl) :: _
-    when instr_constant_assign v i1 ->
-    instr_reduce
-      (List.map (fun (h, b) -> h, instrs_fusion b) hl)
-      i1 (instrs_fusion q)
-  | i1 :: i2 :: q, _ ->
-    i1 :: instrs_fusion (i2 :: q)
-  | _ ->
-    assert false
-(* Other cases should not happen since both lists are of same size *)
+  | i1 :: i2 :: q -> (
+    match i2.instr_desc with
+    | MBranch ({ value_desc = Var v; _ }, hl) when instr_constant_assign v i1 ->
+      instr_reduce
+        (List.map (fun (h, b) -> h, instrs_fusion b) hl)
+        { i1 with instr_spec = i1.instr_spec @ i2.instr_spec }
+        (instrs_fusion q)
+    | _ ->
+      i1 :: instrs_fusion (i2 :: q))
 
 let step_fusion step =
   { step with step_instrs = instrs_fusion step.step_instrs }
@@ -897,7 +934,7 @@ let optimize params prog node_schs machine_code =
         Scheduling.remove_prog_inlined_locals removed_table node_schs
       in
       let reuse_tables = Scheduling.compute_prog_reuse_table node_schs in
-      machines_fusion (machines_reuse_variables machine_code reuse_tables))
+      machines_fusion (machines_reuse_variables reuse_tables machine_code))
     else machine_code
   in
 

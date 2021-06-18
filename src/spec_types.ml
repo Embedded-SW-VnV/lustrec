@@ -22,8 +22,6 @@ let type_of_l_value : type a. (a, left_v) expression_t -> Types.type_expr =
   | Memory (StateVar v) ->
     v.var_type
 
-type ('a, 'b) expressions_t = ('a, 'b) expression_t list
-
 type 'a predicate_t =
   | Transition :
       ident (* node name *)
@@ -31,12 +29,8 @@ type 'a predicate_t =
       (* instance *)
       * int option
       (* transition index *)
-      * ('a, 'b) expressions_t
-      (* inputs *)
-      * ('a, 'b) expressions_t
-      (* locals *)
-      * ('a, 'b) expressions_t
-      (* outputs *)
+      * ('a, 'b) expression_t list
+      (* variables *)
       * bool (* reset *)
       * Utils.ISet.t (* memory footprint *)
       * ident Utils.IMap.t
@@ -78,9 +72,7 @@ type 'a memory_pack_t = {
 type 'a transition_t = {
   tname : node_desc;
   tindex : int option;
-  tinputs : var_decl list;
-  tlocals : var_decl list;
-  toutputs : var_decl list;
+  tvars : var_decl list;
   tformula : 'a formula_t;
   tmem_footprint : Utils.ISet.t;
   tinst_footprint : ident Utils.IMap.t;

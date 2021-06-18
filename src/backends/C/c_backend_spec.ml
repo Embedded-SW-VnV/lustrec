@@ -258,40 +258,32 @@ let pp_memory_pack_aux' ?i fmt =
 
 let pp_memory_pack' fmt = pp_memory_pack pp_print_string pp_print_string fmt
 
-let pp_transition_aux ?i m pp_mem_in pp_mem_out pp_input pp_output fmt
-    (name, inputs, locals, outputs, mem_in, mem_out) =
+let pp_transition_aux ?i m pp_mem_in pp_mem_out pp_var fmt
+    (name, vars, mem_in, mem_out) =
   let stateless = fst (get_stateless_status m) in
-  fprintf fmt "%s_transition%a(@[<hov>%t%a%a%t%a@])" name
+  fprintf fmt "%s_transition%a(@[<hov>%t%a%t@])" name
     (pp_print_option pp_print_int)
     i
     (fun fmt -> if not stateless then pp_mem_in fmt mem_in)
     (pp_comma_list
        ~pp_prologue:(fun fmt () -> if not stateless then pp_print_comma fmt ())
-       pp_input)
-    inputs
-    (pp_print_option (fun fmt _ ->
-         pp_comma_list ~pp_prologue:pp_print_comma pp_input fmt locals))
-    i
+       pp_var)
+    vars
     (fun fmt -> if not stateless then fprintf fmt ",@ %a" pp_mem_out mem_out)
-    (pp_comma_list ~pp_prologue:pp_print_comma pp_output)
-    outputs
 
-let pp_transition m pp_mem_in pp_mem_out pp_input pp_output fmt
-    (t, mem_in, mem_out) =
-  pp_transition_aux ?i:t.tindex m pp_mem_in pp_mem_out pp_input pp_output fmt
-    (t.tname.node_id, t.tinputs, t.tlocals, t.toutputs, mem_in, mem_out)
+let pp_transition m pp_mem_in pp_mem_out pp_var fmt (t, mem_in, mem_out) =
+  pp_transition_aux ?i:t.tindex m pp_mem_in pp_mem_out pp_var fmt
+    (t.tname.node_id, t.tvars, mem_in, mem_out)
 
 let pp_transition_aux' ?i m =
-  pp_transition_aux ?i m pp_print_string pp_print_string pp_var_decl pp_var_decl
+  pp_transition_aux ?i m pp_print_string pp_print_string pp_var_decl
 
 let pp_transition_aux'' ?i m =
-  pp_transition_aux ?i m pp_print_string pp_print_string pp_var_decl pp_ptr_decl
+  pp_transition_aux ?i m pp_print_string pp_print_string (fun fmt v ->
+      (if is_output m v then pp_ptr_decl else pp_var_decl) fmt v)
 
 let pp_transition' m =
-  pp_transition m pp_print_string pp_print_string pp_var_decl pp_var_decl
-
-let pp_transition'' m =
-  pp_transition m pp_print_string pp_print_string pp_var_decl pp_ptr_decl
+  pp_transition m pp_print_string pp_print_string pp_var_decl
 
 let pp_reset_cleared pp_mem_in pp_mem_out fmt (name, mem_in, mem_out) =
   fprintf fmt "%s_reset_cleared(@[<hov>%a,@ %a@])" name pp_mem_in mem_in
@@ -329,15 +321,15 @@ module PrintSpec = struct
 
   let pp_expr :
       type a.
-      ?output:bool ->
+      ?test_output:bool ->
       machine_t ->
       ident ->
       formatter ->
       (value_t, a) expression_t ->
       unit =
-   fun ?(output = false) m mem fmt -> function
+   fun ?(test_output = false) m mem fmt -> function
     | Val v ->
-      pp_c_val m mem (pp_c_var_read ~test_output:output m) fmt v
+      pp_c_val m mem (pp_c_var_read ~test_output m) fmt v
     | Tag t ->
       pp_print_string fmt t
     | Var v ->
@@ -346,7 +338,7 @@ module PrintSpec = struct
       pp_reg mem fmt r
 
   let pp_predicate mode m mem_in mem_in' mem_out mem_out' fmt p =
-    let output, mem_update =
+    let test_output, mem_update =
       match mode with
       | InstrMode _ ->
         true, false
@@ -355,12 +347,12 @@ module PrintSpec = struct
       | _ ->
         false, false
     in
-    let pp_expr :
-        type a. ?output:bool -> formatter -> (value_t, a) expression_t -> unit =
-     fun ?output fmt e -> pp_expr ?output m mem_out fmt e
+    let pp_expr : type a. bool -> formatter -> (value_t, a) expression_t -> unit
+        =
+     fun test_output fmt e -> pp_expr ~test_output m mem_out fmt e
     in
     match p with
-    | Transition (f, inst, i, inputs, locals, outputs, r, mems, insts) ->
+    | Transition (f, inst, i, vars, r, mems, insts) ->
       let pp_mem_in, pp_mem_out =
         match inst with
         | None ->
@@ -373,8 +365,8 @@ module PrintSpec = struct
               else pp_access' fmt (mem_in, inst)),
             fun fmt mem_out -> pp_access' fmt (mem_out, inst) )
       in
-      pp_transition_aux ?i m pp_mem_in pp_mem_out pp_expr (pp_expr ~output) fmt
-        (f, inputs, locals, outputs, mem_in', mem_out')
+      pp_transition_aux ?i m pp_mem_in pp_mem_out (pp_expr test_output) fmt
+        (f, vars, mem_in', mem_out')
     | Reset (_f, inst, r) ->
       pp_ite
         (pp_c_val m mem_in (pp_c_var_read m))
@@ -555,7 +547,7 @@ let pp_transition_def m fmt t =
        (pp_transition m
           (pp_machine_decl' ~ghost:true)
           (pp_machine_decl' ~ghost:true)
-          (pp_local m) (pp_local m))
+          (pp_local m))
        (PrintSpec.pp_spec TransitionMode m))
     fmt
     ((t, (name, mem_in), (name, mem_out)), t.tformula)
@@ -593,8 +585,7 @@ let pp_transition_footprint_lemma m fmt t =
   let instances = List.map (fun (i, f) -> f, i) (IMap.bindings insts) in
   let tr ?mems ?insts () =
     Spec_common.mk_transition ?mems ?insts ?i:t.tindex name
-      (vdecls_to_vals t.tinputs) (vdecls_to_vals t.tlocals)
-      (vdecls_to_vals t.toutputs)
+      (vdecls_to_vals t.tvars)
   in
   if not (mems_empty && insts_empty) then
     pp_acsl
@@ -610,10 +601,8 @@ let pp_transition_footprint_lemma m fmt t =
       ( t,
         ( (m.mname.node_id, [ mem_in; mem_out ]),
           ( instances,
-            ( memories,
-              Forall
-                ( t.tinputs @ t.tlocals @ t.toutputs,
-                  Imply (tr (), tr ~mems ~insts ()) ) ) ) ) )
+            (memories, Forall (t.tvars, Imply (tr (), tr ~mems ~insts ()))) ) )
+      )
 
 let pp_transition_footprint_lemmas fmt m =
   pp_print_list ~pp_epilogue:pp_print_cut ~pp_open_box:pp_open_vbox0
@@ -824,7 +813,7 @@ module SrcMod = struct
             (pp_requires pp_separated')
             outputs (pp_assigns pp_ptr_decl) outputs
             (pp_ensures (pp_transition_aux'' m))
-            (name, inputs, [], outputs, "", "")
+            (name, inputs @ outputs, "", "")
         else
           fprintf fmt
             "%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a"
@@ -839,9 +828,9 @@ module SrcMod = struct
             (pp_ensures (pp_memory_pack_aux pp_ptr pp_print_string))
             (name, mem, self)
             (pp_ensures
-               (pp_transition_aux m (pp_old pp_ptr) pp_ptr pp_var_decl
-                  pp_ptr_decl))
-            (name, inputs, [], outputs, mem, mem)
+               (pp_transition_aux m (pp_old pp_ptr) pp_ptr (fun fmt v ->
+                    (if is_output m v then pp_ptr_decl else pp_var_decl) fmt v)))
+            (name, inputs @ outputs, mem, mem)
             (pp_assigns pp_ptr_decl) outputs
             (pp_assigns (pp_reg self))
             m.mmemory

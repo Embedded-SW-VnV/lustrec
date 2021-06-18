@@ -186,11 +186,7 @@ type machine_ctx = {
   (* Transition spec *)
   t :
     (var_decl list
-    (* inputs *)
-    * var_decl list
-    (* locals *)
-    * var_decl list
-    (* outputs *)
+    (* vars *)
     * ISet.t (* memory footprint *)
     * ident IMap.t
     (* memory instances footprint *)
@@ -247,18 +243,15 @@ let translate_eq env ctx nd inputs locals outputs i eq =
   let outputs_i = Lustre_live.inter_live_i_with id i outputs in
   let pred_mp ctx a = And [ mk_memory_pack ~i:(i - 1) id; a ] :: ctx.mp in
   let pred_t ctx a =
-    ( inputs,
-      locals_i,
-      outputs_i,
+    ( inputs @ locals_i @ outputs_i,
       ctx.m,
       IMap.map (fun (td, _) -> node_name td) ctx.j,
       Exists
         ( Lustre_live.existential_vars id i eq (locals @ outputs),
           And
             [
-              mk_transition ~i:(i - 1) id (vdecls_to_vals inputs)
-                (vdecls_to_vals locals_pi)
-                (vdecls_to_vals outputs_pi);
+              mk_transition ~i:(i - 1) id
+                (vdecls_to_vals (inputs @ locals_pi @ outputs_pi));
               a;
             ] ) )
     :: ctx.t
@@ -274,8 +267,8 @@ let translate_eq env ctx nd inputs locals outputs i eq =
             (if fst (get_stateless_status_node nd) then []
             else [ mk_memory_pack ~i id ])
             @ [
-                mk_transition ~i id (vdecls_to_vals inputs)
-                  (vdecls_to_vals locals_i) (vdecls_to_vals outputs_i);
+                mk_transition ~i id
+                  (vdecls_to_vals (inputs @ locals_i @ outputs_i));
               ];
         }
         :: ctx.s;
@@ -304,7 +297,7 @@ let translate_eq env ctx nd inputs locals outputs i eq =
       ctl
         (MStep ([ var_x ], inst, [ c1; c2 ]))
         (mk_memory_pack ~inst (node_name td))
-        (mk_transition ~inst (node_name td) [] [] [ vdecl_to_val var_x ])
+        (mk_transition ~inst (node_name td) [ vdecl_to_val var_x ])
         { ctx with j = IMap.add inst (td, []) ctx.j }
     in
     { ctx with si = mkinstr (MSetReset inst) :: ctx.si }
@@ -332,7 +325,7 @@ let translate_eq env ctx nd inputs locals outputs i eq =
     }
   | p, Expr_appl (f, arg, r)
     when not (Basic_library.is_expr_internal_fun eq.eq_rhs) ->
-    let var_p = List.map (fun v -> env.get_var v) p in
+    let var_p = List.map env.get_var p in
     let el = expr_list_of_expr arg in
     let vl = List.map translate_expr el in
     let node_f = node_from_name f in
@@ -351,7 +344,7 @@ let translate_eq env ctx nd inputs locals outputs i eq =
       ctl ~ck:call_ck
         (MStep (var_p, inst, vl))
         (mk_memory_pack ~inst (node_name node_f))
-        (mk_transition ?r ~inst (node_name node_f) vl [] (vdecls_to_vals var_p))
+        (mk_transition ?r ~inst (node_name node_f) (vl @ vdecls_to_vals var_p))
         {
           ctx with
           j = IMap.add inst call_f ctx.j;
@@ -472,9 +465,7 @@ let transition_0 nd =
   {
     tname = nd;
     tindex = Some 0;
-    tinputs = nd.node_inputs;
-    tlocals = [];
-    toutputs = [];
+    tvars = nd.node_inputs;
     tformula = True;
     tmem_footprint = ISet.empty;
     tinst_footprint = IMap.empty;
@@ -483,16 +474,12 @@ let transition_0 nd =
 let transition_toplevel nd i =
   let tr =
     mk_transition nd.node_id ~i
-      (vdecls_to_vals nd.node_inputs)
-      []
-      (vdecls_to_vals nd.node_outputs)
+      (vdecls_to_vals (nd.node_inputs @ nd.node_outputs))
   in
   {
     tname = nd;
     tindex = None;
-    tinputs = nd.node_inputs;
-    tlocals = [];
-    toutputs = nd.node_outputs;
+    tvars = nd.node_inputs @ nd.node_outputs;
     tformula =
       (if fst (get_stateless_status_node nd) then tr
       else ExistsMem (nd.node_id, Predicate (ResetCleared nd.node_id), tr));
@@ -564,13 +551,11 @@ let translate_decl nd sch =
     transition_0 nd
     ::
     List.mapi
-      (fun i (tinputs, tlocals, toutputs, tmem_footprint, tinst_footprint, f) ->
+      (fun i (tvars, tmem_footprint, tinst_footprint, f) ->
         {
           tname = nd;
           tindex = Some (i + 1);
-          tinputs;
-          tlocals;
-          toutputs;
+          tvars;
           tformula = red f;
           tmem_footprint;
           tinst_footprint;
@@ -583,9 +568,7 @@ let translate_decl nd sch =
       ~instr_spec:
         ((if fst (get_stateless_status_node nd) then []
          else [ mk_memory_pack ~i:0 nd.node_id ])
-        @ [
-            mk_transition ~i:0 nd.node_id (vdecls_to_vals nd.node_inputs) [] [];
-          ])
+        @ [ mk_transition ~i:0 nd.node_id (vdecls_to_vals nd.node_inputs) ])
       MClearReset
   in
   {
