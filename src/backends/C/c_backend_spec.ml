@@ -8,8 +8,8 @@
 (*  version 2.1.                                                    *)
 (*                                                                  *)
 (********************************************************************)
-
-open Utils.Format
+open Utils
+open Format
 open Lustre_types
 open Machine_code_types
 open C_backend_common
@@ -299,23 +299,18 @@ let pp_reset_cleared pp_mem_in pp_mem_out fmt (name, mem_in, mem_out) =
 
 let pp_reset_cleared' = pp_reset_cleared pp_print_string pp_print_string
 
-let pp_functional_update mems fmt mem =
-  let rec aux fmt mems =
-    match mems with
+let pp_functional_update mems insts fmt mem =
+  let rec aux fmt = function
     | [] ->
       pp_print_string fmt mem
-    | x :: mems ->
-      fprintf fmt "{ @[<hov>%a@ \\with ._reg.%s = %s@] }" aux mems x x
+    | (x, is_mem) :: fields ->
+      fprintf fmt "{ @[<hov>%a@ \\with .%s%s = %s@] }" aux fields
+        (if is_mem then "_reg." else "")
+        x x
   in
   aux fmt
-    (* if Utils.ISet.is_empty mems then
-     *   pp_print_string fmt mem
-     *     else
-     *   fprintf fmt "{ %s @[<hov>\\with %a@] }"
-     *     mem
-     *     (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@;<1 -6>\\with ")
-     *        (fun fmt x -> fprintf fmt "._reg.%s = %s" x x)) *)
-    (Utils.ISet.elements mems)
+    (List.map (fun (x, _) -> x, false) (Utils.IMap.bindings insts)
+    @ List.map (fun x -> x, true) (Utils.ISet.elements mems))
 
 module PrintSpec = struct
   type mode =
@@ -365,12 +360,13 @@ module PrintSpec = struct
      fun ?output fmt e -> pp_expr ?output m mem_out fmt e
     in
     match p with
-    | Transition (f, inst, i, inputs, locals, outputs, r, mems) ->
+    | Transition (f, inst, i, inputs, locals, outputs, r, mems, insts) ->
       let pp_mem_in, pp_mem_out =
         match inst with
         | None ->
           ( pp_print_string,
-            if mem_update then pp_functional_update mems else pp_print_string )
+            if mem_update then pp_functional_update mems insts
+            else pp_print_string )
         | Some inst ->
           ( (fun fmt mem_in ->
               if r then pp_print_string fmt mem_in
@@ -422,7 +418,7 @@ module PrintSpec = struct
       eprintf "Internal error: arrow not found";
       raise Not_found
 
-  let pp_spec mode m fmt f =
+  let pp_spec mode m =
     let rec pp_spec mode fmt f =
       let mem_in, mem_in', indirect_r, mem_out, mem_out', indirect_l =
         let self = mk_self m in
@@ -504,16 +500,7 @@ module PrintSpec = struct
           fmt
           ((f, mk_mem_reset m), (rc, tr))
     in
-    match mode with
-    | TransitionFootprintMode ->
-      let mem_in = mk_mem_in m in
-      let mem_out = mk_mem_out m in
-      pp_forall
-        (pp_machine_decl ~ghost:true (pp_comma_list pp_print_string))
-        (pp_spec mode) fmt
-        ((m.mname.node_id, [ mem_in; mem_out ]), f)
-    | _ ->
-      pp_spec mode fmt f
+    pp_spec mode
 end
 
 let pp_predicate pp_l pp_r fmt (l, r) =
@@ -583,31 +570,50 @@ let pp_transition_footprint fmt t =
     t.tindex
 
 let pp_transition_footprint_lemma m fmt t =
-  let open Utils.ISet in
   let name = t.tname.node_id in
+  let mem_in = mk_mem_in m in
+  let mem_out = mk_mem_out m in
   let mems =
-    diff (of_list (List.map (fun v -> v.var_id) m.mmemory)) t.tfootprint
+    ISet.(
+      diff (of_list (List.map (fun v -> v.var_id) m.mmemory)) t.tmem_footprint)
+  in
+  let insts =
+    IMap.(
+      diff
+        (of_list (List.map (fun (x, (td, _)) -> x, node_name td) m.minstances))
+        t.tinst_footprint)
   in
   let memories =
     List.map
       (fun v -> { v with var_type = { v.var_type with tid = -1 } })
-      (List.filter (fun v -> not (mem v.var_id t.tfootprint)) m.mmemory)
+      (List.filter (fun v -> ISet.mem v.var_id mems) m.mmemory)
   in
-  if not (is_empty mems) then
+  let mems_empty = ISet.is_empty mems in
+  let insts_empty = IMap.is_empty insts in
+  let instances = List.map (fun (i, f) -> f, i) (IMap.bindings insts) in
+  let tr ?mems ?insts () =
+    Spec_common.mk_transition ?mems ?insts ?i:t.tindex name
+      (vdecls_to_vals t.tinputs) (vdecls_to_vals t.tlocals)
+      (vdecls_to_vals t.toutputs)
+  in
+  if not (mems_empty && insts_empty) then
     pp_acsl
       (pp_lemma pp_transition_footprint
-         (PrintSpec.pp_spec TransitionFootprintMode m))
+         (pp_forall
+            (pp_machine_decl ~ghost:true (pp_comma_list pp_print_string))
+            ((if insts_empty then fun pp fmt (_, x) -> pp fmt x
+             else pp_forall (pp_comma_list (pp_machine_decl' ~ghost:true)))
+               ((if mems_empty then fun pp fmt (_, x) -> pp fmt x
+                else pp_forall (pp_locals m))
+                  (PrintSpec.pp_spec TransitionFootprintMode m)))))
       fmt
       ( t,
-        Forall
-          ( memories @ t.tinputs @ t.tlocals @ t.toutputs,
-            Imply
-              ( Spec_common.mk_transition ?i:t.tindex name
-                  (vdecls_to_vals t.tinputs) (vdecls_to_vals t.tlocals)
-                  (vdecls_to_vals t.toutputs),
-                Spec_common.mk_transition ~mems ?i:t.tindex name
-                  (vdecls_to_vals t.tinputs) (vdecls_to_vals t.tlocals)
-                  (vdecls_to_vals t.toutputs) ) ) )
+        ( (m.mname.node_id, [ mem_in; mem_out ]),
+          ( instances,
+            ( memories,
+              Forall
+                ( t.tinputs @ t.tlocals @ t.toutputs,
+                  Imply (tr (), tr ~mems ~insts ()) ) ) ) ) )
 
 let pp_transition_footprint_lemmas fmt m =
   pp_print_list ~pp_epilogue:pp_print_cut ~pp_open_box:pp_open_vbox0

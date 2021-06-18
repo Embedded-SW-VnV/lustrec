@@ -3,3 +3,4 @@ parens-tuple=multi-line-only
 wrap-comments=true
 cases-exp-indent=2
 break-cases=nested
+break-fun-decl=wrap

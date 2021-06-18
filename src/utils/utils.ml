@@ -41,17 +41,17 @@ end
 module IMap = struct
   include Map.Make (IdentModule)
 
-  let union_l m1 m2 =
+  let diff m1 m2 =
     merge
       (fun _ o1 o2 ->
         match o1, o2 with
-        | None, None ->
-          None
-        | Some _, _ ->
-          o1
-        | _, Some _ ->
-          o2)
+        | Some v1, Some v2 ->
+          if v1 = v2 then None else o1
+        | _ ->
+          o1)
       m1 m2
+
+  let of_list l = List.fold_left (fun m (x, v) -> add x v m) empty l
 end
 
 module ISet = Set.Make (IdentModule)
@@ -122,10 +122,6 @@ let rec filter_upto p n l =
       []
     | t :: q ->
       if p t then t :: filter_upto p (n - 1) q else filter_upto p n q
-
-(* Warning: bad complexity *)
-let list_of_imap imap =
-  IMap.fold (fun i v (il, vl) -> i :: il, v :: vl) imap ([], [])
 
 (** [gcd a b] returns the greatest common divisor of [a] and [b]. *)
 let rec gcd a b = if b = 0 then a else gcd b (a mod b)

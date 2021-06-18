@@ -35,8 +35,7 @@ let overwrite x y =
     x y
 
 let pp_env pp_fun fmt env =
-  let lid, lty = list_of_imap env in
-  let l' = List.combine lid lty in
+  let l' = IMap.bindings env in
   let pp_fun fmt (id, value) = Format.fprintf fmt "%s |-> %a" id pp_fun value in
   Format.fprintf fmt "{ @[<v 2>%a@] }" (fprintf_list ~sep:"@," pp_fun) l'
 

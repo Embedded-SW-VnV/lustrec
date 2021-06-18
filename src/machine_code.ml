@@ -137,7 +137,6 @@ let translate_guard env expr =
 let rec translate_act env (y, expr) =
   let translate_act = translate_act env in
   let translate_guard = translate_guard env in
-  (* let translate_ident = translate_ident env in *)
   let translate_expr = translate_expr env in
   let lustre_eq = Corelang.mkeq Location.dummy_loc ([ y.var_id ], expr) in
   match expr.expr_desc with
@@ -193,6 +192,8 @@ type machine_ctx = {
     * var_decl list
     (* outputs *)
     * ISet.t (* memory footprint *)
+    * ident IMap.t
+    (* memory instances footprint *)
     * mc_formula_t)
     (* formula *)
     list;
@@ -250,6 +251,7 @@ let translate_eq env ctx nd inputs locals outputs i eq =
       locals_i,
       outputs_i,
       ctx.m,
+      IMap.map (fun (td, _) -> node_name td) ctx.j,
       Exists
         ( Lustre_live.existential_vars id i eq (locals @ outputs),
           And
@@ -303,13 +305,9 @@ let translate_eq env ctx nd inputs locals outputs i eq =
         (MStep ([ var_x ], inst, [ c1; c2 ]))
         (mk_memory_pack ~inst (node_name td))
         (mk_transition ~inst (node_name td) [] [] [ vdecl_to_val var_x ])
-        ctx
+        { ctx with j = IMap.add inst (td, []) ctx.j }
     in
-    {
-      ctx with
-      si = mkinstr (MSetReset inst) :: ctx.si;
-      j = IMap.add inst (td, []) ctx.j;
-    }
+    { ctx with si = mkinstr (MSetReset inst) :: ctx.si }
   | [ x ], Expr_pre e when env.is_local x ->
     let var_x = env.get_var x in
     let e = translate_expr e in
@@ -354,7 +352,11 @@ let translate_eq env ctx nd inputs locals outputs i eq =
         (MStep (var_p, inst, vl))
         (mk_memory_pack ~inst (node_name node_f))
         (mk_transition ?r ~inst (node_name node_f) vl [] (vdecls_to_vals var_p))
-        ctx
+        {
+          ctx with
+          j = IMap.add inst call_f ctx.j;
+          s = (if Stateless.check_node node_f then [] else reset_inst) @ ctx.s;
+        }
     in
     (*Clocks.new_var true in Clock_calculus.unify_imported_clock (Some call_ck)
       eq.eq_rhs.expr_clock eq.eq_rhs.expr_loc; Format.eprintf "call %a: %a:
@@ -365,8 +367,6 @@ let translate_eq env ctx nd inputs locals outputs i eq =
       si =
         (if Stateless.check_node node_f then ctx.si
         else mkinstr (MSetReset inst) :: ctx.si);
-      j = IMap.add inst call_f ctx.j;
-      s = (if Stateless.check_node node_f then [] else reset_inst) @ ctx.s;
     }
   | [ x ], _ ->
     let var_x = env.get_var x in
@@ -476,7 +476,8 @@ let transition_0 nd =
     tlocals = [];
     toutputs = [];
     tformula = True;
-    tfootprint = ISet.empty;
+    tmem_footprint = ISet.empty;
+    tinst_footprint = IMap.empty;
   }
 
 let transition_toplevel nd i =
@@ -495,7 +496,8 @@ let transition_toplevel nd i =
     tformula =
       (if fst (get_stateless_status_node nd) then tr
       else ExistsMem (nd.node_id, Predicate (ResetCleared nd.node_id), tr));
-    tfootprint = ISet.empty;
+    tmem_footprint = ISet.empty;
+    tinst_footprint = IMap.empty;
   }
 
 let translate_decl nd sch =
@@ -562,7 +564,7 @@ let translate_decl nd sch =
     transition_0 nd
     ::
     List.mapi
-      (fun i (tinputs, tlocals, toutputs, tfootprint, f) ->
+      (fun i (tinputs, tlocals, toutputs, tmem_footprint, tinst_footprint, f) ->
         {
           tname = nd;
           tindex = Some (i + 1);
@@ -570,7 +572,8 @@ let translate_decl nd sch =
           tlocals;
           toutputs;
           tformula = red f;
-          tfootprint;
+          tmem_footprint;
+          tinst_footprint;
         })
       (List.rev ctx.t)
     @ [ transition_toplevel nd (List.length ctx.t) ]

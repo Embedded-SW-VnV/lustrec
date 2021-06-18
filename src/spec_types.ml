@@ -39,6 +39,8 @@ type 'a predicate_t =
       (* outputs *)
       * bool (* reset *)
       * Utils.ISet.t (* memory footprint *)
+      * ident Utils.IMap.t
+      (* memory instances footprint *)
       -> 'a predicate_t
   | Reset of ident * ident * 'a
   | MemoryPack of ident * ident option * int option
@@ -80,5 +82,6 @@ type 'a transition_t = {
   tlocals : var_decl list;
   toutputs : var_decl list;
   tformula : 'a formula_t;
-  tfootprint : Utils.ISet.t;
+  tmem_footprint : Utils.ISet.t;
+  tinst_footprint : ident Utils.IMap.t;
 }

@@ -1,4 +1,5 @@
 open Spec_types
+open Utils
 
 (* a small reduction engine *)
 let is_true = function True -> true | _ -> false
@@ -73,20 +74,13 @@ let rec red : type a. a formula_t -> a formula_t = function
     f
 
 (* smart constructors *)
-(* let mk_condition x l =
- *   if l = tag_true then Ternary (Val x, True, False)
- *   else if l = tag_false then Ternary (Val x, False, True)
- *   else Equal (Val x, Tag l) *)
 
 let vals vs = List.map (fun v -> Val v) vs
 
 let mk_pred_call pred = Predicate pred
 
-(* let mk_clocked_on id =
- *   mk_pred_call (Clocked_on id) *)
-
-let mk_transition ?(mems = Utils.ISet.empty) ?r ?i ?inst id inputs locals
-    outputs =
+let mk_transition ?(mems = ISet.empty) ?(insts = IMap.empty) ?r ?i ?inst id
+    inputs locals outputs =
   let tr =
     mk_pred_call
       (Transition
@@ -97,7 +91,8 @@ let mk_transition ?(mems = Utils.ISet.empty) ?r ?i ?inst id inputs locals
            vals locals,
            vals outputs,
            (match r with Some _ -> true | None -> false),
-           mems ))
+           mems,
+           insts ))
   in
   match r, inst with
   | Some r, Some inst ->
@@ -113,7 +108,14 @@ let mk_state_assign_tr x v = Equal (Memory (StateVar x), Val v)
 
 let mk_conditional_tr v t f = Ternary (Val v, t, f)
 
-let mk_branch_tr x hl =
-  And (List.map (fun (t, spec) -> Imply (Equal (Var x, Tag t), spec)) hl)
+let mk_branch_tr x =
+  let open Lustre_types in
+  function
+  | [ (h1, spec1); (h2, spec2) ] when h1 = tag_true && h2 = tag_false ->
+    Ternary (Var x, spec1, spec2)
+  | [ (h1, spec1); (h2, spec2) ] when h1 = tag_false && h2 = tag_true ->
+    Ternary (Var x, spec2, spec1)
+  | hl ->
+    And (List.map (fun (t, spec) -> Imply (Equal (Var x, Tag t), spec)) hl)
 
 let mk_assign_tr x v = Equal (Var x, Val v)

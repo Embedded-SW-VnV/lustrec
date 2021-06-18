@@ -58,7 +58,7 @@ module PrintSpec = struct
      fun fmt e -> pp_expr m fmt e
     in
     match p with
-    | Transition (f, inst, i, inputs, locals, outputs, _r, _mems) ->
+    | Transition (f, inst, i, inputs, locals, outputs, _r, _mems, _insts) ->
       fprintf fmt "Transition_%a<%a>%a%a" pp_print_string f
         (pp_print_option
            ~none:(fun fmt () -> pp_print_string fmt "SELF")
@@ -321,30 +321,17 @@ let id_to_tag id =
   mk_val (Cst (Const_tag id)) (Type_predef.type_const typ)
 
 let mk_conditional ?lustre_eq c t e =
-  mkinstr ?lustre_eq
-    (* (Ternary (Val c,
-     *           And (List.map get_instr_spec t),
-     *           And (List.map get_instr_spec e))) *)
-    (MBranch (c, [ tag_true, t; tag_false, e ]))
+  mkinstr ?lustre_eq (MBranch (c, [ tag_true, t; tag_false, e ]))
 
-let mk_branch ?lustre_eq c br =
-  mkinstr ?lustre_eq
-    (* (And (List.map (fun (l, instrs) ->
-     *      Imply (Equal (Val c, Tag l), And (List.map get_instr_spec instrs)))
-     *      br)) *)
-    (MBranch (c, br))
+let mk_branch ?lustre_eq c br = mkinstr ?lustre_eq (MBranch (c, br))
 
 let mk_branch' ?lustre_eq v = mk_branch ?lustre_eq (vdecl_to_val v)
 
-let mk_assign ?lustre_eq x v =
-  mkinstr ?lustre_eq (* (Equal (Var x, Val v)) *) (MLocalAssign (x, v))
+let mk_assign ?lustre_eq x v = mkinstr ?lustre_eq (MLocalAssign (x, v))
 
 let arrow_machine =
   let state = "_first" in
-  let var_state =
-    dummy_var_decl state Type_predef.type_bool
-    (* (Types.new_ty Types.Tbool) *)
-  in
+  let var_state = dummy_var_decl state Type_predef.type_bool in
   let var_input1 = List.nth Arrow.arrow_desc.node_inputs 0 in
   let var_input2 = List.nth Arrow.arrow_desc.node_inputs 1 in
   let var_output = List.nth Arrow.arrow_desc.node_outputs 0 in
