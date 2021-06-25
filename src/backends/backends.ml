@@ -2,7 +2,7 @@
 let join_guards = ref true
 
 let setup () =
-  if !Options.output = "emf" then (
+  if !Options.output = Options.OutEMF then (
     (* Not merging branches *)
     join_guards := false;
     (* In case of a default "int" type, substitute it with the legal int32 value *)
@@ -10,21 +10,22 @@ let setup () =
   if !Options.optimization < 0 then join_guards := false
 
 let is_functional () =
-  match !Options.output with
-  | "horn" | "lustre" | "acsl" | "emf" ->
+  let open Options in
+  match !output with
+  | OutHorn | OutLustre | OutEMF ->
     true
   | _ ->
     false
 
 (* Special treatment of arrows in lustre backend. We want to keep them *)
-let unfold_arrow () = match !Options.output with "lustre" -> false | _ -> true
+let unfold_arrow () = match !Options.output with Options.OutLustre -> false | _ -> true
 
 (* Forcing ite normalization *)
-let alias_ite () = match !Options.output with "emf" -> true | _ -> false
+let alias_ite () = match !Options.output with Options.OutEMF -> true | _ -> false
 
 (* Forcing basic functions normalization *)
 let alias_internal_fun () =
-  match !Options.output with "emf" -> true | _ -> false
+  match !Options.output with Options.OutEMF -> true | _ -> false
 
 let get_normalization_params () =
   {

@@ -2,7 +2,8 @@ open Lustre_types
 open Machine_code_types
 open Spec_types
 open Corelang
-open Utils.Format
+open Utils
+open Format
 
 let print_statelocaltag = true
 
@@ -130,10 +131,12 @@ module PrintSpec = struct
 end
 
 let pp_spec m =
-  if !Options.spec <> "no" then
+  match !Options.spec with
+  | Options.SpecNo ->
+    pp_print_nothing
+  | _ ->
     pp_print_list ~pp_open_box:pp_open_vbox0 ~pp_prologue:pp_print_cut
       (fun fmt -> fprintf fmt "@[<h>--%@ %a@]" (PrintSpec.pp_spec m))
-  else pp_print_nothing
 
 let rec pp_instr m fmt i =
   let pp_val = pp_val m in
@@ -217,7 +220,7 @@ let pp_step m fmt s =
 
 let pp_static_call fmt (node, args) =
   fprintf fmt "%s<%a>" (node_name node)
-    (pp_comma_list Dimension.pp_dimension)
+    (pp_comma_list Dimension.pp)
     args
 
 let pp_instance fmt (o1, o2) = fprintf fmt "(%s, %a)" o1 pp_static_call o2
@@ -229,9 +232,11 @@ let pp_memory_pack m fmt mp =
     mp.mpindex (PrintSpec.pp_spec m) mp.mpformula
 
 let pp_memory_packs m fmt =
-  if !Options.spec <> "no" then
+  match !Options.spec with
+  | Options.SpecNo ->
+    pp_print_nothing fmt
+  | _ ->
     fprintf fmt "@[<v 2>memory_packs:@ %a@]" (pp_print_list (pp_memory_pack m))
-  else pp_print_nothing fmt
 
 let pp_transition m fmt t =
   fprintf fmt "@[<v 2>Transition_%a<SELF>%a%a =@ %a@]" pp_print_string
@@ -242,9 +247,11 @@ let pp_transition m fmt t =
     t.tvars (PrintSpec.pp_spec m) t.tformula
 
 let pp_transitions m fmt =
-  if !Options.spec <> "no" then
+  match !Options.spec with
+  | Options.SpecNo ->
+    pp_print_nothing fmt
+  | _ ->
     fprintf fmt "@[<v 2>transitions:@ %a@]" (pp_print_list (pp_transition m))
-  else pp_print_nothing fmt
 
 let pp_machine fmt m =
   fprintf fmt
@@ -444,11 +451,10 @@ let get_machine_opt machines name =
     None machines
 
 let get_machine machines node_name =
-  try Utils.desome (get_machine_opt machines node_name)
-  with Utils.DeSome ->
+  try desome (get_machine_opt machines node_name)
+  with DeSome ->
     eprintf "Unable to find machine %s in machines %a@.@?" node_name
-      (Utils.fprintf_list ~sep:", " (fun fmt m ->
-           pp_print_string fmt m.mname.node_id))
+      (pp_comma_list (fun fmt m -> pp_print_string fmt m.mname.node_id))
       machines;
     assert false
 
@@ -526,15 +532,15 @@ let rec value_of_dimension m dim =
 let rec dimension_of_value value =
   match value.value_desc with
   | Cst (Const_tag t) when t = tag_true ->
-    Dimension.mkdim_bool Location.dummy_loc true
+    Dimension.mkdim_bool Location.dummy true
   | Cst (Const_tag t) when t = tag_false ->
-    Dimension.mkdim_bool Location.dummy_loc false
+    Dimension.mkdim_bool Location.dummy false
   | Cst (Const_int i) ->
-    Dimension.mkdim_int Location.dummy_loc i
+    Dimension.mkdim_int Location.dummy i
   | Var v ->
-    Dimension.mkdim_ident Location.dummy_loc v.var_id
+    Dimension.mkdim_ident Location.dummy v.var_id
   | Fun (f, args) ->
-    Dimension.mkdim_appl Location.dummy_loc f (List.map dimension_of_value args)
+    Dimension.mkdim_appl Location.dummy f (List.map dimension_of_value args)
   | _ ->
     assert false
 

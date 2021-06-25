@@ -1,9 +1,7 @@
-module Types = Types.Main
-
-let type_env : Types.type_expr Env.t ref = ref Env.initial
+let type_env : Types.t Env.t ref = ref Env.initial
 (* Basic_library.type_env *)
 
-let clock_env : Clocks.clock_expr Env.t ref = ref Env.initial
+let clock_env : Clocks.t Env.t ref = ref Env.initial
 (*Basic_library.clock_env *)
 
 let basename = ref ""
@@ -17,7 +15,7 @@ module TypeEnv = struct
 
   let iter f = Env.iter !type_env f
 
-  let pp pp_fun fmt () = Env.pp_env pp_fun fmt !type_env
+  let pp pp_fun fmt () = Env.pp pp_fun fmt !type_env
 end
 
 let initialize () = main_node := !Options.main_node

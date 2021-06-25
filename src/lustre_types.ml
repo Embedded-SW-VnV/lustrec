@@ -9,13 +9,9 @@
 (*                                                                  *)
 (********************************************************************)
 
-type ident = Utils.ident
+open Utils
 
-type rat = Utils.rat
-
-type tag = Utils.tag
-
-type label = Utils.ident
+type label = ident
 
 type type_dec = { ty_dec_desc : type_dec_desc; ty_dec_loc : Location.t }
 
@@ -29,7 +25,7 @@ and type_dec_desc =
   | Tydec_const of ident
   | Tydec_enum of ident list
   | Tydec_struct of (ident * type_dec_desc) list
-  | Tydec_array of Dimension.dim_expr * type_dec_desc
+  | Tydec_array of Dimension.t * type_dec_desc
 
 type typedec_desc = { tydec_id : ident }
 
@@ -60,8 +56,8 @@ type var_decl = {
   var_dec_const : bool;
   var_dec_value : expr option;
   mutable var_parent_nodeid : ident option;
-  mutable var_type : Types.type_expr;
-  mutable var_clock : Clocks.clock_expr;
+  mutable var_type : Types.t;
+  mutable var_clock : Clocks.t;
   var_loc : Location.t;
 }
 (* The tag of an expression is a unique identifier used to distinguish different
@@ -75,9 +71,9 @@ type var_decl = {
 and expr = {
   expr_tag : tag;
   expr_desc : expr_desc;
-  mutable expr_type : Types.type_expr;
-  mutable expr_clock : Clocks.clock_expr;
-  mutable expr_delay : Delay.delay_expr;
+  mutable expr_type : Types.t;
+  mutable expr_clock : Clocks.t;
+  mutable expr_delay : Delay.t;
   mutable expr_annot : expr_annot option;
   expr_loc : Location.t;
 }
@@ -90,8 +86,8 @@ and expr_desc =
   | Expr_arrow of expr * expr
   | Expr_fby of expr * expr
   | Expr_array of expr list
-  | Expr_access of expr * Dimension.dim_expr
-  | Expr_power of expr * Dimension.dim_expr
+  | Expr_access of expr * Dimension.t
+  | Expr_power of expr * Dimension.t
   | Expr_pre of expr
   | Expr_when of expr * ident * label
   | Expr_merge of ident * (label * expr) list
@@ -109,8 +105,8 @@ and eexpr = {
   eexpr_qfexpr : expr;
   eexpr_quantifiers : (quantifier_type * var_decl list) list;
   eexpr_name : string option;
-  mutable eexpr_type : Types.type_expr;
-  mutable eexpr_clock : Clocks.clock_expr;
+  mutable eexpr_type : Types.t;
+  mutable eexpr_clock : Clocks.t;
   (* mutable eexpr_normalized: (var_decl * eq list * var_decl list) option; *)
   eexpr_loc : Location.t;
 }
@@ -131,7 +127,7 @@ type contract_import = {
   import_loc : Location.t;
 }
 
-type offset = Index of Dimension.dim_expr | Field of label
+type offset = Index of Dimension.t | Field of label
 
 type assert_t = { assert_expr : expr; assert_loc : Location.t }
 
@@ -169,13 +165,13 @@ type node_spec_t = Contract of contract_desc | NodeSpec of ident
 
 type node_desc = {
   node_id : ident;
-  mutable node_type : Types.type_expr;
-  mutable node_clock : Clocks.clock_expr;
+  mutable node_type : Types.t;
+  mutable node_clock : Clocks.t;
   node_inputs : var_decl list;
   node_outputs : var_decl list;
   node_locals : var_decl list;
   mutable node_gencalls : expr list;
-  mutable node_checks : Dimension.dim_expr list;
+  mutable node_checks : Dimension.t list;
   node_asserts : assert_t list;
   node_stmts : statement list;
   mutable node_dec_stateless : bool;
@@ -187,8 +183,8 @@ type node_desc = {
 
 type imported_node_desc = {
   nodei_id : ident;
-  mutable nodei_type : Types.type_expr;
-  mutable nodei_clock : Clocks.clock_expr;
+  mutable nodei_type : Types.t;
+  mutable nodei_clock : Clocks.t;
   nodei_inputs : var_decl list;
   nodei_outputs : var_decl list;
   nodei_stateless : bool;
@@ -202,7 +198,7 @@ type const_desc = {
   const_id : ident;
   const_loc : Location.t;
   const_value : constant;
-  mutable const_type : Types.type_expr;
+  mutable const_type : Types.t;
 }
 
 type top_decl_desc =

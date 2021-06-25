@@ -35,19 +35,20 @@ open Corelang
 module type EXPR_TYPE_HUB = sig
   type type_expr
 
-  val import : Types.Main.type_expr -> type_expr
+  val import : Types.t -> type_expr
 
-  val export : type_expr -> Types.Main.type_expr
+  val export : type_expr -> Types.t
 end
 
 module Make
     (T : Types.S)
-    (Expr_type_hub : EXPR_TYPE_HUB with type type_expr = T.type_expr) =
+    (Expr_type_hub : EXPR_TYPE_HUB with type type_expr = T.t)
+=
 struct
   module TP = Type_predef.Make (T)
   include TP
 
-  let pp_typing_env fmt env = Env.pp_env print_ty fmt env
+  let pp_typing_env fmt env = Env.pp print_ty fmt env
 
   (****************************************************************)
   (* Generic functions: occurs, instantiate and generalize         *)
@@ -219,7 +220,7 @@ struct
         tdef.tydef_desc
       | _ ->
         assert false
-    with Not_found -> raise (Error (Location.dummy_loc, Unbound_type tname))
+    with Not_found -> raise (Error (Location.dummy, Unbound_type tname))
 
   let get_type_definition tname =
     type_coretype (fun _ -> ()) (get_coretype_definition tname)
@@ -252,7 +253,7 @@ struct
       eq_ground t1' t2'
     | Tstatic (e1, t1'), Tstatic (e2, t2') | Tarray (e1, t1'), Tarray (e2, t2')
       ->
-      Dimension.is_eq_dimension e1 e2 && eq_ground t1' t2'
+      Dimension.equal e1 e2 && eq_ground t1' t2'
     | _ ->
       false
 
@@ -312,7 +313,7 @@ struct
         | Tarray (e1, t1'), Tarray (e2, t2') ->
           let eval_const =
             if semi then fun c ->
-              Some (Dimension.mkdim_ident Location.dummy_loc c)
+              Some (Dimension.mkdim_ident Location.dummy c)
             else fun _ -> None
           in
           unif t1' t2';
@@ -757,7 +758,7 @@ struct
             {
               expr_tag = new_tag ();
               expr_desc = Expr_when (expr, x, l);
-              expr_type = Types.Main.new_var ();
+              expr_type = Types.new_var ();
               expr_clock = Clocks.new_var true;
               expr_delay = Delay.new_var ();
               expr_loc = loc;
@@ -1107,16 +1108,15 @@ struct
   let check_typedef_compat header = List.iter check_typedef_top header
 end
 
-include
-  Make
-    (Types.Main)
-    (struct
-      type type_expr = Types.Main.type_expr
+module Expr_type_hub: EXPR_TYPE_HUB with type type_expr = Types.t = struct
+  type type_expr = Types.t
 
-      let import x = x
+  let import x = x
+  let export x = x
+end
 
-      let export x = x
-    end)
+include Make(Types)(Expr_type_hub)
+
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

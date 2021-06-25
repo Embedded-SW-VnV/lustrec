@@ -14,8 +14,8 @@ open Lustre_types
 val load :
   is_header:bool ->
   program_t ->
-  program_t * dep_t list * (Typing.type_expr Env.t * Clocks.clock_expr Env.t)
+  program_t * dep_t list * (Types.t Env.t * Clocks.t Env.t)
 
 (* Returns an updated env with the type/clock declaration of the program *)
 val get_envs_from_top_decls :
-  program_t -> Typing.type_expr Env.t * Clocks.clock_expr Env.t
+  program_t -> Types.t Env.t * Clocks.t Env.t

@@ -13,6 +13,8 @@
 open Parser_lustre
 open Utils
 
+module Lex = MenhirLib.LexerUtil
+
 (* As advised by Caml documentation. This way a single lexer rule is
    used to handle all the possible keywords. *)
 let keyword_table =
@@ -113,7 +115,7 @@ let error lexbuf =
   error_with (Location.curr lexbuf)
 
 let newline token lexbuf =
-  Location.Lex.newline lexbuf;
+  Lex.newline lexbuf;
   token lexbuf
 
 let make_annot orig_loc s =

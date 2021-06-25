@@ -9,10 +9,6 @@
 (*                                                                  *)
 (********************************************************************)
 
-let version = Version.number
-
-let codename = Version.codename
-
 let include_dirs = ref [ "." ]
 
 let main_node = ref ""
@@ -31,9 +27,29 @@ let ansi = ref false
 
 let check = ref false
 
-let spec = ref "no"
+type option_spec =
+  | SpecNo
+  | SpecACSL
+  | SpecC
 
-let output = ref "C"
+let spec = ref SpecNo
+
+type option_output =
+  | OutC
+  | OutAda
+  | OutEMF
+  | OutHorn
+  | OutLustre
+
+let output = ref OutC
+
+let pp_output fmt =
+  Format.pp_print_string fmt (match !output with
+  | OutC -> "C"
+  | OutAda -> "Ada"
+  | OutEMF -> "EMF"
+  | OutHorn -> "Horn"
+  | OutLustre -> "Lustre")
 
 let dest_dir = ref "."
 

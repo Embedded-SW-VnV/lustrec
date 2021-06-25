@@ -596,7 +596,7 @@ and clock_expr env expr =
   in
   Log.report ~level:4 (fun fmt ->
       Format.fprintf fmt "Clock of expr %a: %a@ " Printers.pp_expr expr
-        Clocks.print_ck resulting_ck);
+        Clocks.pp resulting_ck);
   resulting_ck
 
 let clock_of_vlist vars =
@@ -684,7 +684,7 @@ let clock_node env loc nd =
   let ck_node = new_ck (Carrow (ck_ins, ck_outs)) false in
   unify_imported_clock None ck_node loc;
   Log.report ~level:3 (fun fmt ->
-      Format.fprintf fmt "Clock of %s: %a@ " nd.node_id print_ck ck_node);
+      Format.fprintf fmt "Clock of %s: %a@ " nd.node_id Clocks.pp ck_node);
   (* Local variables may contain first-order carrier variables that should be
      generalized. That's not the case for types. *)
   try_generalize ck_node loc;
@@ -697,7 +697,7 @@ let clock_node env loc nd =
   (* if (is_main && is_polymorphic ck_node) then raise (Error
      (loc,(Cannot_be_polymorphic ck_node))); *)
   Log.report ~level:3 (fun fmt ->
-      Format.fprintf fmt "Generalized clock of %s: %a@ @ " nd.node_id print_ck
+      Format.fprintf fmt "Generalized clock of %s: %a@ @ " nd.node_id Clocks.pp
         ck_node);
   nd.node_clock <- ck_node;
   Env.add_value env nd.node_id ck_node
@@ -776,7 +776,7 @@ let uneval_vdecl_generics vdecl =
   if Types.get_clock_base_type vdecl.var_type <> None then
     match get_carrier_name vdecl.var_clock with
     | None ->
-      Format.eprintf "internal error: %a@." print_ck vdecl.var_clock;
+      Format.eprintf "internal error: %a@." Clocks.pp vdecl.var_clock;
       assert false
     | Some cr ->
       Clocks.uneval vdecl.var_id cr
@@ -803,7 +803,7 @@ let check_env_compat header declared computed =
         let computed_c =
           instantiate (ref []) (ref []) (Env.lookup_value computed k)
         in
-        try_semi_unify decl_clock_k computed_c Location.dummy_loc
+        try_semi_unify decl_clock_k computed_c Location.dummy
       with Not_found ->
         (* If the lookup failed then either an actual required element should
            have been declared and is missing but typing should have catch it, or

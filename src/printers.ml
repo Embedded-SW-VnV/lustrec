@@ -50,13 +50,13 @@ and pp_var_type_dec_desc fmt tdesc =
   | Tydec_const t ->
     fprintf fmt "%s" t
   | Tydec_enum id_list ->
-    fprintf fmt "enum {%a }" (fprintf_list ~sep:", " pp_print_string) id_list
+    fprintf fmt "enum {%a }" (pp_comma_list pp_print_string) id_list
   | Tydec_struct f_list ->
     fprintf fmt "struct {%a }"
-      (fprintf_list ~sep:" " pp_var_struct_type_field)
+      (pp_print_list pp_var_struct_type_field)
       f_list
   | Tydec_array (s, t) ->
-    fprintf fmt "%a^%a" pp_var_type_dec_desc t Dimension.pp_dimension s
+    fprintf fmt "%a^%a" pp_var_type_dec_desc t Dimension.pp s
 
 let pp_var_type_dec fmt ty = pp_var_type_dec_desc fmt ty.ty_dec_desc
 
@@ -68,9 +68,9 @@ let pp_var_type fmt id =
   if !Options.print_dec_types then pp_var_type_dec fmt id.var_dec_type
   else Types.print_node_ty fmt id.var_type
 
-let pp_var_clock fmt id = Clocks.print_ck_suffix fmt id.var_clock
+let pp_var_clock fmt id = Clocks.pp_suffix fmt id.var_clock
 
-let pp_eq_lhs = fprintf_list ~sep:", " pp_print_string
+let pp_eq_lhs = pp_comma_list pp_print_string
 
 let pp_var fmt id =
   fprintf fmt "%s%s: %a"
@@ -78,7 +78,7 @@ let pp_var fmt id =
     (if !Options.kind2_print then kind2_protect id.var_id else id.var_id)
     pp_var_type id
 
-let pp_vars fmt vars = fprintf_list ~sep:"; " pp_var fmt vars
+let pp_vars fmt vars = pp_print_list ~pp_sep:pp_print_semicolon pp_var fmt vars
 
 let pp_quantifiers fmt (q, vars) =
   match q with
@@ -102,9 +102,10 @@ and pp_const fmt c =
   | Const_tag t ->
     pp_print_string fmt t
   | Const_array ca ->
-    fprintf fmt "[%a]" (Utils.fprintf_list ~sep:"," pp_const) ca
+    fprintf fmt "[%a]" (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ",")
+                          pp_const) ca
   | Const_struct fl ->
-    fprintf fmt "{%a }" (Utils.fprintf_list ~sep:" " pp_struct_const_field) fl
+    fprintf fmt "{%a }" (pp_print_list pp_struct_const_field) fl
   (* used only for annotations *)
   | Const_string s ->
     pp_print_string fmt ("\"" ^ s ^ "\"")
@@ -118,7 +119,8 @@ let pp_annot_key fmt kwds =
   | [ x ] ->
     pp_print_string fmt x
   | _ ->
-    fprintf fmt "/%a/" (fprintf_list ~sep:"/" pp_print_string) kwds
+    fprintf fmt "/%a/" (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "/")
+                          pp_print_string) kwds
 
 let pp_kind2_when fmt (id, l) =
   if l = "true" then fprintf fmt "%s" id
@@ -141,9 +143,9 @@ let rec pp_expr fmt expr =
         | Expr_array a ->
           fprintf fmt "[%a]" pp_tuple a
         | Expr_access (a, d) ->
-          fprintf fmt "%a[%a]" pp_expr a Dimension.pp_dimension d
+          fprintf fmt "%a[%a]" pp_expr a Dimension.pp d
         | Expr_power (a, d) ->
-          fprintf fmt "(%a^%a)" pp_expr a Dimension.pp_dimension d
+          fprintf fmt "(%a^%a)" pp_expr a Dimension.pp d
         | Expr_tuple el ->
           fprintf fmt "(%a)" pp_tuple el
         | Expr_ite (c, t, e) ->
@@ -169,11 +171,12 @@ let rec pp_expr fmt expr =
         Format.fprintf fmt "%t: %a" pp Types.print_ty expr.expr_type
       else pp fmt)
 
-and pp_tuple fmt el = fprintf_list ~sep:"," pp_expr fmt el
+and pp_tuple fmt el = pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ",")
+    pp_expr fmt el
 
 and pp_handler fmt (t, h) = fprintf fmt "(%s -> %a)" t pp_expr h
 
-and pp_handlers fmt hl = fprintf_list ~sep:" " pp_handler fmt hl
+and pp_handlers fmt hl = pp_print_list pp_handler fmt hl
 
 and pp_app fmt id e r =
   if !Options.kind2_print && not (List.mem id Basic_library.internal_funs) then
@@ -273,7 +276,7 @@ and pp_call fmt id e =
 
 and pp_eexpr fmt e =
   fprintf fmt "%a%t %a"
-    (Utils.fprintf_list ~sep:"; " pp_quantifiers)
+    (pp_print_list ~pp_sep:pp_print_semicolon pp_quantifiers)
     e.eexpr_quantifiers
     (fun fmt ->
       match e.eexpr_quantifiers with [] -> () | _ -> fprintf fmt ";")
@@ -297,22 +300,23 @@ and pp_s_function fmt expr_ann =
         | [ x ] ->
           pp_print_string fmt x
         | _ ->
-          fprintf fmt "%a" (fprintf_list ~sep:"/" pp_print_string) kwds)
+          fprintf fmt "%a" (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "/")
+                              pp_print_string) kwds)
       pp_sf_value ee
   in
-  fprintf_list ~sep:"@ " pp_annot fmt expr_ann.annots
+  pp_print_list pp_annot fmt expr_ann.annots
 
 and pp_expr_annot fmt expr_ann =
   let pp_annot fmt (kwds, ee) =
     fprintf fmt "(*!%a: %a; *)" pp_annot_key kwds pp_eexpr ee
   in
-  fprintf_list ~sep:"@ " pp_annot fmt expr_ann.annots
+  pp_print_list pp_annot fmt expr_ann.annots
 
 let pp_asserts fmt asserts =
   match asserts with
   | _ :: _ ->
     fprintf fmt "(* Asserts definitions *)@ ";
-    fprintf_list ~sep:"@ "
+    pp_print_list
       (fun fmt assert_ ->
         let expr = assert_.assert_expr in
         fprintf fmt "assert %a;" pp_expr expr)
@@ -334,7 +338,7 @@ let pp_node_var fmt id =
   | Some v ->
     fprintf fmt " = %a" pp_expr v
 
-let pp_node_args = fprintf_list ~sep:";@ " pp_node_var
+let pp_node_args = pp_print_list ~pp_sep:pp_print_semicolon pp_node_var
 
 let pp_node_eq fmt eq =
   fprintf fmt "%a = %a;" pp_eq_lhs eq.eq_lhs pp_expr eq.eq_rhs
@@ -351,7 +355,7 @@ let pp_until fmt (_, expr, restart, st) =
 let rec pp_handler fmt handler =
   fprintf fmt "state %s:@ @[<v 2>  %a%t%alet@,@[<v 2>  %a@ %a@ %a@]@,tel@ %a@]"
     handler.hand_state
-    (Utils.fprintf_list ~sep:"@ " pp_unless)
+    (pp_print_list pp_unless)
     handler.hand_unless
     (fun fmt -> if not ([] = handler.hand_unless) then fprintf fmt "@ ")
     (fun fmt locals ->
@@ -360,14 +364,13 @@ let rec pp_handler fmt handler =
         ()
       | _ ->
         fprintf fmt "@[<v 4>var %a@]@ "
-          (Utils.fprintf_list ~sep:"@ " (fun fmt v ->
-               fprintf fmt "%a;" pp_node_var v))
+          (pp_print_list ~pp_sep:pp_print_semicolon pp_node_var)
           locals)
     handler.hand_locals
-    (fprintf_list ~sep:"@ " pp_expr_annot)
+    (pp_print_list pp_expr_annot)
     handler.hand_annots pp_node_stmts handler.hand_stmts pp_asserts
     handler.hand_asserts
-    (Utils.fprintf_list ~sep:"@," pp_until)
+    (pp_print_list pp_until)
     handler.hand_until
 
 and pp_node_stmt fmt stmt =
@@ -379,10 +382,10 @@ and pp_node_stmts fmt stmts =
 
 and pp_node_aut fmt aut =
   fprintf fmt "@[<v 0>automaton %s@,%a@]" aut.aut_id
-    (Utils.fprintf_list ~sep:"@ " pp_handler)
+    (pp_print_list pp_handler)
     aut.aut_handlers
 
-and pp_node_eqs fmt eqs = fprintf_list ~sep:"@ " pp_node_eq fmt eqs
+and pp_node_eqs fmt eqs = pp_print_list pp_node_eq fmt eqs
 
 let pp_typedef fmt ty =
   fprintf fmt "type %s = %a;" ty.tydef_id pp_var_type_dec_desc ty.tydef_desc
@@ -420,7 +423,7 @@ let pp_spec_stmt fmt stmt =
 let pp_spec fmt spec =
   (* const are prefixed with const in pp_var and with nothing for regular
      variables. We adapt the call to produce the appropriate output. *)
-  fprintf_list ~eol:"@, " ~sep:"@, "
+  pp_print_list
     (fun fmt v ->
       fprintf fmt "%a = %t;" pp_var v (fun fmt ->
           match v.var_dec_value with
@@ -430,26 +433,26 @@ let pp_spec fmt spec =
             pp_expr fmt e))
     fmt spec.consts;
 
-  fprintf_list ~eol:"@, " ~sep:"@, "
+  pp_print_list
     (fun fmt s -> pp_spec_stmt fmt s)
     fmt spec.stmts;
-  fprintf_list ~eol:"@, " ~sep:"@, "
+  pp_print_list
     (fun fmt r -> fprintf fmt "assume %a;" pp_eexpr r)
     fmt spec.assume;
-  fprintf_list ~eol:"@, " ~sep:"@, "
+  pp_print_list
     (fun fmt r -> fprintf fmt "guarantee %a;" pp_eexpr r)
     fmt spec.guarantees;
-  fprintf_list ~eol:"@, " ~sep:"@, "
+  pp_print_list
     (fun fmt mode ->
       fprintf fmt "mode %s (@[<v 0>%a@ %a@]);" mode.mode_id
-        (fprintf_list ~eol:"" ~sep:"@ " (fun fmt r ->
+        (pp_print_list (fun fmt r ->
              fprintf fmt "require %a;" pp_eexpr r))
         mode.require
-        (fprintf_list ~eol:"" ~sep:"@ " (fun fmt r ->
+        (pp_print_list (fun fmt r ->
              fprintf fmt "ensure %a;" pp_eexpr r))
         mode.ensure)
     fmt spec.modes;
-  fprintf_list ~eol:"@, " ~sep:"@, "
+  pp_print_list
     (fun fmt import ->
       fprintf fmt "import %s (%a) returns (%a);" import.import_nodeid pp_expr
         import.inputs pp_expr import.outputs)
@@ -495,7 +498,7 @@ let pp_spec_as_comment fmt (inl, outl, spec) =
   | NodeSpec name ->
     (* Pushing stmts in contract. We update the original information with the
        computed one in nd. *)
-    let pp_l = fprintf_list ~sep:"," pp_var_name in
+    let pp_l = pp_comma_list pp_var_name in
     fprintf fmt "@[<hov 2>(*@contract import %s(%a) returns (%a); @]*)@ " name
       pp_l inl pp_l outl
 
@@ -526,7 +529,7 @@ let pp_node fmt nd =
         ()
       | _ ->
         fprintf fmt "@[<v 4>var %a@]@ "
-          (fprintf_list ~sep:"@ " (fun fmt v -> fprintf fmt "%a;" pp_node_var v))
+          (pp_print_list (fun fmt v -> fprintf fmt "%a;" pp_node_var v))
           locals)
     nd.node_locals;
   (* Checks *)
@@ -537,14 +540,14 @@ let pp_node fmt nd =
         ()
       | _ ->
         fprintf fmt "@[<v 4>check@ %a@]@ "
-          (fprintf_list ~sep:"@ " (fun fmt d ->
-               fprintf fmt "%a" Dimension.pp_dimension d))
+          (pp_print_list (fun fmt d ->
+               fprintf fmt "%a" Dimension.pp d))
           checks)
     nd.node_checks;
   (* Body *)
   fprintf fmt "@[<v 2>let@ ";
   (* Annotations *)
-  fprintf fmt "%a" (fprintf_list ~sep:"@ " pp_expr_annot) nd.node_annot;
+  fprintf fmt "%a" (pp_print_list pp_expr_annot) nd.node_annot;
   (* Statements *)
   fprintf fmt "%a" pp_node_stmts nd.node_stmts;
   (* Asserts *)
@@ -589,7 +592,7 @@ let pp_const_decl fmt cdecl =
   fprintf fmt "%s = %a;" cdecl.const_id pp_const cdecl.const_value
 
 let pp_const_decl_list fmt clist =
-  fprintf_list ~sep:"@ " pp_const_decl fmt clist
+  pp_print_list pp_const_decl fmt clist
 
 let pp_decl fmt decl =
   match decl.top_decl_desc with
@@ -676,13 +679,13 @@ let pp_lusi_header fmt basename prog =
 let pp_offset fmt offset =
   match offset with
   | Index i ->
-    fprintf fmt "[%a]" Dimension.pp_dimension i
+    fprintf fmt "[%a]" Dimension.pp i
   | Field f ->
     fprintf fmt ".%s" f
 
 let pp_node_list fmt prog =
   Format.fprintf fmt "@[<h 2>%a@]"
-    (fprintf_list ~sep:"@ " (fun fmt decl ->
+    (pp_print_list (fun fmt decl ->
          match decl.top_decl_desc with
          | Node nd ->
            Format.fprintf fmt "%s" nd.node_id

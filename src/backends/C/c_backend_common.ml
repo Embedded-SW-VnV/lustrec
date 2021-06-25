@@ -852,12 +852,12 @@ let pp_clear m self pp_var fmt var =
 
 (*** Common functions for main ***)
 
-let pp_print_file file_suffix fmt (typ, arg) =
+let pp_file file_suffix fmt (typ, arg) =
   fprintf fmt
     "@[<v 2>if (traces) {@,fprintf(f_%s, \"%%%s\\n\", %s);@,fflush(f_%s);@]@,}"
     file_suffix typ arg file_suffix
 
-let print_put_var fmt file_suffix name var_type var_id =
+let pp_put_var fmt file_suffix name var_type var_id =
   let pp_file = pp_print_file ("out" ^ file_suffix) in
   let unclocked_t = Types.unclock_type var_type in
   fprintf fmt "@[<v>%a@]"

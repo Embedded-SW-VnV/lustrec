@@ -36,7 +36,7 @@ and carrier_expr = {
   carrier_id : int;
 }
 
-type clock_expr = {
+type t = {
   mutable cdesc : clock_desc;
   mutable cscoped : bool;
   cid : int;
@@ -44,41 +44,41 @@ type clock_expr = {
 
 (* pck stands for periodic clock. Easier not to separate pck from other clocks *)
 and clock_desc =
-  | Carrow of clock_expr * clock_expr
-  | Ctuple of clock_expr list
-  | Con of clock_expr * carrier_expr * ident
-  (* | Pck_up of clock_expr * int *)
-  (* | Pck_down of clock_expr * int *)
-  (* | Pck_phase of clock_expr * rat *)
+  | Carrow of t * t
+  | Ctuple of t list
+  | Con of t * carrier_expr * ident
+  (* | Pck_up of t * int *)
+  (* | Pck_down of t * int *)
+  (* | Pck_phase of t * rat *)
   (* | Pck_const of int * rat *)
   | Cvar (* of clock_set *)
   (* Monomorphic clock variable *)
   | Cunivar
   (* of clock_set *)
   (* Polymorphic clock variable *)
-  | Clink of clock_expr
+  | Clink of t
   (* During unification, make links instead of substitutions *)
-  | Ccarrying of carrier_expr * clock_expr
+  | Ccarrying of carrier_expr * t
 
 type error =
-  | Clock_clash of clock_expr * clock_expr
+  | Clock_clash of t * t
   (* | Not_pck *)
-  (* | Clock_set_mismatch of clock_expr * clock_set *)
-  | Cannot_be_polymorphic of clock_expr
-  | Invalid_imported_clock of clock_expr
-  | Invalid_const of clock_expr
+  (* | Clock_set_mismatch of t * clock_set *)
+  | Cannot_be_polymorphic of t
+  | Invalid_imported_clock of t
+  | Invalid_const of t
   | Factor_zero
   | Carrier_mismatch of carrier_expr * carrier_expr
-  | Carrier_extrusion of clock_expr * carrier_expr
-  | Clock_extrusion of clock_expr * clock_expr
+  | Carrier_extrusion of t * carrier_expr
+  | Clock_extrusion of t * t
 
-exception Unify of clock_expr * clock_expr
+exception Unify of t * t
 
 exception Mismatch of carrier_expr * carrier_expr
 
 exception Scope_carrier of carrier_expr
 
-exception Scope_clock of clock_expr
+exception Scope_clock of t
 
 exception Error of Location.t * error
 
@@ -102,7 +102,8 @@ let rec print_ck_long fmt ck =
   | Carrow (ck1, ck2) ->
     fprintf fmt "%a -> %a" print_ck_long ck1 print_ck_long ck2
   | Ctuple cklist ->
-    fprintf fmt "(%a)" (fprintf_list ~sep:" * " print_ck_long) cklist
+    fprintf fmt "(%a)" (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt " * ")
+                          print_ck_long) cklist
   | Con (ck, c, l) ->
     fprintf fmt "%a on %s(%a)" print_ck_long ck l print_carrier c
   | Cvar ->
@@ -283,7 +284,7 @@ let eq_carrier cr1 cr2 =
   | _ ->
     cr1.carrier_id = cr2.carrier_id
 
-let eq_clock ck1 ck2 = (repr ck1).cid = (repr ck2).cid
+let equal ck1 ck2 = (repr ck1).cid = (repr ck2).cid
 
 (* Returns the clock root of a clock *)
 let rec root ck =
@@ -335,7 +336,7 @@ let rec disjoint_branches br1 br2 =
 
 (* Disjunction relation between variables based upon their static clocks. *)
 let disjoint ck1 ck2 =
-  eq_clock (root ck1) (root ck2) && disjoint_branches (branch ck1) (branch ck2)
+  equal (root ck1) (root ck2) && disjoint_branches (branch ck1) (branch ck2)
 
 let print_cvar fmt cvar =
   match cvar.cdesc with
@@ -350,13 +351,13 @@ let print_cvar fmt cvar =
 
 (* Nice pretty-printing. Simplifies expressions before printing them. Non-linear
    complexity. *)
-let print_ck fmt ck =
+let pp fmt ck =
   let rec aux fmt ck =
     match ck.cdesc with
     | Carrow (ck1, ck2) ->
       fprintf fmt "%a -> %a" aux ck1 aux ck2
     | Ctuple cklist ->
-      fprintf fmt "(%a)" (fprintf_list ~sep:" * " aux) cklist
+      fprintf fmt "(%a)" (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt " * ") aux) cklist
     | Con (ck, c, l) ->
       fprintf fmt "%a on %s(%a)" aux ck l print_carrier c
     | Cvar ->
@@ -373,50 +374,50 @@ let print_ck fmt ck =
   let cvars = constrained_vars_of_clock ck in
   aux fmt ck;
   if cvars <> [] then
-    fprintf fmt " (where %a)" (fprintf_list ~sep:", " print_cvar) cvars
+    fprintf fmt " (where %a)" (pp_comma_list print_cvar) cvars
 
 (* prints only the Con components of a clock, useful for printing nodes *)
-let rec print_ck_suffix fmt ck =
+let rec pp_suffix fmt ck =
   match ck.cdesc with
   | Carrow _ | Ctuple _ | Cvar | Cunivar ->
     ()
   | Con (ck, c, l) ->
-    if !Options.kind2_print then print_ck_suffix fmt ck
-    else fprintf fmt "%a when %s(%a)" print_ck_suffix ck l print_carrier c
+    if !Options.kind2_print then pp_suffix fmt ck
+    else fprintf fmt "%a when %s(%a)" pp_suffix ck l print_carrier c
   | Clink ck' ->
-    print_ck_suffix fmt ck'
+    pp_suffix fmt ck'
   | Ccarrying (_, ck') ->
-    fprintf fmt "%a" print_ck_suffix ck'
+    fprintf fmt "%a" pp_suffix ck'
 
 let pp_error fmt = function
   | Clock_clash (ck1, ck2) ->
     reset_names ();
-    fprintf fmt "Expected clock %a, got clock %a@." print_ck ck1 print_ck ck2
+    fprintf fmt "Expected clock %a, got clock %a@." pp ck1 pp ck2
   | Carrier_mismatch (cr1, cr2) ->
     fprintf fmt "Name clash. Expected clock %a, got clock %a@." print_carrier
       cr1 print_carrier cr2
   | Cannot_be_polymorphic ck ->
     reset_names ();
-    fprintf fmt "The main node cannot have a polymorphic clock: %a@." print_ck
+    fprintf fmt "The main node cannot have a polymorphic clock: %a@." pp
       ck
   | Invalid_imported_clock ck ->
     reset_names ();
-    fprintf fmt "Not a valid imported node clock: %a@." print_ck ck
+    fprintf fmt "Not a valid imported node clock: %a@." pp ck
   | Invalid_const ck ->
     reset_names ();
-    fprintf fmt "Clock %a is not a valid periodic clock@." print_ck ck
+    fprintf fmt "Clock %a is not a valid periodic clock@." pp ck
   | Factor_zero ->
     fprintf fmt "Cannot apply clock transformation with factor 0@."
   | Carrier_extrusion (ck, cr) ->
     fprintf fmt
       "This node has clock@.%a@.It is invalid as the carrier %a escapes its \
        scope@."
-      print_ck ck print_carrier cr
+      pp ck print_carrier cr
   | Clock_extrusion (ck_node, ck) ->
     fprintf fmt
       "This node has clock@.%a@.It is invalid as the clock %a escapes its \
        scope@."
-      print_ck ck_node print_ck ck
+      pp ck_node pp ck
 
 let const_of_carrier cr =
   match (carrier_repr cr).carrier_desc with

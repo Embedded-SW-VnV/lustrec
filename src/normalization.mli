@@ -1,3 +1,4 @@
+open Utils
 open Lustre_types
 
 type param_t = {

@@ -177,10 +177,10 @@ let pp_eq_schedule fmt vl =
   | [] ->
     assert false
   | [ v ] ->
-    Format.fprintf fmt "%s" v
+    Format.pp_print_string fmt v
   | _ ->
     Format.fprintf fmt "(%a)"
-      (fprintf_list ~sep:" , " (fun fmt v -> Format.fprintf fmt "%s" v))
+      (Format.pp_comma_list Format.pp_print_string)
       vl
 
 let pp_schedule fmt node_schs =
@@ -223,7 +223,7 @@ let pp_warning_unused fmt node_schs =
             if vu.var_orig then
               Format.fprintf fmt
                 "  Warning: variable '%s' seems unused@,  %a@,@," u
-                Location.pp_loc vu.var_loc)
+                Location.pp vu.var_loc)
           unused)
     node_schs
 
@@ -266,7 +266,7 @@ let sort_equations_from_schedule eqs sch =
       in
       Log.report ~level:1 (fun fmt ->
           Format.fprintf fmt "[Warning] Unused variables: %a@ "
-            (fprintf_list ~sep:", " Format.pp_print_string)
+            (Format.pp_comma_list Format.pp_print_string)
             vars);
       vars)
     else []

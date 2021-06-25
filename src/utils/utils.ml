@@ -52,9 +52,23 @@ module IMap = struct
       m1 m2
 
   let of_list l = List.fold_left (fun m (x, v) -> add x v m) empty l
+
+  let pp ?(comment = "") pp_val fmt m =
+    Format.fprintf fmt "@[<hv 0>@[<hv 2>{ %s" comment;
+    iter (fun key v -> Format.fprintf fmt "@ %s -> %a" key pp_val v) m;
+    Format.fprintf fmt "@]@ }@]"
 end
 
-module ISet = Set.Make (IdentModule)
+module ISet = struct
+  include Set.Make (IdentModule)
+
+  let pp fmt t =
+    let open Format in
+    fprintf fmt "@[<hv 0>@[<hv 2>{";
+    iter (fun s -> fprintf fmt "@ %s" s) t;
+    fprintf fmt "@]@ }@]"
+end
+
 module IdentDepGraph = Imperative.Digraph.ConcreteBidirectional (IdentModule)
 module TopologicalDepGraph = Topological.Make (IdentDepGraph)
 module ComponentsDepGraph = Components.Make (IdentDepGraph)
@@ -406,16 +420,6 @@ let pp_array a pp_fun beg_str end_str sep_str =
       (Array.sub a 0 (n - 1));
     pp_fun a.(n - 1));
   if end_str = "\n" then print_newline () else print_string end_str
-
-let pp_iset fmt t =
-  Format.fprintf fmt "@[<hv 0>@[<hv 2>{";
-  ISet.iter (fun s -> Format.fprintf fmt "@ %s" s) t;
-  Format.fprintf fmt "@]@ }@]"
-
-let pp_imap ?(comment = "") pp_val fmt m =
-  Format.fprintf fmt "@[<hv 0>@[<hv 2>{ %s" comment;
-  IMap.iter (fun key v -> Format.fprintf fmt "@ %s -> %a" key pp_val v) m;
-  Format.fprintf fmt "@]@ }@]"
 
 let pp_hashtbl t pp_fun beg_str end_str sep_str =
   if beg_str = "\n" then print_newline () else print_string beg_str;

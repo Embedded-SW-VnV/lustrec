@@ -77,12 +77,14 @@ let rec find_submachine_step_call ident instr_list =
 let pp_eq_type typ1 typ2 =
   let get_basic typ =
     match (Types.repr typ).Types.tdesc with
-    | Types.Tbasic Types.Basic.Tint ->
-      Types.Basic.Tint
-    | Types.Tbasic Types.Basic.Treal ->
-      Types.Basic.Treal
-    | Types.Tbasic Types.Basic.Tbool ->
-      Types.Basic.Tbool
+    | Types.Tbasic t ->
+      t
+    (* | Types.Tbasic Types.Basic.Tint ->
+     *   Types.Basic.Tint
+     * | Types.Tbasic Types.Basic.Treal ->
+     *   Types.Basic.Treal
+     * | Types.Tbasic Types.Basic.Tbool ->
+     *   Types.Basic.Tbool *)
     | _ ->
       assert false
     (*TODO*)
@@ -91,7 +93,7 @@ let pp_eq_type typ1 typ2 =
 
 (** Check that two types are the same. @param t1 a type @param t2 an other type
     @param return true if the two types are Tbasic or Tunivar and equal **)
-let rec check_type_equal (t1 : Types.type_expr) (t2 : Types.type_expr) =
+let rec check_type_equal (t1 : Types.t) (t2 : Types.t) =
   match (Types.repr t1).Types.tdesc, (Types.repr t2).Types.tdesc with
   | Types.Tbasic x, Types.Tbasic y ->
     x = y
@@ -114,8 +116,8 @@ let rec check_type_equal (t1 : Types.type_expr) (t2 : Types.type_expr) =
     be polymorphic. @param subsitution the base substitution @param type_poly
     the type which can be polymorphic @param typ the type to match type_poly
     with **)
-let unification (substituion : (int * Types.type_expr) list)
-    ((type_poly : Types.type_expr), (typ : Types.type_expr)) =
+let unification (substituion : (int * Types.t) list)
+    ((type_poly : Types.t), (typ : Types.t)) =
   assert (not (is_Tunivar typ));
   (* If type_poly is polymorphic *)
   if is_Tunivar type_poly then
@@ -205,12 +207,8 @@ let get_instance identifier typed_submachines =
 (*Usefull for debug*)
 let pp_type_debug fmt typ =
   match (Types.repr typ).Types.tdesc with
-  | Types.Tbasic Types.Basic.Tint ->
-    Format.fprintf fmt "INTEGER"
-  | Types.Tbasic Types.Basic.Treal ->
-    Format.fprintf fmt "FLOAT"
-  | Types.Tbasic Types.Basic.Tbool ->
-    Format.fprintf fmt "BOOLEAN"
+  | Types.Tbasic t ->
+    Types.BasicT.pp fmt t
   | Types.Tunivar ->
     Format.fprintf fmt "POLY(%i)" typ.Types.tid
   | _ ->

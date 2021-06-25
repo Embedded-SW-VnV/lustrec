@@ -177,7 +177,7 @@ let type_int32 = MTypes.new_ty (MTypes.Tbasic (MT.MTint (Some MT.Tint32_t)))
 let type_int64 = MTypes.new_ty (MTypes.Tbasic (MT.MTint (Some MT.Tint64_t)))
 
 module ConvTypes = struct
-  type type_expr = MTypes.type_expr
+  type type_expr = MTypes.t
 
   let map_type_basic f_basic =
     let rec map_type_basic e =
@@ -281,7 +281,7 @@ end
 module Typing = Typing.Make (MTypes) (ConvTypes)
 
 (* Associate to each (node_id, var_id) its machine type *)
-let machine_type_table : (var_decl, MTypes.type_expr) Hashtbl.t =
+let machine_type_table : (var_decl, MTypes.t) Hashtbl.t =
   Hashtbl.create 13
 
 (* Store the node signatures, with machine types when available *)
@@ -336,7 +336,7 @@ let pp_c_var_type fmt v =
 
 let erroneous_annotation loc =
   Format.eprintf "Invalid annotation for machine_type at loc %a@."
-    Location.pp_loc loc;
+    Location.pp loc;
   assert false
 
 let valid_subtype subtype typ =

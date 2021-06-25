@@ -16,7 +16,7 @@ type t = position * position
 
 type filename = string
 
-let dummy_loc = dummy_pos, dummy_pos
+let dummy = dummy_pos, dummy_pos
 
 let set_input, get_input, get_module =
   let input_name : filename ref = ref "__UNINITIALIZED__" in
@@ -32,14 +32,6 @@ let curr lexbuf = lexbuf.lex_start_p, lexbuf.lex_curr_p
 let filename_of_loc (s, _) = s.pos_fname
 
 let filename_of_lexbuf lexbuf = lexbuf.lex_start_p.pos_fname
-
-(* let init lexbuf fname =
- *   lexbuf.Lexing.lex_curr_p <- {
- *     Lexing.pos_fname = fname;
- *     Lexing.pos_lnum = 1;
- *     Lexing.pos_bol = 0;
- *     Lexing.pos_cnum = 0;
- *   } *)
 
 let shift_pos pos1 pos2 =
   (* Format.eprintf "Shift pos %s by pos %s@." pos1.Lexing.pos_fname pos2.Lexing.pos_fname;
@@ -57,31 +49,10 @@ let shift_pos pos1 pos2 =
          then pos1.pos_cnum + pos2.pos_cnum else pos2.pos_cnum *);
   }
 
-(* let print loc =
- *   let filename = loc.loc_start.pos_fname in
- *   let line = loc.loc_start.pos_lnum in
- *   let start_char =
- *     loc.loc_start.pos_cnum - loc.loc_start.pos_bol
- *   in
- *   let end_char =
- *     loc.loc_end.pos_cnum - loc.loc_start.pos_cnum + start_char
- *   in
- *   let (start_char, end_char) =
- *     if start_char < 0 then (0,1) else (start_char, end_char)
- *   in
- *    print_string ("File \""^filename^"\", line ");
- *   print_int line;
- *   print_string ", characters ";
- *   print_int start_char;
- *   print_string "-";
- *   print_int end_char;
- *   print_string ":";
- *   print_newline () *)
-
 let loc_line (s, _e) = s.pos_lnum
 
-let pp_loc fmt loc =
-  if loc == dummy_loc then () else Format.fprintf fmt "%s" (Lex.range loc)
+let pp fmt loc =
+  if loc = dummy then () else Format.fprintf fmt "%s" (Lex.range loc)
 
 let pp_c_loc fmt (s, _e) =
   let filename = s.pos_fname in

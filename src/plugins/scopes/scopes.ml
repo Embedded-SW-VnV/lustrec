@@ -1,3 +1,4 @@
+open Utils
 open Lustre_types
 open Corelang
 open Machine_code_types
@@ -37,7 +38,7 @@ let rec compute_scopes ?(first = true) prog root_node : scope_t list =
                 (nodeid, vid) :: res
               with Not_found ->
                 Format.eprintf "eq=%a@.local_vars=%a@." Printers.pp_node_eq eq
-                  (Utils.fprintf_list ~sep:"," Printers.pp_var)
+                  (Format.pp_comma_list Printers.pp_var)
                   local_vars;
                 assert false)
             | Eq _ ->
@@ -58,10 +59,10 @@ let rec compute_scopes ?(first = true) prog root_node : scope_t list =
   with Not_found -> []
 
 let print_scopes =
-  Utils.fprintf_list ~sep:"@ " (fun fmt ((_, v) as s) ->
-      Format.fprintf fmt "%a: %a"
-        (Utils.fprintf_list ~sep:"." Format.pp_print_string)
-        (scope_to_sl s) Types.print_ty v.var_type)
+  Format.(pp_print_list (fun fmt ((_, v) as s) ->
+      fprintf fmt "%a: %a"
+        (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ".") pp_print_string)
+        (scope_to_sl s) Types.print_ty v.var_type))
 
 (* let print_path fmt p = *)
 (* Utils.fprintf_list ~sep:"." (fun fmt (id, _) -> Format.pp_print_string fmt
@@ -206,7 +207,7 @@ let pp_scopes fmt scopes =
   List.iteri
     (fun idx (id, (var_path, var)) ->
       Format.fprintf fmt "@ %t;" (fun fmt ->
-          C_backend_common.print_put_var fmt
+          C_backend_common.pp_put_var fmt
             ("_scopes" ^ string_of_int (idx + 1))
             id (*var*) var.var_type var_path))
     scopes_vars
@@ -307,7 +308,7 @@ let option_all_scopes = ref false
 (* let option_mems_scopes = ref false 
  * let option_input_scopes = ref false *)
 
-let scopes_map : (Lustre_types.ident list * scope_t) list ref = ref []
+let scopes_map : (ident list * scope_t) list ref = ref []
 
 let process_scopes main_node prog machines =
   let all_scopes = compute_scopes prog !Options.main_node in
@@ -322,9 +323,9 @@ let process_scopes main_node prog machines =
       (fun sl ->
         let res = is_valid_path sl main_node prog machines in
         if not res then
-          Format.eprintf "Scope %a is cancelled due to variable removal@."
-            (Utils.fprintf_list ~sep:"." Format.pp_print_string)
-            sl;
+          Format.(eprintf "Scope %a is cancelled due to variable removal@."
+            (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ".") pp_print_string)
+            sl);
         res)
       selected_scopes
   in

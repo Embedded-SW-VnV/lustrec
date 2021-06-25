@@ -1,3 +1,4 @@
+open Utils
 open Lustre_types
 
 type register_t = ResetFlag | StateVar of var_decl
@@ -13,7 +14,7 @@ type ('a, _) expression_t =
   | Memory : register_t -> ('a, left_v) expression_t
 
 (** TODO: why moving this elsewhere makes the exhaustiveness check fail? *)
-let type_of_l_value : type a. (a, left_v) expression_t -> Types.type_expr =
+let type_of_l_value : type a. (a, left_v) expression_t -> Types.t =
   function
   | Var v ->
     v.var_type

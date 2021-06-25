@@ -20,7 +20,7 @@ open Dimension
 module Mpfr = Lustrec_mpfr
 
 let pp_elim m fmt elim =
-  pp_imap ~comment:"/* elim table: */" (pp_val m) fmt elim
+  IMap.pp ~comment:"/* elim table: */" (pp_val m) fmt elim
 (* Format.fprintf fmt "@[<hv 0>@[<hv 2>{ /* elim table: */";
  * IMap.iter (fun v expr -> Format.fprintf fmt "@ %s |-> %a," v (pp_val m) expr) elim;
  * Format.fprintf fmt "@]@ }@]" *)
@@ -96,10 +96,10 @@ let rec simplify_cst_expr m offset typ cst =
   match offset, cst with
   | [], _ ->
     mk_val (Cst cst) typ
-  | Index i :: q, Const_array cl when Dimension.is_dimension_const i ->
+  | Index i :: q, Const_array cl when Dimension.is_const i ->
     let elt_typ = Types.array_element_type typ in
     simplify_cst_expr m q elt_typ
-      (List.nth cl (Dimension.size_const_dimension i))
+      (List.nth cl (Dimension.size_const i))
   | Index i :: q, Const_array cl ->
     let elt_typ = Types.array_element_type typ in
     unfold_expr_offset m [ Index i ]
@@ -131,8 +131,8 @@ let simplify_expr_offset m expr =
       expr
     | Index _ :: q, Power (expr, _) ->
       simplify q expr
-    | Index i :: q, Array vl when Dimension.is_dimension_const i ->
-      simplify q (List.nth vl (Dimension.size_const_dimension i))
+    | Index i :: q, Array vl when Dimension.is_const i ->
+      simplify q (List.nth vl (Dimension.size_const i))
     | Index i :: q, Array vl ->
       unfold_expr_offset m [ Index i ]
         (mk_val (Array (List.map (simplify q) vl)) expr.value_type)
@@ -182,8 +182,8 @@ let is_unfoldable_expr fanin expr =
       unfold_const q (List.assoc f fl)
     | [], Const_struct _ ->
       false
-    | Index i :: q, Const_array cl when Dimension.is_dimension_const i ->
-      unfold_const q (List.nth cl (Dimension.size_const_dimension i))
+    | Index i :: q, Const_array cl when Dimension.is_const i ->
+      unfold_const q (List.nth cl (Dimension.size_const i))
     | _, Const_array _ ->
       false
     | _ ->
@@ -199,8 +199,8 @@ let is_unfoldable_expr fanin expr =
       false
     | Index _ :: q, Power (v, _) ->
       unfold q v
-    | Index i :: q, Array vl when Dimension.is_dimension_const i ->
-      unfold q (List.nth vl (Dimension.size_const_dimension i))
+    | Index i :: q, Array vl when Dimension.is_const i ->
+      unfold q (List.nth vl (Dimension.size_const i))
     | _, Array _ ->
       false
     | _, Access (v, i) ->
@@ -298,7 +298,7 @@ and instr_unfold m fanin instrs (elim : (value_t * eq) IMap.t) instr =
 let static_call_unfold elim (inst, (n, args)) =
   let replace v =
     try dimension_of_value (IMap.find v elim)
-    with Not_found -> Dimension.mkdim_ident Location.dummy_loc v
+    with Not_found -> Dimension.mkdim_ident Location.dummy v
   in
   inst, (n, List.map (Dimension.expr_replace_expr replace) args)
 
@@ -351,7 +351,7 @@ let instr_of_const top_const =
   let vdecl =
     mkvar_decl loc
       ( id,
-        mktyp Location.dummy_loc Tydec_any,
+        mktyp Location.dummy Tydec_any,
         mkclock loc Ckdec_any,
         true,
         None,
@@ -880,7 +880,7 @@ let optimize params prog node_schs machine_code =
   (* Optimize machine code *)
   let prog, machine_code, removed_table =
     if
-      !Options.optimization >= 2 && !Options.output <> "emf"
+      !Options.optimization >= 2 && !Options.output <> Options.OutEMF
       (*&& !Options.output <> "horn"*)
     then (
       Log.report ~level:1 (fun fmt ->
@@ -892,7 +892,7 @@ let optimize params prog node_schs machine_code =
       in
       Log.report ~level:3 (fun fmt ->
           Format.fprintf fmt "@ Eliminated flows: %a@ "
-            (pp_imap (fun fmt m -> pp_elim empty_machine fmt (IMap.map fst m)))
+            (IMap.pp (fun fmt m -> pp_elim empty_machine fmt (IMap.map fst m)))
             removed_table);
       Log.report ~level:3 (fun fmt ->
           Format.fprintf fmt

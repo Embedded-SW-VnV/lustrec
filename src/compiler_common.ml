@@ -16,9 +16,9 @@ open Corelang
 
 let check_main () =
   if !Options.main_node = "" then (
-    eprintf "Code generation error: %a@." Error.pp_error_msg
+    eprintf "Code generation error: %a@." Error.pp
       Error.No_main_specified;
-    raise (Error.Error (Location.dummy_loc, Error.No_main_specified)))
+    raise (Error.Error (Location.dummy, Error.No_main_specified)))
 
 let create_dest_dir () =
   if not (Sys.file_exists !Options.dest_dir) then (
@@ -58,7 +58,7 @@ let parse filename extension =
      *    Parse.report_error err;
      *    raise exc *)
     | Error.Error (loc, err) as exc ->
-      eprintf "Parsing error: %a%a@." Error.pp_error_msg err Location.pp_loc loc;
+      eprintf "Parsing error: %a%a@." Error.pp err Location.pp loc;
       raise exc
   in
   (* close_in f_in; *)
@@ -68,7 +68,7 @@ let expand_automata decls =
   Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. expanding automata@ ");
   try Automata.expand_decls decls
   with Error.Error (loc, err) as exc ->
-    eprintf "Automata error: %a%a@." Error.pp_error_msg err Location.pp_loc loc;
+    eprintf "Automata error: %a%a@." Error.pp err Location.pp loc;
     raise exc
 
 let check_stateless_decls decls =
@@ -77,7 +77,7 @@ let check_stateless_decls decls =
   try Stateless.check_prog decls
   with Stateless.Error (loc, err) as exc ->
     eprintf "Stateless status error: %a%a@." Stateless.pp_error err
-      Location.pp_loc loc;
+      Location.pp loc;
     raise exc
 
 let force_stateful_decls decls =
@@ -85,7 +85,7 @@ let force_stateful_decls decls =
   try Stateless.force_prog decls
   with Stateless.Error (loc, err) as exc ->
     eprintf "Stateless status error: %a%a@." Stateless.pp_error err
-      Location.pp_loc loc;
+      Location.pp loc;
     raise exc
 
 let type_decls env decls =
@@ -93,7 +93,7 @@ let type_decls env decls =
   let new_env =
     try Typing.type_prog env decls
     with Types.Error (loc, err) as exc ->
-      eprintf "Typing error: %a%a@." Types.pp_error err Location.pp_loc loc;
+      eprintf "Typing error: %a%a@." Types.pp_error err Location.pp loc;
       raise exc
   in
   Log.report ~level:1 (fun fmt -> fprintf fmt "@]");
@@ -107,7 +107,7 @@ let clock_decls env decls =
   let new_env =
     try Clock_calculus.clock_prog env decls
     with Clocks.Error (loc, err) as exc ->
-      eprintf "Clock calculus error: %a%a@." Clocks.pp_error err Location.pp_loc
+      eprintf "Clock calculus error: %a%a@." Clocks.pp_error err Location.pp
         loc;
       raise exc
   in
@@ -154,19 +154,19 @@ let check_compatibility (_, computed_types_env, computed_clocks_env)
     eprintf
       "Type mismatch between computed type and declared type in lustre \
        interface file: %a%a@."
-      Types.pp_error err Location.pp_loc loc;
+      Types.pp_error err Location.pp loc;
     raise exc
   | Clocks.Error (loc, err) as exc ->
     eprintf
       "Clock mismatch between computed clock and declared clock in lustre \
        interface file: %a%a@."
-      Clocks.pp_error err Location.pp_loc loc;
+      Clocks.pp_error err Location.pp loc;
     raise exc
   | Stateless.Error (loc, err) as exc ->
     eprintf
       "Stateless status mismatch between defined status and declared status in \
        lustre interface file: %a%a@."
-      Stateless.pp_error err Location.pp_loc loc;
+      Stateless.pp_error err Location.pp loc;
     raise exc
 
 (* Process each node/imported node and introduce the associated contract node *)

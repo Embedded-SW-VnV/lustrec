@@ -15,7 +15,7 @@ open Lustre_types
 (* Lusic to/from Header Printing functions *)
 (********************************************************************************************)
 
-type lusic = { obsolete : bool; from_lusi : bool; contents : top_decl list }
+type t = { obsolete : bool; from_lusi : bool; contents : program_t }
 
 (* extracts a header from a program representing module owner = dirname/basename *)
 let extract_header dirname basename prog =
@@ -41,7 +41,7 @@ let extract_header dirname basename prog =
 
 let check_obsolete lusic basename =
   if lusic.obsolete then
-    raise (Error.Error (Location.dummy_loc, Error.Wrong_number basename))
+    raise (Error.Error (Location.dummy, Error.Wrong_number basename))
 
 (* encode and write a header in a file *)
 let write_lusic lusi (header : top_decl list) basename extension =

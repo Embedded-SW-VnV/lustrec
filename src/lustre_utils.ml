@@ -9,7 +9,7 @@ let check_eq nd1 nd2 =
   (* TODO: check that nd1 and nd2 have the same signature *)
   let check_nd = Corelang.copy_node nd1 in
   (* to keep the type info *)
-  let loc = Location.dummy_loc in
+  let loc = Location.dummy in
   let ok_var =
     Corelang.mkvar_decl loc ~orig:false
       ( "__OK",

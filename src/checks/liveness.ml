@@ -21,6 +21,8 @@ type context = {
   policy : (ident, var_decl) Hashtbl.t;
 }
 
+type fanin = (ident, tag) Hashtbl.t
+
 (* computes the in-degree for each local variable of node [n], according to dep
    graph [g]. *)
 let compute_fanin n g =

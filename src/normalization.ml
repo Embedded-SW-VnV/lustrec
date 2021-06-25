@@ -86,7 +86,7 @@ let expr_once loc ck =
   }
 
 let is_expr_once =
-  let dummy_expr_once = expr_once Location.dummy_loc (Clocks.new_var true) in
+  let dummy_expr_once = expr_once Location.dummy (Clocks.new_var true) in
   fun expr -> Corelang.is_eq_expr expr dummy_expr_once
 
 let unfold_arrow expr =
@@ -103,7 +103,7 @@ let get_expr_alias defs expr =
     Some
       (List.find
          (fun eq ->
-           Clocks.eq_clock expr.expr_clock eq.eq_rhs.expr_clock
+           Clocks.equal expr.expr_clock eq.eq_rhs.expr_clock
            && is_eq_expr eq.eq_rhs expr)
          defs)
   with Not_found -> None
@@ -151,7 +151,7 @@ let mk_expr_alias_opt opt norm_ctx (defs, vars) expr =
   if !debug then
     Log.report ~plugin:"normalization" ~level:2 (fun fmt ->
         Format.fprintf fmt "mk_expr_alias_opt %B %a %a %a@." opt
-          Printers.pp_expr expr Types.print_ty expr.expr_type Clocks.print_ck
+          Printers.pp_expr expr Types.print_ty expr.expr_type Clocks.pp
           expr.expr_clock);
   match expr.expr_desc with
   | Expr_ident _ -> (defs, vars), expr
@@ -579,8 +579,8 @@ let normalize_pred_eexpr norm_ctx (def, vars) ee =
     with Types.Error (loc, err) as exc ->
       eprintf "Typing error for eexpr %a: %a%a%a@." Printers.pp_eexpr ee
         Types.pp_error err
-        (Utils.fprintf_list ~sep:", " Printers.pp_node_eq)
-        defs Location.pp_loc loc;
+        (pp_comma_list Printers.pp_node_eq)
+        defs Location.pp loc;
 
       raise exc
 
@@ -834,7 +834,7 @@ let normalize_node node =
                   [ "traceability" ];
                 [ "traceability" ], pair)
               diff_vars;
-          annot_loc = Location.dummy_loc;
+          annot_loc = Location.dummy;
         }
       in
       norm_traceability :: node.node_annot

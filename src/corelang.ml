@@ -9,6 +9,7 @@
 (*                                                                  *)
 (********************************************************************)
 
+open Utils
 open Format
 open Lustre_types
 open Machine_code_types
@@ -35,7 +36,7 @@ with type elt = var_decl = struct
 
   let pp fmt s =
     Format.fprintf fmt "{@[%a}@]"
-      (Utils.fprintf_list ~sep:",@ " Printers.pp_var)
+      (pp_comma_list Printers.pp_var)
       (elements s)
 
   (* Strangley the find_first function of Set.Make is incorrect (at the current
@@ -44,10 +45,10 @@ with type elt = var_decl = struct
 end
 
 let dummy_type_dec =
-  { ty_dec_desc = Tydec_any; ty_dec_loc = Location.dummy_loc }
+  { ty_dec_desc = Tydec_any; ty_dec_loc = Location.dummy }
 
 let dummy_clock_dec =
-  { ck_dec_desc = Ckdec_any; ck_dec_loc = Location.dummy_loc }
+  { ck_dec_desc = Ckdec_any; ck_dec_loc = Location.dummy }
 
 (************************************************************)
 (* *)
@@ -83,7 +84,7 @@ let dummy_var_decl name typ =
     var_parent_nodeid = None;
     var_type = typ;
     var_clock = Clocks.new_ck Clocks.Cvar true;
-    var_loc = Location.dummy_loc;
+    var_loc = Location.dummy;
   }
 
 let mkexpr loc d =
@@ -192,7 +193,7 @@ let empty_contract =
     guarantees = [];
     modes = [];
     imports = [];
-    spec_loc = Location.dummy_loc;
+    spec_loc = Location.dummy;
   }
 
 (* For const declaration we do as for regular lustre node. But for local flows
@@ -373,7 +374,7 @@ let is_contract td =
 
 (* alias and type definition table *)
 
-let mktop = mktop_decl Location.dummy_loc !Options.dest_dir false
+let mktop = mktop_decl Location.dummy !Options.dest_dir false
 
 let top_int_type = mktop (TypeDef { tydef_id = "int"; tydef_desc = Tydec_int })
 
@@ -440,7 +441,7 @@ let rec coretype_equal ty1 ty2 =
     | Tydec_clock ty1, Tydec_clock ty2 ->
       coretype_equal ty1 ty2
     | Tydec_array (d1, ty1), Tydec_array (d2, ty2) ->
-      Dimension.is_eq_dimension d1 d2 && coretype_equal ty1 ty2
+      Dimension.equal d1 d2 && coretype_equal ty1 ty2
     | Tydec_enum tl1, Tydec_enum tl2 ->
       List.sort compare tl1 = List.sort compare tl2
     | Tydec_struct fl1, Tydec_struct fl2 ->
@@ -628,7 +629,7 @@ let rec expr_of_dimension dim =
       expr_of_dimension dim'
     | Dvar | Dunivar ->
       Format.eprintf "internal error: Corelang.expr_of_dimension %a@."
-        Dimension.pp_dimension dim;
+        Dimension.pp dim;
       assert false
   in
   { expr with expr_type = Types.new_ty Types.type_int }
@@ -1195,19 +1196,19 @@ let pp_decl_clock fmt cdecl =
   | Node nd ->
     fprintf fmt "%s: " nd.node_id;
     Utils.reset_names ();
-    fprintf fmt "%a@ " Clocks.print_ck nd.node_clock
+    fprintf fmt "%a@ " Clocks.pp nd.node_clock
   | ImportedNode ind ->
     fprintf fmt "%s: " ind.nodei_id;
     Utils.reset_names ();
-    fprintf fmt "%a@ " Clocks.print_ck ind.nodei_clock
+    fprintf fmt "%a@ " Clocks.pp ind.nodei_clock
   | Const _ | Include _ | Open _ | TypeDef _ ->
     ()
 
-let pp_prog_clock fmt prog = Utils.fprintf_list ~sep:"" pp_decl_clock fmt prog
+let pp_prog_clock fmt prog = pp_print_list ~pp_sep:pp_print_nothing pp_decl_clock fmt prog
 
 (* filling node table with internal functions *)
 let vdecls_of_typ_ck cpt ty =
-  let loc = Location.dummy_loc in
+  let loc = Location.dummy in
   List.map
     (fun _ ->
       incr cpt;
@@ -1399,7 +1400,7 @@ let get_expr_vars e =
   let rec get_expr_vars vars e = get_expr_desc_vars vars e.expr_desc
   and get_expr_desc_vars vars expr_desc =
     (*Format.eprintf "get_expr_desc_vars expr=%a@." Printers.pp_expr (mkexpr
-      Location.dummy_loc expr_desc);*)
+      Location.dummy expr_desc);*)
     match expr_desc with
     | Expr_const _ ->
       vars
@@ -1512,7 +1513,7 @@ let find_eq xl eqs =
     match eqs with
     | [] ->
       Format.eprintf "Looking for variables %a in the following equations@.%a@."
-        (Utils.fprintf_list ~sep:" , " (fun fmt v -> Format.fprintf fmt "%s" v))
+        (pp_comma_list (fun fmt v -> Format.fprintf fmt "%s" v))
         xl Printers.pp_node_eqs eqs;
       assert false
     | hd :: tl ->

@@ -34,10 +34,10 @@ let overwrite x y =
     (fun _ _old _new -> match _new with Some _ -> _new | _ -> _old)
     x y
 
-let pp_env pp_fun fmt env =
+let pp pp_fun fmt env =
   let l' = IMap.bindings env in
   let pp_fun fmt (id, value) = Format.fprintf fmt "%s |-> %a" id pp_fun value in
-  Format.fprintf fmt "{ @[<v 2>%a@] }" (fprintf_list ~sep:"@," pp_fun) l'
+  Format.(fprintf fmt "{ @[<v 2>%a@] }" (pp_print_list pp_fun) l')
 
 (* Local Variables: *)
 (* compile-command:"make -C .." *)

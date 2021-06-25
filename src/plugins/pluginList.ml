@@ -1,3 +1,3 @@
-let registered : (module PluginType.S) list ref = ref []
+let registered = ref []
 
 let plugins () = !registered

@@ -53,16 +53,17 @@ let add_branch (loc, expr, restart, st) cont =
          mkexpr loc (Expr_tuple [ mkbool loc restart; mkident loc st ]),
          cont ))
 
-let mkhandler loc st unless until locals (stmts, asserts, annots) =
+let mkhandler hand_loc hand_state hand_unless hand_until hand_locals
+    (hand_stmts, hand_asserts, hand_annots) =
   {
-    hand_state = st;
-    hand_unless = unless;
-    hand_until = until;
-    hand_locals = locals;
-    hand_stmts = stmts;
-    hand_asserts = asserts;
-    hand_annots = annots;
-    hand_loc = loc;
+    hand_state;
+    hand_unless;
+    hand_until;
+    hand_locals;
+    hand_stmts;
+    hand_asserts;
+    hand_annots;
+    hand_loc;
   }
 
 let mkautomata loc id handlers =
@@ -297,7 +298,7 @@ let node_of_assign_until nused used node aut_id aut_state handler =
   in
   let new_var_locals = node_vars_of_idents node writes in
   let var_outputs =
-    List.sort IdentModule.compare (node_vars_of_idents node writes)
+    List.sort VDeclModule.compare (node_vars_of_idents node writes)
   in
   let new_var_outputs =
     List.map

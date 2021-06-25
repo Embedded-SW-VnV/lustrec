@@ -15,7 +15,7 @@ let print_version () =
   printf
     "@[<v>Lustrec compiler, version %s (%s)@,\
      Standard lib: %s@,\
-     User provided include directory: @[<h>%a@]@]@." version codename
+     User provided include directory: @[<h>%a@]@]@." Version.number Version.codename
     Version.include_path
     (pp_print_list ~pp_sep:pp_print_space pp_print_string)
     !include_dirs
@@ -50,7 +50,7 @@ let search_lib_path (local, full_file_name) =
   match name with
   | None ->
     Format.eprintf "Unable to find library %s in paths %a@.@?" full_file_name
-      (Utils.fprintf_list ~sep:", " Format.pp_print_string)
+      (Utils.Format.pp_comma_list Format.pp_print_string)
       paths;
     raise Not_found
   | Some s ->
@@ -130,40 +130,40 @@ let lustrec_options =
         "only generates a .lusi interface source file from a Lustre source \
          <default: no generation>" );
       ( "-no-spec",
-        Arg.Unit (fun () -> spec := "no"),
+        Arg.Unit (fun () -> spec := SpecNo),
         "do not generate any specification" );
       ( "-acsl-spec",
-        Arg.Unit (fun () -> spec := "acsl"),
+        Arg.Unit (fun () -> spec := SpecACSL),
         "generates an ACSL encoding of the specification. Only meaningful for \
          the C backend <default>" );
       ( "-c-spec",
-        Arg.Unit (fun () -> spec := "c"),
+        Arg.Unit (fun () -> spec := SpecC),
         "generates a C encoding of the specification instead of ACSL contracts \
          and annotations. Only meaningful for the C backend" );
       (* "-java", Arg.Unit (fun () -> output := "java"), "generates Java output
          instead of C"; *)
       ( "-ada",
-        Arg.Unit (fun () -> set_backend "Ada"),
+        Arg.Unit (fun () -> set_backend OutAda),
         "generates Ada encoding output instead of C" );
       ( "-horn",
-        Arg.Unit (fun () -> set_backend "horn"),
+        Arg.Unit (fun () -> set_backend OutHorn),
         "generates Horn clauses encoding output instead of C" );
       ( "-horn-traces",
         Arg.Unit
           (fun () ->
-            set_backend "horn";
+            set_backend OutHorn;
             traces := true),
         "produce traceability file for Horn backend. Enable the horn backend." );
       ( "-horn-cex",
         Arg.Unit
           (fun () ->
-            set_backend "horn";
+            set_backend OutHorn;
             horn_cex := true),
         "generate cex enumeration. Enable the horn backend (work in progress)" );
       ( "-horn-query",
         Arg.Unit
           (fun () ->
-            set_backend "horn";
+            set_backend OutHorn;
             horn_query := true),
         "generate queries in generated Horn file. Enable the horn backend \
          (work in progress)" );
@@ -172,10 +172,10 @@ let lustrec_options =
         "Gets the endpoint predicate of the \x1b[4msfunction\x1b[0m" );
       "-print-reuse", Arg.Set print_reuse, "prints variable reuse policy";
       ( "-lustre",
-        Arg.Unit (fun () -> output := "lustre"),
+        Arg.Unit (fun () -> set_backend OutLustre),
         "generates Lustre output, performing all active optimizations" );
       ( "-emf",
-        Arg.Unit (fun () -> set_backend "emf"),
+        Arg.Unit (fun () -> set_backend OutEMF),
         "generates EMF output, to be used by CocoSim" );
       ( "-inline",
         Arg.Unit

@@ -14,8 +14,6 @@
 open Utils
 (** Types definitions and a few utility functions on types. *)
 
-open Dimension
-
 module type BASIC_TYPES = sig
   type t
 
@@ -48,7 +46,127 @@ module type BASIC_TYPES = sig
   val is_unifiable : t -> t -> bool
 end
 
-module Basic = struct
+module type S = sig
+  module BasicT : BASIC_TYPES
+
+  type basic_type = BasicT.t
+
+  type t = { mutable tdesc: type_desc; tid: int }
+
+  and type_desc =
+    | Tconst of ident
+    (* type constant *)
+    | Tbasic of basic_type
+    | Tclock of t
+    (* A type expression explicitely tagged as carrying a clock *)
+    | Tarrow of t * t
+    | Ttuple of t list
+    | Tenum of ident list
+    | Tstruct of (ident * t) list
+    | Tarray of Dimension.t * t
+    | Tstatic of Dimension.t * t
+    (* a type carried by a dimension expression *)
+    | Tlink of t
+    (* During unification, make links instead of substitutions *)
+    | Tvar
+    (* Monomorphic type variable *)
+    | Tunivar
+    (* Polymorphic type variable *)
+
+  type error =
+    | Unbound_value of ident
+    | Already_bound of ident
+    | Already_defined of ident
+    | Undefined_var of ISet.t
+    | Declared_but_undefined of ident
+    | Unbound_type of ident
+    | Not_a_dimension
+    | Not_a_constant
+    | Assigned_constant of ident
+    | WrongArity of int * int
+    | WrongMorphism of int * int
+    | Type_mismatch of ident
+    | Type_clash of t * t
+    | Poly_imported_node of ident
+
+  exception Unify of t * t
+
+  exception Error of Location.t * error
+
+  val is_real_type : t -> bool
+
+  val is_int_type : t -> bool
+
+  val is_bool_type : t -> bool
+
+  val is_const_type : t -> ident -> bool
+
+  val is_static_type : t -> bool
+
+  val is_array_type : t -> bool
+
+  val is_dimension_type : t -> bool
+
+  val is_address_type : t -> bool
+
+  val is_generic_type : t -> bool
+
+  val print_ty : Format.formatter -> t -> unit
+
+  val repr : t -> t
+
+  val dynamic_type : t -> t
+
+  val type_desc : t -> type_desc
+
+  val new_var : unit -> t
+
+  val new_univar : unit -> t
+
+  val new_ty : type_desc -> t
+
+  val type_int : type_desc
+
+  val type_real : type_desc
+
+  val type_bool : type_desc
+
+  val type_string : type_desc
+
+  val array_element_type : t -> t
+
+  val type_list_of_type : t -> t list
+
+  val print_node_ty : Format.formatter -> t -> unit
+
+  val get_clock_base_type : t -> t option
+
+  val get_static_value : t -> Dimension.t option
+
+  val is_tuple_type : t -> bool
+
+  val type_of_type_list : t list -> t
+
+  val split_arrow : t -> t * t
+
+  val unclock_type : t -> t
+
+  val bottom : t
+
+  val map_tuple_type : (t -> t) -> t -> t
+
+  val array_base_type : t -> t
+
+  val array_type_dimension : t -> Dimension.t
+
+  val pp_error : Format.formatter -> error -> unit
+
+  val struct_field_type : t -> ident -> t
+
+  val array_type_multi_dimension : t -> Dimension.t list
+end
+
+module Basic: BASIC_TYPES = struct
   type t = Tstring | Tint | Treal | Tbool | Trat
   (* Actually unused for now. Only place where it can appear is in a clock
      declaration *)
@@ -101,47 +219,27 @@ module Make (BasicT : BASIC_TYPES) = struct
 
   type basic_type = BasicT.t
 
-  type type_expr = { mutable tdesc : type_desc; tid : int }
+  type t = { mutable tdesc: type_desc; tid: int }
 
   and type_desc =
     | Tconst of ident
     (* type constant *)
     | Tbasic of basic_type
-    | Tclock of type_expr
+    | Tclock of t
     (* A type expression explicitely tagged as carrying a clock *)
-    | Tarrow of type_expr * type_expr
-    | Ttuple of type_expr list
+    | Tarrow of t * t
+    | Ttuple of t list
     | Tenum of ident list
-    | Tstruct of (ident * type_expr) list
-    | Tarray of dim_expr * type_expr
-    | Tstatic of dim_expr * type_expr
+    | Tstruct of (ident * t) list
+    | Tarray of Dimension.t * t
+    | Tstatic of Dimension.t * t
     (* a type carried by a dimension expression *)
-    | Tlink of type_expr
+    | Tlink of t
     (* During unification, make links instead of substitutions *)
     | Tvar
     (* Monomorphic type variable *)
     | Tunivar
-  (* Polymorphic type variable *)
-
-  (*   {mutable tdesc: type_desc; *)
-  (*    tid: int} *)
-
-  (* and type_desc = *)
-  (*   | Tconst of ident (\* type constant *\) *)
-  (*   | Tbasic of BasicT.t *)
-  (* | Tclock of type_expr (\* A type expression explicitely tagged as carrying
-     a clock *\) *)
-  (*   | Tarrow of type_expr * type_expr *)
-  (*   | Ttuple of type_expr list *)
-  (*   | Tenum of ident list *)
-  (*   | Tstruct of (ident * type_expr) list *)
-  (*   | Tarray of dim_expr * type_expr *)
-  (* | Tstatic of dim_expr * type_expr (\* a type carried by a dimension
-     expression *\) *)
-  (* | Tlink of type_expr (\* During unification, make links instead of
-     substitutions *\) *)
-  (*   | Tvar (\* Monomorphic type variable *\) *)
-  (*   | Tunivar (\* Polymorphic type variable *\) *)
+    (* Polymorphic type variable *)
 
   type error =
     | Unbound_value of ident
@@ -156,10 +254,10 @@ module Make (BasicT : BASIC_TYPES) = struct
     | WrongArity of int * int
     | WrongMorphism of int * int
     | Type_mismatch of ident
-    | Type_clash of type_expr * type_expr
+    | Type_clash of t * t
     | Poly_imported_node of ident
 
-  exception Unify of type_expr * type_expr
+  exception Unify of t * t
 
   exception Error of Location.t * error
 
@@ -189,17 +287,20 @@ module Make (BasicT : BASIC_TYPES) = struct
     | Tarrow (ty1, ty2) ->
       fprintf fmt "%a -> %a" print_ty ty1 print_ty ty2
     | Ttuple tylist ->
-      fprintf fmt "(%a)" (Utils.fprintf_list ~sep:" * " print_ty) tylist
+      fprintf fmt "(%a)"
+        (pp_print_list
+           ~pp_sep:(fun fmt () -> pp_print_string  fmt " * ") print_ty) tylist
     | Tenum taglist ->
       fprintf fmt "enum {%a }"
-        (Utils.fprintf_list ~sep:", " pp_print_string)
+        (pp_comma_list pp_print_string)
         taglist
     | Tstruct fieldlist ->
       fprintf fmt "struct {%a }"
-        (Utils.fprintf_list ~sep:"; " (print_struct_ty_field pp_basic))
+        (pp_print_list ~pp_sep:pp_print_semicolon
+           (print_struct_ty_field pp_basic))
         fieldlist
     | Tarray (e, ty) ->
-      fprintf fmt "%a^%a" print_ty ty Dimension.pp_dimension e
+      fprintf fmt "%a^%a" print_ty ty Dimension.pp e
     | Tlink ty ->
       print_ty fmt ty
     | Tunivar ->
@@ -227,17 +328,18 @@ module Make (BasicT : BASIC_TYPES) = struct
     | Tarrow (ty1, ty2) ->
       fprintf fmt "%a -> %a" print_node_ty ty1 print_node_ty ty2
     | Ttuple tylist ->
-      fprintf fmt "(%a)" (Utils.fprintf_list ~sep:"*" print_node_ty) tylist
+      fprintf fmt "(%a)" (pp_print_list
+           ~pp_sep:(fun fmt () -> pp_print_string  fmt "")  print_node_ty) tylist
     | Tenum taglist ->
       fprintf fmt "enum {%a }"
-        (Utils.fprintf_list ~sep:", " pp_print_string)
+        (pp_comma_list pp_print_string)
         taglist
     | Tstruct fieldlist ->
       fprintf fmt "struct {%a }"
-        (Utils.fprintf_list ~sep:"; " print_node_struct_ty_field)
+        (pp_print_list ~pp_sep:pp_print_semicolon print_node_struct_ty_field)
         fieldlist
     | Tarray (e, ty) ->
-      fprintf fmt "%a^%a" print_node_ty ty Dimension.pp_dimension e
+      fprintf fmt "%a^%a" print_node_ty ty Dimension.pp e
     | Tlink ty ->
       print_node_ty fmt ty
     | Tunivar ->
@@ -267,7 +369,7 @@ module Make (BasicT : BASIC_TYPES) = struct
       fprintf fmt "Definition and declaration of type %s don't agree@." id
     | Undefined_var vset ->
       fprintf fmt "No definition provided for variable(s): %a@."
-        (Utils.fprintf_list ~sep:"," pp_print_string)
+        (pp_comma_list pp_print_string)
         (ISet.elements vset)
     | Declared_but_undefined id ->
       fprintf fmt "%s is declared but not defined@." id
@@ -279,7 +381,7 @@ module Make (BasicT : BASIC_TYPES) = struct
 
   let new_id = ref (-1)
 
-  let rec bottom = { tdesc = Tlink bottom; tid = -666 }
+  let rec bottom: t = { tdesc = Tlink bottom; tid = -666 }
 
   let new_ty desc =
     incr new_id;
@@ -419,7 +521,7 @@ module Make (BasicT : BASIC_TYPES) = struct
     | Tarray (d, _) ->
       d
     | _ ->
-      Format.eprintf "internal error: Types.array_type_dimension %a@." print_ty
+      eprintf "internal error: Types.array_type_dimension %a@." print_ty
         ty;
       assert false
 
@@ -435,7 +537,7 @@ module Make (BasicT : BASIC_TYPES) = struct
     | Tarray (_, ty') ->
       ty'
     | _ ->
-      Format.eprintf "internal error: Types.array_element_type %a@." print_ty ty;
+      eprintf "internal error: Types.array_element_type %a@." print_ty ty;
       assert false
 
   let rec array_base_type ty =
@@ -452,7 +554,7 @@ module Make (BasicT : BASIC_TYPES) = struct
   let rec is_generic_type ty =
     match (dynamic_type ty).tdesc with
     | Tarray (d, ty') ->
-      (not (Dimension.is_dimension_const d)) || is_generic_type ty'
+      (not (Dimension.is_const d)) || is_generic_type ty'
     | _ ->
       false
 
@@ -467,7 +569,7 @@ module Make (BasicT : BASIC_TYPES) = struct
     (* Functions are not first order, I don't think the var case needs to be
        considered here *)
     | _ ->
-      Format.eprintf "type %a is not a map@.Unable to split@.@?" print_ty ty;
+      eprintf "type %a is not a map@.Unable to split@.@?" print_ty ty;
       assert false
 
   (** Returns the type corresponding to a type list. *)
@@ -518,132 +620,8 @@ module Make (BasicT : BASIC_TYPES) = struct
   let type_string = mk_basic BasicT.type_string_builder
 end
 
-module type S = sig
-  module BasicT : BASIC_TYPES
 
-  type basic_type = BasicT.t
-
-  type type_expr = { mutable tdesc : type_desc; tid : int }
-
-  and type_desc =
-    | Tconst of ident
-    (* type constant *)
-    | Tbasic of basic_type
-    | Tclock of type_expr
-    (* A type expression explicitely tagged as carrying a clock *)
-    | Tarrow of type_expr * type_expr
-    | Ttuple of type_expr list
-    | Tenum of ident list
-    | Tstruct of (ident * type_expr) list
-    | Tarray of dim_expr * type_expr
-    | Tstatic of dim_expr * type_expr
-    (* a type carried by a dimension expression *)
-    | Tlink of type_expr
-    (* During unification, make links instead of substitutions *)
-    | Tvar
-    (* Monomorphic type variable *)
-    | Tunivar
-  (* Polymorphic type variable *)
-
-  type error =
-    | Unbound_value of ident
-    | Already_bound of ident
-    | Already_defined of ident
-    | Undefined_var of ISet.t
-    | Declared_but_undefined of ident
-    | Unbound_type of ident
-    | Not_a_dimension
-    | Not_a_constant
-    | Assigned_constant of ident
-    | WrongArity of int * int
-    | WrongMorphism of int * int
-    | Type_mismatch of ident
-    | Type_clash of type_expr * type_expr
-    | Poly_imported_node of ident
-
-  exception Unify of type_expr * type_expr
-
-  exception Error of Location.t * error
-
-  val is_real_type : type_expr -> bool
-
-  val is_int_type : type_expr -> bool
-
-  val is_bool_type : type_expr -> bool
-
-  val is_const_type : type_expr -> ident -> bool
-
-  val is_static_type : type_expr -> bool
-
-  val is_array_type : type_expr -> bool
-
-  val is_dimension_type : type_expr -> bool
-
-  val is_address_type : type_expr -> bool
-
-  val is_generic_type : type_expr -> bool
-
-  val print_ty : Format.formatter -> type_expr -> unit
-
-  val repr : type_expr -> type_expr
-
-  val dynamic_type : type_expr -> type_expr
-
-  val type_desc : type_expr -> type_desc
-
-  val new_var : unit -> type_expr
-
-  val new_univar : unit -> type_expr
-
-  val new_ty : type_desc -> type_expr
-
-  val type_int : type_desc
-
-  val type_real : type_desc
-
-  val type_bool : type_desc
-
-  val type_string : type_desc
-
-  val array_element_type : type_expr -> type_expr
-
-  val type_list_of_type : type_expr -> type_expr list
-
-  val print_node_ty : Format.formatter -> type_expr -> unit
-
-  val get_clock_base_type : type_expr -> type_expr option
-
-  val get_static_value : type_expr -> Dimension.dim_expr option
-
-  val is_tuple_type : type_expr -> bool
-
-  val type_of_type_list : type_expr list -> type_expr
-
-  val split_arrow : type_expr -> type_expr * type_expr
-
-  val unclock_type : type_expr -> type_expr
-
-  val bottom : type_expr
-
-  val map_tuple_type : (type_expr -> type_expr) -> type_expr -> type_expr
-
-  val array_base_type : type_expr -> type_expr
-
-  val array_type_dimension : type_expr -> Dimension.dim_expr
-
-  val pp_error : Format.formatter -> error -> unit
-
-  val struct_field_type : type_expr -> ident -> type_expr
-
-  val array_type_multi_dimension : type_expr -> Dimension.dim_expr list
-end
-(* with type type_expr = BasicT.t type_expr_gen *)
-
-module type Sbasic = S with type BasicT.t = Basic.t
-
-module Main : Sbasic = Make (Basic)
-
-include Main
+include Make (Basic)
 
 (* Local Variables: *)
 (* compile-command:"make -C .." *)

@@ -42,8 +42,6 @@ let pp_acsl_line pp fmt = fprintf fmt "//%@ @[<h>%a@]" pp
 
 let pp_acsl_line' pp fmt = fprintf fmt "/*%@ @[<h>%a@] */" pp
 
-let pp_acsl_line_cut pp fmt = fprintf fmt "%a@," (pp_acsl_line pp)
-
 let pp_requires pp_req fmt = fprintf fmt "requires %a;" pp_req
 
 let pp_ensures pp_ens fmt = fprintf fmt "ensures %a;" pp_ens
@@ -152,8 +150,6 @@ let pp_separated' =
     ~pp_prologue:(fun fmt () -> pp_print_string fmt "\\separated(")
     ~pp_epilogue:pp_print_cpar pp_var_decl
 
-let pp_par pp fmt = fprintf fmt "(%a)" pp
-
 let pp_forall pp_l pp_r fmt (l, r) =
   fprintf fmt "@[<v 2>\\forall %a;@,%a@]" pp_l l pp_r r
 
@@ -161,8 +157,6 @@ let pp_exists pp_l pp_r fmt (l, r) =
   fprintf fmt "@[<v 2>\\exists %a;@,%a@]" pp_l l pp_r r
 
 let pp_equal pp_l pp_r fmt (l, r) = fprintf fmt "%a == %a" pp_l l pp_r r
-
-let pp_different pp_l pp_r fmt (l, r) = fprintf fmt "%a != %a" pp_l l pp_r r
 
 let pp_implies pp_l pp_r fmt (l, r) =
   fprintf fmt "@[<v>%a ==>@ %a@]" pp_l l pp_r r
@@ -173,8 +167,6 @@ let pp_and_l pp_v fmt =
   pp_print_list ~pp_open_box:pp_open_vbox0
     ~pp_sep:(fun fmt () -> fprintf fmt "@,&& ")
     pp_v fmt
-
-let pp_or pp_l pp_r fmt (l, r) = fprintf fmt "@[<v>%a @ || %a@]" pp_l l pp_r r
 
 let pp_or_l pp_v fmt =
   pp_print_list ~pp_open_box:pp_open_vbox0
@@ -242,8 +234,6 @@ let pp_assign_spec m self_l pp_var_l indirect_l self_r pp_var_r indirect_r fmt
   reset_loop_counter ();
   aux var_type fmt reordered_loop_vars
 
-let pp_nothing fmt () = pp_print_string fmt "\\nothing"
-
 let pp_memory_pack_aux ?i pp_mem pp_self fmt (name, mem, self) =
   fprintf fmt "%s_pack%a(@[<hov>%a,@ %a@])" name
     (pp_print_option pp_print_int)
@@ -252,11 +242,6 @@ let pp_memory_pack_aux ?i pp_mem pp_self fmt (name, mem, self) =
 let pp_memory_pack pp_mem pp_self fmt (mp, mem, self) =
   pp_memory_pack_aux ?i:mp.mpindex pp_mem pp_self fmt
     (mp.mpname.node_id, mem, self)
-
-let pp_memory_pack_aux' ?i fmt =
-  pp_memory_pack_aux ?i pp_print_string pp_print_string fmt
-
-let pp_memory_pack' fmt = pp_memory_pack pp_print_string pp_print_string fmt
 
 let pp_transition_aux ?i m pp_mem_in pp_mem_out pp_var fmt
     (name, vars, mem_in, mem_out) =
@@ -276,14 +261,8 @@ let pp_transition m pp_mem_in pp_mem_out pp_var fmt (t, mem_in, mem_out) =
     (t.tname.node_id, t.tvars, mem_in, mem_out)
 
 let pp_transition_aux' ?i m =
-  pp_transition_aux ?i m pp_print_string pp_print_string pp_var_decl
-
-let pp_transition_aux'' ?i m =
   pp_transition_aux ?i m pp_print_string pp_print_string (fun fmt v ->
       (if is_output m v then pp_ptr_decl else pp_var_decl) fmt v)
-
-let pp_transition' m =
-  pp_transition m pp_print_string pp_print_string pp_var_decl
 
 let pp_reset_cleared pp_mem_in pp_mem_out fmt (name, mem_in, mem_out) =
   fprintf fmt "%s_reset_cleared(@[<hov>%a,@ %a@])" name pp_mem_in mem_in
@@ -455,7 +434,7 @@ module PrintSpec = struct
       | Or fs ->
         pp_or_l pp_spec' fmt fs
       | Imply (a, b) ->
-        pp_par (pp_implies pp_spec' pp_spec') fmt (a, b)
+        pp_paren (pp_implies pp_spec' pp_spec') fmt (a, b)
       | Exists (xs, a) ->
         pp_exists (pp_locals m) pp_spec' fmt (xs, a)
       | Forall (xs, a) ->
@@ -475,7 +454,7 @@ module PrintSpec = struct
       | StateVarPack (StateVar v) ->
         let v' = vdecl_to_val v in
         let inst = find_arrow m in
-        pp_par
+        pp_paren
           (pp_implies
              (pp_not (pp_initialization pp_access'))
              (pp_assign_spec m mem_out
@@ -650,12 +629,6 @@ let pp_reset_cleared_def fmt m =
       ( (name, (name, mem_in), (name, mem_out)),
         (mem_in, ((mem_out, 0), (name, mem_out)), (mem_out, mem_in)) )
 
-let pp_at pp_p fmt (p, l) = fprintf fmt "\\at(%a, %s)" pp_p p l
-
-let label_pre = "Pre"
-
-let pp_at_pre pp_p fmt p = pp_at pp_p fmt (p, label_pre)
-
 let pp_register_chain ?(indirect = true) ptr =
   pp_print_list
     ~pp_prologue:(fun fmt () -> fprintf fmt "%s->" ptr)
@@ -812,7 +785,7 @@ module SrcMod = struct
             outputs
             (pp_requires pp_separated')
             outputs (pp_assigns pp_ptr_decl) outputs
-            (pp_ensures (pp_transition_aux'' m))
+            (pp_ensures (pp_transition_aux' m))
             (name, inputs @ outputs, "", "")
         else
           fprintf fmt

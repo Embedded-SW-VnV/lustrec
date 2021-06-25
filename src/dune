@@ -8,6 +8,7 @@
 (library
  (name lustrec_interface)
  (package lustrec)
+ (modules_without_implementation scheduling_type machine_code_types)
  (modules
   lustre_types
   utils
@@ -21,11 +22,11 @@
   version
   clocks
   delay
+  scheduling_type
   machine_code_types
   spec_types
   spec_common
   lustre_live
-  scheduling_type
   log
   printers
   corelang

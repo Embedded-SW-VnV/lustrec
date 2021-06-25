@@ -15,6 +15,8 @@
   open Parser_lustre
   open Utils
 
+  module Lex = MenhirLib.LexerUtil
+
   let str_buf = Buffer.create 1024
 
   type error =
@@ -38,7 +40,7 @@ let error lexbuf err =
   raise (Error (Location.curr lexbuf, err))
 
 let newline token lexbuf =
-  Location.Lex.newline lexbuf;
+  Lex.newline lexbuf;
   token lexbuf
 
 (* As advised by Caml documentation. This way a single lexer rule is

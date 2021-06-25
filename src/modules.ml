@@ -340,5 +340,5 @@ let load ~is_header program =
     (* Format.eprintf "Import error: %a%a@."
      *   Error.pp_error_msg err
      *   Location.pp_loc loc; *)
-    Format.eprintf "Import error: %a@." Error.pp_error_msg err;
+    Format.eprintf "Import error: %a@." Error.pp err;
     raise exc

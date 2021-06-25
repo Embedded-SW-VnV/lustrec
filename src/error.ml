@@ -1,8 +1,7 @@
+open Utils
 open Format
 
-type ident = Lustre_types.ident
-
-type error_kind =
+type t =
   | Main_not_found
   | Main_wrong_kind
   | No_main_specified
@@ -13,7 +12,7 @@ type error_kind =
   | AlgebraicLoop
   | LoadError of string
 
-exception Error of Location.t * error_kind
+exception Error of Location.t * t
 
 let return_code kind =
   match kind with
@@ -36,7 +35,7 @@ let return_code kind =
   | LoadError _ ->
     10
 
-let pp_error_msg fmt = function
+let pp fmt = function
   | Main_not_found ->
     fprintf fmt "Could not find the definition of main node %s.@."
       !Global.main_node
@@ -66,7 +65,7 @@ let pp_error_msg fmt = function
     fprintf fmt "Load error: %s.@." l
 
 let pp_warning loc pp_msg =
-  Format.eprintf "%a@.Warning: %t@." Location.pp_loc loc pp_msg
+  Format.eprintf "%a@.Warning: %t@." Location.pp loc pp_msg
 
 let pp_error loc pp_msg =
-  Format.eprintf "@.%a@.Error: @[<v 0>%t@]@.@?" Location.pp_loc loc pp_msg
+  Format.eprintf "@.%a@.Error: @[<v 0>%t@]@.@?" Location.pp loc pp_msg

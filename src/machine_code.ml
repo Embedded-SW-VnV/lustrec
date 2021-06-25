@@ -92,7 +92,7 @@ let specialize_to_c expr =
     expr
 
 let specialize_op expr =
-  match !Options.output with "C" -> specialize_to_c expr | _ -> expr
+  match !Options.output with Options.OutC -> specialize_to_c expr | _ -> expr
 
 let rec translate_expr env expr =
   let expr = specialize_op expr in
@@ -120,7 +120,7 @@ let rec translate_expr env expr =
          removed for C or Java backends. *)
       Fun ("ite", [ translate_expr g; translate_expr t; translate_expr e ])
     | _ ->
-      Format.eprintf "Normalization error for backend %s: %a@." !Options.output
+      Format.eprintf "Normalization error for backend %t: %a@." Options.pp_output
         Printers.pp_expr expr;
       raise NormalizationError
   in
@@ -138,7 +138,7 @@ let rec translate_act env (y, expr) =
   let translate_act = translate_act env in
   let translate_guard = translate_guard env in
   let translate_expr = translate_expr env in
-  let lustre_eq = Corelang.mkeq Location.dummy_loc ([ y.var_id ], expr) in
+  let lustre_eq = Corelang.mkeq Location.dummy ([ y.var_id ], expr) in
   match expr.expr_desc with
   | Expr_ite (c, t, e) ->
     let c = translate_guard c in
@@ -178,7 +178,7 @@ type machine_ctx = {
   (* Reset instructions *)
   si : instr_t list;
   (* Instances *)
-  j : (Lustre_types.top_decl * Dimension.dim_expr list) IMap.t;
+  j : (Lustre_types.top_decl * Dimension.t list) IMap.t;
   (* Step instructions *)
   s : instr_t list;
   (* Memory pack spec *)

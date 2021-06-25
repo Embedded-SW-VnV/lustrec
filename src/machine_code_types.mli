@@ -1,10 +1,11 @@
 (************ Machine code types *************)
+open Utils
 open Lustre_types
 open Spec_types
 
 type value_t = {
   value_desc : value_t_desc;
-  value_type : Types.type_expr;
+  value_type : Types.t;
   value_annot : expr_annot option;
 }
 
@@ -50,7 +51,7 @@ type step_t = {
   step_asserts : value_t list;
 }
 
-type static_call = top_decl * Dimension.dim_expr list
+type static_call = top_decl * Dimension.t list
 
 type mc_transition_t = value_t transition_t
 

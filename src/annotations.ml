@@ -9,7 +9,7 @@
 (*                                                                  *)
 (********************************************************************)
 
-open Lustre_types
+open Utils
 
 (* Associate to each annotation key the pair (node, expr tag) *)
 let expr_annotations : (string list, ident * tag) Hashtbl.t = Hashtbl.create 13

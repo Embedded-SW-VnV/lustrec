@@ -23,7 +23,13 @@ module type S = sig
 end
 
 module Default = struct
+  let name = "default"
+
+  let activate () = ()
+
   let usage fmt = Format.fprintf fmt "No specific help."
+
+  let options = []
 
   let init () = ()
 

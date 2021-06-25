@@ -96,7 +96,7 @@ let reparse (module Lexer : LEXER) ?orig_loc filename start src =
     (* Expand away the $i keywords that might appear in the message. *)
     (* let message = E.expand (get src checkpoint) message in *)
     (* Show these three components. *)
-    eprintf "@[<v>%aSyntax error %s.@,%s@]@." Location.pp_loc loc indication
+    eprintf "@[<v>%aSyntax error %s.@,%s@]@." Location.pp loc indication
       message;
     raise Error
   in
@@ -113,7 +113,7 @@ let parse (module Lexer : LEXER) ?orig_loc filename src lexbuf start_mono
     let loc =
       match orig_loc with Some loc' -> Location.shift loc' loc | _ -> loc
     in
-    eprintf "@[<v>%aSyntax error.@,%a@]@." Location.pp_loc loc Lexer.pp_error
+    eprintf "@[<v>%aSyntax error.@,%a@]@." Location.pp loc Lexer.pp_error
       err;
     raise Error
   | Parser_lustre.Error ->

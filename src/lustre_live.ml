@@ -85,7 +85,7 @@ let set_live_of nid outputs locals sorted_eqs =
       Format.(
         fprintf fmt "Live variables of %s: %a@;@;" nid
           (pp_print_list ~pp_open_box:pp_open_vbox0 (fun fmt (i, l) ->
-               fprintf fmt "%i: %a" i pp_iset l))
+               fprintf fmt "%i: %a" i ISet.pp l))
           (Live.bindings l)));
   Hashtbl.add live nid l
 

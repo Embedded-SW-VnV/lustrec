@@ -1,116 +1,120 @@
+open Utils
+open Lustre_types
+open Machine_code_types
+
 val pp_val :
-  Machine_code_types.machine_t ->
+  machine_t ->
   Format.formatter ->
-  Machine_code_types.value_t ->
+  value_t ->
   unit
 
-val is_memory : Machine_code_types.machine_t -> Lustre_types.var_decl -> bool
+val is_memory : machine_t -> var_decl -> bool
 
-val is_reset_flag : Lustre_types.var_decl -> bool
+val is_reset_flag : var_decl -> bool
 
-val is_output : Machine_code_types.machine_t -> Lustre_types.var_decl -> bool
+val is_output : machine_t -> var_decl -> bool
 
-val is_const_value : Machine_code_types.value_t -> bool
+val is_const_value : value_t -> bool
 
 val get_const_assign :
-  Machine_code_types.machine_t ->
-  Lustre_types.var_decl ->
-  Machine_code_types.value_t
+  machine_t ->
+  var_decl ->
+  value_t
 
-val get_stateless_status_node : Lustre_types.node_desc -> bool * bool
+val get_stateless_status_node : node_desc -> bool * bool
 
-val get_stateless_status : Machine_code_types.machine_t -> bool * bool
+val get_stateless_status : machine_t -> bool * bool
 
-val get_stateless_status_top_decl : Lustre_types.top_decl -> bool * bool
+val get_stateless_status_top_decl : top_decl -> bool * bool
 
-val is_stateless : Machine_code_types.machine_t -> bool
+val is_stateless : machine_t -> bool
 
 val mk_val :
-  Machine_code_types.value_t_desc ->
-  Types.type_expr ->
-  Machine_code_types.value_t
+  value_t_desc ->
+  Types.t ->
+  value_t
 
-val vdecl_to_val : Lustre_types.var_decl -> Machine_code_types.value_t
+val vdecl_to_val : var_decl -> value_t
 
 val vdecls_to_vals :
-  Lustre_types.var_decl list -> Machine_code_types.value_t list
+  var_decl list -> value_t list
 
-val id_to_tag : Lustre_types.ident -> Machine_code_types.value_t
+val id_to_tag : ident -> value_t
 
 val mk_conditional :
-  ?lustre_eq:Lustre_types.eq ->
-  Machine_code_types.value_t ->
-  Machine_code_types.instr_t list ->
-  Machine_code_types.instr_t list ->
-  Machine_code_types.instr_t
+  ?lustre_eq:eq ->
+  value_t ->
+  instr_t list ->
+  instr_t list ->
+  instr_t
 
 val mk_branch :
-  ?lustre_eq:Lustre_types.eq ->
-  Machine_code_types.value_t ->
-  (Lustre_types.label * Machine_code_types.instr_t list) list ->
-  Machine_code_types.instr_t
+  ?lustre_eq:eq ->
+  value_t ->
+  (label * instr_t list) list ->
+  instr_t
 
 val mk_branch' :
-  ?lustre_eq:Lustre_types.eq ->
-  Lustre_types.var_decl ->
-  (Lustre_types.label * Machine_code_types.instr_t list) list ->
-  Machine_code_types.instr_t
+  ?lustre_eq:eq ->
+  var_decl ->
+  (label * instr_t list) list ->
+  instr_t
 
 val mk_assign :
-  ?lustre_eq:Lustre_types.eq ->
-  Lustre_types.var_decl ->
-  Machine_code_types.value_t ->
-  Machine_code_types.instr_t
+  ?lustre_eq:eq ->
+  var_decl ->
+  value_t ->
+  instr_t
 
-val empty_machine : Machine_code_types.machine_t
+val empty_machine : machine_t
 
-val arrow_machine : Machine_code_types.machine_t
+val arrow_machine : machine_t
 
 val new_instance :
-  Lustre_types.top_decl -> Lustre_types.tag -> Lustre_types.ident
+  top_decl -> tag -> ident
 
 val value_of_dimension :
-  Machine_code_types.machine_t ->
-  Dimension.dim_expr ->
-  Machine_code_types.value_t
+  machine_t ->
+  Dimension.t ->
+  value_t
 
-val dimension_of_value : Machine_code_types.value_t -> Dimension.dim_expr
+val dimension_of_value : value_t -> Dimension.t
 
 val pp_instr :
-  Machine_code_types.machine_t ->
+  machine_t ->
   Format.formatter ->
-  Machine_code_types.instr_t ->
+  instr_t ->
   unit
 
 val pp_instrs :
-  Machine_code_types.machine_t ->
+  machine_t ->
   Format.formatter ->
-  Machine_code_types.instr_t list ->
+  instr_t list ->
   unit
 
-val pp_machines : Format.formatter -> Machine_code_types.machine_t list -> unit
+val pp_machines : Format.formatter -> machine_t list -> unit
 
 val get_machine_opt :
-  Machine_code_types.machine_t list ->
+  machine_t list ->
   string ->
-  Machine_code_types.machine_t option
+  machine_t option
 
 (* Same function but fails if no such a machine exists *)
 val get_machine :
-  Machine_code_types.machine_t list -> string -> Machine_code_types.machine_t
+  machine_t list -> string -> machine_t
 
 val get_node_def :
-  string -> Machine_code_types.machine_t -> Lustre_types.node_desc
+  string -> machine_t -> node_desc
 
 val join_guards_list :
-  Machine_code_types.instr_t list -> Machine_code_types.instr_t list
+  instr_t list -> instr_t list
 
-val machine_vars : Machine_code_types.machine_t -> Lustre_types.var_decl list
+val machine_vars : machine_t -> var_decl list
 
 module PrintSpec : sig
   val pp_spec :
-    Machine_code_types.machine_t ->
+    machine_t ->
     Format.formatter ->
-    Machine_code_types.value_t Spec_types.formula_t ->
+    value_t Spec_types.formula_t ->
     unit
 end

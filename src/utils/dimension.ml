@@ -11,7 +11,7 @@
 
 open Format
 
-type dim_expr = {
+type t = {
   mutable dim_desc : dim_desc;
   dim_loc : Location.t;
   dim_id : int;
@@ -21,13 +21,13 @@ and dim_desc =
   | Dbool of bool
   | Dint of int
   | Dident of Utils.ident
-  | Dappl of Utils.ident * dim_expr list
-  | Dite of dim_expr * dim_expr * dim_expr
-  | Dlink of dim_expr
+  | Dappl of Utils.ident * t list
+  | Dite of t * t * t
+  | Dlink of t
   | Dvar
   | Dunivar
 
-exception Unify of dim_expr * dim_expr
+exception Unify of t * t
 
 exception InvalidDimension
 
@@ -39,7 +39,7 @@ let mkdim loc dim =
 
 let mkdim_var () =
   incr new_id;
-  { dim_loc = Location.dummy_loc; dim_id = !new_id; dim_desc = Dvar }
+  { dim_loc = Location.dummy; dim_id = !new_id; dim_desc = Dvar }
 
 let mkdim_ident loc id =
   incr new_id;
@@ -61,7 +61,7 @@ let mkdim_ite loc i t e =
   incr new_id;
   { dim_loc = loc; dim_id = !new_id; dim_desc = Dite (i, t, e) }
 
-let rec pp_dimension fmt dim =
+let rec pp fmt dim =
   (*fprintf fmt "<%d>" (Obj.magic dim: int);*)
   match dim.dim_desc with
   | Dident id ->
@@ -71,16 +71,16 @@ let rec pp_dimension fmt dim =
   | Dbool b ->
     fprintf fmt "%B" b
   | Dite (i, t, e) ->
-    fprintf fmt "if %a then %a else %a" pp_dimension i pp_dimension t
-      pp_dimension e
+    fprintf fmt "if %a then %a else %a" pp i pp t
+      pp e
   | Dappl (f, [ arg ]) ->
-    fprintf fmt "(%s%a)" f pp_dimension arg
+    fprintf fmt "(%s%a)" f pp arg
   | Dappl (f, [ arg1; arg2 ]) ->
-    fprintf fmt "(%a%s%a)" pp_dimension arg1 f pp_dimension arg2
+    fprintf fmt "(%a%s%a)" pp arg1 f pp arg2
   | Dappl (_, _) ->
     assert false
   | Dlink dim' ->
-    fprintf fmt "%a" pp_dimension dim'
+    fprintf fmt "%a" pp dim'
   | Dvar ->
     fprintf fmt "_%s" (Utils.name_of_dimension dim.dim_id)
   | Dunivar ->
@@ -105,7 +105,7 @@ let check_access loc d i =
 
 let rec repr dim = match dim.dim_desc with Dlink dim' -> repr dim' | _ -> dim
 
-let rec is_eq_dimension d1 d2 =
+let rec equal d1 d2 =
   let d1 = repr d1 in
   let d2 = repr d2 in
   d1.dim_id = d2.dim_id
@@ -114,9 +114,9 @@ let rec is_eq_dimension d1 d2 =
   | Dappl (f1, args1), Dappl (f2, args2) ->
     f1 = f2
     && List.length args1 = List.length args2
-    && List.for_all2 is_eq_dimension args1 args2
+    && List.for_all2 equal args1 args2
   | Dite (c1, t1, e1), Dite (c2, t2, e2) ->
-    is_eq_dimension c1 c2 && is_eq_dimension t1 t2 && is_eq_dimension e1 e2
+    equal c1 c2 && equal t1 t2 && equal e1 e2
   | Dint i1, Dint i2 ->
     i1 = i2
   | Dbool b1, Dbool b2 ->
@@ -126,17 +126,17 @@ let rec is_eq_dimension d1 d2 =
   | _ ->
     false
 
-let is_dimension_const dim =
+let is_const dim =
   match (repr dim).dim_desc with Dint _ | Dbool _ -> true | _ -> false
 
-let size_const_dimension dim =
+let size_const dim =
   match (repr dim).dim_desc with
   | Dint i ->
     i
   | Dbool b ->
     if b then 1 else 0
   | _ ->
-    Format.eprintf "internal error: size_const_dimension %a@." pp_dimension dim;
+    Format.eprintf "internal error: size_const_dimension %a@." pp dim;
     assert false
 
 let rec is_polymorphic dim =
@@ -176,7 +176,7 @@ let rec factors_constant fs =
 
 let norm_factors fs =
   let k = factors_constant fs in
-  let nk = List.filter (fun d -> not (is_dimension_const d)) fs in
+  let nk = List.filter (fun d -> not (is_const d)) fs in
   k, List.sort compare nk
 
 let rec terms dim =
@@ -229,7 +229,7 @@ let rec eval eval_op eval_const dim =
     | Some val_dim ->
       dim.dim_desc <- Dlink val_dim
     | None ->
-      Format.eprintf "invalid %a@." pp_dimension dim;
+      Format.eprintf "invalid %a@." pp dim;
       raise InvalidDimension)
   | Dite (c, t, e) -> (
     eval eval_op eval_const c;
@@ -242,7 +242,7 @@ let rec eval eval_op eval_const dim =
       ())
   | Dappl (id, args) ->
     List.iter (eval eval_op eval_const) args;
-    if List.for_all is_dimension_const args then
+    if List.for_all is_const args then
       dim.dim_desc <-
         Env.lookup_value eval_op id (List.map (fun d -> (repr d).dim_desc) args)
   | Dlink dim' ->

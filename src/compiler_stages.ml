@@ -6,7 +6,8 @@ module Mpfr = Lustrec_mpfr
 exception StopPhase1 of program_t
 
 let dynamic_checks () =
-  match !Options.output, !Options.spec with "C", "C" -> true | _ -> false
+  let open Options in
+  match !output, !spec with OutC, SpecC -> true | _ -> false
 
 let generate_c_header = ref false
 
@@ -36,7 +37,7 @@ let compile_source_to_header prog computed_types_env computed_clocks_env dirname
       (* is it a lusi file ? *)
       (if from_lusi then prog else Lusic.extract_header dirname basename prog)
       destname lusic_ext;
-    generate_c_header := !Options.output = "C")
+    generate_c_header := !Options.output = Options.OutC)
   else (
     (* Lusic exists and is usable. Checking compatibility *)
     Log.report ~level:1 (fun fmt ->

@@ -375,7 +375,7 @@ let inline_all_calls node nodes =
   { node with top_decl_desc = Node (inline_node nd nodes) }
 
 let witness filename main_name orig inlined (* type_env clock_env *) =
-  let loc = Location.dummy_loc in
+  let loc = Location.dummy in
   let rename_local_node nodes prefix id =
     if List.exists (check_node_name id) nodes then prefix ^ id else id
   in
@@ -551,13 +551,12 @@ let pp_inline_calls fmt prog =
   let nodes_with_anns =
     List.fold_left (fun accu (k, _) -> ISet.add k accu) ISet.empty local_anns
   in
-  Format.fprintf fmt "@[<v 0>Inlined expresssions in node (by tags):@ %a@]"
-    (fprintf_list ~sep:"" (fun fmt top ->
+  Format.(fprintf fmt "@[<v 0>Inlined expresssions in node (by tags):@ %a@]"
+    (pp_print_list ~pp_sep:pp_print_nothing (fun fmt top ->
          match top.top_decl_desc with
          | Node nd when ISet.mem nd.node_id nodes_with_anns ->
-           Format.fprintf fmt "%s: {@[<v 0>%a}@]@ " nd.node_id
-             (fprintf_list ~sep:"@ " (fun fmt tag ->
-                  Format.fprintf fmt "%i" tag))
+           fprintf fmt "%s: {@[<v 0>%a}@]@ " nd.node_id
+             (pp_print_list pp_print_int)
              (List.fold_left
                 (fun accu (id, tag) ->
                   if id = nd.node_id then tag :: accu else accu)
@@ -565,7 +564,7 @@ let pp_inline_calls fmt prog =
          (* | Node nd -> Format.fprintf fmt "%s: no inline annotations"
             nd.node_id *)
          | _ ->
-           ()))
+           ())))
     prog
 
 let local_inline prog (* type_env clock_env *) =

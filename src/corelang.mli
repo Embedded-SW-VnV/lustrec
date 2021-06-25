@@ -8,7 +8,7 @@
 (*  version 2.1.                                                    *)
 (*                                                                  *)
 (********************************************************************)
-
+open Utils
 open Lustre_types
 
 module VDeclModule : sig
@@ -16,7 +16,7 @@ module VDeclModule : sig
 
   val compare : t -> t -> int
 end
-with type t = Lustre_types.var_decl
+with type t = var_decl
 
 module VSet : sig
   include Set.S
@@ -25,7 +25,7 @@ module VSet : sig
 
   val get : ident -> t -> elt
 end
-with type elt = Lustre_types.var_decl
+with type elt = var_decl
 
 val dummy_type_dec : type_dec
 
@@ -48,7 +48,7 @@ val mkvar_decl :
   (* parent id *) ->
   var_decl
 
-val dummy_var_decl : ident -> Types.type_expr -> var_decl
+val dummy_var_decl : ident -> Types.t -> var_decl
 
 val var_decl_of_const : ?parentid:ident option -> const_desc -> var_decl
 
@@ -182,11 +182,11 @@ val expr_of_expr_list : Location.t -> expr list -> expr
 
 val call_of_expr : expr -> ident * expr list * expr option
 
-val expr_of_dimension : Dimension.dim_expr -> expr
+val expr_of_dimension : Dimension.t -> expr
 
-val dimension_of_expr : expr -> Dimension.dim_expr
+val dimension_of_expr : expr -> Dimension.t
 
-val dimension_of_const : Location.t -> constant -> Dimension.dim_expr
+val dimension_of_const : Location.t -> constant -> Dimension.t
 
 val expr_to_eexpr : expr -> eexpr
 (* REMOVED, pushed in utils.ml val new_tag : unit -> tag *)
@@ -222,7 +222,7 @@ val get_node : ident -> program_t -> node_desc
 (** Returns the node named ident in the provided program. Raise Not_found *)
 
 val rename_static :
-  (ident -> Dimension.dim_expr) -> type_dec_desc -> type_dec_desc
+  (ident -> Dimension.t) -> type_dec_desc -> type_dec_desc
 
 val rename_carrier : (ident -> ident) -> clock_dec_desc -> clock_dec_desc
 
@@ -296,8 +296,8 @@ val reset_cpt_fresh : unit -> unit
 val mk_fresh_var :
   ident * var_decl list ->
   Location.t ->
-  Types.type_expr ->
-  Clocks.clock_expr ->
+  Types.t ->
+  Clocks.t ->
   var_decl
 
 val find_eq : ident list -> eq list -> eq * eq list

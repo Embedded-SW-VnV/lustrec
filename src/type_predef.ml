@@ -74,13 +74,13 @@ module Make (T : Types.S) = struct
     type_arrow (type_tuple [ type_bool; univ; univ ]) univ
 
   let type_access =
-    let d = Dimension.mkdim Location.dummy_loc Dimension.Dunivar in
-    let d' = Dimension.mkdim Location.dummy_loc Dimension.Dunivar in
+    let d = Dimension.mkdim Location.dummy Dimension.Dunivar in
+    let d' = Dimension.mkdim Location.dummy Dimension.Dunivar in
     let univ = new_univar () in
     type_arrow (type_tuple [ type_array d univ; type_static d' type_int ]) univ
 
   let type_power =
-    let d = Dimension.mkdim Location.dummy_loc Dimension.Dunivar in
+    let d = Dimension.mkdim Location.dummy Dimension.Dunivar in
     let univ = new_univar () in
     type_arrow (type_tuple [ univ; type_static d type_int ]) (type_array d univ)
 end
@@ -93,7 +93,7 @@ end
 (*   let type_string_builder = Tbasic Basic.Tstring *)
 (* end *)
 
-module Main = Make (Types.Main)
+module Main = Make (Types)
 include Main
 
 (* Local Variables: *)

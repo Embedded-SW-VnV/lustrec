@@ -32,7 +32,7 @@ let arrow_top_decl () =
     top_decl_desc = Node arrow_desc;
     top_decl_owner = Options_management.core_dependency "arrow";
     top_decl_itf = false;
-    top_decl_loc = Location.dummy_loc;
+    top_decl_loc = Location.dummy;
   }
 
 let td_is_arrow td = Corelang.node_name td = arrow_id
