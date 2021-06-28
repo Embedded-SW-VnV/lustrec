@@ -10,6 +10,7 @@ val is_internal_fun: ident -> Types.t list -> bool
 val is_expr_internal_fun: Lustre_types.expr -> bool
 val is_value_internal_fun: Machine_code_types.value_t -> bool
 val is_stateless_fun: ident -> bool
+val is_numeric_operator: ident -> bool
 
 val type_env: Types.t Env.t
 val clock_env: Clocks.t Env.t

@@ -54,7 +54,7 @@ let loc_line (s, _e) = s.pos_lnum
 let pp fmt loc =
   if loc = dummy then () else Format.fprintf fmt "%s" (Lex.range loc)
 
-let pp_c_loc fmt (s, _e) =
+let pp_c fmt (s, _e) =
   let filename = s.pos_fname in
   let line = s.pos_lnum in
   Format.fprintf fmt "#line %i \"%s\"" line filename

@@ -14,6 +14,7 @@
 
    This is a modified version that handle reset *)
 
+open Utils
 open Format
 open Lustre_types
 open Corelang
@@ -22,8 +23,7 @@ open Horn_backend_common
 open Horn_backend_printers
 
 let pp_traces =
-  Utils.fprintf_list ~sep:", " (fun fmt (v, e) ->
-      Format.fprintf fmt "%s -> %a" v Printers.pp_expr e)
+  pp_comma_list (fun fmt (v, e) -> fprintf fmt "%s -> %a" v Printers.pp_expr e)
 
 (* Compute memories associated to each machine *)
 let compute_mems machines m =
@@ -51,7 +51,7 @@ let machines_traces machines =
         let filtered =
           List.filter (fun (kwds, _) -> kwds = [ "traceability" ]) all_annots
         in
-        (* List.iter (Format.eprintf "Annots: %a@." Printers.pp_expr_annot)
+        (* List.iter (eprintf "Annots: %a@." Printers.pp_expr_annot)
            (m.mannot); *)
         let content = List.map snd filtered in
         (* Elements are supposed to be a pair (tuple): variable, expression *)
@@ -68,7 +68,7 @@ let machines_traces machines =
               assert false)
           content
       in
-      (* Format.eprintf "Build traces: %a@." pp_traces traces; *)
+      (* eprintf "Build traces: %a@." pp_traces traces; *)
       m, traces)
     machines
 
@@ -90,7 +90,7 @@ let memories_old machines m =
           (* eprintf "Unable to found variable %a in traces (%a)@."
              Printers.pp_var v * pp_traces traces; *)
           p,
-          mkexpr Location.dummy_loc (Expr_ident v.var_id) ))
+          mkexpr Location.dummy (Expr_ident v.var_id) ))
     (compute_mems machines m)
 
 let memories_next machines m =
@@ -117,10 +117,10 @@ let memories_next machines m =
                   false)
               m.mname.node_stmts
           with _ ->
-            Format.eprintf
+            eprintf
               "Unable to find definition of %s in stmts %a@.prefix=%a@.@?"
               var_id Printers.pp_node_stmts m.mname.node_stmts
-              (Utils.fprintf_list ~sep:"," (fun fmt (id, n) ->
+              (pp_comma_list (fun fmt (id, n) ->
                    fprintf fmt "(%s,%s)" id n.mname.node_id))
               (List.rev prefix);
 
@@ -140,23 +140,24 @@ let memories_next machines m =
         prefix, def
       | _ ->
         eprintf "Mem Failure: (prefix: %a, eexpr: %a)@.@?"
-          (Utils.fprintf_list ~sep:"," (fun fmt (id, n) ->
+          (pp_comma_list (fun fmt (id, n) ->
                fprintf fmt "(%s,%s)" id n.mname.node_id))
           (List.rev prefix) Printers.pp_expr ee;
         assert false)
     (memories_old machines m)
 
 let pp_prefix_rev fmt prefix =
-  Utils.fprintf_list ~sep:"."
+  pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ".")
     (fun fmt (id, n) -> fprintf fmt "(%s,%s)" id n.mname.node_id)
     fmt (List.rev prefix)
 
 let traces_file fmt machines =
+  let pp_l = pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt " | ") in
   fprintf fmt "<?xml version=\"1.0\"?>@.";
   fprintf fmt
     "<Traces xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">@.";
   fprintf fmt "@[<v 5>@ %a@ @]@."
-    (Utils.fprintf_list ~sep:"@ " (fun fmt m ->
+    (pp_print_list (fun fmt m ->
          let pp_var = pp_horn_var m in
          let memories_old = memories_old machines m in
          let memories_next = memories_next machines m in
@@ -171,61 +172,45 @@ let traces_file fmt machines =
            rename_machine_list m.mname.node_id m.mstep.step_outputs
          in
          fprintf fmt "<input name=\"%a\" type=\"%a\">%a</input>@ "
-           (Utils.fprintf_list ~sep:" | " (pp_horn_var m))
-           input_vars
-           (Utils.fprintf_list ~sep:" | " (fun fmt id ->
-                pp_type fmt id.var_type))
-           input_vars
-           (Utils.fprintf_list ~sep:" | " (pp_horn_var m))
-           m.mstep.step_inputs;
+           (pp_l (pp_horn_var m)) input_vars
+           (pp_l (fun fmt id -> pp_type fmt id.var_type)) input_vars
+           (pp_l (pp_horn_var m)) m.mstep.step_inputs;
 
          fprintf fmt "<output name=\"%a\" type=\"%a\">%a</output>@ "
-           (Utils.fprintf_list ~sep:" | " pp_var)
-           output_vars
-           (Utils.fprintf_list ~sep:" | " (fun fmt id ->
-                pp_type fmt id.var_type))
-           output_vars
-           (Utils.fprintf_list ~sep:" | " pp_var)
-           m.mstep.step_outputs;
+           (pp_l pp_var) output_vars
+           (pp_l (fun fmt id -> pp_type fmt id.var_type)) output_vars
+           (pp_l pp_var) m.mstep.step_outputs;
 
          let local_vars =
            try full_memory_vars ~without_arrow:true machines m
            with Not_found ->
-             Format.eprintf "machine %s@.@?" m.mname.node_id;
+             eprintf "machine %s@.@?" m.mname.node_id;
              assert false
          in
          let init_local_vars = rename_next_list local_vars in
          let step_local_vars = rename_current_list local_vars in
 
          fprintf fmt "<localInit name=\"%a\" type=\"%a\">%t%a</localInit>@ "
-           (Utils.fprintf_list ~sep:" | " pp_var)
+           (pp_l pp_var)
            init_local_vars
-           (Utils.fprintf_list ~sep:" | " (fun fmt id ->
-                pp_type fmt id.var_type))
-           init_local_vars
+           (pp_l (fun fmt id -> pp_type fmt id.var_type)) init_local_vars
            (fun fmt ->
              match memories_next with [] -> () | _ -> fprintf fmt "")
-           (Utils.fprintf_list ~sep:" | " (fun fmt (_, ee) ->
-                fprintf fmt "%a" pp_xml_expr ee))
+           (pp_l (fun fmt (_, ee) -> fprintf fmt "%a" pp_xml_expr ee))
            memories_next;
 
          fprintf fmt "<localStep name=\"%a\" type=\"%a\">%t%a</localStep>@ "
-           (Utils.fprintf_list ~sep:" | " pp_var)
-           step_local_vars
-           (Utils.fprintf_list ~sep:" | " (fun fmt id ->
-                pp_type fmt id.var_type))
-           step_local_vars
+           (pp_l pp_var) step_local_vars
+           (pp_l (fun fmt id -> pp_type fmt id.var_type)) step_local_vars
            (fun fmt -> match memories_old with [] -> () | _ -> fprintf fmt "")
-           (Utils.fprintf_list ~sep:" | " (fun fmt (_, ee) ->
-                fprintf fmt "(%a)" pp_xml_expr ee))
+           (pp_l (fun fmt (_, ee) -> fprintf fmt "(%a)" pp_xml_expr ee))
            memories_old;
 
          let arrow_vars = arrow_vars machines m in
          let arrow_vars_curr = rename_current_list arrow_vars
          and arrow_vars_mid = rename_mid_list arrow_vars
          and arrow_vars_next = rename_next_list arrow_vars in
-         Utils.fprintf_list ~sep:"@ "
-           (fun fmt v -> fprintf fmt "<reset name=\"%a\"/>" pp_var v)
+         pp_print_list (fun fmt v -> fprintf fmt "<reset name=\"%a\"/>" pp_var v)
            fmt
            (arrow_vars_curr @ arrow_vars_mid @ arrow_vars_next);
          fprintf fmt "@]@ </Node>"))

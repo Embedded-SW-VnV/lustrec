@@ -32,8 +32,8 @@ let with_main_node machines node f =
     | None ->
       let open Error in
       Global.main_node := node;
-      Format.eprintf "Code generation error: %a@." pp_error_msg Main_not_found;
-      raise (Error (Location.dummy_loc, Main_not_found))
+      Format.eprintf "Code generation error: %a@." pp Main_not_found;
+      raise (Error (Location.dummy, Main_not_found))
     | Some m ->
       f m
 
@@ -100,19 +100,18 @@ let gen_files
 (* close_out makefile_out *)
 
 let print_c_header basename =
+  let open Options in
   let header_m =
-    match !Options.spec with
-    | "no" ->
-      C_backend_header.((module EmptyMod : MODIFIERS_HDR))
-    | "acsl" ->
-      C_backend_header.((module C_backend_spec.HdrMod : MODIFIERS_HDR))
-    | "c" ->
+    match !spec with
+    | SpecNo ->
+      C_backend_header.(module EmptyMod : MODIFIERS_HDR)
+    | SpecACSL ->
+      C_backend_header.(module C_backend_spec.HdrMod : MODIFIERS_HDR)
+    | SpecC ->
       assert false (* not implemented yet *)
-    | _ ->
-      assert false
   in
-  let module Header = C_backend_header.Main ((val header_m)) in
-  let destname = !Options.dest_dir ^ "/" ^ basename in
+  let module Header = C_backend_header.Main (val header_m) in
+  let destname = !dest_dir ^ "/" ^ basename in
   (* Generating H file *)
   let lusic = Lusic.read_lusic destname ".lusic" in
   let header_file = destname ^ ".h" in
@@ -122,22 +121,21 @@ let print_c_header basename =
 
 let translate_to_c generate_c_header basename prog machines dependencies =
   let header_m, source_m, source_main_m, makefile_m =
-    match !Options.spec with
-    | "no" ->
+    let open Options in
+    match !spec with
+    | SpecNo ->
       ( C_backend_header.((module EmptyMod : MODIFIERS_HDR)),
         C_backend_src.((module EmptyMod : MODIFIERS_SRC)),
         C_backend_main.((module EmptyMod : MODIFIERS_MAINSRC)),
         C_backend_makefile.((module EmptyMod : MODIFIERS_MKF)) )
-    | "acsl" ->
+    | SpecACSL ->
       let open C_backend_spec in
       ( C_backend_header.((module HdrMod : MODIFIERS_HDR)),
         C_backend_src.((module SrcMod : MODIFIERS_SRC)),
         C_backend_main.((module EmptyMod : MODIFIERS_MAINSRC)),
         C_backend_makefile.((module MakefileMod : MODIFIERS_MKF)) )
-    | "c" ->
+    | SpecC ->
       assert false (* not implemented yet *)
-    | _ ->
-      assert false
   in
   let module Header = C_backend_header.Main ((val header_m)) in
   let module Source = C_backend_src.Main ((val source_m)) in

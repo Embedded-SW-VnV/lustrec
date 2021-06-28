@@ -93,9 +93,9 @@ let stage1 params prog dirname basename extension =
       Global.main_node := main_node;
       try ignore (Corelang.node_from_name main_node)
       with Not_found ->
-        Format.eprintf "Code generation error: %a@." Error.pp_error_msg
+        Format.eprintf "Code generation error: %a@." Error.pp
           Error.Main_not_found;
-        raise (Error.Error (Location.dummy_loc, Error.Main_not_found)))
+        raise (Error.Error (Location.dummy, Error.Main_not_found)))
   in
 
   (* Perform inlining before any analysis *)
@@ -249,9 +249,10 @@ let stage2 params prog =
 
 (* printing code *)
 let stage3 prog machine_code dependencies basename extension =
+  let open Options in
   let basename = Filename.basename basename in
-  match !Options.output, extension with
-  | "C", ".lus" ->
+  match !output, extension with
+  | OutC, ".lus" ->
     Log.report ~level:1 (fun fmt -> fprintf fmt ".. C code generation@,");
     C_backend.translate_to_c !generate_c_header
       (* alloc_header_file source_lib_file source_main_file makefile_file *)
@@ -260,11 +261,11 @@ let stage3 prog machine_code dependencies basename extension =
      ACSL annotations generation@,"); ACSL_backend.translate_to_acsl (*
      alloc_header_file source_lib_file source_main_file makefile_file *)
      basename prog machine_code dependencies end *)
-  | "C", _ ->
+  | OutC, _ ->
     C_backend.print_c_header basename;
     Log.report ~level:1 (fun fmt ->
         fprintf fmt ".. no C code generation for lusi@,")
-  | "java", _ ->
+  | OutJava, _ ->
     Format.eprintf "internal error: sorry, but not yet supported !";
     assert false
   (*let source_file = basename ^ ".java" in Log.report ~level:1 (fun fmt ->
@@ -273,11 +274,11 @@ let stage3 prog machine_code dependencies basename extension =
     Log.report ~level:1 (fun fmt -> fprintf fmt ".. java code generation@,@?");
     Java_backend.translate_to_java source_fmt basename normalized_prog
     machine_code;*)
-  | "Ada", _ ->
+  | OutAda, _ ->
     Log.report ~level:1 (fun fmt -> fprintf fmt ".. Ada code generation@.");
     Ada_backend.translate_to_ada basename
       (Machine_code_common.arrow_machine :: machine_code)
-  | "horn", _ ->
+  | OutHorn, _ ->
     let destname = !Options.dest_dir ^ "/" ^ basename in
     let source_file = destname ^ ".smt2" in
     (* Could be changed *)
@@ -294,7 +295,7 @@ let stage3 prog machine_code dependencies basename extension =
       let fmt = formatter_of_out_channel traces_out in
       Log.report ~level:1 (fun fmt -> fprintf fmt ".. tracing info@,");
       Horn_backend_traces.traces_file fmt machine_code)
-  | "lustre", _ ->
+  | OutLustre, _ ->
     let destname = !Options.dest_dir ^ "/" ^ basename in
     let source_file = destname ^ ".lustrec" ^ extension in
     (* Could be changed *)
@@ -306,7 +307,7 @@ let stage3 prog machine_code dependencies basename extension =
     Format.fprintf fmt "@.@?";
     (* Lustre_backend.translate fmt basename normalized_prog machine_code *)
     ()
-  | "emf", _ ->
+  | OutEMF, _ ->
     let destname = !Options.dest_dir ^ "/" ^ basename in
     let source_file = destname ^ ".json" in
     (* Could be changed *)
@@ -314,5 +315,3 @@ let stage3 prog machine_code dependencies basename extension =
     let fmt = formatter_of_out_channel source_out in
     EMF_backend.translate fmt basename prog machine_code;
     ()
-  | _ ->
-    assert false

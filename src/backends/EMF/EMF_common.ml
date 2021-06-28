@@ -1,6 +1,7 @@
+open Utils
 open Lustre_types
+open Corelang
 open Machine_code_types
-module VSet = Corelang.VSet
 open Format
 open Machine_code_common
 
@@ -92,8 +93,7 @@ let rec pp_emf_dim fmt dim_expr =
     fprintf fmt "\"kind\": \"ident\",@ \"value\": \"%s\"" s
   | Dappl (f, args) ->
     fprintf fmt "\"kind\": \"fun\",@ \"id\": \"%s\",@ \"args\": [@[%a@]]" f
-      (Utils.fprintf_list ~sep:",@ " pp_emf_dim)
-      args
+      (pp_comma_list pp_emf_dim) args
   | Dite (i, t, e) ->
     fprintf fmt
       "\"kind\": \"ite\",@ \"guard\": \"%a\",@ \"then\": %a,@ \"else\": %a"
@@ -137,13 +137,13 @@ let rec pp_concrete_type dec_t infered_t fmt =
      prefix of the lustre file. They shall not be associated to variables *)
   | Tydec_array (dim, e) ->
     let inf_base =
-      match infered_t.Typing.tdesc with
-      | Typing.Tarray (_, t) ->
+      match infered_t.Types.tdesc with
+      | Types.Tarray (_, t) ->
         t
       | _ ->
         (* returing something useless, hoping that the concrete datatype will
            return something usefull *)
-        Typing.new_var ()
+        Types.new_var ()
     in
     fprintf fmt "{ \"kind\": \"array\", \"base_type\": %t, \"dim\": %a }"
       (pp_concrete_type e inf_base)
@@ -232,7 +232,7 @@ let pp_emf_list ?(eol : ('a, formatter, unit) Stdlib.format = "") pp fmt l =
     ()
   | _ ->
     fprintf fmt "@[";
-    Utils.fprintf_list ~sep:",@ " pp fmt l;
+    pp_comma_list pp fmt l;
     fprintf fmt "@]%(%)" eol
 
 (* Print the variable declaration *)
@@ -330,7 +330,7 @@ let rec pp_emf_cst_or_var m fmt v =
     assert false
 
 and pp_emf_cst_or_var_list m =
-  Utils.fprintf_list ~sep:",@ " (pp_emf_cst_or_var m)
+  pp_comma_list (pp_emf_cst_or_var m)
 
 (* Printer lustre expr and eexpr *)
 
@@ -349,7 +349,7 @@ let rec pp_emf_expr fmt e =
     fprintf fmt "@]}"
   | Expr_tuple el ->
     fprintf fmt "[@[<hov 0>%a@ @]]"
-      (Utils.fprintf_list ~sep:",@ " pp_emf_expr)
+      (pp_comma_list pp_emf_expr)
       el
   (* Missing these | Expr_ite of expr * expr * expr | Expr_arrow of expr * expr
      | Expr_fby of expr * expr | Expr_array of expr list | Expr_access of expr *
@@ -394,7 +394,7 @@ let pp_emf_eexpr fmt ee =
         ()
       | Some name ->
         Format.fprintf fmt "\"name\": \"%s\",@ " name)
-    (Utils.fprintf_list ~sep:"; " Printers.pp_quantifiers)
+    (pp_print_list ~pp_sep:pp_print_semicolon Printers.pp_quantifiers)
     ee.eexpr_quantifiers pp_emf_expr ee.eexpr_qfexpr
 
 let pp_emf_eexprs = pp_emf_list pp_emf_eexpr
@@ -411,10 +411,10 @@ let pp_emf_stmt fmt stmt =
     assert false
   | Eq eq ->
     fprintf fmt "@[ @[<v 2>\"%a\": {@ "
-      (Utils.fprintf_list ~sep:"_" pp_print_string)
+      (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "_") pp_print_string)
       eq.eq_lhs;
     fprintf fmt "\"lhs\": [%a],@ "
-      (Utils.fprintf_list ~sep:", " (fun fmt vid -> fprintf fmt "\"%s\"" vid))
+      (pp_comma_list (fun fmt vid -> fprintf fmt "\"%s\"" vid))
       eq.eq_lhs;
     fprintf fmt "\"rhs\": %a,@ " pp_emf_expr eq.eq_rhs;
     fprintf fmt "@]@]@ }"
@@ -439,11 +439,10 @@ let rec pp_emf_typ_dec fmt tydef_dec =
     fprintf fmt "\"kind\": \"alias\",@ \"value\": \"%s\"" c
   | Tydec_enum el ->
     fprintf fmt "\"kind\": \"enum\",@ \"elements\": [%a]"
-      (Utils.fprintf_list ~sep:", " (fun fmt e -> fprintf fmt "\"%s\"" e))
-      el
+      (pp_comma_list (fun fmt e -> fprintf fmt "\"%s\"" e)) el
   | Tydec_struct s ->
     fprintf fmt "\"kind\": \"struct\",@ \"fields\": [%a]"
-      (Utils.fprintf_list ~sep:", " (fun fmt (id, typ) ->
+      (pp_comma_list (fun fmt (id, typ) ->
            fprintf fmt "\"%s\": %a" id pp_emf_typ_dec typ))
       s
   | Tydec_array (dim, typ) ->

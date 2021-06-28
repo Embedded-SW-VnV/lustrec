@@ -1,3 +1,4 @@
+open Utils
 open Format
 
 (** Represent the possible mode for a type of a procedure parameter **)
@@ -78,28 +79,32 @@ let pp_float_type fmt = fprintf fmt "Float"
 (** Print the boolean type name. @param fmt the formater to print on **)
 let pp_boolean_type fmt = fprintf fmt "Boolean"
 
-let pp_group ~sep pp_list fmt =
+let pp_group ~pp_sep pp_list fmt =
   assert (pp_list != []);
-  fprintf fmt "@[%a@]" (Utils.fprintf_list ~sep (fun fmt pp -> pp fmt)) pp_list
+  fprintf fmt "@[%a@]" (pp_print_list ~pp_sep (fun fmt pp -> pp fmt)) pp_list
 
-let pp_args ~sep fmt = function
+let pp_args ~pp_sep fmt = function
   | [] ->
     fprintf fmt ""
   | args ->
     fprintf fmt " (@[<v>%a)@]"
-      (Utils.fprintf_list ~sep (fun fmt pp -> pp fmt))
+      (pp_print_list ~pp_sep (fun fmt pp -> pp fmt))
       args
 
 let pp_block fmt pp_item_list =
-  fprintf fmt "%t@[<v>%a@]%t"
-    (Utils.pp_final_char_if_non_empty "  " pp_item_list)
-    (Utils.fprintf_list ~sep:";@," (fun fmt pp -> pp fmt))
+  pp_print_list
+    ~pp_open_box:pp_open_vbox0
+    ~pp_prologue:(fun fmt () -> pp_print_string fmt "   ")
+    ~pp_epilogue:pp_print_semicolon
+    ~pp_sep:pp_print_semicolon (fun fmt pp -> pp fmt)
+    fmt
     pp_item_list
-    (Utils.pp_final_char_if_non_empty ";@," pp_item_list)
 
-let pp_and l fmt = fprintf fmt "(%t)" (pp_group ~sep:"@ and then " l)
+let pp_and l fmt =
+  fprintf fmt "(%t)" (pp_group ~pp_sep:(fun fmt () -> fprintf fmt "@ and then ") l)
 
-let pp_or l fmt = fprintf fmt "(%t)" (pp_group ~sep:"@ or " l)
+let pp_or l fmt =
+  fprintf fmt "(%t)" (pp_group ~pp_sep:(fun fmt () -> fprintf fmt "@ or ") l)
 
 let pp_ada_with fmt = function
   | None ->
@@ -117,8 +122,8 @@ let pp_ada_with fmt = function
     let pp_import fmt =
       if not import then fprintf fmt ""
       else
-        fprintf fmt " Import%t"
-          (Utils.pp_final_char_if_non_empty ",@," contract)
+        fprintf fmt " Import%a"
+          (if contract = [] then pp_print_nothing else pp_print_comma) ()
     in
     let pp_aspect aspect fmt pps =
       if pps = [] then fprintf fmt ""
@@ -184,23 +189,23 @@ and pp_content pp_name fmt = function
     fprintf fmt " is@,  @[<v 2>(%t)@]" pp_content
   | AdaProcedureContent (local_list, pp_instr_list) ->
     fprintf fmt " is@,%abegin@,%aend %t" pp_block
-      (List.map (fun l -> pp_group ~sep:";@;" (List.map pp_local l)) local_list)
+      (List.map (fun l -> pp_group ~pp_sep:pp_print_semicolon (List.map pp_local l)) local_list)
       pp_block pp_instr_list pp_name
   | AdaRecord var_list ->
     assert (var_list != []);
     let pp_lists = apply_var_decl_lists var_list in
     fprintf fmt " is@,  @[<v>record@,  @[<v>%a@]@,end record@]" pp_block
-      (List.map (pp_group ~sep:";@;") pp_lists)
+      (List.map (pp_group ~pp_sep:pp_print_semicolon) pp_lists)
   | AdaPackageInstanciation (pp_name, instanciations) ->
-    fprintf fmt " is new %t%a" pp_name (pp_args ~sep:",@,")
+    fprintf fmt " is new %t%a" pp_name (pp_args ~pp_sep:pp_print_comma)
       (List.map pp_generic_instanciation instanciations)
 
 and pp_def fmt
     (pp_generics, kind_def, pp_name, args, pp_type_opt, content, pp_with_opt) =
   let pp_arg_lists = apply_var_decl_lists args in
   fprintf fmt "%a%a %t%a%a%a%a" pp_generic pp_generics pp_kind_def kind_def
-    pp_name (pp_args ~sep:";@,")
-    (List.map (pp_group ~sep:";@,") pp_arg_lists)
+    pp_name (pp_args ~pp_sep:pp_print_semicolon)
+    (List.map (pp_group ~pp_sep:pp_print_semicolon) pp_arg_lists)
     (pp_opt "return") pp_type_opt (pp_content pp_name) content pp_ada_with
     pp_with_opt
 
@@ -387,8 +392,8 @@ let pp_oneline_comment fmt s =
   fprintf fmt "-- %s@," s
 
 let pp_call fmt (pp_name, args) =
-  fprintf fmt "%t%a" pp_name (pp_args ~sep:",@ ")
-    (List.map (pp_group ~sep:",@,") args)
+  fprintf fmt "%t%a" pp_name (pp_args ~pp_sep:pp_print_comma)
+    (List.map (pp_group ~pp_sep:pp_print_comma) args)
 
 (** Print the complete name of variable. @param m the machine to check if it is
     memory @param fmt the formater to print on @param var the variable **)

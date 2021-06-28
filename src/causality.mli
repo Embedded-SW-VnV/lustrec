@@ -10,9 +10,14 @@ exception Error of error
 
 val pp_error: Format.formatter -> error -> unit
 
+val world: ident
+
 module NodeDep: sig
   val dependence_graph: program_t -> IdentDepGraph.t
   val filter_static_inputs: var_decl list -> expr list -> Dimension.t list
+  val compute_generic_calls: program_t -> unit
+  val get_callee: expr -> (ident * expr list) option
+  val get_calls: (ident -> bool) -> node_desc -> expr list
 end
 
 (* Look for cycles in a dependency graph *)
@@ -32,9 +37,14 @@ module ExprDep: sig
   val mk_instance_var: ident -> ident
   val is_instance_var: ident -> bool
   val is_ghost_var: ident -> bool
+  val is_read_var: ident -> bool
   val undo_instance_var: ident -> ident
+  val undo_read_var: ident -> ident
   val node_eq_equiv: node_desc -> (ident, ident) Hashtbl.t
   val node_input_variables: node_desc -> ISet.t
+  val node_local_variables: node_desc -> ISet.t
+  val node_output_variables: node_desc -> ISet.t
+  val node_memory_variables: node_desc -> ISet.t
 end
 
 (* Module used to compute static disjunction of variables based upon their
@@ -46,7 +56,11 @@ module Disjunction: sig
      order, maybe removing shorter branches *)
   type disjoint_map = (ident, CISet.t) Hashtbl.t
 
+  val pp_ciset: Format.formatter -> CISet.t -> unit
+
   val clock_disjoint_map: var_decl list -> disjoint_map
+
+  val pp_disjoint_map: Format.formatter -> disjoint_map -> unit
 end
 
 (* Tests whether [v] is a root of graph [g], i.e. a source *)

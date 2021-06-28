@@ -7,3 +7,5 @@ val compute_root_clock: Clocks.t -> Clocks.t
 val clock_prog: Clocks.t Env.t -> program_t -> Clocks.t Env.t
 
 val check_env_compat: top_decl list -> Clocks.t Env.t -> Clocks.t Env.t -> unit
+
+val uneval_prog_generics: program_t -> unit

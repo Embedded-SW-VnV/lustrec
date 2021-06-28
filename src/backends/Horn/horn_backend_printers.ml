@@ -14,6 +14,7 @@
 
    This is a modified version that handle reset *)
 
+open Utils
 open Format
 open Lustre_types
 open Machine_code_types
@@ -218,7 +219,7 @@ let pp_instance_reset machines m fmt i =
   in
 
   fprintf fmt "(%a @[<v 0>%a)@]" pp_machine_reset_name (node_name n)
-    (Utils.fprintf_list ~sep:"@ " (pp_horn_var m))
+    (pp_print_list (pp_horn_var m))
     (rename_machine_list (concat m.mname.node_id i)
        (rename_current_list (full_memory_vars machines target_machine))
     @ rename_machine_list (concat m.mname.node_id i)
@@ -261,23 +262,20 @@ let pp_instance_call machines reset_instances m fmt i inputs outputs =
       fprintf fmt "(= %a false)" (pp_horn_var m) mem_x;
       fprintf fmt ")@]"
     | _ ->
-      fprintf fmt "(%a @[<v 0>%a%t%a%t%a)@]" pp_machine_step_name (node_name n)
-        (Utils.fprintf_list ~sep:"@ " (pp_horn_val m self (pp_horn_var m)))
-        inputs
-        (Utils.pp_final_char_if_non_empty "@ " inputs)
-        (Utils.fprintf_list ~sep:"@ " (pp_horn_val m self (pp_horn_var m)))
+      fprintf fmt "(%a @[<v 0>%a%a%a)@]" pp_machine_step_name (node_name n)
+        (pp_print_list ~pp_epilogue:pp_print_cut
+           (pp_horn_val m self (pp_horn_var m))) inputs
+        (pp_print_list ~pp_epilogue:pp_print_cut
+           (pp_horn_val m self (pp_horn_var m)))
         (List.map (fun v -> mk_val (Var v) v.var_type) outputs)
-        (Utils.pp_final_char_if_non_empty "@ " outputs)
-        (Utils.fprintf_list ~sep:"@ " (pp_horn_var m))
-        (mid_mems @ next_mems)
+        (pp_print_list (pp_horn_var m)) (mid_mems @ next_mems)
   with Not_found ->
     (* stateless node instance *)
     let n, _ = List.assoc i m.mcalls in
-    fprintf fmt "(%a @[<v 0>%a%t%a)@]" pp_machine_stateless_name (node_name n)
-      (Utils.fprintf_list ~sep:"@ " (pp_horn_val m self (pp_horn_var m)))
-      inputs
-      (Utils.pp_final_char_if_non_empty "@ " inputs)
-      (Utils.fprintf_list ~sep:"@ " (pp_horn_val m self (pp_horn_var m)))
+    fprintf fmt "(%a @[<v 0>%a%a)@]" pp_machine_stateless_name (node_name n)
+      (pp_print_list ~pp_epilogue:pp_print_cut
+         (pp_horn_val m self (pp_horn_var m))) inputs
+      (pp_print_list (pp_horn_val m self (pp_horn_var m)))
       (List.map (fun v -> mk_val (Var v) v.var_type) outputs)
 
 (* Print the instruction and update the set of reset instances *)
@@ -370,7 +368,7 @@ let pp_machine_reset machines fmt m =
   fprintf fmt "@[<v 5>(and @ ";
 
   (* print "x_m = x_c" for each local memory *)
-  (Utils.fprintf_list ~sep:"@ " (fun fmt v ->
+  (pp_print_list (fun fmt v ->
        fprintf fmt "(= %a %a)" (pp_horn_var m) (rename_mid v) (pp_horn_var m)
          (rename_current v)))
     fmt locals;
@@ -378,14 +376,14 @@ let pp_machine_reset machines fmt m =
 
   (* print "child_reset ( associated vars _ {c,m} )" for each subnode. Special
      treatment for _arrow: _first = true *)
-  (Utils.fprintf_list ~sep:"@ " (fun fmt (id, (n, _)) ->
+  (pp_print_list (fun fmt (id, (n, _)) ->
        let name = node_name n in
        if name = "_arrow" then
          fprintf fmt "(= %s._arrow._first_m true)" (concat m.mname.node_id id)
        else
          let machine_n = get_machine machines name in
          fprintf fmt "(%s_reset @[<hov 0>%a@])" name
-           (Utils.fprintf_list ~sep:"@ " (pp_horn_var m))
+           (pp_print_list (pp_horn_var m))
            (rename_machine_list
               (concat m.mname.node_id id)
               (reset_vars machines machine_n))))
@@ -405,7 +403,7 @@ let print_machine machines fmt m =
     fprintf fmt "; %s@." m.mname.node_id;
 
     (* Printing variables *)
-    Utils.fprintf_list ~sep:"@." pp_decl_var fmt
+    pp_print_list ~pp_open_box:pp_open_vbox0 pp_decl_var fmt
       (inout_vars m
       @ rename_current_list (full_memory_vars machines m)
       @ rename_mid_list (full_memory_vars machines m)
@@ -417,7 +415,7 @@ let print_machine machines fmt m =
       (* Declaring single predicate *)
       fprintf fmt "(declare-rel %a (%a))@." pp_machine_stateless_name
         m.mname.node_id
-        (Utils.fprintf_list ~sep:" " pp_type)
+        (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (inout_vars m));
 
       match m.mstep.step_asserts with
@@ -430,7 +428,7 @@ let print_machine machines fmt m =
              (* No reset info for stateless nodes *) m fmt m.mstep.step_instrs);
         fprintf fmt "@ (%a @[<v 0>%a)@]@]@.))@.@." pp_machine_stateless_name
           m.mname.node_id
-          (Utils.fprintf_list ~sep:" " (pp_horn_var m))
+          (pp_print_list (pp_horn_var m))
           (inout_vars m)
       | assertsl ->
         let pp_val =
@@ -443,17 +441,17 @@ let print_machine machines fmt m =
         ignore (pp_machine_instrs machines [] m fmt m.mstep.step_instrs);
         fprintf fmt "@. %a)@ (%a @[<v 0>%a)@]@]@.))@.@." (pp_conj pp_val)
           assertsl pp_machine_stateless_name m.mname.node_id
-          (Utils.fprintf_list ~sep:" " (pp_horn_var m))
+          (pp_print_list (pp_horn_var m))
           (step_vars machines m))
     else (
       (* Declaring predicate *)
       fprintf fmt "(declare-rel %a (%a))@." pp_machine_reset_name
         m.mname.node_id
-        (Utils.fprintf_list ~sep:" " pp_type)
+        (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (reset_vars machines m));
 
       fprintf fmt "(declare-rel %a (%a))@." pp_machine_step_name m.mname.node_id
-        (Utils.fprintf_list ~sep:" " pp_type)
+        (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (step_vars machines m));
 
       pp_print_newline fmt ();
@@ -462,7 +460,7 @@ let print_machine machines fmt m =
       fprintf fmt "@[<v 2>(rule (=> @ %a@ (%a @[<v 0>%a)@]@]@.))@.@."
         (pp_machine_reset machines)
         m pp_machine_reset_name m.mname.node_id
-        (Utils.fprintf_list ~sep:"@ " (pp_horn_var m))
+        (pp_print_list (pp_horn_var m))
         (reset_vars machines m);
 
       match m.mstep.step_asserts with
@@ -473,7 +471,7 @@ let print_machine machines fmt m =
         ignore (pp_machine_instrs machines [] m fmt m.mstep.step_instrs);
         fprintf fmt "@ (%a @[<v 0>%a)@]@]@.))@.@." pp_machine_step_name
           m.mname.node_id
-          (Utils.fprintf_list ~sep:"@ " (pp_horn_var m))
+          (pp_print_list (pp_horn_var m))
           (step_vars machines m)
       | assertsl ->
         let pp_val =
@@ -487,7 +485,7 @@ let print_machine machines fmt m =
         ignore (pp_machine_instrs machines [] m fmt m.mstep.step_instrs);
         fprintf fmt "@. %a)@ (%a @[<v 0>%a)@]@]@.))@.@." (pp_conj pp_val)
           assertsl pp_machine_step_name m.mname.node_id
-          (Utils.fprintf_list ~sep:" " (pp_horn_var m))
+          (pp_print_list (pp_horn_var m))
           (step_vars machines m)))
 
 let mk_flags arity =
@@ -527,11 +525,11 @@ let print_sfunction machines fmt m =
     (* Check if there is annotation for s-function *)
     if m.mannot != [] then
       Format.fprintf fmt "; @[%a@]@]@\n"
-        (Utils.fprintf_list ~sep:"@ " Printers.pp_s_function)
+        (pp_print_list Printers.pp_s_function)
         m.mannot;
 
     (* Printing variables *)
-    Utils.fprintf_list ~sep:"@." pp_decl_var fmt
+    pp_print_list ~pp_open_box:pp_open_vbox0 pp_decl_var fmt
       (step_vars machines m
       @ rename_machine_list m.mname.node_id m.mstep.step_locals);
     Format.pp_print_newline fmt ();
@@ -541,27 +539,27 @@ let print_sfunction machines fmt m =
       (* Declaring single predicate *)
       Format.fprintf fmt "(declare-rel %a (%a))@." pp_machine_stateless_name
         m.mname.node_id
-        (Utils.fprintf_list ~sep:" " pp_type)
+        (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (reset_vars machines m));
       Format.pp_print_newline fmt ();
       (* Rule for single predicate *)
       let str_flags = sf_name ^ " " ^ mk_flags (int_of_string flags) in
       Format.fprintf fmt "@[<v 2>(rule (=> @ (%s %a) (%a %a)@]@.))@.@."
         str_flags
-        (Utils.fprintf_list ~sep:" " (pp_horn_var m))
+        (pp_print_list (pp_horn_var m))
         (reset_vars machines m) pp_machine_stateless_name m.mname.node_id
-        (Utils.fprintf_list ~sep:" " (pp_horn_var m))
+        (pp_print_list (pp_horn_var m))
         (reset_vars machines m))
     else (
       (* Declaring predicate *)
       Format.fprintf fmt "(declare-rel %a (%a))@." pp_machine_reset_name
         m.mname.node_id
-        (Utils.fprintf_list ~sep:" " pp_type)
+        (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (inout_vars m));
 
       Format.fprintf fmt "(declare-rel %a (%a))@." pp_machine_step_name
         m.mname.node_id
-        (Utils.fprintf_list ~sep:" " pp_type)
+        (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (step_vars machines m));
 
       Format.pp_print_newline fmt ();
@@ -573,7 +571,7 @@ let print_sfunction machines fmt m =
         ignore (pp_machine_instrs machines [] m fmt m.mstep.step_instrs);
         fprintf fmt "@ (%a @[<v 0>%a)@]@]@.))@.@." pp_machine_step_name
           m.mname.node_id
-          (Utils.fprintf_list ~sep:"@ " (pp_horn_var m))
+          (pp_print_list (pp_horn_var m))
           (step_vars machines m)
       | assertsl ->
         let pp_val =
@@ -587,7 +585,7 @@ let print_sfunction machines fmt m =
         ignore (pp_machine_instrs machines [] m fmt m.mstep.step_instrs);
         fprintf fmt "@. %a)(%a @[<v 0>%a)@]@]@.))@.@." (pp_conj pp_val) assertsl
           pp_machine_step_name m.mname.node_id
-          (Utils.fprintf_list ~sep:" " (pp_horn_var m))
+          (pp_print_list (pp_horn_var m))
           (step_vars machines m)))
 
 (**************** XML printing functions *************)
@@ -606,9 +604,9 @@ let rec pp_xml_expr fmt expr =
       | Expr_array a ->
         fprintf fmt "[%a]" pp_xml_tuple a
       | Expr_access (a, d) ->
-        fprintf fmt "%a[%a]" pp_xml_expr a Dimension.pp_dimension d
+        fprintf fmt "%a[%a]" pp_xml_expr a Dimension.pp d
       | Expr_power (a, d) ->
-        fprintf fmt "(%a^%a)" pp_xml_expr a Dimension.pp_dimension d
+        fprintf fmt "(%a^%a)" pp_xml_expr a Dimension.pp d
       | Expr_tuple el ->
         fprintf fmt "(%a)" pp_xml_tuple el
       | Expr_ite (c, t, e) ->
@@ -628,11 +626,11 @@ let rec pp_xml_expr fmt expr =
       | Expr_appl (id, e, r) ->
         pp_xml_app fmt id e r)
 
-and pp_xml_tuple fmt el = Utils.fprintf_list ~sep:"," pp_xml_expr fmt el
+and pp_xml_tuple fmt el = pp_comma_list pp_xml_expr fmt el
 
 and pp_xml_handler fmt (t, h) = fprintf fmt "(%s -> %a)" t pp_xml_expr h
 
-and pp_xml_handlers fmt hl = Utils.fprintf_list ~sep:" " pp_xml_handler fmt hl
+and pp_xml_handlers fmt hl = pp_print_list pp_xml_handler fmt hl
 
 and pp_xml_app fmt id e r =
   match r with
@@ -684,7 +682,7 @@ and pp_xml_call fmt id e =
 
 and pp_xml_eexpr fmt e =
   fprintf fmt "%a%t %a"
-    (Utils.fprintf_list ~sep:"; " Printers.pp_quantifiers)
+    (pp_print_list ~pp_sep:pp_print_semicolon Printers.pp_quantifiers)
     e.eexpr_quantifiers
     (fun fmt ->
       match e.eexpr_quantifiers with [] -> () | _ -> fprintf fmt ";")
@@ -709,11 +707,12 @@ and pp_xml_s_function fmt expr_ann =
           Format.pp_print_string fmt x
         | _ ->
           Format.fprintf fmt "%a"
-            (Utils.fprintf_list ~sep:"/" Format.pp_print_string)
+            (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "/")
+               pp_print_string)
             kwds)
       pp_xml_sf_value ee
   in
-  Utils.fprintf_list ~sep:"@ " pp_xml_annot fmt expr_ann.annots
+  pp_print_list pp_xml_annot fmt expr_ann.annots
 
 and pp_xml_expr_annot fmt expr_ann =
   let pp_xml_annot fmt (kwds, ee) =
@@ -726,11 +725,12 @@ and pp_xml_expr_annot fmt expr_ann =
           Format.pp_print_string fmt x
         | _ ->
           Format.fprintf fmt "/%a/"
-            (Utils.fprintf_list ~sep:"/" Format.pp_print_string)
+            (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "/")
+               pp_print_string)
             kwds)
       pp_xml_eexpr ee
   in
-  Utils.fprintf_list ~sep:"@ " pp_xml_annot fmt expr_ann.annots
+  pp_print_list pp_xml_annot fmt expr_ann.annots
 
 (* Local Variables: *)
 (* compile-command:"make -C ../../.." *)

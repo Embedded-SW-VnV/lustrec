@@ -4,3 +4,5 @@ val plugin_opt: string * (unit -> unit) * (Format.formatter -> unit) *
 
 val name_dependency: ('a * string) -> string -> string
 val get_witness_dir: string -> string
+
+val verifier_opt: string * (unit -> unit) * (string * Arg.spec * string) list -> (string * Arg.spec * string) list

@@ -59,7 +59,7 @@ let print_type_definitions fmt =
           | Tydec_enum tl ->
             incr cpt_type;
             fprintf fmt "(declare-datatypes () ((%s %a)));@.@." var
-              (Utils.fprintf_list ~sep:" " pp_print_string)
+              (pp_print_list pp_print_string)
               tl
           | _ ->
             assert false)

@@ -30,3 +30,5 @@ val type_bin_bool_op: Types.t
 val type_bin_comp_op: Types.t
 val type_unary_bool_op: Types.t
 val type_tuple: Types.t list -> Types.t
+val type_arrow: Types.t -> Types.t -> Types.t
+val type_array: Dimension.t -> Types.t -> Types.t

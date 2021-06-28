@@ -28,9 +28,9 @@ open Corelang
 
 module ConstraintModule = struct
   (* bool dimension module *)
-  type t = Dimension.dim_expr
+  type t = Dimension.t
 
-  let equal d1 d2 = Dimension.is_eq_dimension d1 d2
+  let equal d1 d2 = Dimension.equal d1 d2
 
   let compare d1 d2 =
     if equal d1 d2 then 0 else compare d1.Dimension.dim_id d2.Dimension.dim_id

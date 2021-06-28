@@ -692,17 +692,15 @@ let pp_dep_graph fmt g =
 let pp_error fmt err =
   match err with
   | NodeCycle trace ->
-    Format.fprintf fmt "Causality error, cyclic node calls:@   @[<v 0>%a@]@ "
-      (fprintf_list ~sep:",@ " Format.pp_print_string)
-      trace
+    Format.(fprintf fmt "Causality error, cyclic node calls:@   @[<v 0>%a@]@ "
+              (pp_comma_list Format.pp_print_string) trace)
   | DataCycle traces ->
-    Format.fprintf fmt
-      "Causality error, cyclic data dependencies:@   @[<v 0>%a@]@ "
-      (fprintf_list ~sep:";@ " (fun fmt trace ->
-           Format.fprintf fmt "@[<v 0>{%a}@]"
-             (fprintf_list ~sep:",@ " Format.pp_print_string)
-             trace))
-      traces
+    Format.(fprintf fmt
+              "Causality error, cyclic data dependencies:@   @[<v 0>%a@]@ "
+              (pp_print_list ~pp_sep:pp_print_semicolon (fun fmt trace ->
+                   fprintf fmt "@[<v 0>{%a}@]"
+                     (pp_comma_list Format.pp_print_string) trace))
+              traces)
 
 (* Merges elements of graph [g2] into graph [g1] *)
 let merge_with g1 g2 =

@@ -3,6 +3,7 @@ type filename = string
 
 val dummy: t
 val pp: Format.formatter -> t -> unit
+val pp_c: Format.formatter -> t -> unit
 val get_module: unit -> filename
 val curr: Lexing.lexbuf -> t
 val shift: t -> t -> t

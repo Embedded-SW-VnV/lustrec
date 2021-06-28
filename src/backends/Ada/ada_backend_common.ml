@@ -1,3 +1,4 @@
+open Utils
 open Format
 open Machine_code_types
 open Lustre_types
@@ -73,68 +74,71 @@ let pp_package_name machine fmt =
 
 (** Print a type. @param fmt the formater to print on @param type the type **)
 let pp_type fmt typ =
-  match (Types.repr typ).Types.tdesc with
-  | Types.Tbasic Types.Basic.Tint ->
-    pp_integer_type fmt
-  | Types.Tbasic Types.Basic.Treal ->
-    pp_float_type fmt
-  | Types.Tbasic Types.Basic.Tbool ->
+  let open Types in
+  let t = repr typ in
+  if is_bool_type t then
     pp_boolean_type fmt
-  | Types.Tunivar ->
-    pp_polymorphic_type typ.Types.tid fmt
-  | Types.Tbasic _ ->
-    eprintf "Tbasic@.";
-    assert false (*TODO*)
-  | Types.Tconst _ ->
-    eprintf "Tconst@.";
-    assert false (*TODO*)
-  | Types.Tclock _ ->
-    eprintf "Tclock@.";
-    assert false (*TODO*)
-  | Types.Tarrow _ ->
-    eprintf "Tarrow@.";
-    assert false (*TODO*)
-  | Types.Ttuple l ->
-    eprintf "Ttuple %a @." (Utils.fprintf_list ~sep:" " Types.print_ty) l;
-    assert false (*TODO*)
-  | Types.Tenum _ ->
-    eprintf "Tenum@.";
-    assert false (*TODO*)
-  | Types.Tstruct _ ->
-    eprintf "Tstruct@.";
-    assert false (*TODO*)
-  | Types.Tarray _ ->
-    eprintf "Tarray@.";
-    assert false (*TODO*)
-  | Types.Tstatic _ ->
-    eprintf "Tstatic@.";
-    assert false (*TODO*)
-  | Types.Tlink _ ->
-    eprintf "Tlink@.";
-    assert false (*TODO*)
-  | Types.Tvar ->
-    eprintf "Tvar@.";
-    assert false
+  else if is_int_type t then
+    pp_integer_type fmt
+  else if is_real_type t then
+    pp_float_type fmt
+  else match t.tdesc with
+    | Tunivar ->
+      pp_polymorphic_type typ.tid fmt
+    | Tbasic _ ->
+      eprintf "Tbasic@.";
+      assert false (*TODO*)
+    | Tconst _ ->
+      eprintf "Tconst@.";
+      assert false (*TODO*)
+    | Tclock _ ->
+      eprintf "Tclock@.";
+      assert false (*TODO*)
+    | Tarrow _ ->
+      eprintf "Tarrow@.";
+      assert false (*TODO*)
+    | Ttuple l ->
+      eprintf "Ttuple %a @." (pp_print_list print_ty) l;
+      assert false (*TODO*)
+    | Tenum _ ->
+      eprintf "Tenum@.";
+      assert false (*TODO*)
+    | Tstruct _ ->
+      eprintf "Tstruct@.";
+      assert false (*TODO*)
+    | Tarray _ ->
+      eprintf "Tarray@.";
+      assert false (*TODO*)
+    | Tstatic _ ->
+      eprintf "Tstatic@.";
+      assert false (*TODO*)
+    | Tlink _ ->
+      eprintf "Tlink@.";
+      assert false (*TODO*)
+    | Tvar ->
+      eprintf "Tvar@.";
+      assert false
 (*TODO*)
 (*| _ -> eprintf "Type error : %a@." Types.print_ty typ; assert false *)
 
 (** Return a default ada constant for a given type. @param cst_typ the constant
     type **)
-let default_ada_cst cst_typ =
-  match cst_typ with
-  | Types.Basic.Tint ->
-    Const_int 0
-  | Types.Basic.Treal ->
-    Const_real Real.zero
-  | Types.Basic.Tbool ->
+let default_ada_cst t =
+  let open Types in
+  if is_bool_type t then
     Const_tag tag_false
-  | _ ->
+  else if is_int_type t then
+    Const_int 0
+  else if is_real_type t then
+    Const_real Real.zero
+  else
     assert false
 
 (** Make a default value from a given type. @param typ the type **)
 let mk_default_value typ =
-  match (Types.repr typ).Types.tdesc with
-  | Types.Tbasic t ->
+  let t = Types.repr typ in
+  match t.Types.tdesc with
+  | Types.Tbasic _ ->
     mk_val (Cst (default_ada_cst t)) typ
   | _ ->
     assert false
@@ -156,9 +160,12 @@ let pp_package_name_with_polymorphic substitution machine fmt =
       (fun poly1 (poly2, _) -> poly1 = poly2)
       polymorphic_types substituion);
   let instantiated_types = snd (List.split substitution) in
-  fprintf fmt "%t%t%a" (pp_package_name machine)
-    (Utils.pp_final_char_if_non_empty "_" instantiated_types)
-    (Utils.fprintf_list ~sep:"_" pp_type)
+  fprintf fmt "%t%a"
+    (pp_package_name machine)
+    (pp_print_list
+       ~pp_prologue:(fun fmt () -> pp_print_string fmt "_")
+       ~pp_sep:(fun fmt () -> pp_print_string fmt "_")
+       pp_type)
     instantiated_types
 
 (** Print the name of a variable. @param fmt the formater to print on @param id

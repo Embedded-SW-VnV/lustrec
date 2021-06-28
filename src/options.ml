@@ -37,6 +37,7 @@ let spec = ref SpecNo
 type option_output =
   | OutC
   | OutAda
+  | OutJava
   | OutEMF
   | OutHorn
   | OutLustre
@@ -47,6 +48,7 @@ let pp_output fmt =
   Format.pp_print_string fmt (match !output with
   | OutC -> "C"
   | OutAda -> "Ada"
+  | OutJava -> "Java"
   | OutEMF -> "EMF"
   | OutHorn -> "Horn"
   | OutLustre -> "Lustre")

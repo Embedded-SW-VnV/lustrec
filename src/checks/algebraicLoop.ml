@@ -77,10 +77,10 @@ end
    resolution*)
 
 let pp_resolution fmt resolution =
-  fprintf_list ~sep:"@ "
-    (fun fmt (eq, _) ->
-      Format.fprintf fmt "inlining: %a" Printers.pp_node_eq eq)
-    fmt resolution
+  Format.(pp_print_list
+            (fun fmt (eq, _) ->
+               fprintf fmt "inlining: %a" Printers.pp_node_eq eq)
+            fmt resolution)
 
 let al_is_solved (_, als) = List.for_all (fun (_, _, status) -> status) als
 
@@ -132,11 +132,11 @@ let is_expr_inlined nd expr =
       assert false)
 
 let pp_calls nd fmt calls =
-  Format.fprintf fmt "@[<v 0>%a@]"
-    (fprintf_list ~sep:"@ " (fun fmt (funid, expr, _) ->
-         Format.fprintf fmt "%s: %i (inlined:%b)" funid expr.expr_tag
-           (is_expr_inlined nd expr)))
-    calls
+  Format.(fprintf fmt "@[<v 0>%a@]"
+            (pp_print_list (fun fmt (funid, expr, _) ->
+                 fprintf fmt "%s: %i (inlined:%b)" funid expr.expr_tag
+                   (is_expr_inlined nd expr)))
+            calls)
 
 (* Inline the provided expression *)
 let inline_expr node expr =
@@ -354,10 +354,10 @@ let pp_al nd fmt (partition, calls, _) =
   let open Format in
   fprintf fmt "@[<v 0>";
   fprintf fmt "variables in the alg. loop: @[<hov 0>%a@]@ "
-    (fprintf_list ~sep:",@ " pp_print_string)
+    (pp_comma_list pp_print_string)
     partition;
   fprintf fmt "@ involved node calls: @[<v 0>%a@]@ "
-    (fprintf_list ~sep:",@ " (fun fmt ((funid, expr, _), status) ->
+    (pp_comma_list (fun fmt ((funid, expr, _), status) ->
          fprintf fmt "%s" funid;
          if status && is_expr_inlined nd expr then
            fprintf fmt " (inlining it solves the alg. loop)"))
@@ -372,7 +372,7 @@ let pp_al nd fmt (partition, calls, _) =
 
 let pp_report fmt report =
   let open Format in
-  fprintf_list ~sep:"@."
+  pp_print_list ~pp_open_box:pp_open_vbox0
     (fun _ (nd, als) ->
       let top = Corelang.node_from_name nd.node_id in
       let pp =
@@ -385,8 +385,7 @@ let pp_report fmt report =
       in
       pp top.top_decl_loc (fun fmt ->
           fprintf fmt "algebraic loop in node %s: {@[<v 0>%a@]}" nd.node_id
-            (fprintf_list ~sep:"@ " (pp_al nd))
-            als))
+            (pp_print_list (pp_al nd)) als))
     fmt report;
   fprintf fmt "@."
 
@@ -406,7 +405,7 @@ let analyze cpt prog =
       (* TODO create a report *)
       (* Printing the report on stderr *)
       Format.eprintf "%a" pp_report report;
-      raise (Error.Error (Location.dummy_loc, Error.AlgebraicLoop)))
+      raise (Error.Error (Location.dummy, Error.AlgebraicLoop)))
   in
   (* Printing the report on stderr *)
   Format.eprintf "%a" pp_report report;

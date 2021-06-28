@@ -9,12 +9,15 @@
 (*                                                                  *)
 (********************************************************************)
 
-open Utils.Format
+open Utils
+open Format
 open Lustre_types
 open Machine_code_types
 open Corelang
 open Machine_code_common
 open C_backend_common
+
+module Mpfr = Lustrec_mpfr
 
 module type MODIFIERS_SRC = sig
   module GhostProto : MODIFIERS_GHOST_PROTO
@@ -129,7 +132,7 @@ functor
         (if is_arrow_reset then fun fmt -> fprintf fmt "%s_reset"
         else pp_machine_name)
         name
-        (pp_comma_list ~pp_eol:pp_print_comma Dimension.pp_dimension)
+        (pp_comma_list ~pp_eol:pp_print_comma Dimension.pp)
         static self
         (pp_print_option (fun fmt -> fprintf fmt "->%s"))
         inst
@@ -328,7 +331,7 @@ functor
 
     let print_alloc_instance fmt (i, (m, static)) =
       fprintf fmt "_alloc->%s = %a %a;" i pp_machine_alloc_name (node_name m)
-        (pp_print_parenthesized Dimension.pp_dimension)
+        (pp_print_parenthesized Dimension.pp)
         static
 
     let print_dealloc_instance fmt (i, (m, _)) =
@@ -350,11 +353,11 @@ functor
       let base_type = Types.array_base_type vdecl.var_type in
       let size_types = Types.array_type_multi_dimension vdecl.var_type in
       let size_type =
-        Dimension.multi_dimension_product vdecl.var_loc size_types
+        Dimension.multi_product vdecl.var_loc size_types
       in
       fprintf fmt
         "_alloc->_reg.%s = (%a*) malloc((%a)*sizeof(%a));@,assert(_alloc->%s);"
-        vdecl.var_id (pp_c_type "") base_type Dimension.pp_dimension size_type
+        vdecl.var_id (pp_c_type "") base_type Dimension.pp size_type
         (pp_c_type "") base_type vdecl.var_id
 
     let print_dealloc_array fmt vdecl =
@@ -418,7 +421,7 @@ functor
      *     (Utils.pp_newline_if_non_empty m.minit) *)
 
     let pp_c_check m self fmt (loc, check) =
-      fprintf fmt "@[<v>%a@,assert (%a);@]" Location.pp_c_loc loc
+      fprintf fmt "@[<v>%a@,assert (%a);@]" Location.pp_c loc
         (pp_c_val m self (pp_c_var_read m))
         check
 
@@ -458,7 +461,7 @@ functor
     let node_of_machine m =
       {
         top_decl_desc = Node m.mname;
-        top_decl_loc = Location.dummy_loc;
+        top_decl_loc = Location.dummy;
         top_decl_owner = "";
         top_decl_itf = false;
       }
@@ -624,7 +627,7 @@ functor
       let rec aux indices value fmt typ =
         if Types.is_array_type typ then
           let dim = Types.array_type_dimension typ in
-          let szl = Utils.enumerate (Dimension.size_const_dimension dim) in
+          let szl = Utils.enumerate (Dimension.size_const dim) in
           let typ' = Types.array_element_type typ in
           let value =
             match value with Const_array ca -> List.nth ca | _ -> assert false
@@ -688,7 +691,7 @@ functor
          }@,\
          return;@]@,\
          }"
-        print_global_init_prototype baseNAME
+        pp_global_init_prototype baseNAME
         (pp_c_basic_type_desc Type_predef.type_bool)
         (* constants *)
         (pp_print_list ~pp_prologue:pp_print_cut
@@ -709,7 +712,7 @@ functor
          }@,\
          return;@]@,\
          }"
-        print_global_clear_prototype baseNAME
+        pp_global_clear_prototype baseNAME
         (pp_c_basic_type_desc Type_predef.type_bool)
         (* constants *)
         (pp_print_list ~pp_prologue:pp_print_cut
@@ -723,9 +726,9 @@ functor
       if not !Options.static_mem then
         (* Alloc functions, only if non static mode *)
         fprintf fmt "@[<v 2>%a {@,%a%a@]@,}@,@[<v 2>%a {@,%a%a@]@,@,"
-          print_alloc_prototype
+          pp_alloc_prototype
           (m.mname.node_id, m.mstatic)
-          print_alloc_const m print_alloc_code m print_dealloc_prototype
+          print_alloc_const m print_alloc_code m pp_dealloc_prototype
           m.mname.node_id print_alloc_const m print_dealloc_code m
 
     let print_mpfr_code self fmt m =
@@ -775,12 +778,12 @@ functor
 
     let print_extern_alloc_prototype fmt ind =
       let static = List.filter (fun v -> v.var_dec_const) ind.nodei_inputs in
-      fprintf fmt "extern %a;@,extern %a;" print_alloc_prototype
-        (ind.nodei_id, static) print_dealloc_prototype ind.nodei_id
+      fprintf fmt "extern %a;@,extern %a;" pp_alloc_prototype
+        (ind.nodei_id, static) pp_dealloc_prototype ind.nodei_id
 
     let print_lib_c source_fmt basename prog machines dependencies =
       fprintf source_fmt "@[<v>%a%a@,@,%a@,%a%a%a%a%a%a%a@]@."
-        print_import_standard () print_import_prototype
+        print_import_standard () pp_import_prototype
         {
           local = true;
           name = basename;
@@ -793,7 +796,7 @@ functor
         (* Print dependencies *)
         (pp_print_list ~pp_open_box:pp_open_vbox0
            ~pp_prologue:(pp_print_endcut "/* Import dependencies */")
-           print_import_prototype ~pp_epilogue:pp_print_cutcut)
+           pp_import_prototype ~pp_epilogue:pp_print_cutcut)
         dependencies
         (* Print consts *)
         (pp_print_list ~pp_open_box:pp_open_vbox0
@@ -836,16 +839,16 @@ functor
               ~pp_prologue:
                 (pp_print_endcut "/* Node allocation function prototypes */")
               ~pp_sep:pp_print_cutcut (fun fmt m ->
-                fprintf fmt "%a;@,%a;" print_alloc_prototype
+                fprintf fmt "%a;@,%a;" pp_alloc_prototype
                   (m.mname.node_id, m.mstatic)
-                  print_dealloc_prototype m.mname.node_id))
+                  pp_dealloc_prototype m.mname.node_id))
            machines
         else pp_print_nothing)
         ()
         (* Print the struct definitions of all machines. *)
         (pp_print_list ~pp_open_box:pp_open_vbox0
            ~pp_prologue:(pp_print_endcut "/* Struct definitions */")
-           ~pp_sep:pp_print_cutcut print_machine_struct
+           ~pp_sep:pp_print_cutcut pp_machine_struct
            ~pp_epilogue:pp_print_cutcut)
         machines (* Print the spec predicates *) Mod.pp_predicates machines
         (* Print nodes one by one (in the previous order) *)

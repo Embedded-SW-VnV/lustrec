@@ -17,6 +17,8 @@ open Corelang
 open Spec_types
 open Machine_code_common
 
+module Mpfr = Lustrec_mpfr
+
 (**************************************************************************)
 (*     Printing spec for c *)
 
@@ -508,7 +510,7 @@ let pp_memory_pack_def m fmt mp =
     ((mp, (name, mem), (name, self)), mp.mpformula)
 
 let print_machine_ghost_struct fmt m =
-  pp_acsl (pp_ghost (print_machine_struct ~ghost:true)) fmt m
+  pp_acsl (pp_ghost (pp_machine_struct ~ghost:true)) fmt m
 
 let pp_memory_pack_defs fmt m =
   if not (fst (get_stateless_status m)) then
@@ -900,14 +902,13 @@ module MakefileMod = struct
       "\t${GCC} -Wno-attributes -o %s_main_eacsl io_frontend.o %a %s \
        %s_main_eacsl.o %a@."
       basename
-      (Utils.fprintf_list ~sep:" " (fun fmt dep ->
-           Format.fprintf fmt "%s.o" dep.name))
+      (pp_print_list (fun fmt dep -> fprintf fmt "%s.o" dep.name))
       (C_backend_makefile.compiled_dependencies dependencies)
       ("${FRAMACEACSL}/e_acsl.c "
      ^ "${FRAMACEACSL}/memory_model/e_acsl_bittree.c "
      ^ "${FRAMACEACSL}/memory_model/e_acsl_mmodel.c")
       basename
-      (Utils.fprintf_list ~sep:" " (fun fmt lib -> fprintf fmt "-l%s" lib))
+      (pp_print_list (fun fmt lib -> fprintf fmt "-l%s" lib))
       (C_backend_makefile.lib_dependencies dependencies);
     fprintf fmt "@."
 end

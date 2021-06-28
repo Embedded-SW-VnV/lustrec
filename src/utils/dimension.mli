@@ -44,3 +44,8 @@ val expr_replace_expr: (ident -> t) -> t -> t
 val rename: (ident -> ident) -> (ident -> ident) -> t -> t
 
 val size_const: t -> int
+
+val check_bound: Location.t -> t -> t
+val check_access: Location.t -> t -> t -> t
+
+val multi_product: Location.t -> t list -> t

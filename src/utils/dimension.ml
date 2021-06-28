@@ -86,14 +86,14 @@ let rec pp fmt dim =
   | Dunivar ->
     fprintf fmt "'%s" (Utils.name_of_dimension dim.dim_id)
 
-let rec multi_dimension_product loc dim_list =
+let rec multi_product loc dim_list =
   match dim_list with
   | [] ->
     mkdim_int loc 1
   | [ d ] ->
     d
   | d :: q ->
-    mkdim_appl loc "*" [ d; multi_dimension_product loc q ]
+    mkdim_appl loc "*" [ d; multi_product loc q ]
 
 (* Builds a dimension expr representing 0<=d *)
 let check_bound loc d = mkdim_appl loc "<=" [ mkdim_int loc 0; d ]
@@ -136,7 +136,7 @@ let size_const dim =
   | Dbool b ->
     if b then 1 else 0
   | _ ->
-    Format.eprintf "internal error: size_const_dimension %a@." pp dim;
+    Format.eprintf "internal error: size_const %a@." pp dim;
     assert false
 
 let rec is_polymorphic dim =

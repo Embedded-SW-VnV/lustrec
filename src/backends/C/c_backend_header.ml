@@ -16,6 +16,8 @@ open Machine_code_types
 open Machine_code_common
 open C_backend_common
 
+module Mpfr = Lustrec_mpfr
+
 (********************************************************************************************)
 (* Header Printing functions *)
 (********************************************************************************************)
@@ -23,7 +25,7 @@ open C_backend_common
 module type MODIFIERS_HDR = sig
   module GhostProto : MODIFIERS_GHOST_PROTO
 
-  val print_machine_decl_prefix : Format.formatter -> machine_t -> unit
+  val print_machine_decl_prefix : formatter -> machine_t -> unit
 
   val pp_import_arrow : formatter -> unit -> unit
 end
@@ -174,9 +176,9 @@ functor
             print_static_link_macro macro print_static_alloc_macro macro
         else
           (* Dynamic allocation *)
-          fprintf fmt "extern %a;@,extern %a" print_alloc_prototype
+          fprintf fmt "extern %a;@,extern %a" pp_alloc_prototype
             (m.mname.node_id, m.mstatic)
-            print_dealloc_prototype m.mname.node_id
+            pp_dealloc_prototype m.mname.node_id
 
     let print_machine_struct_top_decl_from_header fmt tdecl =
       let inode = imported_node_of_top tdecl in
@@ -187,7 +189,7 @@ functor
     let print_stateless_C_prototype fmt (name, inputs, outputs) =
       let output = match outputs with [ hd ] -> hd | _ -> assert false in
       fprintf fmt "%a %s %a"
-        (pp_basic_c_type ~pp_c_basic_type_desc ~var_opt:None)
+        (fun x -> pp_basic_c_type ~pp_c_basic_type_desc x)
         output.var_type name
         (pp_print_parenthesized pp_c_decl_input_var)
         inputs
@@ -317,7 +319,7 @@ functor
         (* Print the svn version number and the supported C standard (C90 or
            C99) *)
         pp_print_version () baseNAME baseNAME (* Import the header *) basename
-        print_import_prototype
+        pp_import_prototype
         {
           local = true;
           name = basename;
@@ -327,12 +329,12 @@ functor
         (* Print dependencies *)
         (pp_print_list ~pp_open_box:pp_open_vbox0
            ~pp_prologue:(pp_print_endcut "/* Import dependencies */")
-           print_import_alloc_prototype ~pp_epilogue:pp_print_cutcut)
+           pp_import_alloc_prototype ~pp_epilogue:pp_print_cutcut)
         dependencies
         (* Print the struct definitions of all machines. *)
         (pp_print_list ~pp_open_box:pp_open_vbox0
            ~pp_prologue:(pp_print_endcut "/* Struct definitions */")
-           ~pp_sep:pp_print_cutcut print_machine_struct
+           ~pp_sep:pp_print_cutcut pp_machine_struct
            ~pp_epilogue:pp_print_cutcut)
         machines
         (* Print the prototypes of all machines *)
@@ -372,7 +374,7 @@ functor
            ~pp_prologue:(pp_print_endcut "/* Import dependencies */")
            (fun fmt dep ->
              let local, name = dependency_of_top dep in
-             print_import_prototype fmt
+             pp_import_prototype fmt
                {
                  local;
                  name;
@@ -404,7 +406,7 @@ functor
             /* Global clear declaration */@,\
             extern %a;@,\
             @,"
-           print_global_init_prototype baseNAME print_global_clear_prototype
+           pp_global_init_prototype baseNAME pp_global_clear_prototype
            baseNAME
         else pp_print_nothing)
         ()

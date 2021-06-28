@@ -9,15 +9,16 @@
 (*                                                                  *)
 (********************************************************************)
 
+open Utils
 open Format
 open Lustre_types
 
 let pp_dep fmt dep =
-  Format.fprintf fmt "%b, %s, {%a}, %b" dep.local dep.name Printers.pp_prog
+  fprintf fmt "%b, %s, {%a}, %b" dep.local dep.name Printers.pp_prog
     dep.content dep.is_stateful
 
 let pp_deps fmt deps =
-  Format.fprintf fmt "@[<v 0>%a@ @]" (Utils.fprintf_list ~sep:"@ ," pp_dep) deps
+  fprintf fmt "@[<v 0>%a@ @]" (pp_comma_list pp_dep) deps
 
 let header_has_code header =
   List.exists
@@ -50,10 +51,10 @@ let lib_dependencies deps =
     [] deps
 
 let fprintf_dependencies fmt (deps : dep_t list) =
-  (* Format.eprintf "Deps: %a@." pp_deps dep; *)
+  (* eprintf "Deps: %a@." pp_deps dep; *)
   let compiled_deps = compiled_dependencies deps in
 
-  (* Format.eprintf "Compiled Deps: %a@." pp_deps compiled_dep; *)
+  (* eprintf "Compiled Deps: %a@." pp_deps compiled_dep; *)
   List.iter
     (fun s ->
       Log.report ~level:1 (fun fmt -> fprintf fmt "Adding dependency: %s@." s);
@@ -69,7 +70,7 @@ let fprintf_dependencies fmt (deps : dep_t list) =
 
 module type MODIFIERS_MKF = sig
   (* dep was (bool * ident * top_decl list) *)
-  val other_targets : Format.formatter -> string -> string -> dep_t list -> unit
+  val other_targets : formatter -> string -> string -> dep_t list -> unit
 end
 
 module EmptyMod : MODIFIERS_MKF = struct
@@ -118,12 +119,11 @@ functor
       fprintf fmt "\t${GCC} -I${INC} -I. -c %s_main.c@." basename;
       fprintf_dependencies fmt dependencies;
       fprintf fmt "\t${GCC} -o ${BINNAME} io_frontend.o %a %s.o %s_main.o %a@."
-        (Utils.fprintf_list ~sep:" " (fun fmt dep ->
-             Format.fprintf fmt "%s.o" dep.name))
+        (pp_print_list (fun fmt dep -> fprintf fmt "%s.o" dep.name))
         (compiled_dependencies dependencies)
         basename (* library .o *) basename
         (* main function . o *)
-        (Utils.fprintf_list ~sep:" " (fun fmt lib -> fprintf fmt "-l%s" lib))
+        (pp_print_list (fun fmt lib -> fprintf fmt "-l%s" lib))
         (lib_dependencies dependencies);
       fprintf fmt "@.";
       fprintf fmt "clean:@.";

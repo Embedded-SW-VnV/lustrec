@@ -357,22 +357,22 @@ module Format = struct
   let pp_comma_list = pp_print_list ~pp_sep:pp_print_comma
 
   let pp_print_list_i ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box
-      ?pp_eol ?pp_sep pp_v =
+      ?pp_eol ?pp_nil ?pp_sep pp_v =
     let i = ref 0 in
     pp_print_list ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol
-      ?pp_sep (fun fmt x ->
+     ?pp_nil ?pp_sep (fun fmt x ->
         pp_v fmt !i x;
         incr i)
 
   let pp_print_list2 ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box
-      ?pp_eol ?pp_sep pp_v fmt (l1, l2) =
+      ?pp_eol ?pp_nil ?pp_sep pp_v fmt (l1, l2) =
     pp_print_list ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol
-      ?pp_sep pp_v fmt (List.combine l1 l2)
+      ?pp_nil ?pp_sep pp_v fmt (List.combine l1 l2)
 
   let pp_print_list_i2 ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box
-      ?pp_eol ?pp_sep pp_v fmt (l1, l2) =
+      ?pp_eol ?pp_nil ?pp_sep pp_v fmt (l1, l2) =
     pp_print_list_i ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol
-      ?pp_sep
+      ?pp_nil ?pp_sep
       (fun fmt i (x1, x2) -> pp_v fmt i x1 x2)
       fmt (List.combine l1 l2)
 

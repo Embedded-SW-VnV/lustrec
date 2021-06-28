@@ -45,7 +45,10 @@ type error =
   | Carrier_extrusion of t * carrier_expr
   | Clock_extrusion of t * t
 
+(* Nice pretty-printing. Simplifies expressions before printing them. Non-linear
+   complexity. *)
 val pp: Format.formatter -> t -> unit
+
 val pp_suffix: Format.formatter -> t -> unit
 
 val new_var: bool -> t
@@ -85,6 +88,9 @@ val uneval: ident -> carrier_expr -> unit
 val get_carrier_name: t -> carrier_expr option
 
 val equal: t -> t -> bool
+
+(* Disjunction relation between variables based upon their static clocks. *)
+val disjoint: t -> t -> bool
 
 val const_of_carrier: carrier_expr -> ident
 

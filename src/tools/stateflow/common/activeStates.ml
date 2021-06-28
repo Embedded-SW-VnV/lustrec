@@ -1,3 +1,4 @@
+open Utils
 open Basetypes
 
 (* Module to manipulate set of active states.
@@ -13,10 +14,7 @@ module Vars = struct
   end)
 
   let pp_set fmt rho =
-    Format.fprintf fmt "@[<v 0>%a@ @]"
-      (Utils.fprintf_list ~sep:"@ " (fun fmt p ->
-           Format.fprintf fmt "%a" pp_path p))
-      (elements rho)
+    Format.(fprintf fmt "@[<v 0>%a@ @]" (pp_print_list pp_path) (elements rho))
 end
 
 module Env = struct
@@ -37,8 +35,7 @@ module Env = struct
   let keys a = fold (fun key _ -> Vars.add key) a Vars.empty
 
   let pp_env fmt rho =
-    Format.fprintf fmt "@[<v 0>%a@ @]"
-      (Utils.fprintf_list ~sep:"@ " (fun fmt (p, b) ->
-           Format.fprintf fmt "%a -> %b" pp_path p b))
-      (bindings rho)
+    Format.(fprintf fmt "@[<v 0>%a@ @]"
+              (pp_print_list (fun fmt (p, b) -> fprintf fmt "%a -> %b" pp_path p b))
+              (bindings rho))
 end

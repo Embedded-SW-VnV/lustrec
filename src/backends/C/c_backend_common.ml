@@ -9,7 +9,8 @@
 (*                                                                  *)
 (********************************************************************)
 
-open Utils.Format
+open Utils
+open Format
 open Lustre_types
 open Corelang
 open Machine_code_types
@@ -88,8 +89,8 @@ let mk_call_var_decl loc id =
   {
     var_id = id;
     var_orig = false;
-    var_dec_type = mktyp Location.dummy_loc Tydec_any;
-    var_dec_clock = mkclock Location.dummy_loc Ckdec_any;
+    var_dec_type = mktyp Location.dummy Tydec_any;
+    var_dec_clock = mkclock Location.dummy Ckdec_any;
     var_dec_const = false;
     var_dec_value = None;
     var_parent_nodeid = None;
@@ -237,7 +238,7 @@ let pp_c_basic_type_desc t_desc =
 (* Not a basic C type. Do not handle arrays or pointers *)
 
 let pp_basic_c_type ?(pp_c_basic_type_desc = pp_c_basic_type_desc)
-    ?(var_opt = None) fmt t =
+    ?var_opt fmt t =
   match var_opt with
   | Some v when Machine_types.is_exportable v ->
     Machine_types.pp_c_var_type fmt v
@@ -248,7 +249,7 @@ let pp_c_type ?pp_c_basic_type_desc ?var_opt var_id fmt t =
   let rec aux t pp_suffix =
     if is_basic_c_type t then
       fprintf fmt "%a %s%a"
-        (pp_basic_c_type ?pp_c_basic_type_desc ~var_opt)
+        (pp_basic_c_type ?pp_c_basic_type_desc ?var_opt)
         t var_id pp_suffix ()
     else
       let open Types in
@@ -512,8 +513,10 @@ type loop_index = LVar of ident | LInt of int ref | LAcc of value_t
    (Access (v, Cst (Const_int !r))) q | _ , LVar i :: q -> value_offsets (Access
    (v, Var i)) q *)
 (* Computes the list of nested loop variables together with their dimension
-   bounds. - LInt r stands for loop expansion (no loop variable, but int loop
-   index) - LVar v stands for loop variable v *)
+   bounds.
+ *  - LInt r stands for loop expansion (no loop variable, but int loop
+      index)
+ *  - LVar v stands for loop variable v *)
 let rec mk_loop_variables m ty depth =
   match (Types.repr ty).Types.tdesc, depth with
   | Types.Tarray (d, ty'), 0 ->
@@ -592,7 +595,7 @@ let rec pp_value_suffix ?(indirect = true) m self var_type loop_vars pp_var fmt
   in
   match loop_vars, value.value_desc with
   | (x, LAcc i) :: q, _ when is_const_index i ->
-    let r = ref (Dimension.size_const_dimension (dimension_of_value i)) in
+    let r = ref (Dimension.size_const (dimension_of_value i)) in
     pp_value_suffix ~indirect m self var_type ((x, LInt r) :: q) pp_var fmt
       value
   | (_, LInt r) :: q, Cst (Const_array cl) ->
@@ -664,7 +667,7 @@ let rec pp_value_suffix ?(indirect = true) m self var_type loop_vars pp_var fmt
  *     pp_c_decl_struct_var
  *     fmt m.mmemory *)
 
-let print_machine_struct ?(ghost = false) fmt m =
+let pp_machine_struct ?(ghost = false) fmt m =
   if not (fst (Machine_code_common.get_stateless_status m)) then
     (* Define struct *)
     fprintf fmt "@[<v 2>%a {@,_Bool _reset;%a%a@]@,};"
@@ -693,20 +696,20 @@ let print_machine_struct ?(ghost = false) fmt m =
 (* Prototype Printing functions *)
 (********************************************************************************************)
 
-let print_global_init_prototype fmt baseNAME =
+let pp_global_init_prototype fmt baseNAME =
   fprintf fmt "void %a ()" pp_global_init_name baseNAME
 
-let print_global_clear_prototype fmt baseNAME =
+let pp_global_clear_prototype fmt baseNAME =
   fprintf fmt "void %a ()" pp_global_clear_name baseNAME
 
-let print_alloc_prototype fmt (name, static) =
+let pp_alloc_prototype fmt (name, static) =
   fprintf fmt "%a * %a %a"
     (pp_machine_memtype_name ~ghost:false)
     name pp_machine_alloc_name name
     (pp_print_parenthesized pp_c_decl_input_var)
     static
 
-let print_dealloc_prototype fmt name =
+let pp_dealloc_prototype fmt name =
   fprintf fmt "void %a (%a * _alloc)" pp_machine_dealloc_name name
     (pp_machine_memtype_name ~ghost:false)
     name
@@ -783,9 +786,9 @@ module Protos (Mod : MODIFIERS_GHOST_PROTO) = struct
       outputs
 end
 
-let print_import_prototype fmt dep = fprintf fmt "#include \"%s.h\"" dep.name
+let pp_import_prototype fmt dep = fprintf fmt "#include \"%s.h\"" dep.name
 
-let print_import_alloc_prototype fmt dep =
+let pp_import_alloc_prototype fmt dep =
   if dep.is_stateful then fprintf fmt "#include \"%s_alloc.h\"" dep.name
 
 let pp_c_var m self pp_var fmt var =
@@ -858,7 +861,7 @@ let pp_file file_suffix fmt (typ, arg) =
     file_suffix typ arg file_suffix
 
 let pp_put_var fmt file_suffix name var_type var_id =
-  let pp_file = pp_print_file ("out" ^ file_suffix) in
+  let pp_file = pp_file ("out" ^ file_suffix) in
   let unclocked_t = Types.unclock_type var_type in
   fprintf fmt "@[<v>%a@]"
     (fun fmt () ->
@@ -937,7 +940,7 @@ let pp_assign m self pp_var fmt (var, value) =
     | (d, LInt r) :: q ->
       (*eprintf "pp_aux %a %d@." Dimension.pp_dimension d (!r);*)
       let typ' = Types.array_element_type typ in
-      let szl = Utils.enumerate (Dimension.size_const_dimension d) in
+      let szl = Utils.enumerate (Dimension.size_const d) in
       fprintf fmt "@[<v 2>{@,%a@]@,}"
         (pp_print_list (fun fmt i ->
              r := i;

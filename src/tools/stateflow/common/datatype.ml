@@ -1,3 +1,4 @@
+open Utils
 open Basetypes
 (* open ActiveEnv *)
 
@@ -119,20 +120,20 @@ module SF = struct
       t.condition_act Action.pp_act t.transition_act pp_dest t.dest
 
   let pp_transitions fmt l =
-    Format.fprintf fmt "@[<hov 0>[@[<hov 0>%a@]@ ]@]"
-      (Utils.fprintf_list ~sep:";@ " pp_trans)
-      l
+    Format.(fprintf fmt "@[<hov 0>[@[<hov 0>%a@]@ ]@]"
+              (pp_print_list ~pp_sep:pp_print_semicolon pp_trans)
+              l)
 
   let pp_comp fmt c =
     match c with
     | Or (_T, _S) ->
-      Format.fprintf fmt "Or(%a, {%a})" pp_transitions _T
-        (Utils.fprintf_list ~sep:"; " pp_state_name)
-        _S
+      Format.(fprintf fmt "Or(%a, {%a})" pp_transitions _T
+                (pp_print_list ~pp_sep:pp_print_semicolon pp_state_name)
+                _S)
     | And _S ->
-      Format.fprintf fmt "And({%a})"
-        (Utils.fprintf_list ~sep:"; " pp_state_name)
-        _S
+      Format.(fprintf fmt "And({%a})"
+                (pp_print_list ~pp_sep:pp_print_semicolon pp_state_name)
+                _S)
 
   let pp_state_actions fmt sa =
     Format.fprintf fmt "@[<hov 0>(%a,@ %a,@ %a)@]" Action.pp_act sa.entry_act
@@ -144,25 +145,23 @@ module SF = struct
       pp_transitions s.inner_trans pp_comp s.internal_composition
 
   let pp_src pp_sffunction fmt src =
-    Format.fprintf fmt "@[<v>%a@ @]"
-      (Utils.fprintf_list ~sep:"@ @ " (fun fmt src ->
-           match src with
-           | State (p, def) ->
-             Format.fprintf fmt "%a: %a" pp_path p pp_state def
-           | Junction (s, tl) ->
-             Format.fprintf fmt "%a: %a" pp_state_name s pp_transitions tl
-           | SFFunction p ->
-             pp_sffunction fmt p))
-      src
+    Format.(fprintf fmt "@[<v>%a@ @]"
+              (pp_print_list ~pp_sep:pp_print_cutcut (fun fmt src ->
+                   match src with
+                   | State (p, def) ->
+                     Format.fprintf fmt "%a: %a" pp_path p pp_state def
+                   | Junction (s, tl) ->
+                     Format.fprintf fmt "%a: %a" pp_state_name s pp_transitions tl
+                   | SFFunction p ->
+                     pp_sffunction fmt p))
+              src)
 
   let rec pp_sffunction fmt (Program (name, component_list, _)) =
     Format.fprintf fmt "SFFunction name: %s@ %a@ " name (pp_src pp_sffunction)
       component_list
 
   let pp_vars fmt src =
-    Format.fprintf fmt "@[<v>%a@ @]"
-      (Utils.fprintf_list ~sep:"@ " Printers.pp_var)
-      src
+    Format.(fprintf fmt "@[<v>%a@ @]" (pp_print_list Printers.pp_var) src)
 
   let pp_prog fmt (Program (name, component_list, vars)) =
     Format.fprintf fmt "Main node name: %s@ %a@ %a@" name (pp_src pp_sffunction)

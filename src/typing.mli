@@ -26,3 +26,9 @@ val type_prog: Types.t Env.t -> program_t -> Types.t Env.t
 val check_typedef_compat: top_decl list -> unit
 
 val check_env_compat: top_decl list -> Types.t Env.t -> Types.t Env.t -> unit
+
+val uneval_prog_generics: program_t -> unit
+
+(* Equality on ground types only *)
+(* Should be used between local variables which must have a ground type *)
+val eq_ground: Types.t -> Types.t -> bool

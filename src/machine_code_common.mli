@@ -111,6 +111,8 @@ val join_guards_list :
 
 val machine_vars : machine_t -> var_decl list
 
+val get_machine: machine_t list -> ident -> machine_t
+
 module PrintSpec : sig
   val pp_spec :
     machine_t ->

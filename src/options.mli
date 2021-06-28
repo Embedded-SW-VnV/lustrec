@@ -16,6 +16,7 @@ val spec: option_spec ref
 type option_output =
   | OutC
   | OutAda
+  | OutJava
   | OutEMF
   | OutHorn
   | OutLustre
@@ -76,3 +77,7 @@ val nb_mutants: int ref
 val gen_mcdc: bool ref
 
 val no_mutation_suffix: bool ref
+
+val compile_header: bool ref
+
+val track_exceptions: bool ref

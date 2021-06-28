@@ -9,6 +9,7 @@
 (*                                                                  *)
 (********************************************************************)
 
+open Utils
 open Format
 open Lustre_types
 open Machine_code_types
@@ -60,7 +61,7 @@ let pp_conj pp fmt l =
   | [ x ] ->
     pp fmt x
   | _ ->
-    fprintf fmt "(and @[<v 0>%a@]@ )" (Utils.fprintf_list ~sep:"@ " pp) l
+    fprintf fmt "(and @[<v 0>%a@]@ )" (pp_print_list pp) l
 
 (********************************************************************************************)
 (* Workaround to prevent the use of declared keywords as node name *)

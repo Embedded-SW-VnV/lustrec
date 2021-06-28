@@ -98,7 +98,9 @@
 
 *)
 
+open Utils
 open Lustre_types
+open Corelang
 open Machine_code_types
 open Machine_code_common
 open Format
@@ -107,8 +109,6 @@ open EMF_common
 exception Unhandled of string
 
 module ISet = Utils.ISet
-
-let fprintf_list = Utils.fprintf_list
 
 (**********************************************)
 (*   Utility functions: arrow and lustre expr *)
@@ -170,7 +170,8 @@ let get_instr_id fmt i =
       fprintf fmt "branch_%i" !branch_cpt
   | MStep (outs, id, _) ->
       print_protect fmt (fun fmt ->
-          fprintf fmt "%a_%s" (fprintf_list ~sep:"_" pp_var_name) outs id)
+        fprintf fmt "%a_%s" (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "_")
+                               pp_var_name) outs id)
   | _ -> ()
 (* No name *)
 
@@ -212,7 +213,7 @@ and branch_instr_vars m i =
         lhs,
         if is_stateful && is_resetable_fun i.lustre_eq then
           let reset_var =
-            let loc = Location.dummy_loc in
+            let loc = Location.dummy in
             Corelang.mkvar_decl loc
               ( reset_name f,
                 Corelang.mktyp loc Tydec_bool,
@@ -334,7 +335,7 @@ let rec pp_emf_instr m fmt i =
         fprintf fmt "\"guard\": %a,@ " (pp_emf_cst_or_var m) g;
         (* it has to be a variable or a constant *)
         fprintf fmt "\"outputs\": [%a],@ "
-          (fprintf_list ~sep:", " pp_var_string)
+          (pp_comma_list pp_var_string)
           (ISet.elements outputs);
         fprintf fmt "\"inputs\": [%a],@ " pp_emf_vars_decl
           (*
@@ -343,7 +344,7 @@ let rec pp_emf_instr m fmt i =
            remove guard's variable from inputs *)
           (VSet.elements inputs);
         fprintf fmt "@[<v 2>\"branches\": {@ @[<v 0>%a@]@]@ }"
-          (fprintf_list ~sep:",@ " (fun fmt (tag, instrs_tag) ->
+          (pp_comma_list (fun fmt (tag, instrs_tag) ->
                let branch_all_lhs, _, branch_inputs =
                  branch_block_vars m instrs_tag
                in
@@ -377,7 +378,7 @@ let rec pp_emf_instr m fmt i =
           (fun fmt -> pp_print_string fmt node_f.node_id)
           f;
         fprintf fmt "\"lhs\": [@[%a@]],@ \"args\": [@[%a@]]"
-          (fprintf_list ~sep:",@ " (fun fmt v ->
+          (pp_comma_list (fun fmt v ->
                fprintf fmt "\"%a\"" pp_var_name v))
           outputs (pp_emf_cst_or_var_list m) inputs;
         if is_stateful then
@@ -398,12 +399,12 @@ let rec pp_emf_instr m fmt i =
   fprintf fmt "@]@]@ }"
 
 and pp_emf_instrs m fmt instrs =
-  fprintf_list ~sep:",@ " (pp_emf_instr m) fmt instrs
+  pp_comma_list (pp_emf_instr m) fmt instrs
 
 let pp_emf_annot cpt fmt (key, ee) =
   let _ =
     fprintf fmt "\"ann%i\": { @[<hov 0>\"key\": [%a],@ \"eexpr\": %a@] }" !cpt
-      (fprintf_list ~sep:"," (fun fmt s -> fprintf fmt "\"%s\"" s))
+      (pp_comma_list (fun fmt s -> fprintf fmt "\"%s\"" s))
       key pp_emf_eexpr ee
   in
   incr cpt
@@ -442,10 +443,10 @@ let pp_emf_spec fmt spec =
   fprintf fmt "@] }"
 
 let pp_emf_annots cpt fmt annots =
-  fprintf_list ~sep:",@ " (pp_emf_annot cpt) fmt annots.annots
+  pp_comma_list (pp_emf_annot cpt) fmt annots.annots
 
 let pp_emf_annots_list cpt fmt annots_list =
-  fprintf_list ~sep:",@ " (pp_emf_annots cpt) fmt annots_list
+  pp_comma_list (pp_emf_annots cpt) fmt annots_list
 
 (* let pp_emf_contract fmt nd =
  *   let c = Printers.node_as_contract nd in
@@ -523,7 +524,7 @@ let pp_emf_imported_node fmt top =
 (****************************************************)
 let pp_meta fmt basename =
   fprintf fmt "\"meta\": @[<v 0>{@ ";
-  Utils.fprintf_list ~sep:",@ "
+  Format.pp_comma_list
     (fun fmt (k, v) -> fprintf fmt "\"%s\": \"%s\"" k v)
     fmt
     [
@@ -550,7 +551,7 @@ let translate fmt basename prog machines =
   fprintf fmt "}@],@ ";
   fprintf fmt "\"nodes\": @[<v 0>{@ ";
   (* Previous alternative: mapping normalized lustre to EMF:
-     fprintf_list ~sep:",@ " pp_decl fmt prog; *)
+     pp_comma_list pp_decl fmt prog; *)
   pp_emf_list pp_machine fmt machines;
   fprintf fmt "}@]@ }";
   fprintf fmt "@]@ }"

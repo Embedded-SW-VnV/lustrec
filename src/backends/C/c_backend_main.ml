@@ -16,6 +16,8 @@ open Utils.Format
 open C_backend_common
 open Utils
 
+module Mpfr = Lustrec_mpfr
+
 module type MODIFIERS_MAINSRC = sig end
 
 module EmptyMod = struct end
@@ -37,7 +39,7 @@ functor
 
     let print_put_output fmt id o' o =
       let suff = string_of_int (id + 1) in
-      print_put_var fmt suff o'.var_id o.var_type o.var_id
+      pp_put_var fmt suff o'.var_id o.var_type o.var_id
 
     let print_main_inout_declaration fmt m =
       fprintf fmt
@@ -133,7 +135,7 @@ functor
           outputs
 
     let print_get_input fmt id v' v =
-      let pp_file = pp_print_file ("in" ^ string_of_int (id + 1)) in
+      let pp_file = pp_file ("in" ^ string_of_int (id + 1)) in
       let unclocked_t = Types.unclock_type v.var_type in
       fprintf fmt "@[<v>%a@]"
         (fun fmt () ->
@@ -156,8 +158,8 @@ functor
                 pp_file ("f", v.var_id)
           else (
             Global.main_node := !Options.main_node;
-            eprintf "Code generation error: %a%a@." Error.pp_error_msg
-              Error.Main_wrong_kind Location.pp_loc v'.var_loc;
+            eprintf "Code generation error: %a%a@." Error.pp
+              Error.Main_wrong_kind Location.pp v'.var_loc;
             raise (Error.Error (v'.var_loc, Error.Main_wrong_kind))))
         ()
 
@@ -318,7 +320,7 @@ functor
          @,\
          %a@,\
          %a\n\
-        \       @]@." print_main_header () print_import_alloc_prototype
+        \       @]@." print_main_header () pp_import_alloc_prototype
         {
           local = true;
           name = basename;

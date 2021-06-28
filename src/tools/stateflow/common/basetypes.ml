@@ -33,7 +33,8 @@ let pp_state_name = Format.pp_print_string
 
 let pp_junction_name = Format.pp_print_string
 
-let pp_path fmt p = Utils.fprintf_list ~sep:"." pp_state_name fmt p
+let pp_path fmt p =
+  Utils.Format.pp_print_list ~pp_sep:(fun fmt () -> Format.pp_print_string fmt ".") pp_state_name fmt p
 
 let pp_event fmt e =
   match e with

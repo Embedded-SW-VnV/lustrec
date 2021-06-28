@@ -114,9 +114,9 @@ let extract_contract machines m =
     @param basename name of the lustre file @param prog list of machines to
     translate **)
 let translate_to_ada basename machines =
-  let module Ads = Ada_backend_ads.Main in
-  let module Adb = Ada_backend_adb.Main in
-  let module Wrapper = Ada_backend_wrapper.Main in
+  (* let module Ads = Ada_backend_ads.Main in
+   * let module Adb = Ada_backend_adb.Main in
+   * let module Wrapper = Ada_backend_wrapper.Main in *)
   let is_real_machine m =
     match m.mspec.mnode_spec with Some (Contract _) -> false | _ -> true
   in
@@ -145,9 +145,9 @@ let translate_to_ada basename machines =
     | main_node -> (
       match Machine_code_common.get_machine_opt filtered_machines main_node with
       | None ->
-        Format.eprintf "Ada Code generation error: %a@." Error.pp_error_msg
+        Format.eprintf "Ada Code generation error: %a@." Error.pp
           Error.Main_not_found;
-        raise (Error.Error (Location.dummy_loc, Error.Main_not_found))
+        raise (Error.Error (Location.dummy, Error.Main_not_found))
       | Some m ->
         Some m)
   in
@@ -158,10 +158,10 @@ let translate_to_ada basename machines =
   List.iter check machines;
 
   log_str_level_two 1 "Generating ads";
-  List.iter (write_file destname (_pp_filename "ads") Ads.pp_file) _machines;
+  List.iter (write_file destname (_pp_filename "ads") Ada_backend_ads.pp_file) _machines;
 
   log_str_level_two 1 "Generating adb";
-  List.iter (write_file destname (_pp_filename "adb") Adb.pp_file) _machines;
+  List.iter (write_file destname (_pp_filename "adb") Ada_backend_adb.pp_file) _machines;
 
   (* If a main node is given we generate a main adb file and a project file *)
   log_str_level_two 1 "Generating wrapper files";
@@ -169,19 +169,19 @@ let translate_to_ada basename machines =
   | None ->
     ()
   | Some machine ->
-    write_file destname pp_main_filename Wrapper.pp_main_adb
+    write_file destname pp_main_filename Ada_backend_wrapper.pp_main_adb
       (*get_typed_submachines filtered_machines machine*)
       machine;
     write_file destname
-      (fun fmt _ -> Wrapper.pp_project_name (basename ^ "_exe") fmt)
-      (Wrapper.pp_project_file filtered_machines basename)
+      (fun fmt _ -> Ada_backend_wrapper.pp_project_name (basename ^ "_exe") fmt)
+      (Ada_backend_wrapper.pp_project_file filtered_machines basename)
       main_machine);
-  write_file destname Wrapper.pp_project_configuration_name
-    (fun fmt _ -> Wrapper.pp_project_configuration_file fmt)
+  write_file destname Ada_backend_wrapper.pp_project_configuration_name
+    (fun fmt _ -> Ada_backend_wrapper.pp_project_configuration_file fmt)
     basename;
   write_file destname
-    (fun fmt _ -> Wrapper.pp_project_name (basename ^ "_lib") fmt)
-    (Wrapper.pp_project_file filtered_machines basename)
+    (fun fmt _ -> Ada_backend_wrapper.pp_project_name (basename ^ "_lib") fmt)
+    (Ada_backend_wrapper.pp_project_file filtered_machines basename)
     None
 
 (* Local Variables: *)
