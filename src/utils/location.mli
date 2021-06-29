@@ -8,4 +8,5 @@ val get_module: unit -> filename
 val curr: Lexing.lexbuf -> t
 val shift: t -> t -> t
 val set_input: filename -> unit
-val filename_of_loc: t -> filename
+val filename_of: t -> filename
+val line_of: t -> int

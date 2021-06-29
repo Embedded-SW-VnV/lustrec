@@ -5,7 +5,7 @@ module type S = sig
 
   val usage : Format.formatter -> unit
 
-  val options : (string * Arg.spec * string) list
+  val options : Options_management.options_spec
 
   val init : unit -> unit
 

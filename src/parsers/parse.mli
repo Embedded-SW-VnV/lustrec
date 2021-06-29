@@ -1,3 +1,5 @@
+exception Error
+
 type start_symbol = Header | Program
 
 module type LEXER = sig

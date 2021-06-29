@@ -12,7 +12,6 @@
  (modules
   lustre_types
   utils
-  lustre_utils
   location
   dimension
   env
@@ -136,7 +135,7 @@
 (executable
  (name main_lustre_testgen)
  (public_name lustret)
- (modules main_lustre_testgen mutation mmap pathConditions)
+ (modules main_lustre_testgen mutation pathConditions)
  (libraries lustrec_lib))
 
 (library

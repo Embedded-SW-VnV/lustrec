@@ -1,3 +1,4 @@
+open Utils
 open Basetypes
 open CPS_transformer
 
@@ -34,8 +35,8 @@ end) : TransformerType = struct
       fun () -> cpt := 0 )
 
   let pp_path prefix fmt path =
-    Format.fprintf fmt "%s%t" prefix (fun fmt ->
-        Utils.fprintf_list ~sep:"_" Format.pp_print_string fmt path)
+    Format.(fprintf fmt "%s%t" prefix (fun fmt ->
+        pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "_") pp_print_string fmt path))
 
   (* let pp_typed_path sin fmt path =
    *   Format.fprintf fmt "%a : bool" (pp_path sin) path *)
@@ -53,7 +54,7 @@ end) : TransformerType = struct
     List.map (fun p -> var_to_ident prefix p) (ActiveStates.Vars.elements vars)
 
   let mkvar name typ =
-    let loc = Location.dummy_loc in
+    let loc = Location.dummy in
     Corelang.mkvar_decl loc
       ( name,
         typ,
@@ -65,7 +66,7 @@ end) : TransformerType = struct
   let var_to_vdecl ?(prefix = "") var typ = mkvar (var_to_ident prefix var) typ
 
   let state_vars_to_vdecl_list ?(prefix = "") vars =
-    let bool_type = Corelang.mktyp Location.dummy_loc Lustre_types.Tydec_bool in
+    let bool_type = Corelang.mktyp Location.dummy Lustre_types.Tydec_bool in
     List.map
       (fun v -> var_to_vdecl ~prefix v bool_type)
       (ActiveStates.Vars.elements vars)
@@ -77,11 +78,11 @@ end) : TransformerType = struct
       locs []
   (* TODO: declare global vars *)
 
-  let mkeq = Corelang.mkeq Location.dummy_loc
+  let mkeq = Corelang.mkeq Location.dummy
 
-  let mkexpr = Corelang.mkexpr Location.dummy_loc
+  let mkexpr = Corelang.mkexpr Location.dummy
 
-  let mkpredef_call = Corelang.mkpredef_call Location.dummy_loc
+  let mkpredef_call = Corelang.mkpredef_call Location.dummy
 
   let expr_of_bool b =
     mkexpr (Lustre_types.Expr_const (Corelang.const_of_bool b))
@@ -104,14 +105,14 @@ end) : TransformerType = struct
       [
         {
           Lustre_types.assert_expr = expr_of_bool false;
-          assert_loc = Location.dummy_loc;
+          assert_loc = Location.dummy;
         };
       ]
     else []
 
   let var_to_expr ?(prefix = "") p =
     let id = var_to_ident prefix p in
-    Corelang.expr_of_ident id Location.dummy_loc
+    Corelang.expr_of_ident id Location.dummy
 
   let vars_to_exprl ?(prefix = "") vars =
     List.map (fun p -> var_to_expr ~prefix p) (ActiveStates.Vars.elements vars)
@@ -128,7 +129,7 @@ end) : TransformerType = struct
   let event_type =
     {
       Lustre_types.ty_dec_desc = Lustre_types.Tydec_const "event_type";
-      Lustre_types.ty_dec_loc = Location.dummy_loc;
+      Lustre_types.ty_dec_loc = Location.dummy;
     }
 
   let event_var = mkvar "event" event_type
@@ -192,15 +193,15 @@ end) : TransformerType = struct
 
   let mkact' action sin sout =
     match action with
-    | Action.Call (c, a) ->
+    | Call (c, a) ->
       mkcall' sin sout c a
-    | Action.Quote a ->
+    | Quote a ->
       (* TODO: check. This seems to be innappropriate *)
       (* let funname = "action_" ^ a.ident in let args = vars_to_exprl
          ~prefix:sin Vars.state_vars in let rhs = mkpredef_call funname args in
          mkstmt_eq ~prefix_lhs:sout Vars.state_vars rhs *)
       { statements = a.defs; assert_false = false }
-    | Action.Open p ->
+    | Open p ->
       let vars' = ActiveStates.Vars.remove p Vars.state_vars in
       (* eq1: sout_p = true *)
       let eq1 = mkeq ([ var_to_ident sout p ], expr_of_bool true) in
@@ -212,7 +213,7 @@ end) : TransformerType = struct
         statements = [ Lustre_types.Eq eq1; Lustre_types.Eq eq2 ];
         assert_false = false;
       }
-    | Action.Close p ->
+    | Close p ->
       let vars' = ActiveStates.Vars.remove p Vars.state_vars in
       (* eq1: sout_p = false *)
       let eq1 = mkeq ([ var_to_ident sout p ], expr_of_bool false) in
@@ -224,7 +225,7 @@ end) : TransformerType = struct
         statements = [ Lustre_types.Eq eq1; Lustre_types.Eq eq2 ];
         assert_false = false;
       }
-    | Action.Nil ->
+    | Nil ->
       let expr_list = vars_to_exprl ~prefix:sin Vars.state_vars in
       let rhs = mkexpr (Lustre_types.Expr_tuple expr_list) in
       mkstmt_eq ~prefix_lhs:sout Vars.state_vars rhs
@@ -237,11 +238,11 @@ end) : TransformerType = struct
   let rec mkcond' sin condition =
     (*Format.printf "----- cond = %a@." Condition.pp_cond condition;*)
     match condition with
-    | Condition.True ->
+    | True ->
       expr_of_bool true
-    | Condition.Active p ->
+    | Active p ->
       var_to_expr ~prefix:sin p
-    | Condition.Event e ->
+    | Event e ->
       mkpredef_call "="
         [
           Corelang.expr_of_vdecl event_var;
@@ -249,17 +250,17 @@ end) : TransformerType = struct
             (Lustre_types.Expr_const
                (Lustre_types.Const_int (get_event_const e)));
         ]
-    | Condition.Neg cond ->
+    | Neg cond ->
       mkpredef_call "not" [ mkcond' sin cond ]
-    | Condition.And (cond1, cond2) ->
+    | And (cond1, cond2) ->
       mkpredef_call "&&" [ mkcond' sin cond1; mkcond' sin cond2 ]
-    | Condition.Quote c ->
+    | Quote c ->
       c.expr
   (* TODO: shall we prefix with sin ? *)
 
   let eval_cond condition (ok : t) ko sin sout =
     let open Lustre_types in
-    let loc = Location.dummy_loc in
+    let loc = Location.dummy in
     (*Format.printf "----- cond = %a@." Condition.pp_cond condition;*)
     let vars1, tr1 = ok sin sout in
     let vars2, tr2 = ko sin sout in
@@ -275,7 +276,7 @@ end) : TransformerType = struct
                  [
                    loc, mkcond' sin condition, true (* restart *), "Cond_" ^ aut;
                    ( loc,
-                     mkcond' sin (Condition.Neg condition),
+                     mkcond' sin (Neg condition),
                      true (* restart *),
                      "NotCond_" ^ aut );
                  ]
@@ -385,7 +386,7 @@ end) : TransformerType = struct
      - elles peuvent/doivent etre dans input et output de ce node thetacallD *)
 
   let mk_main_loop () =
-    (* let loc = Location.dummy_loc in *)
+    (* let loc = Location.dummy in *)
     let call_stmt =
       (* (%t) -> pre (thetaCallD_from_principal (event, %a)) *)
       let init =

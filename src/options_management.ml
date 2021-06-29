@@ -10,6 +10,8 @@
 (********************************************************************)
 open Options
 
+type options_spec = (string * Arg.spec * string) list
+
 let print_version () =
   let open Utils.Format in
   printf

@@ -58,7 +58,7 @@ let rec compute_scopes ?(first = true) prog root_node : scope_t list =
     local_scopes @ List.flatten sub_scopes
   with Not_found -> []
 
-let print_scopes =
+let pp_scopes =
   Format.(pp_print_list (fun fmt ((_, v) as s) ->
       fprintf fmt "%a: %a"
         (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ".") pp_print_string)
@@ -177,13 +177,10 @@ let extract_scopes_defs scopes =
     | _ ->
       assert false
   in
-  let scopes_vars =
-    List.map
-      (fun (sl, scope) ->
-        String.concat "." sl, scope_path_name scope "main_mem.")
-      scopes
-  in
-  scopes_vars
+  List.map
+    (fun (sl, scope) ->
+       String.concat "." sl, scope_path_name scope "main_mem.")
+    scopes
 
 let pp_scopes_files _basename _mname fmt scopes =
   let scopes_vars = extract_scopes_defs scopes in
@@ -202,7 +199,7 @@ let pp_scopes_files _basename _mname fmt scopes =
     scopes_vars;
   Format.fprintf fmt "@]}@ "
 
-let pp_scopes fmt scopes =
+let pp_full_scopes fmt scopes =
   let scopes_vars = extract_scopes_defs scopes in
   List.iteri
     (fun idx (id, (var_path, var)) ->
@@ -433,13 +430,13 @@ end = struct
       let all_scopes = compute_scopes prog !Options.main_node in
       (* Printing scopes *)
       if !Options.verbose_level >= 1 then Format.printf "Possible scopes are:@ ";
-      Format.printf "@[<v 0>%a@ @]@.@?" print_scopes all_scopes;
+      Format.printf "@[<v 0>%a@ @]@.@?" pp_scopes all_scopes;
       exit 0);
     if is_active () then process_scopes !Options.main_node prog machine_code
     else machine_code
 
   let c_backend_main_loop_body_suffix fmt () =
-    if is_active () then Format.fprintf fmt "@ %a" pp_scopes !scopes_map
+    if is_active () then Format.fprintf fmt "@ %a" pp_full_scopes !scopes_map
 
   let c_backend_main_loop_body_prefix basename mname fmt () =
     if is_active () then

@@ -120,13 +120,13 @@ let newline token lexbuf =
 
 let make_annot orig_loc s =
   let lexbuf = Lexing.from_string s in
-  let f = Location.filename_of_loc orig_loc in
+  let f = Location.filename_of orig_loc in
   ANNOT (Parse.parse (module LexerLustreSpec) ~orig_loc f s lexbuf
         Parser_lustre.lustre_annot Parse.Inc.lustre_annot)
 
 let make_spec orig_loc s =
   let lexbuf = Lexing.from_string s in
-  let f = Location.filename_of_loc orig_loc in
+  let f = Location.filename_of orig_loc in
   NODESPEC (Parse.parse (module LexerLustreSpec) ~orig_loc f s lexbuf
         Parser_lustre.lustre_spec Parse.Inc.lustre_spec)
 }

@@ -84,7 +84,7 @@ let verify dirname basename extension =
     let all_scopes = Scopes.compute_scopes prog !Options.main_node in
     (* Printing scopes *)
     if !Options.verbose_level >= 1 then Format.printf "Possible scopes are:@   ";
-    Format.printf "@[<v>%a@ @]@ @?" Scopes.print_scopes all_scopes;
+    Format.printf "@[<v>%a@ @]@ @?" Scopes.pp_scopes all_scopes;
     exit 0);
 
   let machine_code = Plugins.refine_machine_code prog machine_code in
@@ -126,7 +126,7 @@ let _ =
   | Parse.Error | Types.Error (_, _) | Clocks.Error (_, _) ->
     exit 1
   | Error.Error (loc, kind) (*| Task_set.Error _*) ->
-    Error.pp_error loc (fun fmt -> Error.pp_error_msg fmt kind);
+    Error.pp_error loc (fun fmt -> Error.pp fmt kind);
     exit (Error.return_code kind)
   (* | Causality.Error _ -> exit (Error.return_code Error.AlgebraicLoop) *)
   | Sys_error msg ->

@@ -24,3 +24,5 @@ val type_decls: Types.t Env.t -> program_t -> Types.t Env.t
 val clock_decls: Clocks.t Env.t -> program_t -> Clocks.t Env.t
 
 val create_dest_dir: unit -> unit
+
+val track_exception: unit -> unit

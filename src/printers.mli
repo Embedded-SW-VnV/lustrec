@@ -20,3 +20,5 @@ val pp_typedef: formatter -> typedef_desc -> unit
 val pp_prog: formatter -> program_t -> unit
 val pp_prog_short: formatter -> program_t -> unit
 val pp_quantifiers: formatter -> quantifier_type * var_decl list -> unit
+val pp_node_list: formatter -> top_decl list -> unit
+val pp_lusi_header: formatter -> string -> program_t -> unit

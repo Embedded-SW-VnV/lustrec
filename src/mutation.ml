@@ -5,6 +5,7 @@
    terminating process. The current setting is harder but may miss enumerating
    some cases. To be checked! *)
 
+open Utils
 open Lustre_types
 open Corelang
 open Log
@@ -56,7 +57,7 @@ module IntSet = Set.Make (struct
   let compare = compare
 end)
 
-module OpCount = Mmap.Make (struct
+module OpCount = Map.Make (struct
   type t = string
 
   let compare = compare
@@ -198,7 +199,7 @@ let check_mut e1 e2 =
   in
   if not (eq e1 e2) then Some (e1, e2) else None
 
-let mk_cst_expr c = mkexpr Location.dummy_loc (Expr_const c)
+let mk_cst_expr c = mkexpr Location.dummy (Expr_const c)
 
 let rdm_mutate_int i =
   if Random.int 100 > threshold_inc_int then i + 1
@@ -423,7 +424,7 @@ let set_mutation_loc () =
     assert false
 (* Those global vars should be defined during the visitor pattern execution *)
 
-let print_directive fmt d =
+let pp_directive fmt d =
   match d with
   | Pre n ->
     Format.fprintf fmt "pre %i" n
@@ -438,7 +439,7 @@ let print_directive fmt d =
   | SwitchIntCst (n, m) ->
     Format.fprintf fmt "switch int cst %i -> %i" n m
 
-let print_directive_json fmt d =
+let pp_directive_json fmt d =
   match d with
   | Pre _ ->
     Format.fprintf fmt "\"mutation\": \"pre\""
@@ -454,11 +455,11 @@ let print_directive_json fmt d =
   | SwitchIntCst (_, m) ->
     Format.fprintf fmt "\"mutation\": \"cst_switch\", \"to_cst\": \"%i\"" m
 
-let print_loc_json fmt (n, eqlhs, l) =
-  Format.fprintf fmt
-    "\"node_id\": \"%s\", \"eq_lhs\": [%a], \"loc_line\": \"%i\"" n
-    (Utils.fprintf_list ~sep:", " (fun fmt s -> Format.fprintf fmt "\"%s\"" s))
-    eqlhs (Location.loc_line l)
+let pp_loc_json fmt (n, eqlhs, l) =
+  Format.(fprintf fmt
+            "\"node_id\": \"%s\", \"eq_lhs\": [%a], \"loc_line\": \"%i\"" n
+            (pp_comma_list (fun fmt -> fprintf fmt "\"%s\""))
+            eqlhs (Location.line_of l))
 
 let fold_mutate_int i =
   if Random.int 100 > threshold_inc_int then i + 1
@@ -643,11 +644,11 @@ let create_mutant prog directive =
       mi
     | _ ->
       Format.eprintf "Failed when creating mutant for directive %a@.@?"
-        print_directive directive;
+        pp_directive directive;
       let _ =
         match !target with
         | Some dir' ->
-          Format.eprintf "New directive %a@.@?" print_directive dir'
+          Format.eprintf "New directive %a@.@?" pp_directive dir'
         | _ ->
           ()
       in

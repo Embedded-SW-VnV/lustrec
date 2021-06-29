@@ -5,7 +5,7 @@ module type S = sig
 
   val is_active : unit -> bool
 
-  val options : (string * Arg.spec * string) list
+  val options : Options_management.options_spec
 
   val get_normalization_params : unit -> Normalization.param_t
 

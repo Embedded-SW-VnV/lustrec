@@ -328,7 +328,7 @@ let mcdc_top_decl td =
                 [ "PROPERTY" ], neg_ee;
                 (* Using negated property to force model-checker to produce a
                    suitable covering trace *)
-                (let loc = Location.dummy_loc in
+                (let loc = Location.dummy in
                  let valid_e =
                    let open Corelang in
                    mkexpr loc (Expr_const (const_of_bool atom_valid))

@@ -11,9 +11,9 @@
 
 (* This module is used for the lustre test generator *)
 
-open Format
 open Log
 open Utils
+open Format
 open Compiler_common
 
 let usage = "Usage: lustret [options] \x1b[4msource file\x1b[0m"
@@ -23,13 +23,12 @@ let extensions = [ ".lus" ]
 let pp_trace trace_filename mutation_list =
   let trace_file = open_out trace_filename in
   let trace_fmt = formatter_of_out_channel trace_file in
-  Format.fprintf trace_fmt "@[<v 2>{@ %a@ }@]"
-    (fprintf_list ~sep:",@ " (fun fmt (mutation, mutation_loc, mutant_name) ->
-         Format.fprintf fmt "\"%s\": { @[<v 0>%a,@ %a@ }@]" mutant_name
-           Mutation.print_directive_json mutation Mutation.print_loc_json
-           mutation_loc))
-    mutation_list;
-  Format.fprintf trace_fmt "@.@?"
+  Format.(fprintf trace_fmt "@[<v 2>{@ %a@ }@]@.@?"
+            (pp_comma_list (fun fmt (mutation, mutation_loc, mutant_name) ->
+                 fprintf fmt "\"%s\": { @[<v 0>%a,@ %a@ }@]" mutant_name
+                   Mutation.pp_directive_json mutation Mutation.pp_loc_json
+                   mutation_loc))
+            mutation_list)
 
 let testgen_source dirname basename extension =
   let source_name = dirname ^ "/" ^ basename ^ extension in
@@ -69,7 +68,7 @@ let testgen_source dirname basename extension =
     Format.fprintf fmt "@.@?";
 
     (* Prog is (1) cleaned from initial equations TODO (2) produced as EMF *)
-    Options.output := "emf";
+    Options.output := Options.OutEMF;
     let params = Backends.get_normalization_params () in
     let prog_mcdc = Normalization.normalize_prog params prog_mcdc in
     let prog_mcdc, machine_code = Compiler_stages.stage2 params prog_mcdc in
@@ -117,7 +116,7 @@ let testgen_source dirname basename extension =
         let mutant_fmt = formatter_of_out_channel mutant_out in
         report ~level:1 (fun fmt ->
             fprintf fmt ".. generating mutant %s: %a@,@?" mutant_filename
-              Mutation.print_directive mutation);
+              Mutation.pp_directive mutation);
         Format.fprintf mutant_fmt "%a@." Printers.pp_prog mutant;
         mutation, mutation_loc, mutant_basename)
       mutants

@@ -96,13 +96,15 @@ module type ActionType = sig
   val pp_act : Format.formatter -> t -> unit
 end
 
+type action_t =
+  | Quote : base_action_t -> action_t
+  | Close : path_t -> action_t
+  | Open : path_t -> action_t
+  | Call : 'c call_t * 'c -> action_t
+  | Nil : action_t
+
 module Action = struct
-  type t =
-    | Quote : base_action_t -> t
-    | Close : path_t -> t
-    | Open : path_t -> t
-    | Call : 'c call_t * 'c -> t
-    | Nil : t
+  type t = action_t
 
   let nil = Nil
 
@@ -163,14 +165,16 @@ module type ConditionType = sig
   val pp_cond : Format.formatter -> t -> unit
 end
 
+type condition_t =
+  | Quote of base_condition_t
+  | Active of path_t
+  | Event of event_base_t
+  | And of condition_t * condition_t
+  | Neg of condition_t
+  | True
+
 module Condition = struct
-  type t =
-    | Quote of base_condition_t
-    | Active of path_t
-    | Event of event_base_t
-    | And of t * t
-    | Neg of t
-    | True
+  type t = condition_t
 
   let cquote cond = Quote cond
 

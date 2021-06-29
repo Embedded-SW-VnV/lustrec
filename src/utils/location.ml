@@ -29,7 +29,7 @@ let set_input, get_input, get_module =
 
 let curr lexbuf = lexbuf.lex_start_p, lexbuf.lex_curr_p
 
-let filename_of_loc (s, _) = s.pos_fname
+let filename_of (s, _) = s.pos_fname
 
 let filename_of_lexbuf lexbuf = lexbuf.lex_start_p.pos_fname
 
@@ -49,7 +49,7 @@ let shift_pos pos1 pos2 =
          then pos1.pos_cnum + pos2.pos_cnum else pos2.pos_cnum *);
   }
 
-let loc_line (s, _e) = s.pos_lnum
+let line_of (s, _e) = s.pos_lnum
 
 let pp fmt loc =
   if loc = dummy then () else Format.fprintf fmt "%s" (Lex.range loc)

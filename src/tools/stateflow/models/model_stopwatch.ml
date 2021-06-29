@@ -16,7 +16,7 @@ let condition _ =
   condition
     {
       expr =
-        Corelang.mkexpr Location.dummy_loc
+        Corelang.mkexpr Location.dummy
           (Lustre_types.Expr_const (Corelang.const_of_bool true));
       cinputs = [];
       coutputs = [];
@@ -289,10 +289,10 @@ let model =
     ]
   in
   let globals =
-    let int_typ = Corelang.mktyp Location.dummy_loc Lustre_types.Tydec_int in
+    let int_typ = Corelang.mktyp Location.dummy Lustre_types.Tydec_int in
     List.map
       (fun k ->
-        ( Corelang.mkvar_decl Location.dummy_loc
+        ( Corelang.mkvar_decl Location.dummy
             ( k,
               (* name *)
               int_typ,
@@ -305,7 +305,7 @@ let model =
               (* no default value *)
               None (* no parent known *) ),
           (* Default value is zero *)
-          Corelang.mkexpr Location.dummy_loc
+          Corelang.mkexpr Location.dummy
             (Lustre_types.Expr_const (Lustre_types.Const_int 0)) ))
       [ "cent"; "sec"; "min"; "cont" ]
   in

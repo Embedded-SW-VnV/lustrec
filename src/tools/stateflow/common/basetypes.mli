@@ -1,3 +1,5 @@
+val sf_level: int
+
 type state_name_t = string
 
 type junction_name_t = string
@@ -25,16 +27,18 @@ type base_condition_t = {
   cvariables : Lustre_types.var_decl list;
 }
 
-val pp_state_name: Format.formatter -> state_name_t -> unit
-val pp_junction_name: Format.formatter -> junction_name_t -> unit
-val pp_path: Format.formatter -> path_t -> unit
-
 type frontier_t = Loose | Strict
 
 type _ call_t =
   | Ecall : (path_t * path_t * frontier_t) call_t
   | Dcall : path_t call_t
   | Xcall : (path_t * frontier_t) call_t
+
+val pp_state_name: Format.formatter -> state_name_t -> unit
+val pp_junction_name: Format.formatter -> junction_name_t -> unit
+val pp_path: Format.formatter -> path_t -> unit
+val pp_frontier: Format.formatter -> frontier_t -> unit
+val pp_call: Format.formatter -> 'a call_t -> unit
 
 (* Conditions are either (1) simple strings, (2) the active status of a state or
    (3) occurence of an event. They can be combined (conjunction, negation) *)
@@ -56,7 +60,15 @@ module type ConditionType = sig
   val pp_cond : Format.formatter -> t -> unit
 end
 
-module Condition: ConditionType
+type condition_t =
+  | Quote of base_condition_t
+  | Active of path_t
+  | Event of event_base_t
+  | And of condition_t * condition_t
+  | Neg of condition_t
+  | True
+
+module Condition: ConditionType with type t = condition_t
 
 module type ActionType = sig
   type t
@@ -74,4 +86,15 @@ module type ActionType = sig
   val pp_act : Format.formatter -> t -> unit
 end
 
-module Action: ActionType
+type action_t =
+  | Quote : base_action_t -> action_t
+  | Close : path_t -> action_t
+  | Open : path_t -> action_t
+  | Call : 'c call_t * 'c -> action_t
+  | Nil : action_t
+
+module Action: ActionType with type t = action_t
+
+module GlobalVarDef: sig
+  type t = { variable : Lustre_types.var_decl; init_val : Lustre_types.expr }
+end

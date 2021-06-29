@@ -6,6 +6,8 @@ open Machine_code_types
 val unfoldable_value: Machine_code_types.value_t -> bool
 val inject_prog: program_t -> program_t
 
+val mpfr_module: top_decl
+
 val mpfr_t: string
 
 val mpfr_rnd: unit -> string
