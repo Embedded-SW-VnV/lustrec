@@ -9,7 +9,7 @@ val pp_emf_cst_or_var : machine_t -> formatter -> value_t -> unit
 
 val pp_var_name : formatter -> var_decl -> unit
 
-val print_protect : formatter -> (formatter -> unit) -> unit
+val pp_protect : formatter -> (formatter -> unit) -> unit
 
 val pp_var_string : formatter -> ident -> unit
 

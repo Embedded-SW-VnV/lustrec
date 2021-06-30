@@ -29,6 +29,13 @@ extern void _arrow_dealloc (struct _arrow_mem *);
 /* ACSL arrow spec */
 //@ ghost struct _arrow_mem_ghost {struct _arrow_reg _reg;};
 
+#define _arrow_DECLARE_GHOST(attr, inst)\
+  attr struct _arrow_mem_ghost inst;
+
+#define _arrow_LINK_GHOST(inst) do {\
+  ;\
+} while (0)
+
 #define _arrow_reset_ghost(mem) (mem)._reg._first = 1
 #define _arrow_step_ghost(mem) (mem)._reg._first = 0
 

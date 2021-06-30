@@ -47,12 +47,16 @@ let pp_e_map fmt =
 let pp_ze_hash fmt =
   pp_hash
     (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))
-    Format.pp_print_int fmt ze_hash
+    Format.pp_print_int
+    fmt
+    ze_hash
 
 let pp_e_hash fmt =
-  pp_hash Format.pp_print_int
+  pp_hash
+    Format.pp_print_int
     (fun fmt e -> Format.fprintf fmt "%s" (Z3.Expr.to_string e))
-    fmt e_hash
+    fmt
+    e_hash
 
 let mem_expr e =
   (* Format.eprintf "Searching for %a in map: @[<v 0>%t@]"
@@ -84,7 +88,9 @@ let get_zid (ze : Z3.Expr.expr) : Utils.tag =
     else if Z3.Expr.equal ze (neg_ze is_init_z3e) then -2
     else Hashtbl.find ze_hash ze
   with _ ->
-    Format.eprintf "Looking for ze %s in Hash %a" (Z3.Expr.to_string ze)
+    Format.eprintf
+      "Looking for ze %s in Hash %a"
+      (Z3.Expr.to_string ze)
       (fun fmt hash ->
         Hashtbl.iter
           (fun ze uid ->
@@ -186,7 +192,8 @@ let expr_to_z3_expr, zexpr_to_expr =
               let real = Real.create_q ratio s in
               mkexpr Location.dummy_loc (Expr_const (Const_real real))
             else if Z3.Arithmetic.is_int ze then
-              mkexpr Location.dummy_loc
+              mkexpr
+                Location.dummy_loc
                 (Expr_const
                    (Const_int (Z.to_int (Z3.Arithmetic.Integer.get_big_int ze))))
             else if Z3.Expr.is_const ze then
@@ -198,7 +205,9 @@ let expr_to_z3_expr, zexpr_to_expr =
               | _ ->
                 assert false
             else (
-              Format.eprintf "Const err: %s %b@." (Z3.Expr.to_string ze)
+              Format.eprintf
+                "Const err: %s %b@."
+                (Z3.Expr.to_string ze)
                 (Z3.Expr.is_const ze);
               assert false (* a numeral but no int nor real *))
           in
@@ -226,7 +235,8 @@ let expr_to_z3_expr, zexpr_to_expr =
                   List.fold_left
                     (fun e e_new ->
                       mkpredef_call Location.dummy_loc op [ e; e_new ])
-                    first_binary_and tl
+                    first_binary_and
+                    tl
             in
 
             None, Some e
@@ -256,11 +266,15 @@ let expr_to_z3_expr, zexpr_to_expr =
                       x
                     | Some e1, Some e2 ->
                       Some (mkpredef_call Location.dummy_loc op [ e1; e2 ]) ))
-                hd tl)
+                hd
+                tl)
           | op ->
             let args = List.map (fun ze -> snd (ze2e ze)) zel in
-            Format.eprintf "deal with op %s (nb args: %i). Expr is %s@." op
-              (List.length args) (Z3.Expr.to_string ze);
+            Format.eprintf
+              "deal with op %s (nb args: %i). Expr is %s@."
+              op
+              (List.length args)
+              (Z3.Expr.to_string ze);
             assert false)
   in
   (fun e -> e2ze e), fun ze -> ze2e ze
@@ -309,8 +323,11 @@ let implies =
     else (
       if !seal_debug then
         report ~level:6 (fun fmt ->
-            Format.fprintf fmt "Checking implication: %s => %s?@ "
-              (Z3.Expr.to_string ze1) (Z3.Expr.to_string ze2));
+            Format.fprintf
+              fmt
+              "Checking implication: %s => %s?@ "
+              (Z3.Expr.to_string ze1)
+              (Z3.Expr.to_string ze2));
       let solver = Z3.Solver.mk_simple_solver !ctx in
       let tgt = Z3.Boolean.mk_not !ctx (Z3.Boolean.mk_implies !ctx ze1 ze2) in
       let res =
@@ -347,7 +364,8 @@ let rec simplify zl =
           if implies hd e then true, accu (* throwing away e *)
           else if implies e hd then false, e :: accu (* throwing away hd *)
           else keep_hd, e :: accu (* keeping both *))
-        (true, []) tl
+        (true, [])
+        tl
     in
     (* Format.eprintf "keep_hd?%b hd=%s, tl=[%a]@."
      *   keep_hd
@@ -377,13 +395,15 @@ let check_sat ?(just_check = false) (l : elem_boolexpr guard) :
         l
     in
     if false then
-      Format.eprintf "Z3 exprs1: [%a]@ "
+      Format.eprintf
+        "Z3 exprs1: [%a]@ "
         (fprintf_list ~sep:",@ " (fun fmt e ->
              Format.fprintf fmt "%s" (Z3.Expr.to_string e)))
         zl;
     let zl = simplify zl in
     if false then
-      Format.eprintf "Z3 exprs2: [%a]@ "
+      Format.eprintf
+        "Z3 exprs2: [%a]@ "
         (fprintf_list ~sep:",@ " (fun fmt e ->
              Format.fprintf fmt "%s" (Z3.Expr.to_string e)))
         zl;
@@ -391,7 +411,8 @@ let check_sat ?(just_check = false) (l : elem_boolexpr guard) :
     let status_res = Z3.Solver.check solver zl in
     (* Format.eprintf "Z3 done@."; *)
     if false then
-      Format.eprintf "Z3 status: %s@ @]@. "
+      Format.eprintf
+        "Z3 status: %s@ @]@. "
         (Z3.Solver.string_of_status status_res);
     match status_res with
     | Z3.Solver.UNSATISFIABLE ->
@@ -430,7 +451,8 @@ let clean_sys sys =
       if sat then
         (List.map (fun (e, b) -> deelem e, b) guards', updates) :: accu
       else accu)
-    [] sys
+    []
+    sys
 
 (* Most costly function: has the be efficiently implemented. All registered
    guards are initially produced by the call to combine_guards. We csan
@@ -510,7 +532,8 @@ let combine_guards ?(fresh = None) gl1 gl2 =
             if keep_long_e then short, long_e :: long_sel, true
             else short, long_sel, true
           else [], [], false)
-        (short, [], true) long
+        (short, [], true)
+        long
     in
     ok, long_sel @ short
   in
@@ -538,8 +561,10 @@ let concatenate_ge gel1 posneg gel2 =
 
             (* Format.eprintf "@]@ Result is [%a]@ " * pp_guard_list gl; *)
             if ok then (gl, e2) :: accu, false else accu, all_invalid)
-          (accu, all_invalid) gel1)
-      ([], true) gel2
+          (accu, all_invalid)
+          gel1)
+      ([], true)
+      gel2
   in
   not all_invalid, l
 
@@ -604,7 +629,8 @@ let rec rewrite defs expr : elem_guarded_expr list =
             let e = rewrite e in
             let ok, g_eq_id = concatenate_ge g true e in
             if ok then g_eq_id @ accu else accu)
-          [] branches
+          []
+          branches
       else assert false (* g should be defined already *)
     | Expr_when (e, id, l) ->
       let e = rewrite e in
@@ -637,8 +663,10 @@ let rec rewrite defs expr : elem_guarded_expr list =
                     in
                     new_gt :: accu
                   else accu)
-                accu getl)
-            [] gel
+                accu
+                getl)
+            []
+            gel
       in
       let gtuples = aux gell in
       (* Rebuilding the valid type: guarded expr list (with tuple exprs) *)
@@ -673,8 +701,12 @@ and add_def defs vid expr =
    *   (Utils.fprintf_list ~sep:"@ "
    *      (pp_guard_expr pp_elem)) vid_defs; *)
   report ~level:6 (fun fmt ->
-      Format.fprintf fmt "Add_def: %s = %a@. -> @[<v 0>%a@]@." vid
-        Printers.pp_expr expr
+      Format.fprintf
+        fmt
+        "Add_def: %s = %a@. -> @[<v 0>%a@]@."
+        vid
+        Printers.pp_expr
+        expr
         (Utils.fprintf_list ~sep:"@ " (pp_guard_expr pp_elem))
         vid_defs);
   Hashtbl.add defs vid vid_defs;
@@ -701,12 +733,17 @@ let split_mdefs elem (mdefs : elem_guarded_expr list) =
            lists *)
         ge :: selected, ge :: left_out
       | _ ->
-        Format.eprintf "@.Spliting list on elem %a.@.List:%a@." pp_elem elem
-          (pp_mdefs pp_elem) mdefs;
+        Format.eprintf
+          "@.Spliting list on elem %a.@.List:%a@."
+          pp_elem
+          elem
+          (pp_mdefs pp_elem)
+          mdefs;
         assert false
       (* more then one element selected. Should not happen , or trival dead code
          like if x then if not x then dead code *))
-    ([], []) mdefs
+    ([], [])
+    mdefs
 
 let split_mem_defs (elem : element)
     (mem_defs : (ident * elem_guarded_expr list) list) :
@@ -716,7 +753,8 @@ let split_mem_defs (elem : element)
     (fun (m, mdefs) (accu_pos, accu_neg) ->
       let pos, neg = split_mdefs elem mdefs in
       (m, pos) :: accu_pos, (m, neg) :: accu_neg)
-    mem_defs ([], [])
+    mem_defs
+    ([], [])
 
 (* Split a list of mem_defs into init and step lists of guarded expressions per
    memory. *)
@@ -748,7 +786,8 @@ let rec pick_guard mem_defs : expr option =
             | (IsInit, _) :: _ ->
               assert false (* should be removed already *)
           else found)
-        None gel
+        None
+        gel
     in
     if found = None then pick_guard tl else found
 
@@ -759,7 +798,10 @@ let rec build_switch_sys
     ((expr * bool) list * (ident * expr) list) list =
   if !seal_debug then
     report ~level:4 (fun fmt ->
-        Format.fprintf fmt "@[<v 2>Build_switch with@ %a@]@." pp_all_defs
+        Format.fprintf
+          fmt
+          "@[<v 2>Build_switch with@ %a@]@."
+          pp_all_defs
           mem_defs);
   (* if all mem_defs have empty guards, we are done, return prefix, mem_defs
      expr.
@@ -803,7 +845,9 @@ let rec build_switch_sys
       let elem_opt : expr option = pick_guard mem_defs in
       match elem_opt with
       | None ->
-        Format.eprintf "Issues picking guard in mem_defs: %a@." pp_all_defs
+        Format.eprintf
+          "Issues picking guard in mem_defs: %a@."
+          pp_all_defs
           mem_defs;
         assert false (* Otherwise the first case should have matched *)
       | Some elem -> (
@@ -834,8 +878,11 @@ let rec build_switch_sys
           let clean l =
             let l = List.map (fun (e, b) -> Expr e, b) l in
             report ~level:4 (fun fmt ->
-                Format.fprintf fmt "Checking satisfiability of %a@."
-                  (pp_guard_list pp_elem) l);
+                Format.fprintf
+                  fmt
+                  "Checking satisfiability of %a@."
+                  (pp_guard_list pp_elem)
+                  l);
             let ok, l = check_sat l in
             let l = List.map (fun (e, b) -> deelem e, b) l in
             ok, l
@@ -865,9 +912,13 @@ let rec build_switch_sys
         Format.fprintf fmt "@[<v 2>===> @[%t@ @]@]@ @]@ " (fun fmt ->
             List.iter
               (fun (gl, up) ->
-                Format.fprintf fmt "[@[%a@]] -> (%a)@ "
+                Format.fprintf
+                  fmt
+                  "[@[%a@]] -> (%a)@ "
                   (pp_guard_list Printers.pp_expr)
-                  gl (pp_up Printers.pp_expr) up)
+                  gl
+                  (pp_up Printers.pp_expr)
+                  up)
               res));
   res
 
@@ -897,7 +948,10 @@ let build_environement consts (mems : var_decl list) nd =
     List.iter
       (fun v ->
         let fdecl =
-          Z3.FuncDecl.mk_func_decl_s !ctx v.var_id []
+          Z3.FuncDecl.mk_func_decl_s
+            !ctx
+            v.var_id
+            []
             (Zustre_common.type_to_sort v.var_type)
         in
         ignore (Zustre_common.register_fdecl v.var_id fdecl))
@@ -908,8 +962,11 @@ let build_environement consts (mems : var_decl list) nd =
   in
 
   report ~level:4 (fun fmt ->
-      Format.fprintf fmt "Computing definitions for equations@.%a@."
-        Printers.pp_node_eqs sorted_eqs);
+      Format.fprintf
+        fmt
+        "Computing definitions for equations@.%a@."
+        Printers.pp_node_eqs
+        sorted_eqs);
 
   (* Registering node equations: identifying mem definitions and storing others
      in the "defs" hashtbl.
@@ -931,7 +988,10 @@ let build_environement consts (mems : var_decl list) nd =
                   Format.fprintf fmt "Preparing mem %s@." vid);
               let def_vid = rewrite defs def_m in
               report ~level:4 (fun fmt ->
-                  Format.fprintf fmt "%s = %a@." vid
+                  Format.fprintf
+                    fmt
+                    "%s = %a@."
+                    vid
                     (Utils.fprintf_list ~sep:"@ " (pp_guard_expr pp_elem))
                     def_vid);
               (vid, def_vid) :: accu_mems, accu_outputs
@@ -950,19 +1010,26 @@ let build_environement consts (mems : var_decl list) nd =
         | _ ->
           assert false
         (* should have been removed by normalization *))
-      ([], []) sorted_eqs
+      ([], [])
+      sorted_eqs
   in
   report ~level:1 (fun fmt ->
       Format.fprintf fmt "registering all definitions done@.");
 
   report ~level:2 (fun fmt ->
-      Format.fprintf fmt
+      Format.fprintf
+        fmt
         "Printing out (guarded) memories definitions (may takes time)@.");
   (* Printing memories definitions *)
   report ~level:3 (fun fmt ->
-      Format.fprintf fmt "@[<v 0>%a@]@."
+      Format.fprintf
+        fmt
+        "@[<v 0>%a@]@."
         (Utils.fprintf_list ~sep:"@ " (fun fmt (m, mdefs) ->
-             Format.fprintf fmt "%s -> [@[<v 0>%a@] ]@ " m
+             Format.fprintf
+               fmt
+               "%s -> [@[<v 0>%a@] ]@ "
+               m
                (Utils.fprintf_list ~sep:"@ " (pp_guard_expr pp_elem))
                mdefs))
         mem_defs);
@@ -987,7 +1054,8 @@ let merge_updates sys =
           let guard_set = UpMap.find up map in
           UpMap.add up (new_set :: guard_set) map
         else UpMap.add up [ new_set ] map)
-      UpMap.empty sys
+      UpMap.empty
+      sys
   in
 
   (* Processing the set of guards leading to the same update: return conj, disj
@@ -1059,11 +1127,15 @@ let merge_updates sys =
     (fun up (common, disj) accu ->
       if !seal_debug then
         report ~level:6 (fun fmt ->
-            Format.fprintf fmt
+            Format.fprintf
+              fmt
               "Guards:@.shared: [%a]@.disj: [@[<v 0>%a@ ]@]@.Updates: %a@."
-              Guards.pp_short common
+              Guards.pp_short
+              common
               (fprintf_list ~sep:";@ " Guards.pp_long)
-              disj UpMap.pp up);
+              disj
+              UpMap.pp
+              up);
       let disj = clean_disj disj in
       let guard_expr = gl_as_expr common @ disj in
 
@@ -1074,7 +1146,8 @@ let merge_updates sys =
           Some (mk_binop "&&" guard_expr)),
         up )
       :: accu)
-    map []
+    map
+    []
 
 (* Take a normalized node and extract a list of switches: (cond, update) meaning
    "if cond then update" where update shall define all node memories. Everything
@@ -1087,8 +1160,13 @@ let node_as_switched_sys consts (mems : var_decl list) nd =
   let init_out, update_out = split_init output_defs in
 
   report ~level:3 (fun fmt ->
-      Format.fprintf fmt "@[<v 0>Init:@ %a@ Step:@ %a@]@."
-        (pp_assign_map pp_elem) init_defs (pp_assign_map pp_elem) update_defs);
+      Format.fprintf
+        fmt
+        "@[<v 0>Init:@ %a@ Step:@ %a@]@."
+        (pp_assign_map pp_elem)
+        init_defs
+        (pp_assign_map pp_elem)
+        update_defs);
 
   report ~level:1 (fun fmt ->
       Format.fprintf fmt "init/step as a switched system ...@.");
@@ -1122,7 +1200,8 @@ let node_as_switched_sys consts (mems : var_decl list) nd =
   report ~level:3 (fun fmt -> Format.fprintf fmt "Process update_out:@.");
   let update_out = merge_updates update_out in
   report ~level:1 (fun fmt ->
-      Format.fprintf fmt
+      Format.fprintf
+        fmt
         "removing dead branches and merging remaining ... done@.");
 
   sw_init, sw_sys, init_out, update_out
@@ -1141,7 +1220,8 @@ let fun_as_switched_sys consts nd =
   let update_out = clean_sys update_out in
   let update_out = merge_updates update_out in
   report ~level:1 (fun fmt ->
-      Format.fprintf fmt
+      Format.fprintf
+        fmt
         "removing dead branches and merging remaining ... done@.");
 
   update_out

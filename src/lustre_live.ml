@@ -67,7 +67,8 @@ let set_live_of nid outputs locals sorted_eqs =
     let occ, _ =
       List.fold_left
         (fun (s, j) eq -> if j <= i then s, j + 1 else occur s eq, j + 1)
-        (empty, 0) sorted_eqs
+        (empty, 0)
+        sorted_eqs
     in
     diff locals occ
   in
@@ -83,7 +84,10 @@ let set_live_of nid outputs locals sorted_eqs =
   in
   Log.report ~level:6 (fun fmt ->
       Format.(
-        fprintf fmt "Live variables of %s: %a@;@;" nid
+        fprintf
+          fmt
+          "Live variables of %s: %a@;@;"
+          nid
           (pp_print_list ~pp_open_box:pp_open_vbox0 (fun fmt (i, l) ->
                fprintf fmt "%i: %a" i ISet.pp l))
           (Live.bindings l)));

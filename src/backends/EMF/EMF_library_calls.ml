@@ -15,15 +15,22 @@ let pp_call fmt m f outputs inputs =
     let inode = Corelang.imported_node_of_top decl in
     match inode.nodei_id, Filename.basename decl.top_decl_owner with
     | name, (("lustrec_math" | "simulink_math_fcn" | "conv") as lib) ->
-      fprintf fmt
+      fprintf
+        fmt
         "\"kind\": \"functioncall\",@ \"name\": \"%s\",@ \"library\": \"%s\",@ "
-        name lib;
-      fprintf fmt "\"lhs\": [@[%a@]],@ \"args\": [@[%a@]]"
+        name
+        lib;
+      fprintf
+        fmt
+        "\"lhs\": [@[%a@]],@ \"args\": [@[%a@]]"
         (pp_comma_list (fun fmt v ->
              fprintf fmt "\"%a\"" Printers.pp_var_name v))
-        outputs (pp_emf_cst_or_var_list m) inputs
+        outputs
+        (pp_emf_cst_or_var_list m)
+        inputs
     | _ ->
-      Format.eprintf "Calls to function %s in library %s are not handled yet.@."
+      Format.eprintf
+        "Calls to function %s in library %s are not handled yet.@."
         inode.nodei_id
         (Filename.basename decl.top_decl_owner);
       assert false)

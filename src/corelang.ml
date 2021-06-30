@@ -303,18 +303,22 @@ let (node_table : (ident, top_decl) Hashtbl.t) = Hashtbl.create 30
 
 let consts_table = Hashtbl.create 30
 
-let print_node_table fmt () =
+let pp_node_table fmt () =
   Format.fprintf fmt "{ /* node table */@.";
   Hashtbl.iter
     (fun id nd -> Format.fprintf fmt "%s |-> %a" id Printers.pp_short_decl nd)
     node_table;
   Format.fprintf fmt "}@."
 
-let print_consts_table fmt () =
+let pp_consts_table fmt () =
   Format.fprintf fmt "{ /* consts table */@.";
   Hashtbl.iter
     (fun id const ->
-      Format.fprintf fmt "%s |-> %a" id Printers.pp_const_decl
+      Format.fprintf
+        fmt
+        "%s |-> %a"
+        id
+        Printers.pp_const_decl
         (const_of_top const))
     consts_table;
   Format.fprintf fmt "}@."
@@ -383,7 +387,8 @@ let top_real_type =
   mktop (TypeDef { tydef_id = "real"; tydef_desc = Tydec_real })
 
 let type_table =
-  Utils.create_hashtable 20
+  Utils.create_hashtable
+    20
     [
       Tydec_int, top_int_type;
       Tydec_bool, top_bool_type;
@@ -391,12 +396,17 @@ let type_table =
       Tydec_real, top_real_type;
     ]
 
-let print_type_table fmt () =
+let pp_type_table fmt () =
   Format.fprintf fmt "{ /* type table */@.";
   Hashtbl.iter
     (fun tydec tdef ->
-      Format.fprintf fmt "%a |-> %a" Printers.pp_var_type_dec_desc tydec
-        Printers.pp_typedef (typedef_of_top tdef))
+      Format.fprintf
+        fmt
+        "%a |-> %a"
+        Printers.pp_var_type_dec_desc
+        tydec
+        Printers.pp_typedef
+        (typedef_of_top tdef))
     type_table;
   Format.fprintf fmt "}@."
 
@@ -507,7 +517,8 @@ let const_impl c1 c2 =
 
 (* To guarantee uniqueness of tags in enum types *)
 let tag_table =
-  Utils.create_hashtable 20
+  Utils.create_hashtable
+    20
     [ tag_true, top_bool_type; tag_false, top_bool_type ]
 
 (* To guarantee uniqueness of fields in struct types *)
@@ -613,10 +624,12 @@ let rec expr_of_dimension dim =
     | Dident id ->
       mkexpr dim.dim_loc (Expr_ident id)
     | Dite (c, t, e) ->
-      mkexpr dim.dim_loc
+      mkexpr
+        dim.dim_loc
         (Expr_ite (expr_of_dimension c, expr_of_dimension t, expr_of_dimension e))
     | Dappl (id, args) ->
-      mkexpr dim.dim_loc
+      mkexpr
+        dim.dim_loc
         (Expr_appl
            ( id,
              expr_of_expr_list dim.dim_loc (List.map expr_of_dimension args),
@@ -624,8 +637,10 @@ let rec expr_of_dimension dim =
     | Dlink dim' ->
       expr_of_dimension dim'
     | Dvar | Dunivar ->
-      Format.eprintf "internal error: Corelang.expr_of_dimension %a@."
-        Dimension.pp dim;
+      Format.eprintf
+        "internal error: Corelang.expr_of_dimension %a@."
+        Dimension.pp
+        dim;
       assert false
   in
   { expr with expr_type = Types.new_ty Types.type_int }
@@ -654,10 +669,15 @@ let rec dimension_of_expr expr =
       Types.get_static_value (Env.lookup_value Basic_library.type_env f)
     in
     if k = None then raise InvalidDimension;
-    mkdim_appl expr.expr_loc f
+    mkdim_appl
+      expr.expr_loc
+      f
       (List.map dimension_of_expr (expr_list_of_expr args))
   | Expr_ite (i, t, e) ->
-    mkdim_ite expr.expr_loc (dimension_of_expr i) (dimension_of_expr t)
+    mkdim_ite
+      expr.expr_loc
+      (dimension_of_expr i)
+      (dimension_of_expr t)
       (dimension_of_expr e)
   | _ ->
     raise InvalidDimension
@@ -673,7 +693,8 @@ let rec is_eq_const c1 c2 =
     List.length lcl1 = List.length lcl2
     && List.for_all2
          (fun (l1, c1) (l2, c2) -> l1 = l2 && is_eq_const c1 c2)
-         lcl1 lcl2
+         lcl1
+         lcl2
   | _ ->
     c1 = c2
 
@@ -702,7 +723,8 @@ let rec is_eq_expr e1 e2 =
     i = i'
     && List.for_all2
          (fun (t, h) (t', h') -> t = t' && is_eq_expr h h')
-         (sort_handlers hl) (sort_handlers hl')
+         (sort_handlers hl)
+         (sort_handlers hl')
   | Expr_appl (i, e, r), Expr_appl (i', e', r') ->
     i = i' && r = r' && is_eq_expr e e'
   | Expr_power (e1, i1), Expr_power (e2, i2)
@@ -736,7 +758,8 @@ let get_node_eqs =
           eq :: res_eq, res_aut
         | Aut aut ->
           res_eq, aut :: res_aut)
-      stmts ([], [])
+      stmts
+      ([], [])
   in
   let table_eqs = Hashtbl.create 23 in
   fun nd ->
@@ -762,7 +785,8 @@ let get_nodes prog =
         decl :: nodes
       | Const _ | ImportedNode _ | Include _ | Open _ | TypeDef _ ->
         nodes)
-    [] prog
+    []
+    prog
   |> List.rev
 
 let get_imported_nodes prog =
@@ -773,7 +797,8 @@ let get_imported_nodes prog =
         decl :: nodes
       | Const _ | Node _ | Include _ | Open _ | TypeDef _ ->
         nodes)
-    [] prog
+    []
+    prog
 
 let get_consts prog =
   List.fold_right
@@ -783,7 +808,8 @@ let get_consts prog =
         decl :: consts
       | Node _ | ImportedNode _ | Include _ | Open _ | TypeDef _ ->
         consts)
-    prog []
+    prog
+    []
 
 let get_typedefs prog =
   List.fold_right
@@ -793,7 +819,8 @@ let get_typedefs prog =
         decl :: types
       | Node _ | ImportedNode _ | Include _ | Open _ | Const _ ->
         types)
-    prog []
+    prog
+    []
 
 let get_dependencies prog =
   List.fold_right
@@ -803,7 +830,8 @@ let get_dependencies prog =
         decl :: deps
       | Node _ | ImportedNode _ | TypeDef _ | Include _ | Const _ ->
         deps)
-    prog []
+    prog
+    []
 
 let get_node_interface nd =
   {
@@ -823,7 +851,9 @@ let get_node_interface nd =
 (* Renaming / Copying *)
 
 let copy_var_decl vdecl =
-  mkvar_decl vdecl.var_loc ~orig:vdecl.var_orig
+  mkvar_decl
+    vdecl.var_loc
+    ~orig:vdecl.var_orig
     ( vdecl.var_id,
       vdecl.var_dec_type,
       vdecl.var_dec_clock,
@@ -875,7 +905,7 @@ let rename_carrier rename cck =
   | _ ->
     cck
 
-(*Format.eprintf "Types.rename_static %a = %a@." print_ty ty print_ty res; res*)
+(*Format.eprintf "Types.rename_static %a = %a@." pp ty pp res; res*)
 
 (* applies the renaming function [fvar] to all variables of expression [expr] *)
 (* let rec expr_replace_var fvar expr = *)
@@ -1114,7 +1144,8 @@ let rename_prog f_node f_var f_const prog =
          | ImportedNode _ | Include _ | Open _ ->
            top)
          :: accu)
-       [] prog)
+       []
+       prog)
 
 (* Applies the renaming function [fvar] to every rhs only when the corresponding
    lhs satisfies predicate [pvar] *)
@@ -1175,11 +1206,11 @@ let pp_decl_type fmt tdecl =
   | Node nd ->
     fprintf fmt "%s: " nd.node_id;
     Utils.reset_names ();
-    fprintf fmt "%a" Types.print_ty nd.node_type
+    fprintf fmt "%a" Types.pp nd.node_type
   | ImportedNode ind ->
     fprintf fmt "%s: " ind.nodei_id;
     Utils.reset_names ();
-    fprintf fmt "%a" Types.print_ty ind.nodei_type
+    fprintf fmt "%a" Types.pp ind.nodei_type
   | Const _ | Include _ | Open _ | TypeDef _ ->
     ()
 
@@ -1210,7 +1241,8 @@ let vdecls_of_typ_ck cpt ty =
     (fun _ ->
       incr cpt;
       let name = sprintf "_var_%d" !cpt in
-      mkvar_decl loc
+      mkvar_decl
+        loc
         (name, mktyp loc Tydec_any, mkclock loc Ckdec_any, false, None, None))
     (Types.type_list_of_type ty)
 
@@ -1336,7 +1368,8 @@ let rec get_expr_calls nodes e =
   | Expr_tuple el | Expr_array el ->
     List.fold_left
       (fun accu e -> Utils.ISet.union accu (get_calls e))
-      Utils.ISet.empty el
+      Utils.ISet.empty
+      el
   | Expr_pre e1 | Expr_when (e1, _, _) | Expr_access (e1, _) | Expr_power (e1, _)
     ->
     get_calls e1
@@ -1349,7 +1382,8 @@ let rec get_expr_calls nodes e =
   | Expr_merge (_, hl) ->
     List.fold_left
       (fun accu (_, h) -> Utils.ISet.union accu (get_calls h))
-      Utils.ISet.empty hl
+      Utils.ISet.empty
+      hl
   | Expr_appl (i, e', _) ->
     if Basic_library.is_expr_internal_fun e then get_calls e'
     else
@@ -1375,23 +1409,27 @@ and get_aut_handler_calls nodes h =
         Utils.ISet.union (get_eq_calls nodes eq) accu
       | Aut aut' ->
         Utils.ISet.union (get_aut_calls nodes aut') accu)
-    Utils.ISet.empty h.hand_stmts
+    Utils.ISet.empty
+    h.hand_stmts
 
 and get_aut_calls nodes aut =
   List.fold_left
     (fun accu h -> Utils.ISet.union (get_aut_handler_calls nodes h) accu)
-    Utils.ISet.empty aut.aut_handlers
+    Utils.ISet.empty
+    aut.aut_handlers
 
 and get_node_calls nodes node =
   let eqs, auts = get_node_eqs node in
   let aut_calls =
     List.fold_left
       (fun accu aut -> Utils.ISet.union (get_aut_calls nodes aut) accu)
-      Utils.ISet.empty auts
+      Utils.ISet.empty
+      auts
   in
   List.fold_left
     (fun accu eq -> Utils.ISet.union (get_eq_calls nodes eq) accu)
-    aut_calls eqs
+    aut_calls
+    eqs
 
 let get_expr_vars e =
   let rec get_expr_vars vars e = get_expr_desc_vars vars e.expr_desc
@@ -1418,7 +1456,8 @@ let get_expr_vars e =
     | Expr_merge (c, hl) ->
       List.fold_left
         (fun vars (_, h) -> get_expr_vars vars h)
-        (Utils.ISet.add c vars) hl
+        (Utils.ISet.add c vars)
+        hl
     | Expr_appl (_, arg, None) ->
       get_expr_vars vars arg
     | Expr_appl (_, arg, Some r) ->
@@ -1509,9 +1548,12 @@ let find_eq xl eqs =
   let rec aux accu eqs =
     match eqs with
     | [] ->
-      Format.eprintf "Looking for variables %a in the following equations@.%a@."
+      Format.eprintf
+        "Looking for variables %a in the following equations@.%a@."
         (pp_comma_list (fun fmt v -> Format.fprintf fmt "%s" v))
-        xl Printers.pp_node_eqs eqs;
+        xl
+        Printers.pp_node_eqs
+        eqs;
       assert false
     | hd :: tl ->
       if List.exists (fun x -> List.mem x hd.eq_lhs) xl then hd, accu @ tl
@@ -1532,7 +1574,8 @@ let get_node name prog =
           if nd.node_id = name then Some nd else res
         | _ ->
           None)
-      None prog
+      None
+      prog
   in
   try Utils.desome node_opt with Utils.DeSome -> raise Not_found
 

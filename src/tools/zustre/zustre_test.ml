@@ -73,14 +73,19 @@ let _ =
   let expr_f = Z3.Boolean.mk_implies !ctx expr_f_lhs expr_f_rhs in
   (* Adding forall as prefix *)
   let expr_forall_f =
-    Z3.Quantifier.mk_forall_const !ctx
+    Z3.Quantifier.mk_forall_const
+      !ctx
       (* context *)
       (* [int_sort; int_sort]           (\* sort list*\) *)
       (* [Z3.FuncDecl.get_name x; Z3.FuncDecl.get_name y] (\* symbol list *\) *)
       (*    [x_expr; y_expr] Second try with expr list "const" *)
       [ Z3.Expr.mk_const_f !ctx x; Z3.Expr.mk_const_f !ctx y ]
-      expr_f (* expression *) None (* quantifier weight, None means 1 *) []
-      (* pattern list ? *) [] (* ? *) None (* ? *) None
+      expr_f
+      (* expression *) None
+      (* quantifier weight, None means 1 *) []
+      (* pattern list ? *) []
+      (* ? *) None
+      (* ? *) None
     (* ? *)
   in
   let expr_forall_f = Z3.Quantifier.expr_of_quantifier expr_forall_f in
@@ -109,14 +114,19 @@ let _ =
   let expr_main1 = Z3.Boolean.mk_implies !ctx expr_main1_lhs expr_main1_rhs in
   (* Adding forall as prefix *)
   let expr_forall_main1 =
-    Z3.Quantifier.mk_forall_const !ctx
+    Z3.Quantifier.mk_forall_const
+      !ctx
       (* context *)
       (* [int_sort; int_sort] (* sort list*) [Z3.FuncDecl.get_name x;
          Z3.FuncDecl.get_name y] (* symbol list *) *)
       (* [x_expr; y_expr] Second try with expr list "const" *)
       [ Z3.Expr.mk_const_f !ctx x; Z3.Expr.mk_const_f !ctx y ]
-      expr_main1 (* expression *) None (* quantifier weight, None means 1 *) []
-      (* pattern list ? *) [] (* ? *) None (* ? *) None
+      expr_main1
+      (* expression *) None
+      (* quantifier weight, None means 1 *) []
+      (* pattern list ? *) []
+      (* ? *) None
+      (* ? *) None
     (* ? *)
   in
   let expr_forall_main1 = Z3.Quantifier.expr_of_quantifier expr_forall_main1 in
@@ -125,7 +135,8 @@ let _ =
   (* Rule 2: forall x,y, MAIN(x,y) => MAIN(x+1, y+1) *)
   let expr_main2_lhs = main_x_y_expr in
   let plus_one x =
-    Z3.Arithmetic.mk_add !ctx
+    Z3.Arithmetic.mk_add
+      !ctx
       [
         x;
         (* Z3.Arithmetic.Integer.mk_const_s !ctx "1" *)
@@ -139,14 +150,19 @@ let _ =
   let expr_main2 = Z3.Boolean.mk_implies !ctx expr_main2_lhs expr_main2_rhs in
   (* Adding forall as prefix *)
   let expr_forall_main2 =
-    Z3.Quantifier.mk_forall_const !ctx
+    Z3.Quantifier.mk_forall_const
+      !ctx
       (* context *)
       (* [int_sort; int_sort] (* sort list*) [Z3.FuncDecl.get_name x;
          Z3.FuncDecl.get_name y] (* symbol list *) *)
       (* [x_expr; y_expr] Second try with expr list "const" *)
       [ Z3.Expr.mk_const_f !ctx x; Z3.Expr.mk_const_f !ctx y ]
-      expr_main2 (* expression *) None (* quantifier weight, None means 1 *) []
-      (* pattern list ? *) [] (* ? *) None (* ? *) None
+      expr_main2
+      (* expression *) None
+      (* quantifier weight, None means 1 *) []
+      (* pattern list ? *) []
+      (* ? *) None
+      (* ? *) None
     (* ? *)
   in
   let expr_forall_main2 = Z3.Quantifier.expr_of_quantifier expr_forall_main2 in
@@ -165,14 +181,19 @@ let _ =
   let expr_err = Z3.Boolean.mk_implies !ctx expr_err_lhs expr_err_rhs in
   (* Adding forall as prefix *)
   let expr_forall_err =
-    Z3.Quantifier.mk_forall_const !ctx
+    Z3.Quantifier.mk_forall_const
+      !ctx
       (* context *)
       (* [int_sort; int_sort] (* sort list*) [Z3.FuncDecl.get_name x;
          Z3.FuncDecl.get_name y] (* symbol list *) *)
       (* [x_expr; y_expr] Second try with expr list "const" *)
       [ Z3.Expr.mk_const_f !ctx x; Z3.Expr.mk_const_f !ctx y ]
-      expr_err (* expression *) None (* quantifier weight, None means 1 *) []
-      (* pattern list ? *) [] (* ? *) None (* ? *) None
+      expr_err
+      (* expression *) None
+      (* quantifier weight, None means 1 *) []
+      (* pattern list ? *) []
+      (* ? *) None
+      (* ? *) None
     (* ? *)
   in
   let expr_forall_err = Z3.Quantifier.expr_of_quantifier expr_forall_err in
@@ -180,7 +201,8 @@ let _ =
 
   (* Printing the rules for sanity check *)
   let rules_expr = Z3.Fixedpoint.get_rules !fp in
-  Format.eprintf "@[<v 2>Registered rules:@ %a@ @]@."
+  Format.eprintf
+    "@[<v 2>Registered rules:@ %a@ @]@."
     (fprintf_list ~sep:"@ " (fun fmt e ->
          (* let e2 = Z3.Quantifier.get_body eq in *)
          (* let fd = Z3.Expr.get_func_decl e in *)

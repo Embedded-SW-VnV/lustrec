@@ -44,9 +44,11 @@ functor
     let pp fmt r =
       if Hashtbl.length r = 0 then Format.fprintf fmt "empty"
       else
-        pp_hash ~sep:";"
+        pp_hash
+          ~sep:";"
           (fun k v fmt -> Format.fprintf fmt "%s -> %a" k Value.pp v)
-          fmt r
+          fmt
+          r
 
     let pp_val = Value.pp
 
@@ -251,7 +253,9 @@ end)
 let get_var vars_env v =
   try VarEnv.find v vars_env
   with Not_found ->
-    Format.eprintf "Impossible to find var %s in var env %a@ " v
+    Format.eprintf
+      "Impossible to find var %s in var env %a@ "
+      v
       (Utils.fprintf_list ~sep:", " (fun fmt (id, _) ->
            Format.pp_print_string fmt id))
       (VarEnv.bindings vars_env);
@@ -263,7 +267,8 @@ let compute_vars_env m =
     List.fold_left
       (fun accu v ->
         VarEnv.add v.LT.var_id { vdecl = v; is_local = false } accu)
-      env m.MT.mmemory
+      env
+      m.MT.mmemory
   in
   let env =
     List.fold_left
@@ -391,7 +396,8 @@ module FormalEnv = struct
   let to_salsa constEnv formalEnv =
     fold
       (fun id expr accu -> (id, value_t2salsa_expr constEnv expr) :: accu)
-      formalEnv []
+      formalEnv
+      []
 
   let def constEnv vars_env (env : fe_t) d expr =
     incr cpt;
@@ -400,7 +406,10 @@ module FormalEnv = struct
     let salsa_env = to_salsa constEnv env in
     let expr_salsa, _ = Salsa.Rewrite.substVars expr_salsa salsa_env 0 in
     let expr_salsa =
-      Salsa.Analyzer.evalPartExpr expr_salsa salsa_env []
+      Salsa.Analyzer.evalPartExpr
+        expr_salsa
+        salsa_env
+        []
         (* no blacklisted vars *)
         []
       (*no arrays *)
@@ -412,9 +421,11 @@ module FormalEnv = struct
   let empty () : fe_t = Hashtbl.create 13
 
   let pp m fmt env =
-    pp_hash ~sep:";@ "
+    pp_hash
+      ~sep:";@ "
       (fun k (_, v) fmt -> Format.fprintf fmt "%s -> %a" k (MC.pp_val m) v)
-      fmt env
+      fmt
+      env
 
   let get_sort_fun env =
     let order = Hashtbl.fold (fun k (cpt, _) accu -> (k, cpt) :: accu) env [] in

@@ -35,7 +35,9 @@ type def_content =
 (** Print a parameter_mode. @param fmt the formater to print on @param mode the
     modifier **)
 let pp_parameter_mode fmt mode =
-  fprintf fmt "%s"
+  fprintf
+    fmt
+    "%s"
     (match mode with
     | AdaNoMode ->
       ""
@@ -47,7 +49,9 @@ let pp_parameter_mode fmt mode =
       "in out")
 
 let pp_kind_def fmt kind_def =
-  fprintf fmt "%s"
+  fprintf
+    fmt
+    "%s"
     (match kind_def with
     | AdaType ->
       "type"
@@ -61,7 +65,9 @@ let pp_kind_def fmt kind_def =
       "package body")
 
 let pp_visibility fmt visibility =
-  fprintf fmt "%s"
+  fprintf
+    fmt
+    "%s"
     (match visibility with
     | AdaNoVisibility ->
       ""
@@ -87,19 +93,26 @@ let pp_args ~pp_sep fmt = function
   | [] ->
     fprintf fmt ""
   | args ->
-    fprintf fmt " (@[<v>%a)@]"
+    fprintf
+      fmt
+      " (@[<v>%a)@]"
       (pp_print_list ~pp_sep (fun fmt pp -> pp fmt))
       args
 
 let pp_block fmt pp_item_list =
-  pp_print_list ~pp_open_box:pp_open_vbox0
+  pp_print_list
+    ~pp_open_box:pp_open_vbox0
     ~pp_prologue:(fun fmt () -> pp_print_string fmt "   ")
-    ~pp_epilogue:pp_print_semicolon ~pp_sep:pp_print_semicolon
+    ~pp_epilogue:pp_print_semicolon
+    ~pp_sep:pp_print_semicolon
     (fun fmt pp -> pp fmt)
-    fmt pp_item_list
+    fmt
+    pp_item_list
 
 let pp_and l fmt =
-  fprintf fmt "(%t)"
+  fprintf
+    fmt
+    "(%t)"
     (pp_group ~pp_sep:(fun fmt () -> fprintf fmt "@ and then ") l)
 
 let pp_or l fmt =
@@ -121,7 +134,9 @@ let pp_ada_with fmt = function
     let pp_import fmt =
       if not import then fprintf fmt ""
       else
-        fprintf fmt " Import%a"
+        fprintf
+          fmt
+          " Import%a"
           (if contract = [] then pp_print_nothing else pp_print_comma)
           ()
     in
@@ -136,8 +151,14 @@ let pp_ada_with fmt = function
           if pres != [] && posts != [] then fprintf fmt ",@,"
           else fprintf fmt ""
         in
-        fprintf fmt "@,  @[<v>%a%t%a@]" (pp_aspect "Pre") pres sep
-          (pp_aspect "Post") posts
+        fprintf
+          fmt
+          "@,  @[<v>%a%t%a@]"
+          (pp_aspect "Pre")
+          pres
+          sep
+          (pp_aspect "Post")
+          posts
     in
     fprintf fmt " with%t%t%t" pp_ghost pp_import pp_contract
 
@@ -152,9 +173,16 @@ let pp_generic_instanciation (pp_name, pp_type) fmt =
     @param pp_type a format printer wich print the variable type @param fmt the
     formater to print on @param id the variable **)
 let pp_var_decl (mode, pp_name, pp_type, with_statement) fmt =
-  fprintf fmt "%t: %a%s%t%a" pp_name pp_parameter_mode mode
+  fprintf
+    fmt
+    "%t: %a%s%t%a"
+    pp_name
+    pp_parameter_mode
+    mode
     (if mode = AdaNoMode then "" else " ")
-    pp_type pp_ada_with with_statement
+    pp_type
+    pp_ada_with
+    with_statement
 
 let apply_var_decl_lists var_list =
   List.map (fun l -> List.map pp_var_decl l) var_list
@@ -188,33 +216,55 @@ and pp_content pp_name fmt = function
   | AdaSimpleContent pp_content ->
     fprintf fmt " is@,  @[<v 2>(%t)@]" pp_content
   | AdaProcedureContent (local_list, pp_instr_list) ->
-    fprintf fmt " is@,%abegin@,%aend %t" pp_block
+    fprintf
+      fmt
+      " is@,%abegin@,%aend %t"
+      pp_block
       (List.map
          (fun l -> pp_group ~pp_sep:pp_print_semicolon (List.map pp_local l))
          local_list)
-      pp_block pp_instr_list pp_name
+      pp_block
+      pp_instr_list
+      pp_name
   | AdaRecord var_list ->
     assert (var_list != []);
     let pp_lists = apply_var_decl_lists var_list in
-    fprintf fmt " is@,  @[<v>record@,  @[<v>%a@]@,end record@]" pp_block
+    fprintf
+      fmt
+      " is@,  @[<v>record@,  @[<v>%a@]@,end record@]"
+      pp_block
       (List.map (pp_group ~pp_sep:pp_print_semicolon) pp_lists)
   | AdaPackageInstanciation (pp_name, instanciations) ->
-    fprintf fmt " is new %t%a" pp_name
+    fprintf
+      fmt
+      " is new %t%a"
+      pp_name
       (pp_args ~pp_sep:pp_print_comma)
       (List.map pp_generic_instanciation instanciations)
 
 and pp_def fmt
     (pp_generics, kind_def, pp_name, args, pp_type_opt, content, pp_with_opt) =
   let pp_arg_lists = apply_var_decl_lists args in
-  fprintf fmt "%a%a %t%a%a%a%a" pp_generic pp_generics pp_kind_def kind_def
+  fprintf
+    fmt
+    "%a%a %t%a%a%a%a"
+    pp_generic
+    pp_generics
+    pp_kind_def
+    kind_def
     pp_name
     (pp_args ~pp_sep:pp_print_semicolon)
     (List.map (pp_group ~pp_sep:pp_print_semicolon) pp_arg_lists)
-    (pp_opt "return") pp_type_opt (pp_content pp_name) content pp_ada_with
+    (pp_opt "return")
+    pp_type_opt
+    (pp_content pp_name)
+    content
+    pp_ada_with
     pp_with_opt
 
 and pp_package_instanciation pp_name pp_base_name fmt instanciations =
-  pp_def fmt
+  pp_def
+    fmt
     ( [],
       AdaPackageDecl,
       pp_name,
@@ -231,7 +281,8 @@ let pp_adastring pp_content fmt = fprintf fmt "\"%t\"" pp_content
     print on @param machine the machine **)
 let pp_package pp_name pp_generics body fmt pp_content =
   let kind = if body then AdaPackageBody else AdaPackageDecl in
-  pp_def fmt
+  pp_def
+    fmt
     (pp_generics, kind, pp_name, [], None, AdaPackageContent pp_content, None)
 
 (** Print a new statement instantiating a generic package. @param fmt the
@@ -265,7 +316,8 @@ let pp_predicate pp_name args imported fmt content_opt =
     | None ->
       AdaNoContent, Some (true, imported, [], [])
   in
-  pp_def fmt
+  pp_def
+    fmt
     ([], AdaFunction, pp_name, args, Some pp_boolean_type, content, with_st)
 
 (** Print a cleaned an identifier for ada exportation : Ada names must not start
@@ -359,7 +411,9 @@ let pp_clean_ada_identifier fmt name =
       s
     | i when String.get s i == '_' && String.get s (i + 1) == '_' ->
       remove_double_underscore
-        (sprintf "%s%s" (String.sub s 0 i)
+        (sprintf
+           "%s%s"
+           (String.sub s 0 i)
            (String.sub s (i + 1) (String.length s - i - 1)))
         i
     | i ->
@@ -396,7 +450,10 @@ let pp_oneline_comment fmt s =
   fprintf fmt "-- %s@," s
 
 let pp_call fmt (pp_name, args) =
-  fprintf fmt "%t%a" pp_name
+  fprintf
+    fmt
+    "%t%a"
+    pp_name
     (pp_args ~pp_sep:pp_print_comma)
     (List.map (pp_group ~pp_sep:pp_print_comma) args)
 

@@ -109,7 +109,8 @@ let rec compute_neg_expr cpt_pre (expr : Lustre_types.expr) =
       (fun e (vl, el) ->
         let vl', e' = compute_neg_expr cpt_pre e in
         vl' @ vl, e' :: el)
-      l ([], [])
+      l
+      ([], [])
   in
   match expr.expr_desc with
   | Expr_tuple l ->
@@ -126,7 +127,8 @@ let rec compute_neg_expr cpt_pre (expr : Lustre_types.expr) =
             { expr with expr_desc = Expr_ite (i', t', e') }
           | _ ->
             assert false)
-        neg list )
+        neg
+        list )
   | Expr_ite (i, t, e) ->
     (* We return the guard as a new guard *)
     let vl = gen_mcdc_cond_guard i in
@@ -140,7 +142,8 @@ let rec compute_neg_expr cpt_pre (expr : Lustre_types.expr) =
             { expr with expr_desc = Expr_ite (i', t', e') }
           | _ ->
             assert false)
-        neg list )
+        neg
+        list )
   | Expr_arrow (e1, e2) ->
     let vl1, e1' = compute_neg_expr cpt_pre e1 in
     let vl2, e2' = compute_neg_expr cpt_pre e2 in
@@ -152,7 +155,8 @@ let rec compute_neg_expr cpt_pre (expr : Lustre_types.expr) =
             { expr with expr_desc = Expr_arrow (x, y) }
           | _ ->
             assert false)
-        [ e1'; e2' ] [ e1; e2 ] )
+        [ e1'; e2' ]
+        [ e1; e2 ] )
   | Expr_pre e ->
     let vl, e' = compute_neg_expr (cpt_pre + 1) e in
     ( vl,
@@ -174,29 +178,37 @@ let rec compute_neg_expr cpt_pre (expr : Lustre_types.expr) =
 
 and gen_mcdc_cond_var v expr =
   report ~level:1 (fun fmt ->
-      Format.fprintf fmt
-        ".. Generating MC/DC cond for boolean flow %s and expression %a@." v
-        Printers.pp_expr expr);
+      Format.fprintf
+        fmt
+        ".. Generating MC/DC cond for boolean flow %s and expression %a@."
+        v
+        Printers.pp_expr
+        expr);
   let vl, leafs_n_neg_expr = compute_neg_expr 0 expr in
   let len = List.length leafs_n_neg_expr in
   if len >= 1 then
     List.fold_left
       (fun accu ((vi, nb_pre), expr_neg_vi) ->
         mcdc_var (mk_pre nb_pre vi) len expr expr_neg_vi :: accu)
-      vl leafs_n_neg_expr
+      vl
+      leafs_n_neg_expr
   else vl
 
 and gen_mcdc_cond_guard expr =
   report ~level:1 (fun fmt ->
-      Format.fprintf fmt ".. Generating MC/DC cond for guard %a@."
-        Printers.pp_expr expr);
+      Format.fprintf
+        fmt
+        ".. Generating MC/DC cond for guard %a@."
+        Printers.pp_expr
+        expr);
   let vl, leafs_n_neg_expr = compute_neg_expr 0 expr in
   let len = List.length leafs_n_neg_expr in
   if len >= 1 then
     List.fold_left
       (fun accu ((vi, nb_pre), expr_neg_vi) ->
         mcdc_var (mk_pre nb_pre vi) len expr expr_neg_vi :: accu)
-      vl leafs_n_neg_expr
+      vl
+      leafs_n_neg_expr
   else vl
 
 let rec mcdc_expr cpt_pre expr =
@@ -207,7 +219,8 @@ let rec mcdc_expr cpt_pre expr =
         (fun e accu_v ->
           let vl = mcdc_expr cpt_pre e in
           vl @ accu_v)
-        l []
+        l
+        []
     in
     vl
   | Expr_ite (i, t, e) ->
@@ -256,7 +269,9 @@ let mcdc_node_eq eq =
             (* we don't care about the expression it. We focus on the coverage
                expressions in v *)
             v @ accu)
-          eq.eq_lhs rhs []
+          eq.eq_lhs
+          rhs
+          []
       in
       vl
     | _ ->
@@ -280,7 +295,8 @@ let mcdc_top_decl td =
         (fun s accu_v ->
           let vl' = mcdc_node_stmt s in
           vl' @ accu_v)
-        nd.node_stmts []
+        nd.node_stmts
+        []
     in
     (* We add coverage vars as boolean internal flows. *)
     let fresh_cov_defs =
@@ -298,7 +314,8 @@ let mcdc_top_decl td =
           Format.fprintf Format.str_formatter "__cov_%i_%i" i nb_total;
           let cov_id = Format.flush_str_formatter () in
           let cov_var =
-            mkvar_decl loc
+            mkvar_decl
+              loc
               ( cov_id,
                 mktyp loc Tydec_bool,
                 mkclock loc Ckdec_any,
@@ -313,7 +330,8 @@ let mcdc_top_decl td =
     let fresh_vars, fresh_eqs =
       List.fold_right
         (fun (v, eq, _, _) (accuv, accueq) -> v :: accuv, eq :: accueq)
-        fresh_cov_vars ([], [])
+        fresh_cov_vars
+        ([], [])
     in
     let fresh_annots =
       (* We produce two sets of annotations: PROPERTY ones for kind2, and
@@ -341,7 +359,9 @@ let mcdc_top_decl td =
           })
         fresh_cov_vars
     in
-    Format.printf "%i coverage criteria generated for node %s@ " nb_total
+    Format.printf
+      "%i coverage criteria generated for node %s@ "
+      nb_total
       nd.node_id;
     (* And add them as annotations --%PROPERTY: var TODO *)
     {

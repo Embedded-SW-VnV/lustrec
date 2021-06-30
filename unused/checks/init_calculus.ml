@@ -272,7 +272,8 @@ let type_coreclock env ck id loc =
               expr_clock = Clocks.new_var true;
               expr_loc = loc;
             })
-        dummy_id_expr cl
+        dummy_id_expr
+        cl
     in
     ignore (type_expr env false when_expr)
 
@@ -349,7 +350,8 @@ let type_top_consts env decl =
       (fun env (id, c) ->
         let ty = type_of_const c in
         Env.add_value env id ty)
-      env clist
+      env
+      clist
   | Node _ | ImportedNode _ | SensorDecl _ | ActuatorDecl _ ->
     env
 

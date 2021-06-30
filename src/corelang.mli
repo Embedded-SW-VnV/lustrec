@@ -85,7 +85,7 @@ val update_instr_desc :
   Machine_code_types.instr_t
 
 (*val node_table : (ident, top_decl) Hashtbl.t*)
-val print_node_table : Format.formatter -> unit -> unit
+val pp_node_table : Format.formatter -> unit -> unit
 
 val node_name : top_decl -> ident
 
@@ -107,11 +107,11 @@ val get_node_contract : node_desc -> contract_desc
 
 val consts_table : (ident, top_decl) Hashtbl.t
 
-val print_consts_table : Format.formatter -> unit -> unit
+val pp_consts_table : Format.formatter -> unit -> unit
 
 val type_table : (type_dec_desc, top_decl) Hashtbl.t
 
-val print_type_table : Format.formatter -> unit -> unit
+val pp_type_table : Format.formatter -> unit -> unit
 
 val is_clock_dec_type : type_dec_desc -> bool
 

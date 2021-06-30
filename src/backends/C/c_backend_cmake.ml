@@ -33,7 +33,8 @@ let header_libs header =
         Utils.list_union nd.nodei_in_lib accu
       | _ ->
         accu)
-    [] header
+    []
+    header
 
 let compiled_dependencies dep =
   List.filter (fun (Dep (_, _, header, _)) -> header_has_code header) dep
@@ -42,7 +43,8 @@ let lib_dependencies dep =
   List.fold_left
     (fun accu (Dep (_, _, header, _)) ->
       Utils.list_union (header_libs header) accu)
-    [] dep
+    []
+    dep
 
 let fprintf_dependencies fmt (dep : dep_t list) =
   let compiled_dep = compiled_dependencies dep in
@@ -86,7 +88,9 @@ functor
 
       fprintf fmt "GCC=gcc@.";
       fprintf fmt "LUSTREC=%s@." Sys.executable_name;
-      fprintf fmt "LUSTREC_BASE=%s@."
+      fprintf
+        fmt
+        "LUSTREC_BASE=%s@."
         (Filename.dirname (Filename.dirname Sys.executable_name));
       fprintf fmt "INC=${LUSTREC_BASE}/include/lustrec@.";
       fprintf fmt "@.";
@@ -96,12 +100,16 @@ functor
       fprintf fmt "\t${GCC} -O0 -I${INC} -I. -c %s.c@." basename;
       fprintf fmt "\t${GCC} -O0 -I${INC} -I. -c %s_main.c@." basename;
       fprintf_dependencies fmt dependencies;
-      fprintf fmt "\t${GCC} -O0 -o %s_%s io_frontend.o %a %s.o %s_main.o %a@."
-        basename nodename
+      fprintf
+        fmt
+        "\t${GCC} -O0 -o %s_%s io_frontend.o %a %s.o %s_main.o %a@."
+        basename
+        nodename
         (Utils.fprintf_list ~sep:" " (fun fmt (Dep (_, s, _, _)) ->
              Format.fprintf fmt "%s.o" s))
         (compiled_dependencies dependencies)
-        basename (* library .o *) basename
+        basename
+        (* library .o *) basename
         (* main function . o *)
         (Utils.fprintf_list ~sep:" " (fun fmt lib -> fprintf fmt "-l%s" lib))
         (lib_dependencies dependencies);

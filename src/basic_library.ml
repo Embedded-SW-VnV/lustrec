@@ -53,12 +53,14 @@ let clock_env =
   let env' =
     List.fold_right
       (fun op env -> CE.add_value env op ck_nullary_univ)
-      [ "true"; "false" ] init_env
+      [ "true"; "false" ]
+      init_env
   in
   let env' =
     List.fold_right
       (fun op env -> CE.add_value env op ck_unary_univ)
-      [ "uminus"; "not" ] env'
+      [ "uminus"; "not" ]
+      env'
   in
   let env' =
     List.fold_right
@@ -163,7 +165,8 @@ let eval_dim_env =
   in
   List.fold_left
     (fun env (op, op_eval) -> VE.add_value env op op_eval)
-    VE.initial defs
+    VE.initial
+    defs
 
 let arith_funs = [ "+"; "-"; "*"; "/"; "mod"; "uminus" ]
 

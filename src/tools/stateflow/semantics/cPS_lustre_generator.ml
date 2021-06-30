@@ -37,7 +37,9 @@ end) : TransformerType = struct
       fprintf fmt "%s%t" prefix (fun fmt ->
           pp_print_list
             ~pp_sep:(fun fmt () -> pp_print_string fmt "_")
-            pp_print_string fmt path))
+            pp_print_string
+            fmt
+            path))
 
   (* let pp_typed_path sin fmt path =
    *   Format.fprintf fmt "%a : bool" (pp_path sin) path *)
@@ -56,7 +58,8 @@ end) : TransformerType = struct
 
   let mkvar name typ =
     let loc = Location.dummy in
-    Corelang.mkvar_decl loc
+    Corelang.mkvar_decl
+      loc
       ( name,
         typ,
         Corelang.mkclock loc Lustre_types.Ckdec_any,
@@ -76,7 +79,8 @@ end) : TransformerType = struct
     ActiveStates.Vars.fold
       (fun v accu ->
         state_vars_to_vdecl_list ~prefix:(List.hd v) Vars.state_vars @ accu)
-      locs []
+      locs
+      []
   (* TODO: declare global vars *)
 
   let mkeq = Corelang.mkeq Location.dummy
@@ -170,16 +174,37 @@ end) : TransformerType = struct
     match call with
     | Ecall ->
       fun (p, p', f) ->
-        Format.fprintf Format.str_formatter "theta%a%a%a_%a" pp_call call
-          (pp_path "_from_") p (pp_path "_to_") p' pp_frontier f
+        Format.fprintf
+          Format.str_formatter
+          "theta%a%a%a_%a"
+          pp_call
+          call
+          (pp_path "_from_")
+          p
+          (pp_path "_to_")
+          p'
+          pp_frontier
+          f
     | Dcall ->
       fun p ->
-        Format.fprintf Format.str_formatter "theta%a%a" pp_call call
-          (pp_path "_from_") p
+        Format.fprintf
+          Format.str_formatter
+          "theta%a%a"
+          pp_call
+          call
+          (pp_path "_from_")
+          p
     | Xcall ->
       fun (p, f) ->
-        Format.fprintf Format.str_formatter "theta%a%a_%a" pp_call call
-          (pp_path "_from_") p pp_frontier f
+        Format.fprintf
+          Format.str_formatter
+          "theta%a%a_%a"
+          pp_call
+          call
+          (pp_path "_from_")
+          p
+          pp_frontier
+          f
 
   let mkcall' : type c. name_t -> name_t -> c call_t -> c -> t_base =
    fun sin sout call arg ->
@@ -244,7 +269,8 @@ end) : TransformerType = struct
     | Active p ->
       var_to_expr ~prefix:sin p
     | Event e ->
-      mkpredef_call "="
+      mkpredef_call
+        "="
         [
           Corelang.expr_of_vdecl event_var;
           mkexpr
@@ -282,11 +308,14 @@ end) : TransformerType = struct
                      "NotCond_" ^ aut );
                  ]
                in
-               Automata.mkhandler loc
+               Automata.mkhandler
+                 loc
                  (* location *)
                  ("CenterPoint_" ^ aut)
                  (* state name *)
-                 handler_default_mode_unless (* unless *) [] (* until *) []
+                 handler_default_mode_unless
+                 (* unless *) []
+                 (* until *) []
                  (* locals *)
                  (tr0.statements, base_to_assert tr0, [])
                (* stmts, asserts, annots *)
@@ -301,11 +330,13 @@ end) : TransformerType = struct
                      "CenterPoint_" ^ aut );
                  ]
                in
-               Automata.mkhandler loc
+               Automata.mkhandler
+                 loc
                  (* location *)
                  ("Cond_" ^ aut)
                  (* state name *)
-                 [] (* unless *) handler_cond_mode_until
+                 []
+                 (* unless *) handler_cond_mode_until
                  (* until *)
                  (mk_locals vars1)
                  (* locals *)
@@ -322,11 +353,13 @@ end) : TransformerType = struct
                      "CenterPoint_" ^ aut );
                  ]
                in
-               Automata.mkhandler loc
+               Automata.mkhandler
+                 loc
                  (* location *)
                  ("NotCond_" ^ aut)
                  (* state name *)
-                 [] (* unless *) handler_notcond_mode_until
+                 []
+                 (* unless *) handler_notcond_mode_until
                  (* until *)
                  (mk_locals vars2)
                  (* locals *)

@@ -32,8 +32,11 @@ let _main_ _ = function
 let run_trace model func t =
   let init_env = Datatype.SF.init_env model in
   let _ =
-    Format.printf "Model definitions@.%a@.Initial state: %s @.####"
-      Datatype.SF.pp_src (snd model) (fst model)
+    Format.printf
+      "Model definitions@.%a@.Initial state: %s @.####"
+      Datatype.SF.pp_src
+      (snd model)
+      (fst model)
   in
 
   let final_env, cpt =
@@ -53,7 +56,8 @@ let run_trace model func t =
         in
         (* we do not consider produced events *)
         env', cpt + 1)
-      (init_env, 1) t
+      (init_env, 1)
+      t
   in
   Format.printf "#### %i@.%a@." cpt ActiveStates.Env.pp_env final_env;
   ()
@@ -152,14 +156,41 @@ module Evaluator :
     match call with
     | Ecall ->
       fun (p, p', f) tr ->
-        Format.fprintf fmt "component %a(%a, %a, %a) =@.%a" pp_call call pp_path
-          p pp_path p' pp_frontier f pp_transformer tr
+        Format.fprintf
+          fmt
+          "component %a(%a, %a, %a) =@.%a"
+          pp_call
+          call
+          pp_path
+          p
+          pp_path
+          p'
+          pp_frontier
+          f
+          pp_transformer
+          tr
     | Dcall ->
       fun p tr ->
-        Format.fprintf fmt "component %a(%a) =@.%a" pp_call call pp_path p
-          pp_transformer tr
+        Format.fprintf
+          fmt
+          "component %a(%a) =@.%a"
+          pp_call
+          call
+          pp_path
+          p
+          pp_transformer
+          tr
     | Xcall ->
       fun (p, f) tr ->
-        Format.fprintf fmt "component %a(%a, %a) =@.%a" pp_call call pp_path p
-          pp_frontier f pp_transformer tr
+        Format.fprintf
+          fmt
+          "component %a(%a, %a) =@.%a"
+          pp_call
+          call
+          pp_path
+          p
+          pp_frontier
+          f
+          pp_transformer
+          tr
 end

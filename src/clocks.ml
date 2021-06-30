@@ -98,7 +98,9 @@ let rec print_ck_long fmt ck =
   | Carrow (ck1, ck2) ->
     fprintf fmt "%a -> %a" print_ck_long ck1 print_ck_long ck2
   | Ctuple cklist ->
-    fprintf fmt "(%a)"
+    fprintf
+      fmt
+      "(%a)"
       (pp_print_list
          ~pp_sep:(fun fmt () -> pp_print_string fmt " * ")
          print_ck_long)
@@ -222,8 +224,10 @@ let clock_current ck =
          | Con (ck', _, _) ->
            ck'
          | _ ->
-           Format.eprintf "internal error: Clocks.clock_current %a@."
-             print_ck_long (repr ck);
+           Format.eprintf
+             "internal error: Clocks.clock_current %a@."
+             print_ck_long
+             (repr ck);
            assert false)
        (clock_list_of_clock ck))
 
@@ -362,7 +366,9 @@ let pp fmt ck =
     | Carrow (ck1, ck2) ->
       fprintf fmt "%a -> %a" aux ck1 aux ck2
     | Ctuple cklist ->
-      fprintf fmt "(%a)"
+      fprintf
+        fmt
+        "(%a)"
         (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt " * ") aux)
         cklist
     | Con (ck, c, l) ->
@@ -400,8 +406,13 @@ let pp_error fmt = function
     reset_names ();
     fprintf fmt "Expected clock %a, got clock %a@." pp ck1 pp ck2
   | Carrier_mismatch (cr1, cr2) ->
-    fprintf fmt "Name clash. Expected clock %a, got clock %a@." print_carrier
-      cr1 print_carrier cr2
+    fprintf
+      fmt
+      "Name clash. Expected clock %a, got clock %a@."
+      print_carrier
+      cr1
+      print_carrier
+      cr2
   | Cannot_be_polymorphic ck ->
     reset_names ();
     fprintf fmt "The main node cannot have a polymorphic clock: %a@." pp ck
@@ -414,15 +425,23 @@ let pp_error fmt = function
   | Factor_zero ->
     fprintf fmt "Cannot apply clock transformation with factor 0@."
   | Carrier_extrusion (ck, cr) ->
-    fprintf fmt
+    fprintf
+      fmt
       "This node has clock@.%a@.It is invalid as the carrier %a escapes its \
        scope@."
-      pp ck print_carrier cr
+      pp
+      ck
+      print_carrier
+      cr
   | Clock_extrusion (ck_node, ck) ->
-    fprintf fmt
+    fprintf
+      fmt
       "This node has clock@.%a@.It is invalid as the clock %a escapes its \
        scope@."
-      pp ck_node pp ck
+      pp
+      ck_node
+      pp
+      ck
 
 let const_of_carrier cr =
   match (carrier_repr cr).carrier_desc with

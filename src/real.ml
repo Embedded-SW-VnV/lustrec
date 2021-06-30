@@ -2,7 +2,10 @@
 type t = Q.t * int * string
 
 let pp fmt (_, _, s) =
-  Format.fprintf fmt "%s%s" s
+  Format.fprintf
+    fmt
+    "%s%s"
+    s
     (if String.get s (-1 + String.length s) = '.' then "0" else "")
 
 let pp_ada fmt (c, e, _) = Format.fprintf fmt "%s.0*1.0e-%i" (Q.to_string c) e

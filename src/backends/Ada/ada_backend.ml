@@ -59,7 +59,8 @@ let get_typed_submachines machines m =
     (fun instance submachine ->
       let ident = fst instance in
       ident, (get_substitution m ident submachine, submachine))
-    instances submachines
+    instances
+    submachines
 
 let extract_contract machines m =
   let rec find_submachine_from_ident ident = function
@@ -145,7 +146,9 @@ let translate_to_ada basename machines =
     | main_node -> (
       match Machine_code_common.get_machine_opt filtered_machines main_node with
       | None ->
-        Format.eprintf "Ada Code generation error: %a@." Error.pp
+        Format.eprintf
+          "Ada Code generation error: %a@."
+          Error.pp
           Error.Main_not_found;
         raise (Error.Error (Location.dummy, Error.Main_not_found))
       | Some m ->
@@ -173,17 +176,24 @@ let translate_to_ada basename machines =
   | None ->
     ()
   | Some machine ->
-    write_file destname pp_main_filename Ada_backend_wrapper.pp_main_adb
+    write_file
+      destname
+      pp_main_filename
+      Ada_backend_wrapper.pp_main_adb
       (*get_typed_submachines filtered_machines machine*)
       machine;
-    write_file destname
+    write_file
+      destname
       (fun fmt _ -> Ada_backend_wrapper.pp_project_name (basename ^ "_exe") fmt)
       (Ada_backend_wrapper.pp_project_file filtered_machines basename)
       main_machine);
-  write_file destname Ada_backend_wrapper.pp_project_configuration_name
+  write_file
+    destname
+    Ada_backend_wrapper.pp_project_configuration_name
     (fun fmt _ -> Ada_backend_wrapper.pp_project_configuration_file fmt)
     basename;
-  write_file destname
+  write_file
+    destname
     (fun fmt _ -> Ada_backend_wrapper.pp_project_name (basename ^ "_lib") fmt)
     (Ada_backend_wrapper.pp_project_file filtered_machines basename)
     None

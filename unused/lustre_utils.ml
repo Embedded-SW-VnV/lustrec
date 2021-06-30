@@ -11,7 +11,9 @@ let check_eq nd1 nd2 =
   (* to keep the type info *)
   let loc = Location.dummy in
   let ok_var =
-    Corelang.mkvar_decl loc ~orig:false
+    Corelang.mkvar_decl
+      loc
+      ~orig:false
       ( "__OK",
         Corelang.mktyp loc Tydec_bool,
         Corelang.mkclock loc Ckdec_any,

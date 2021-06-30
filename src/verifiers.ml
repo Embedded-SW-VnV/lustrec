@@ -6,7 +6,8 @@ let active = ref None
 
 let options () =
   List.flatten
-    (List.map Options_management.verifier_opt
+    (List.map
+       Options_management.verifier_opt
        (List.map
           (fun m ->
             let module M = (val m : VerifierType.S) in
@@ -18,7 +19,8 @@ let verifier_list verifiers =
     (fun acc m ->
       let module M = (val m : VerifierType.S) in
       (if acc = "" then "" else acc ^ ", ") ^ M.name)
-    "" verifiers
+    ""
+    verifiers
 
 let get_active () =
   match !active with
@@ -29,7 +31,8 @@ let get_active () =
         (fun found m ->
           let module M = (val m : VerifierType.S) in
           if M.is_active () then m :: found else found)
-        [] (verifiers ())
+        []
+        (verifiers ())
     in
     match found with
     | [] ->

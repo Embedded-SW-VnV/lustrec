@@ -63,7 +63,8 @@ let rec tuple_split_expr expr =
           expr_tag = Utils.new_tag ();
           expr_desc = Expr_arrow (e1, e2);
         })
-      (tuple_split_expr e1) (tuple_split_expr e2)
+      (tuple_split_expr e1)
+      (tuple_split_expr e2)
   | Expr_pre e ->
     List.map
       (fun e ->
@@ -91,7 +92,8 @@ let rec tuple_split_expr expr =
           expr_tag = Utils.new_tag ();
           expr_desc = Expr_ite (c, t, e);
         })
-      (tuple_split_expr t) (tuple_split_expr e)
+      (tuple_split_expr t)
+      (tuple_split_expr e)
   | Expr_merge (c, hl) ->
     let tl, hl =
       List.split (List.map (fun (t, h) -> t, tuple_split_expr h) hl)

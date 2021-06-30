@@ -41,7 +41,8 @@ let rec eliminate m elim instr =
   | MStep (il, i, vl) ->
     update_instr_desc instr (MStep (il, i, List.map e_expr vl))
   | MBranch (g, hl) ->
-    update_instr_desc instr
+    update_instr_desc
+      instr
       (MBranch
          ( e_expr g,
            List.map (fun (l, il) -> l, List.map (eliminate m elim) il) hl ))
@@ -90,7 +91,8 @@ let unfold_expr_offset m offset expr =
       | Field _ ->
         Format.eprintf "internal error: not yet implemented !";
         assert false)
-    expr offset
+    expr
+    offset
 
 let rec simplify_cst_expr m offset typ cst =
   match offset, cst with
@@ -101,14 +103,18 @@ let rec simplify_cst_expr m offset typ cst =
     simplify_cst_expr m q elt_typ (List.nth cl (Dimension.size_const i))
   | Index i :: q, Const_array cl ->
     let elt_typ = Types.array_element_type typ in
-    unfold_expr_offset m [ Index i ]
+    unfold_expr_offset
+      m
+      [ Index i ]
       (mk_val (Array (List.map (simplify_cst_expr m q elt_typ) cl)) typ)
   | Field f :: q, Const_struct fl ->
     let fld_typ = Types.struct_field_type typ f in
     simplify_cst_expr m q fld_typ (List.assoc f fl)
   | _ ->
-    Format.eprintf "internal error: Optimize_machine.simplify_cst_expr %a@."
-      Printers.pp_const cst;
+    Format.eprintf
+      "internal error: Optimize_machine.simplify_cst_expr %a@."
+      Printers.pp_const
+      cst;
     assert false
 
 let simplify_expr_offset m expr =
@@ -133,7 +139,9 @@ let simplify_expr_offset m expr =
     | Index i :: q, Array vl when Dimension.is_const i ->
       simplify q (List.nth vl (Dimension.size_const i))
     | Index i :: q, Array vl ->
-      unfold_expr_offset m [ Index i ]
+      unfold_expr_offset
+        m
+        [ Index i ]
         (mk_val (Array (List.map (simplify q) vl)) expr.value_type)
     (*Format.eprintf "simplify_expr %a %a = %a@." pp_val expr
       (Utils.fprintf_list ~sep:"" Printers.pp_offset) offset pp_val res; res)
@@ -156,10 +164,12 @@ let rec simplify_instr_offset m instr =
   | MComment _ ->
     instr
   | MStep (outputs, id, inputs) ->
-    update_instr_desc instr
+    update_instr_desc
+      instr
       (MStep (outputs, id, List.map (simplify_expr_offset m) inputs))
   | MBranch (cond, brl) ->
-    update_instr_desc instr
+    update_instr_desc
+      instr
       (MBranch
          ( simplify_expr_offset m cond,
            List.map (fun (l, il) -> l, simplify_instrs_offset m il) brl ))
@@ -252,7 +262,8 @@ let rec instrs_unfold m fanin elim instrs =
         (* if instr is a simple local assign, then (a) elim is simplified with
            it (b) it is stored as the elim set *)
         instr_unfold m fanin instrs elim instr)
-      (elim, []) instrs
+      (elim, [])
+      instrs
   in
   elim, List.rev rev_instrs
 
@@ -264,15 +275,21 @@ and instr_unfold m fanin instrs (elim : (value_t * eq) IMap.t) instr =
   | MStep ([ v ], id, vl)
     when Basic_library.is_value_internal_fun (mk_val (Fun (id, vl)) v.var_type)
     ->
-    instr_unfold m fanin instrs elim
-      (update_instr_desc instr
+    instr_unfold
+      m
+      fanin
+      instrs
+      elim
+      (update_instr_desc
+         instr
          (MLocalAssign (v, mk_val (Fun (id, vl)) v.var_type)))
   | MLocalAssign (v, expr)
     when (not (is_clock_dec_type v.var_dec_type.ty_dec_desc))
          && unfoldable_assign fanin v expr ->
     (* we don't eliminate clock definitions *)
     let new_eq =
-      Corelang.mkeq (desome instr.lustre_eq).eq_loc
+      Corelang.mkeq
+        (desome instr.lustre_eq).eq_loc
         ([ v.var_id ], (desome instr.lustre_eq).eq_rhs)
     in
     IMap.add v.var_id (expr, new_eq) elim, instrs
@@ -284,7 +301,8 @@ and instr_unfold m fanin instrs (elim : (value_t * eq) IMap.t) instr =
       List.fold_right
         (fun (h, (e, l)) (elim, branches) ->
           merge_elim elim e, (h, l) :: branches)
-        elim_branches (elim, [])
+        elim_branches
+        (elim, [])
     in
     elim, update_instr_desc instr (MBranch (g, branches)) :: instrs
   | _ ->
@@ -306,8 +324,12 @@ let static_call_unfold elim (inst, (n, args)) =
     and remove simple local assigns *)
 let machine_unfold fanin elim machine =
   Log.report ~level:3 (fun fmt ->
-      Format.fprintf fmt "machine_unfold %s %a@ " machine.mname.node_id
-        (pp_elim machine) (IMap.map fst elim));
+      Format.fprintf
+        fmt
+        "machine_unfold %s %a@ "
+        machine.mname.node_id
+        (pp_elim machine)
+        (IMap.map fst elim));
   let elim_consts, mconst = instrs_unfold machine fanin elim machine.mconst in
   let elim_vars, instrs =
     instrs_unfold machine fanin elim_consts machine.mstep.step_instrs
@@ -349,7 +371,8 @@ let instr_of_const top_const =
   let loc = const.const_loc in
   let id = const.const_id in
   let vdecl =
-    mkvar_decl loc
+    mkvar_decl
+      loc
       ( id,
         mktyp Location.dummy Tydec_any,
         mkclock loc Ckdec_any,
@@ -361,7 +384,8 @@ let instr_of_const top_const =
   let lustre_eq =
     mkeq loc ([ const.const_id ], mkexpr loc (Expr_const const.const_value))
   in
-  mkinstr ~lustre_eq
+  mkinstr
+    ~lustre_eq
     (MLocalAssign (vdecl, mk_val (Cst const.const_value) vdecl.var_type))
 
 (* We do not perform this optimization on contract nodes since there is not
@@ -382,7 +406,8 @@ let machines_unfold consts node_schs machines =
         in
         let m, removed_m = machine_unfold fanin elim_consts m in
         m :: machines, IMap.add m.mname.node_id removed_m removed)
-    machines ([], IMap.empty)
+    machines
+    ([], IMap.empty)
 
 let get_assign_lhs instr =
   match get_instr_desc instr with
@@ -466,7 +491,9 @@ let subst_instr m subst instrs instr =
           if not (is_memory m v') then
             (* We define v' = v. Don't need to update the records. *)
             let instr =
-              eliminate m subst
+              eliminate
+                m
+                subst
                 (update_instr_desc instr (mk_assign m instr_v instr'_v))
             in
             subst, instr :: instrs
@@ -488,7 +515,8 @@ let subst_instr m subst instrs instr =
                        if ok then instr :: instrs
                        else if instr = instr' then instrs
                        else eliminate m subst_v' instr :: instrs ))
-                   instrs (false, []))
+                   instrs
+                   (false, []))
             in
             IMap.add v'.var_id instr_v subst, instr :: instrs'
         | _ ->
@@ -511,8 +539,11 @@ let rec instr_cse m (subst, instrs) instr =
   | MStep ([ v ], id, vl)
     when Basic_library.is_internal_fun id (List.map (fun v -> v.value_type) vl)
     ->
-    instr_cse m (subst, instrs)
-      (update_instr_desc instr
+    instr_cse
+      m
+      (subst, instrs)
+      (update_instr_desc
+         instr
          (MLocalAssign (v, mk_val (Fun (id, vl)) v.var_type)))
   | MLocalAssign (v, expr) when is_unfoldable_expr 2 expr ->
     IMap.add v.var_id expr subst, instr :: instrs
@@ -684,7 +715,8 @@ let step_replace_var fvar step =
         let l' = fvar l in
         if List.exists (fun o -> o.var_id = l'.var_id) outputs' then res
         else Utils.add_cons l' res)
-      [] step.step_locals
+      []
+      step.step_locals
   in
   {
     step with
@@ -737,7 +769,8 @@ and instrs_constant_assign var instrs =
       if Disjunction.CISet.mem var (instr_assign Disjunction.CISet.empty i) then
         instr_constant_assign var i
       else res)
-    false instrs
+    false
+    instrs
 
 let rec instr_reduce branches instr1 cont =
   match get_instr_desc instr1 with
@@ -746,7 +779,8 @@ let rec instr_reduce branches instr1 cont =
   | MStateAssign (_, { value_desc = Cst (Const_tag c); _ }) ->
     instr1 :: (List.assoc c branches @ cont)
   | MBranch (g, hl) ->
-    update_instr_desc instr1
+    update_instr_desc
+      instr1
       (MBranch (g, List.map (fun (h, b) -> h, instrs_reduce branches b []) hl))
     :: cont
   | _ ->
@@ -810,7 +844,8 @@ let elim_prog_variables prog removed_table =
                    e.expr_loc } in *)
                 let defs = eq :: accu_defs in
                 locals, defs)
-              nd_elim_map ([], [])
+              nd_elim_map
+              ([], [])
           in
 
           let node_locals, node_stmts =
@@ -841,7 +876,8 @@ let elim_prog_variables prog removed_table =
                         substitute_expr vars_to_replace defs eq.eq_rhs
                       in
                       locals, Eq { eq with eq_rhs = eq_rhs' } :: res_stmts))
-              nd.node_stmts (nd.node_locals, [])
+              nd.node_stmts
+              (nd.node_locals, [])
           in
           let nd' = { nd with node_locals; node_stmts } in
           { t with top_decl_desc = Node nd' }
@@ -867,12 +903,15 @@ let optimize params prog node_schs machine_code =
   let machine_code =
     if !Options.optimization >= 4 (* && !Options.output <> "horn" *) then (
       Log.report ~level:1 (fun fmt ->
-          Format.fprintf fmt
+          Format.fprintf
+            fmt
             "@ @[<v 2>.. machines optimization: sub-expression elimination@ ");
       let machine_code = machines_cse machine_code in
       Log.report ~level:3 (fun fmt ->
-          Format.fprintf fmt
-            "@[<v 2>.. generated machines (sub-expr elim):@ %a@]@ " pp_machines
+          Format.fprintf
+            fmt
+            "@[<v 2>.. generated machines (sub-expr elim):@ %a@]@ "
+            pp_machines
             machine_code);
       Log.report ~level:1 (fun fmt -> Format.fprintf fmt "@]");
       machine_code)
@@ -885,20 +924,25 @@ let optimize params prog node_schs machine_code =
       (*&& !Options.output <> "horn"*)
     then (
       Log.report ~level:1 (fun fmt ->
-          Format.fprintf fmt
+          Format.fprintf
+            fmt
             "@ @[<v 2>.. machines optimization: const. inlining (partial eval. \
              with const)@ ");
       let machine_code, removed_table =
         machines_unfold (Corelang.get_consts prog) node_schs machine_code
       in
       Log.report ~level:3 (fun fmt ->
-          Format.fprintf fmt "@ Eliminated flows: %a@ "
+          Format.fprintf
+            fmt
+            "@ Eliminated flows: %a@ "
             (IMap.pp (fun fmt m -> pp_elim empty_machine fmt (IMap.map fst m)))
             removed_table);
       Log.report ~level:3 (fun fmt ->
-          Format.fprintf fmt
+          Format.fprintf
+            fmt
             "@ @[<v 2>.. generated machines (const inlining):@ %a@]@ "
-            pp_machines machine_code);
+            pp_machines
+            machine_code);
       (* If variables were eliminated, relaunch the normalization/machine
          generation *)
       let prog, machine_code, removed_table =
@@ -928,7 +972,8 @@ let optimize params prog node_schs machine_code =
   let machine_code =
     if !Options.optimization >= 3 && not (Backends.is_functional ()) then (
       Log.report ~level:1 (fun fmt ->
-          Format.fprintf fmt
+          Format.fprintf
+            fmt
             ".. machines optimization: minimize stack usage by reusing \
              variables@,");
       let node_schs =

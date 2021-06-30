@@ -118,7 +118,7 @@ let print_c_header basename =
   let header_file = destname ^ ".h" in
   with_out_file header_file (fun header_fmt ->
       assert (not lusic.obsolete);
-      Header.print_header_from_header header_fmt basename lusic.contents)
+      Header.pp_header_from_header header_fmt basename lusic.contents)
 
 let translate_to_c generate_c_header basename prog machines dependencies =
   let header_m, source_m, source_main_m, makefile_m =
@@ -133,7 +133,7 @@ let translate_to_c generate_c_header basename prog machines dependencies =
       let open C_backend_spec in
       ( C_backend_header.((module HdrMod : MODIFIERS_HDR)),
         C_backend_src.((module SrcMod : MODIFIERS_SRC)),
-        C_backend_main.((module EmptyMod : MODIFIERS_MAINSRC)),
+        C_backend_main.((module MainMod : MODIFIERS_MAINSRC)),
         C_backend_makefile.((module MakefileMod : MODIFIERS_MKF)) )
     | SpecC ->
       assert false
@@ -145,10 +145,10 @@ let translate_to_c generate_c_header basename prog machines dependencies =
   let module Makefile = C_backend_makefile.Main ((val makefile_m)) in
   (* let module CMakefile = C_backend_cmake.Main (MakefileMod) in *)
   let funs =
-    ( Header.print_alloc_header,
-      Source.print_lib_c,
-      SourceMain.print_main_c,
-      Makefile.print_makefile )
+    ( Header.pp_alloc_header,
+      Source.pp_lib_c,
+      SourceMain.pp_main_c,
+      Makefile.pp_makefile )
     (* CMakefile.print_makefile *)
   in
   if generate_c_header then print_c_header basename;

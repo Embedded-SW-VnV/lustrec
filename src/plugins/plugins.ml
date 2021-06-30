@@ -5,7 +5,8 @@ let () = Sites.Plugins.Plugins.load_all ()
 
 let options () =
   List.flatten
-    (List.map Options_management.plugin_opt
+    (List.map
+       Options_management.plugin_opt
        (List.map
           (fun m ->
             let module M = (val m : PluginType.S) in
@@ -31,7 +32,8 @@ let refine_machine_code prog machine_code =
     (fun accu m ->
       let module M = (val m : PluginType.S) in
       M.refine_machine_code prog accu)
-    machine_code (plugins ())
+    machine_code
+    (plugins ())
 
 let c_backend_main_loop_body_prefix basename mname fmt () =
   List.iter
@@ -71,7 +73,8 @@ let inline_annots rename_var_fun annot_list =
                   assert false
               in
               items @ accu)
-            [] ann.annots;
+            []
+            ann.annots;
       })
     annot_list
 

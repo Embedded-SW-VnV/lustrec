@@ -54,7 +54,8 @@ let is_graph_root v g = IdentDepGraph.in_degree g v = 0
 let graph_roots g =
   IdentDepGraph.fold_vertex
     (fun v roots -> if is_graph_root v g then v :: roots else roots)
-    g []
+    g
+    []
 
 let add_edges src tgt g =
   (*List.iter (fun s -> List.iter (fun t -> Format.eprintf "add %s -> %s@." s t)
@@ -151,13 +152,15 @@ module ExprDep = struct
   let node_local_variables nd =
     List.fold_left
       (fun locals v -> ISet.add v.var_id locals)
-      ISet.empty nd.node_locals
+      ISet.empty
+      nd.node_locals
 
   let node_constant_variables nd =
     List.fold_left
       (fun locals v ->
         if v.var_dec_const then ISet.add v.var_id locals else locals)
-      ISet.empty nd.node_locals
+      ISet.empty
+      nd.node_locals
 
   (* XXX: UNUSED *)
   (* let node_auxiliary_variables nd =
@@ -168,11 +171,13 @@ module ExprDep = struct
     let inoutputs =
       List.fold_left
         (fun inoutputs v -> ISet.add v.var_id inoutputs)
-        inputs nd.node_outputs
+        inputs
+        nd.node_outputs
     in
     List.fold_left
       (fun vars v -> ISet.add v.var_id vars)
-      inoutputs nd.node_locals
+      inoutputs
+      nd.node_locals
 
   (* computes the equivalence relation relating variables in the same equation
      lhs, under the form of a table of class representatives *)
@@ -220,7 +225,9 @@ module ExprDep = struct
       (*Format.eprintf "add_clock %a@." Clocks.print_ck ck;*)
       match (Clocks.repr ck).Clocks.cdesc with
       | Clocks.Con (ck', cr, _) ->
-        add_var lhs_is_mem lhs
+        add_var
+          lhs_is_mem
+          lhs
           (Clocks.const_of_carrier cr)
           (add_clock lhs_is_mem lhs ck' g)
       | Clocks.Ccarrying (_, ck') ->
@@ -252,17 +259,26 @@ module ExprDep = struct
       | Expr_ident x ->
         add_var lhs_is_mem lhs x g
       | Expr_access (e1, d) | Expr_power (e1, d) ->
-        add_dep lhs_is_mem lhs e1
+        add_dep
+          lhs_is_mem
+          lhs
+          e1
           (add_dep lhs_is_mem lhs (expr_of_dimension d) g)
       | Expr_array a ->
         List.fold_right (add_dep lhs_is_mem lhs) a g
       | Expr_tuple t ->
         List.fold_right2 (fun l r -> add_dep lhs_is_mem [ l ] r) lhs t g
       | Expr_merge (c, hl) ->
-        add_var lhs_is_mem lhs c
+        add_var
+          lhs_is_mem
+          lhs
+          c
           (List.fold_right (fun (_, h) -> add_dep lhs_is_mem lhs h) hl g)
       | Expr_ite (c, t, e) ->
-        add_dep lhs_is_mem lhs c
+        add_dep
+          lhs_is_mem
+          lhs
+          c
           (add_dep lhs_is_mem lhs t (add_dep lhs_is_mem lhs e g))
       | Expr_arrow (e1, e2) ->
         add_dep lhs_is_mem lhs e2 (add_dep lhs_is_mem lhs e1 g)
@@ -283,7 +299,8 @@ module ExprDep = struct
         (fun g lhs ->
           if ISet.mem lhs mems then add_vertices [ lhs; mk_read_var lhs ] g
           else add_vertices [ lhs ] g)
-        g eq.eq_lhs
+        g
+        eq.eq_lhs
     in
     add_dep false eq.eq_lhs eq.eq_rhs (g, g')
 
@@ -295,7 +312,8 @@ module ExprDep = struct
     let g =
       List.fold_right
         (add_eq_dependencies mems inputs node_vars)
-        (get_node_eqs n) g
+        (get_node_eqs n)
+        g
     in
 
     (* TODO Xavier: un essai ci dessous. Ca n'a pas l'air de résoudre le pb. Il
@@ -336,11 +354,13 @@ module NodeDep = struct
     | Expr_array t | Expr_tuple t ->
       List.fold_right
         (fun x set -> ESet.union (get_expr_calls prednode x) set)
-        t ESet.empty
+        t
+        ESet.empty
     | Expr_merge (_, hl) ->
       List.fold_right
         (fun (_, h) set -> ESet.union (get_expr_calls prednode h) set)
-        hl ESet.empty
+        hl
+        ESet.empty
     | Expr_fby (e1, e2) | Expr_arrow (e1, e2) ->
       ESet.union (get_expr_calls prednode e1) (get_expr_calls prednode e2)
     | Expr_ite (c, t, e) ->
@@ -387,7 +407,8 @@ module NodeDep = struct
       let calls =
         accu
           (fun a -> get_expr_calls prednode a.assert_expr)
-          calls h.hand_asserts
+          calls
+          h.hand_asserts
       in
       (* let calls = accu xx calls h.hand_annots in *)
       (* TODO: search for calls in eexpr *)
@@ -404,7 +425,9 @@ module NodeDep = struct
   let get_contract_calls prednode c =
     let deps = accu (get_stmt_calls prednode) ESet.empty c.stmts in
     let deps =
-      accu (get_eexpr_calls prednode) deps
+      accu
+        (get_eexpr_calls prednode)
+        deps
         (c.assume @ c.guarantees
         @ List.fold_left (fun accu m -> accu @ m.require @ m.ensure) [] c.modes
         )
@@ -464,7 +487,8 @@ module NodeDep = struct
           | _ ->
             assert false
           (* should not happen *))
-        prog g
+        prog
+        g
     in
     g
 
@@ -619,7 +643,10 @@ module Disjunction = struct
 
   let pp_ciset fmt t =
     let open Format in
-    pp_print_braced' ~pp_sep:pp_print_space Printers.pp_var_name fmt
+    pp_print_braced'
+      ~pp_sep:pp_print_space
+      Printers.pp_var_name
+      fmt
       (CISet.elements t)
 
   let clock_disjoint_map vdecls =
@@ -631,7 +658,8 @@ module Disjunction = struct
             (fun res v2 ->
               if Clocks.disjoint v1.var_clock v2.var_clock then CISet.add v2 res
               else res)
-            CISet.empty vdecls
+            CISet.empty
+            vdecls
         in
         (* disjoint vdecls are stored in increasing branch length order *)
         Hashtbl.add map v1.var_id disj_v1)
@@ -680,7 +708,10 @@ module Disjunction = struct
       fprintf fmt "@[<v 2>{ /* disjoint map */%t@] }" (fun fmt ->
           Hashtbl.iter
             (fun k v ->
-              fprintf fmt "@,%s # %a" k
+              fprintf
+                fmt
+                "@,%s # %a"
+                k
                 (pp_print_braced' Printers.pp_var_name)
                 (CISet.elements v))
             map))
@@ -696,14 +727,20 @@ let pp_error fmt err =
   match err with
   | NodeCycle trace ->
     Format.(
-      fprintf fmt "Causality error, cyclic node calls:@   @[<v 0>%a@]@ "
+      fprintf
+        fmt
+        "Causality error, cyclic node calls:@   @[<v 0>%a@]@ "
         (pp_comma_list Format.pp_print_string)
         trace)
   | DataCycle traces ->
     Format.(
-      fprintf fmt "Causality error, cyclic data dependencies:@   @[<v 0>%a@]@ "
+      fprintf
+        fmt
+        "Causality error, cyclic data dependencies:@   @[<v 0>%a@]@ "
         (pp_print_list ~pp_sep:pp_print_semicolon (fun fmt trace ->
-             fprintf fmt "@[<v 0>{%a}@]"
+             fprintf
+               fmt
+               "@[<v 0>{%a}@]"
                (pp_comma_list Format.pp_print_string)
                trace))
         traces)
@@ -769,7 +806,8 @@ module VarClockDep = struct
         (fun g var_decl ->
           let deps = get_clock_dep var_decl.var_clock in
           add_edges [ var_decl.var_id ] deps g)
-        g locals
+        g
+        locals
     in
     let sorted, no_deps =
       TopologicalDepGraph.fold
@@ -777,7 +815,8 @@ module VarClockDep = struct
           let select v = v.var_id = vid in
           let selected, not_selected = List.partition select remaining in
           selected @ accu, not_selected)
-        g ([], locals)
+        g
+        ([], locals)
     in
     no_deps @ sorted
 end

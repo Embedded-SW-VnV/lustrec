@@ -49,7 +49,7 @@ let rec pp_type fmt t =
     | Types.Tstatic (_, ty) ->
       pp_type fmt ty
     | Types.Tarrow _ | _ ->
-      eprintf "internal error: pp_type %a@." Types.print_ty t;
+      eprintf "internal error: pp_type %a@." Types.pp t;
       assert false
 
 let pp_decl_var fmt id =
@@ -111,11 +111,13 @@ let instances_memory_vars ?(without_arrow = false) machines machine =
           if without_arrow && name = "_arrow" then accu
           else
             let machine_n = get_machine machines name in
-            aux false
+            aux
+              false
               (concat prefix (if fst then id else concat m.mname.node_id id))
               machine_n
             @ accu)
-        [] m.minstances
+        []
+        m.minstances
   in
   aux true machine.mname.node_id machine
 
@@ -128,17 +130,20 @@ let arrow_vars machines machine : Lustre_types.var_decl list =
         if name = "_arrow" then
           let arrow_machine = Machine_code_common.arrow_machine in
           rename_machine_list
-            (concat prefix
+            (concat
+               prefix
                (concat (if fst then id else concat m.mname.node_id id) "_arrow"))
             arrow_machine.mmemory
           @ accu
         else
           let machine_n = get_machine machines name in
-          aux false
+          aux
+            false
             (concat prefix (if fst then id else concat m.mname.node_id id))
             machine_n
           @ accu)
-      [] m.minstances
+      []
+      m.minstances
   in
   aux true machine.mname.node_id machine
 

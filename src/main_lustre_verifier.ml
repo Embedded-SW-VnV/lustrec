@@ -77,7 +77,10 @@ let verify dirname basename extension =
 
   Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ ");
   Log.report ~level:3 (fun fmt ->
-      fprintf fmt ".. Generated machines:@ %a@ " Machine_code_common.pp_machines
+      fprintf
+        fmt
+        ".. Generated machines:@ %a@ "
+        Machine_code_common.pp_machines
         machine_code);
 
   if Scopes.Plugin.show_scopes () then (
@@ -105,7 +108,8 @@ let anonymous filename =
       (fun (ok, ext) ext' ->
         if (not ok) && Filename.check_suffix filename ext' then true, ext'
         else ok, ext)
-      (false, "") extensions
+      (false, "")
+      extensions
   in
   if ok_ext then
     let dirname = Filename.dirname filename in

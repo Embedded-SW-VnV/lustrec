@@ -32,7 +32,8 @@ let fold = IMap.fold
 let overwrite x y =
   IMap.merge
     (fun _ _old _new -> match _new with Some _ -> _new | _ -> _old)
-    x y
+    x
+    y
 
 let pp pp_fun fmt env =
   let l' = IMap.bindings env in

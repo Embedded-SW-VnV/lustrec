@@ -211,7 +211,9 @@ let rec get_envs_from_top_decl (ty_env, ck_env) top_decl =
   | Const c ->
     get_envs_from_const c (ty_env, ck_env)
   | TypeDef _ ->
-    List.fold_left get_envs_from_top_decl (ty_env, ck_env)
+    List.fold_left
+      get_envs_from_top_decl
+      (ty_env, ck_env)
       (consts_of_enum_type top_decl)
   | Include _ | Open _ ->
     ty_env, ck_env
@@ -249,7 +251,9 @@ let rec load_rec ~is_header accu program =
             List.exists
               (fun dep ->
                 basename
-                = name_dependency decl.top_decl_loc (dep.local, dep.name)
+                = name_dependency
+                    decl.top_decl_loc
+                    (dep.local, dep.name)
                     ".lusic")
               accu_dep
           then (* Library already imported. Just skip *)
@@ -317,7 +321,8 @@ let rec load_rec ~is_header accu program =
       | TypeDef tdef ->
         add_type is_header tdef.tydef_id decl;
         decl :: accu_prog, accu_dep, typ_env', clk_env')
-    accu program
+    accu
+    program
 
 (* Iterates through lusi definitions and records them in the hashtbl. Open
    instructions are evaluated and update these hashtbl as well.
@@ -325,7 +330,8 @@ let rec load_rec ~is_header accu program =
 let load ~is_header program =
   try
     let prog, deps, typ_env, clk_env =
-      load_rec ~is_header
+      load_rec
+        ~is_header
         ( [],
           (* accumulator for program elements *)
           [],

@@ -37,7 +37,8 @@ let compute_mems machines m =
           else
             let machine_n = get_machine machines name in
             aux ((id, machine_n) :: prefix) machine_n @ accu)
-        [] m.minstances
+        []
+        m.minstances
   in
   aux [] m
 
@@ -117,8 +118,11 @@ let memories_next machines m =
                   false)
               m.mname.node_stmts
           with _ ->
-            eprintf "Unable to find definition of %s in stmts %a@.prefix=%a@.@?"
-              var_id Printers.pp_node_stmts m.mname.node_stmts
+            eprintf
+              "Unable to find definition of %s in stmts %a@.prefix=%a@.@?"
+              var_id
+              Printers.pp_node_stmts
+              m.mname.node_stmts
               (pp_comma_list (fun fmt (id, n) ->
                    fprintf fmt "(%s,%s)" id n.mname.node_id))
               (List.rev prefix);
@@ -138,10 +142,13 @@ let memories_next machines m =
         in
         prefix, def
       | _ ->
-        eprintf "Mem Failure: (prefix: %a, eexpr: %a)@.@?"
+        eprintf
+          "Mem Failure: (prefix: %a, eexpr: %a)@.@?"
           (pp_comma_list (fun fmt (id, n) ->
                fprintf fmt "(%s,%s)" id n.mname.node_id))
-          (List.rev prefix) Printers.pp_expr ee;
+          (List.rev prefix)
+          Printers.pp_expr
+          ee;
         assert false)
     (memories_old machines m)
 
@@ -154,9 +161,12 @@ let memories_next machines m =
 let traces_file fmt machines =
   let pp_l = pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt " | ") in
   fprintf fmt "<?xml version=\"1.0\"?>@.";
-  fprintf fmt
+  fprintf
+    fmt
     "<Traces xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">@.";
-  fprintf fmt "@[<v 5>@ %a@ @]@."
+  fprintf
+    fmt
+    "@[<v 5>@ %a@ @]@."
     (pp_print_list (fun fmt m ->
          let pp_var = pp_horn_var m in
          let memories_old = memories_old machines m in
@@ -171,7 +181,9 @@ let traces_file fmt machines =
          let output_vars =
            rename_machine_list m.mname.node_id m.mstep.step_outputs
          in
-         fprintf fmt "<input name=\"%a\" type=\"%a\">%a</input>@ "
+         fprintf
+           fmt
+           "<input name=\"%a\" type=\"%a\">%a</input>@ "
            (pp_l (pp_horn_var m))
            input_vars
            (pp_l (fun fmt id -> pp_type fmt id.var_type))
@@ -179,10 +191,15 @@ let traces_file fmt machines =
            (pp_l (pp_horn_var m))
            m.mstep.step_inputs;
 
-         fprintf fmt "<output name=\"%a\" type=\"%a\">%a</output>@ "
-           (pp_l pp_var) output_vars
+         fprintf
+           fmt
+           "<output name=\"%a\" type=\"%a\">%a</output>@ "
+           (pp_l pp_var)
+           output_vars
            (pp_l (fun fmt id -> pp_type fmt id.var_type))
-           output_vars (pp_l pp_var) m.mstep.step_outputs;
+           output_vars
+           (pp_l pp_var)
+           m.mstep.step_outputs;
 
          let local_vars =
            try full_memory_vars ~without_arrow:true machines m
@@ -193,8 +210,11 @@ let traces_file fmt machines =
          let init_local_vars = rename_next_list local_vars in
          let step_local_vars = rename_current_list local_vars in
 
-         fprintf fmt "<localInit name=\"%a\" type=\"%a\">%t%a</localInit>@ "
-           (pp_l pp_var) init_local_vars
+         fprintf
+           fmt
+           "<localInit name=\"%a\" type=\"%a\">%t%a</localInit>@ "
+           (pp_l pp_var)
+           init_local_vars
            (pp_l (fun fmt id -> pp_type fmt id.var_type))
            init_local_vars
            (fun fmt ->
@@ -202,8 +222,11 @@ let traces_file fmt machines =
            (pp_l (fun fmt (_, ee) -> fprintf fmt "%a" pp_xml_expr ee))
            memories_next;
 
-         fprintf fmt "<localStep name=\"%a\" type=\"%a\">%t%a</localStep>@ "
-           (pp_l pp_var) step_local_vars
+         fprintf
+           fmt
+           "<localStep name=\"%a\" type=\"%a\">%t%a</localStep>@ "
+           (pp_l pp_var)
+           step_local_vars
            (pp_l (fun fmt id -> pp_type fmt id.var_type))
            step_local_vars
            (fun fmt -> match memories_old with [] -> () | _ -> fprintf fmt "")

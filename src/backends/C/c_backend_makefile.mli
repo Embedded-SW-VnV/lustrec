@@ -9,7 +9,7 @@ end
 module EmptyMod : MODIFIERS_MKF
 
 module Main (Mod : MODIFIERS_MKF) : sig
-  val print_makefile : string -> string -> dep_t list -> formatter -> unit
+  val pp_makefile : string -> string -> dep_t list -> formatter -> unit
 end
 
 val fprintf_dependencies : formatter -> dep_t list -> unit

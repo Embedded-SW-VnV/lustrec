@@ -11,7 +11,8 @@ type scope_t = (var_decl * string * string option) list * var_decl
 let scope_to_sl ((sl, v) : scope_t) : string list =
   List.fold_right
     (fun (v, nodename, _) accu -> v.var_id :: nodename :: accu)
-    sl [ v.var_id ]
+    sl
+    [ v.var_id ]
 
 let rec compute_scopes ?(first = true) prog root_node : scope_t list =
   let compute_scopes = compute_scopes ~first:false in
@@ -37,7 +38,10 @@ let rec compute_scopes ?(first = true) prog root_node : scope_t list =
                 let vid = List.find query all_vars in
                 (nodeid, vid) :: res
               with Not_found ->
-                Format.eprintf "eq=%a@.local_vars=%a@." Printers.pp_node_eq eq
+                Format.eprintf
+                  "eq=%a@.local_vars=%a@."
+                  Printers.pp_node_eq
+                  eq
                   (Format.pp_comma_list Printers.pp_var)
                   local_vars;
                 assert false)
@@ -46,7 +50,8 @@ let rec compute_scopes ?(first = true) prog root_node : scope_t list =
             | _ ->
               assert false
             (* TODO deal with Automaton *))
-          [] node.node_stmts
+          []
+          node.node_stmts
       in
       List.map
         (fun (nodeid, vid) ->
@@ -61,13 +66,17 @@ let rec compute_scopes ?(first = true) prog root_node : scope_t list =
 let pp_scopes =
   Format.(
     pp_print_list (fun fmt ((_, v) as s) ->
-        fprintf fmt "%a: %a"
+        fprintf
+          fmt
+          "%a: %a"
           (pp_print_list
              ~pp_sep:(fun fmt () -> pp_print_string fmt ".")
              pp_print_string)
-          (scope_to_sl s) Types.print_ty v.var_type))
+          (scope_to_sl s)
+          Types.pp
+          v.var_type))
 
-(* let print_path fmt p = *)
+(* let pp_path fmt p = *)
 (* Utils.fprintf_list ~sep:"." (fun fmt (id, _) -> Format.pp_print_string fmt
    id) fmt p *)
 
@@ -139,7 +148,7 @@ let check_scope all_scopes =
       (* Format.eprintf "@.@.Required path: %s@." (String.concat "." sl) ; *)
       let main_node = get_node main_node_name prog in
       let path, flow, mid = get_path prog machines main_node sl [] in
-      (* Format.eprintf "computed path: %a.%s@." print_path path flow.var_id; *)
+      (* Format.eprintf "computed path: %a.%s@." pp_path path flow.var_id; *)
       path, flow, mid
 
 (* Build the two maps - (scope_name, variable) - (machine_name, list of selected
@@ -158,7 +167,8 @@ let check_scopes main_node_name prog machines all_scopes scopes =
         else (mid, [ flow_id ]) :: accu_m
       in
       accu_sl, accu_m)
-    ([], []) scopes
+    ([], [])
+    scopes
 
 let scope_var_name vid = vid ^ "__scope"
 
@@ -195,7 +205,10 @@ let pp_scopes_files _basename _mname fmt scopes =
     (fun idx (id, (_, var)) ->
       let file = C_backend_common.pp_file_open fmt "out_scopes" idx in
       Format.fprintf fmt "fprintf(%s, \"# scope: %s\\n\");@ " file id;
-      Format.fprintf fmt "fprintf(%s, \"# node: %s\\n\");@ " file
+      Format.fprintf
+        fmt
+        "fprintf(%s, \"# node: %s\\n\");@ "
+        file
         (Utils.desome var.var_parent_nodeid);
       Format.fprintf fmt "fprintf(%s, \"# variable: %s\\n\");@ " file var.var_id)
     scopes_vars;
@@ -206,9 +219,12 @@ let pp_full_scopes fmt scopes =
   List.iteri
     (fun idx (id, (var_path, var)) ->
       Format.fprintf fmt "@ %t;" (fun fmt ->
-          C_backend_common.pp_put_var fmt
+          C_backend_common.pp_put_var
+            fmt
             ("_scopes" ^ string_of_int (idx + 1))
-            id (*var*) var.var_type var_path))
+            id
+            (*var*) var.var_type
+            var_path))
     scopes_vars
 
 (**********************************************************************)
@@ -323,7 +339,8 @@ let process_scopes main_node prog machines =
         let res = is_valid_path sl main_node prog machines in
         (if not res then
          Format.(
-           eprintf "Scope %a is cancelled due to variable removal@."
+           eprintf
+             "Scope %a is cancelled due to variable removal@."
              (pp_print_list
                 ~pp_sep:(fun fmt () -> pp_print_string fmt ".")
                 pp_print_string)
@@ -405,7 +422,8 @@ end = struct
 
   let usage fmt =
     let open Format in
-    fprintf fmt
+    fprintf
+      fmt
       "@[<hov 0>Scopes@ enrich@ the@ internal@ memories@ to@ record@ all@ or@ \
        a@ selection@ of@ internals.@ In@ conjunction@ with@ the@ trace@ \
        option@ of@ the@ produced@ binary@ it@ can@ also@ record@ these@ flow@ \

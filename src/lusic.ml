@@ -37,7 +37,8 @@ let extract_header dirname basename prog =
           header
         | Const _ | TypeDef _ | Include _ | Open _ ->
           decl :: header)
-    prog []
+    prog
+    []
 
 let check_obsolete lusic basename =
   if lusic.obsolete then

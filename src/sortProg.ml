@@ -42,14 +42,17 @@ let sort prog =
             else (
               Format.eprintf "Impossible to find node %s@.@?" x;
               failwith x))
-        g []
+        g
+        []
     with Causality.Error err as exc ->
       Causality.pp_error Format.err_formatter err;
       raise exc
   in
 
   Log.report ~level:3 (fun fmt ->
-      Format.fprintf fmt "@ @[<v 2>.. ordered list of declarations:@ %a@]@ "
+      Format.fprintf
+        fmt
+        "@ @[<v 2>.. ordered list of declarations:@ %a@]@ "
         (Format.pp_print_list Printers.pp_short_decl)
         sorted);
   not_nodes @ sorted

@@ -29,11 +29,17 @@ let pp_elem fmt e =
 let pp_guard_list pp_elem fmt gl =
   (fprintf_list ~sep:";@ " (fun fmt (e, b) ->
        if b then pp_elem fmt e else Format.fprintf fmt "not(%a)" pp_elem e))
-    fmt gl
+    fmt
+    gl
 
 let pp_guard_expr pp_elem fmt (gl, e) =
-  Format.fprintf fmt "@[<v 2>@[%a@] ->@ @[<hov 2>%a@]@]" (pp_guard_list pp_elem)
-    gl pp_elem e
+  Format.fprintf
+    fmt
+    "@[<v 2>@[%a@] ->@ @[<hov 2>%a@]@]"
+    (pp_guard_list pp_elem)
+    gl
+    pp_elem
+    e
 
 let pp_mdefs pp_elem fmt gel =
   fprintf_list ~sep:"@ " (pp_guard_expr pp_elem) fmt gel
@@ -64,20 +70,29 @@ let pp_gl_short =
   pp_gl (fun fmt e -> Format.fprintf fmt "%i" e.Lustre_types.expr_tag)
 
 let pp_up pp_elem fmt up =
-  fprintf_list ~sep:"@ "
+  fprintf_list
+    ~sep:"@ "
     (fun fmt (id, e) -> Format.fprintf fmt "%s == %a;@ " id pp_elem e)
-    fmt up
+    fmt
+    up
 
 let pp_sys pp_elem fmt sw =
-  fprintf_list ~sep:"@ "
+  fprintf_list
+    ~sep:"@ "
     (fun fmt (gl, up) ->
       match gl with
       | None ->
         (pp_up pp_elem) fmt up
       | Some gl ->
-        Format.fprintf fmt "@[<v 2>[@[%a@]]:@ %a@]" Printers.pp_expr gl
-          (pp_up pp_elem) up)
-    fmt sw
+        Format.fprintf
+          fmt
+          "@[<v 2>[@[%a@]]:@ %a@]"
+          Printers.pp_expr
+          gl
+          (pp_up pp_elem)
+          up)
+    fmt
+    sw
 
 let pp_all_defs =
   Utils.fprintf_list ~sep:",@ " (fun fmt (id, gel) ->

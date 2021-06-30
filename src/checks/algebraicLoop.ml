@@ -71,7 +71,8 @@ module CycleResolution = struct
           (* We have a match: keep the eq and the expr to inline *)
           call :: accu
         else accu)
-      [] calls
+      []
+      calls
 end
 
 (* Format.fprintf fmt "@[<v 2>Possible resolution:@ %a@]" pp_resolution
@@ -155,7 +156,8 @@ let inline_expr node expr =
    program *)
 let fast_stages_processing prog =
   Log.report ~level:3 (fun fmt ->
-      Format.fprintf fmt
+      Format.fprintf
+        fmt
         "@[<v 2>Fast revalidation: normalization + schedulability@ ");
   Options.verbose_level := !Options.verbose_level - 2;
 
@@ -348,7 +350,8 @@ let clean_al prog : program_t * bool * report =
               (nd, al) :: al_list ))
         | _ ->
           max_inlines, top :: prog_accu, al_list)
-      prog (max_inlines, [], [])
+      prog
+      (max_inlines, [], [])
   in
   prog, List.for_all al_is_solved al_list, al_list
 
@@ -356,10 +359,14 @@ let clean_al prog : program_t * bool * report =
 let pp_al nd fmt (partition, calls, _) =
   let open Format in
   fprintf fmt "@[<v 0>";
-  fprintf fmt "variables in the alg. loop: @[<hov 0>%a@]@ "
+  fprintf
+    fmt
+    "variables in the alg. loop: @[<hov 0>%a@]@ "
     (pp_comma_list pp_print_string)
     partition;
-  fprintf fmt "@ involved node calls: @[<v 0>%a@]@ "
+  fprintf
+    fmt
+    "@ involved node calls: @[<v 0>%a@]@ "
     (pp_comma_list (fun fmt ((funid, expr, _), status) ->
          fprintf fmt "%s" funid;
          if status && is_expr_inlined nd expr then
@@ -375,7 +382,8 @@ let pp_al nd fmt (partition, calls, _) =
 
 let pp_report fmt report =
   let open Format in
-  pp_print_list ~pp_open_box:pp_open_vbox0
+  pp_print_list
+    ~pp_open_box:pp_open_vbox0
     (fun _ (nd, als) ->
       let top = Corelang.node_from_name nd.node_id in
       let pp =
@@ -387,10 +395,14 @@ let pp_report fmt report =
         (* solvable cases: warning only *)
       in
       pp top.top_decl_loc (fun fmt ->
-          fprintf fmt "algebraic loop in node %s: {@[<v 0>%a@]}" nd.node_id
+          fprintf
+            fmt
+            "algebraic loop in node %s: {@[<v 0>%a@]}"
+            nd.node_id
             (pp_print_list (pp_al nd))
             als))
-    fmt report;
+    fmt
+    report;
   fprintf fmt "@."
 
 let analyze cpt prog =

@@ -45,14 +45,20 @@ let rec check_expr expr =
       with Not_found ->
         let loc = expr.expr_loc in
         Error.pp_error loc (fun fmt ->
-            Format.fprintf fmt "Unable to find node %s in expression %a" i
-              Printers.pp_expr expr);
+            Format.fprintf
+              fmt
+              "Unable to find node %s in expression %a"
+              i
+              Printers.pp_expr
+              expr);
         raise (Error.Error (loc, Error.Unbound_symbol i))
     in
     (* Warning message when trying to reset a stateless node *)
     if stateless_node && not reset_opt then
       Error.pp_warning expr.expr_loc (fun fmt ->
-          Format.fprintf fmt "Trying to reset call the stateless node or op %s"
+          Format.fprintf
+            fmt
+            "Trying to reset call the stateless node or op %s"
             i);
     check_expr e' && reset_opt && stateless_node
 
@@ -127,13 +133,18 @@ let check_compat header = List.iter check_compat_decl header
 let pp_error fmt err =
   match err with
   | Stateful_kwd nd ->
-    Format.fprintf fmt "node %s should be stateless but is actually stateful.@."
+    Format.fprintf
+      fmt
+      "node %s should be stateless but is actually stateful.@."
       nd
   | Stateful_imp nd ->
-    Format.fprintf fmt
-      "node %s is declared stateless but is actually stateful.@." nd
+    Format.fprintf
+      fmt
+      "node %s is declared stateless but is actually stateful.@."
+      nd
   | Stateful_ext_C nd ->
-    Format.fprintf fmt
+    Format.fprintf
+      fmt
       "node %s with declared prototype C cannot be stateful, it has to be a \
        function.@."
       nd

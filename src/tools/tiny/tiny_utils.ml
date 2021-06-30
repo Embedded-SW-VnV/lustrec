@@ -3,7 +3,8 @@ module Ast = Tiny.Ast
 let gen_loc () = Tiny.Location.dummy ()
 
 let lloc_to_tloc loc =
-  Tiny.Location.location_of_positions loc.Location.loc_start
+  Tiny.Location.location_of_positions
+    loc.Location.loc_start
     loc.Location.loc_end
 
 let tloc_to_lloc loc = assert false

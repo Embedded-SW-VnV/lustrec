@@ -5,7 +5,8 @@ let name = "medium"
 
 let condition x =
   condition
-    (Corelang.mkexpr Location.dummy_loc
+    (Corelang.mkexpr
+       Location.dummy_loc
        (LustreSpec.Expr_const (Corelang.const_of_bool true)))
 
 let model : prog_t =

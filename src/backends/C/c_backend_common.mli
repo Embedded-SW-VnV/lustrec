@@ -23,7 +23,7 @@ val pp_machine_step_name : formatter -> ident -> unit
 
 val pp_machine_alloc_name : formatter -> ident -> unit
 
-val pp_machine_static_alloc_name : formatter -> ident -> unit
+val pp_machine_static_alloc_name : ?ghost:bool -> formatter -> ident -> unit
 
 val pp_machine_dealloc_name : formatter -> ident -> unit
 
@@ -31,9 +31,9 @@ val pp_global_init_name : formatter -> ident -> unit
 
 val pp_global_clear_name : formatter -> ident -> unit
 
-val pp_machine_static_declare_name : formatter -> ident -> unit
+val pp_machine_static_declare_name : ?ghost:bool -> formatter -> ident -> unit
 
-val pp_machine_static_link_name : formatter -> ident -> unit
+val pp_machine_static_link_name : ?ghost:bool -> formatter -> ident -> unit
 
 val pp_global_init_prototype : formatter -> ident -> unit
 
@@ -160,6 +160,15 @@ val pp_clear :
   var_decl ->
   unit
 
+val pp_static_declare_macro :
+  ?ghost:bool -> formatter -> machine_t * ident * ident -> unit
+
+val pp_static_link_macro :
+  ?ghost:bool -> formatter -> machine_t * ident * ident -> unit
+
+val pp_static_alloc_macro :
+  ?ghost:bool -> formatter -> machine_t * ident * ident -> unit
+
 val mk_call_var_decl : Location.t -> ident -> var_decl
 
 val pp_c_basic_type_desc : Types.t -> string
@@ -243,20 +252,19 @@ end
 module EmptyGhostProto : MODIFIERS_GHOST_PROTO
 
 module Protos (Mod : MODIFIERS_GHOST_PROTO) : sig
-  val print_stateless_prototype :
+  val pp_stateless_prototype :
     formatter -> ident * var_decl list * var_decl list -> unit
 
-  val print_clear_reset_prototype :
+  val pp_clear_reset_prototype :
     ident -> ident -> formatter -> ident * var_decl list -> unit
 
-  val print_set_reset_prototype :
+  val pp_set_reset_prototype :
     ident -> ident -> formatter -> ident * var_decl list -> unit
 
-  val print_step_prototype :
+  val pp_step_prototype :
     ident -> ident -> formatter -> ident * var_decl list * var_decl list -> unit
 
-  val print_init_prototype : ident -> formatter -> ident * var_decl list -> unit
+  val pp_init_prototype : ident -> formatter -> ident * var_decl list -> unit
 
-  val print_clear_prototype :
-    ident -> formatter -> ident * var_decl list -> unit
+  val pp_clear_prototype : ident -> formatter -> ident * var_decl list -> unit
 end

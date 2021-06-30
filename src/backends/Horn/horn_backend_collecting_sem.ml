@@ -45,7 +45,10 @@ let collecting_semantics machines fmt node machine =
     @ main_output_dummy
   in
 
-  fprintf fmt "(declare-rel MAIN (%a))@." (pp_print_list pp_type)
+  fprintf
+    fmt
+    "(declare-rel MAIN (%a))@."
+    (pp_print_list pp_type)
     (List.map (fun v -> v.var_type) main_memory_next);
 
   (* Init case *)
@@ -58,11 +61,17 @@ let collecting_semantics machines fmt node machine =
       fprintf fmt "(rule INIT_STATE)@.";
       fprintf fmt "@[<v 2>(rule (=> @ (and @[<v 0>";
       fprintf fmt "INIT_STATE@ ";
-      fprintf fmt "(@[<v 0>%a %a@])" step_name node
+      fprintf
+        fmt
+        "(@[<v 0>%a %a@])"
+        step_name
+        node
         (pp_print_list (pp_horn_var machine))
         (step_vars_m_x machines machine);
       fprintf fmt "@]@ )@ ";
-      fprintf fmt "(MAIN %a)@]@.))@.@."
+      fprintf
+        fmt
+        "(MAIN %a)@]@.))@.@."
         (pp_print_list (pp_horn_var machine))
         main_memory_next)
     else
@@ -72,15 +81,25 @@ let collecting_semantics machines fmt node machine =
       fprintf fmt "(rule INIT_STATE)@.";
       fprintf fmt "@[<v 2>(rule (=> @ (and @[<v 0>";
       fprintf fmt "INIT_STATE@ ";
-      fprintf fmt "(@[<v 0>%a %a@])@ " reset_name node
+      fprintf
+        fmt
+        "(@[<v 0>%a %a@])@ "
+        reset_name
+        node
         (pp_print_list (pp_horn_var machine))
         (reset_vars machines machine);
-      fprintf fmt "(@[<v 0>%a %a@])" step_name node
+      fprintf
+        fmt
+        "(@[<v 0>%a %a@])"
+        step_name
+        node
         (pp_print_list (pp_horn_var machine))
         (step_vars_m_x machines machine);
 
       fprintf fmt "@]@ )@ ";
-      fprintf fmt "(MAIN %a)@]@.))@.@."
+      fprintf
+        fmt
+        "(MAIN %a)@]@.))@.@."
         (pp_print_list (pp_horn_var machine))
         main_memory_next
   in
@@ -92,12 +111,16 @@ let collecting_semantics machines fmt node machine =
 
   fprintf fmt "; Inductive def@.";
   (pp_print_list (fun fmt v -> fprintf fmt "%a@." pp_decl_var v))
-    fmt main_output_dummy;
-  fprintf fmt
+    fmt
+    main_output_dummy;
+  fprintf
+    fmt
     "@[<v 2>(rule (=> @ (and @[<v 0>(MAIN %a)@ (@[<v 0>%a %a@])@]@ )@ (MAIN \
      %a)@]@.))@.@."
     (pp_print_list (pp_horn_var machine))
-    main_memory_current step_name node
+    main_memory_current
+    step_name
+    node
     (pp_print_list (pp_horn_var machine))
     (step_vars machines machine)
     (pp_print_list (pp_horn_var machine))
@@ -112,7 +135,9 @@ let check_prop machines fmt machine =
   in
   fprintf fmt "; Property def@.";
   fprintf fmt "(declare-rel ERR ())@.";
-  fprintf fmt "@[<v 2>(rule (=> @ (and @[<v 0>(not %a)@ (MAIN %a)@])@ ERR))@."
+  fprintf
+    fmt
+    "@[<v 2>(rule (=> @ (and @[<v 0>(not %a)@ (MAIN %a)@])@ ERR))@."
     (pp_conj (pp_horn_var machine))
     main_output
     (pp_print_list (pp_horn_var machine))
@@ -156,7 +181,10 @@ let cex_computation machines fmt node machine =
     else pp_machine_reset_name, pp_machine_step_name
   in
 
-  fprintf fmt "(declare-rel CEX (Int %a))@.@." (pp_print_list pp_type)
+  fprintf
+    fmt
+    "(declare-rel CEX (Int %a))@.@."
+    (pp_print_list pp_type)
     (List.map (fun v -> v.var_type) cex_memory_next);
 
   fprintf fmt "; Initial set: Reset(c,m) + One Step(m,x) @.";
@@ -164,15 +192,25 @@ let cex_computation machines fmt node machine =
   fprintf fmt "(rule INIT_STATE_CEX)@.";
   fprintf fmt "@[<v 2>(rule (=> @ (and @[<v 0>";
   fprintf fmt "INIT_STATE_CEX@ ";
-  fprintf fmt "(@[<v 0>%a %a@])@ " reset_name node
+  fprintf
+    fmt
+    "(@[<v 0>%a %a@])@ "
+    reset_name
+    node
     (pp_print_list (pp_horn_var machine))
     (reset_vars machines machine);
-  fprintf fmt "(@[<v 0>%a %a@])" step_name node
+  fprintf
+    fmt
+    "(@[<v 0>%a %a@])"
+    step_name
+    node
     (pp_print_list (pp_horn_var machine))
     (step_vars_m_x machines machine);
 
   fprintf fmt "@]@ )@ ";
-  fprintf fmt "(CEX 0 %a)@]@.))@.@."
+  fprintf
+    fmt
+    "(CEX 0 %a)@]@.))@.@."
     (pp_print_list (pp_horn_var machine))
     cex_memory_next;
 
@@ -180,13 +218,17 @@ let cex_computation machines fmt node machine =
   (* Declare dummy inputs. Outputs should have been declared previously with
      collecting sem *)
   (pp_print_list (fun fmt v -> fprintf fmt "%a@." pp_decl_var v))
-    fmt cex_input_dummy;
+    fmt
+    cex_input_dummy;
   fprintf fmt "(declare-var cexcpt Int)@.";
-  fprintf fmt
+  fprintf
+    fmt
     "@[<v 2>(rule (=> @ (and @[<v 0>(CEX cexcpt %a)@ (@[<v 0>%a %a@])@]@ )@ \
      (CEX (+ 1 cexcpt) %a)@]@.))@.@."
     (pp_print_list (pp_horn_var machine))
-    cex_memory_current step_name node
+    cex_memory_current
+    step_name
+    node
     (pp_print_list (pp_horn_var machine))
     (step_vars machines machine)
     (pp_print_list (pp_horn_var machine))
@@ -206,7 +248,8 @@ let get_cex machines fmt machine =
   in
   fprintf fmt "; Property def@.";
   fprintf fmt "(declare-rel CEXTRACE ())@.";
-  fprintf fmt
+  fprintf
+    fmt
     "@[<v 2>(rule (=> @ (and @[<v 0>(not %a)@ (CEX cexcpt %a)@])@ CEXTRACE))@."
     (pp_conj (pp_horn_var machine))
     cex_output

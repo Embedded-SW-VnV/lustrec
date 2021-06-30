@@ -43,7 +43,8 @@ let seal_run ~basename prog machines =
     match !Options.main_node with
     | "" ->
       Format.eprintf "SEAL verifier requires a main node.@.";
-      Format.eprintf "@[<v 2>Available ones are:@ %a@]@.@?"
+      Format.eprintf
+        "@[<v 2>Available ones are:@ %a@]@.@?"
         (Utils.fprintf_list ~sep:"@ " (fun fmt m ->
              Format.fprintf fmt "%s" m.Machine_code_types.mname.node_id))
         machines;
@@ -53,7 +54,9 @@ let seal_run ~basename prog machines =
       match Machine_code_common.get_machine_opt machines s with
       | None ->
         Global.main_node := s;
-        Format.eprintf "Code generation error: %a@." Error.pp_error_msg
+        Format.eprintf
+          "Code generation error: %a@."
+          Error.pp_error_msg
           Error.Main_not_found;
         raise (Error.Error (Location.dummy_loc, Error.Main_not_found))
       | Some _ ->
@@ -64,7 +67,10 @@ let seal_run ~basename prog machines =
   let mems = m.mmemory in
 
   report ~level:1 (fun fmt ->
-      Format.fprintf fmt "Node %s compiled: %i memories@." nd.node_id
+      Format.fprintf
+        fmt
+        "Node %s compiled: %i memories@."
+        nd.node_id
         (List.length mems));
 
   (* Slicing node *)
@@ -82,8 +88,12 @@ let seal_run ~basename prog machines =
     let update_out = fun_as_switched_sys consts sliced_nd in
 
     report ~level:1 (fun fmt ->
-        Format.fprintf fmt "Output (%i step switch cases):@ @[<v 0>%a@]@."
-          (List.length update_out) pp_sys update_out);
+        Format.fprintf
+          fmt
+          "Output (%i step switch cases):@ @[<v 0>%a@]@."
+          (List.length update_out)
+          pp_sys
+          update_out);
 
     let _ =
       match !seal_export with
@@ -104,23 +114,40 @@ let seal_run ~basename prog machines =
     in
 
     report ~level:1 (fun fmt ->
-        Format.fprintf fmt
+        Format.fprintf
+          fmt
           "DynSys: (%i memories, %i init, %i step switch cases)@ @[<v 0>@[<v \
            3>Init:@ %a@]@ @[<v 3>Step:@ %a@]@]@."
-          (List.length mems) (List.length sw_init) (List.length sw_sys) pp_sys
-          sw_init pp_sys sw_sys);
+          (List.length mems)
+          (List.length sw_init)
+          (List.length sw_sys)
+          pp_sys
+          sw_init
+          pp_sys
+          sw_sys);
 
     report ~level:1 (fun fmt ->
-        Format.fprintf fmt
+        Format.fprintf
+          fmt
           "Output (%i init, %i step switch cases):@ @[<v 0>@[<v 3>Init:@ %a@]@ \
            @[<v 3>Step:@ %a@]@]@."
-          (List.length init_out) (List.length update_out) pp_sys init_out pp_sys
+          (List.length init_out)
+          (List.length update_out)
+          pp_sys
+          init_out
+          pp_sys
           update_out);
 
     let _ =
       match !seal_export with
       | Some "lustre" | Some "lus" ->
-        Seal_export.node_to_lustre basename prog m sw_init sw_sys init_out
+        Seal_export.node_to_lustre
+          basename
+          prog
+          m
+          sw_init
+          sw_sys
+          init_out
           update_out
       | Some "matlab" | Some "m" ->
         assert false (* TODO *)

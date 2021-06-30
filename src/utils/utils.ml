@@ -51,7 +51,8 @@ module IMap = struct
           if v1 = v2 then None else o1
         | _ ->
           o1)
-      m1 m2
+      m1
+      m2
 
   let of_list l = List.fold_left (fun m (x, v) -> add x v m) empty l
 
@@ -344,14 +345,22 @@ module Format = struct
       ?(pp_open_box = fun fmt () -> pp_open_box fmt 0)
       ?(pp_eol = pp_print_nothing) ?(pp_nil = pp_print_nothing) ?pp_sep pp_v fmt
       l =
-    fprintf fmt "%a%a%a%a%a@]%a%a"
+    fprintf
+      fmt
+      "%a%a%a%a%a@]%a%a"
       (fun fmt l -> if l <> [] then pp_prologue fmt ())
-      l pp_op () pp_open_box ()
+      l
+      pp_op
+      ()
+      pp_open_box
+      ()
       (fun fmt () ->
         if l = [] then pp_nil fmt () else pp_print_list ?pp_sep pp_v fmt l)
       ()
       (fun fmt l -> if l <> [] then pp_eol fmt ())
-      l pp_cl ()
+      l
+      pp_cl
+      ()
       (fun fmt l -> if l <> [] then pp_epilogue fmt ())
       l
 
@@ -360,17 +369,33 @@ module Format = struct
   let pp_print_list_i ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box
       ?pp_eol ?pp_nil ?pp_sep pp_v =
     let i = ref 0 in
-    pp_print_list ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol
-      ?pp_nil ?pp_sep (fun fmt x ->
+    pp_print_list
+      ?pp_prologue
+      ?pp_epilogue
+      ?pp_op
+      ?pp_cl
+      ?pp_open_box
+      ?pp_eol
+      ?pp_nil
+      ?pp_sep
+      (fun fmt x ->
         pp_v fmt !i x;
         incr i)
 
   let pp_print_list_i2 ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box
       ?pp_eol ?pp_nil ?pp_sep pp_v fmt (l1, l2) =
-    pp_print_list_i ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol
-      ?pp_nil ?pp_sep
+    pp_print_list_i
+      ?pp_prologue
+      ?pp_epilogue
+      ?pp_op
+      ?pp_cl
+      ?pp_open_box
+      ?pp_eol
+      ?pp_nil
+      ?pp_sep
       (fun fmt i (x1, x2) -> pp_v fmt i x1 x2)
-      fmt (List.combine l1 l2)
+      fmt
+      (List.combine l1 l2)
 
   let pp_print_parenthesized ?(pp_sep = pp_print_comma) =
     pp_print_list ~pp_op:pp_print_opar ~pp_cl:pp_print_cpar ~pp_sep
@@ -387,8 +412,15 @@ end
 
 let pp_date fmt tm =
   let open Unix in
-  Format.fprintf fmt "%i/%i/%i, %02i:%02i:%02i" (tm.tm_year + 1900) tm.tm_mon
-    tm.tm_mday tm.tm_hour tm.tm_min tm.tm_sec
+  Format.fprintf
+    fmt
+    "%i/%i/%i, %02i:%02i:%02i"
+    (tm.tm_year + 1900)
+    tm.tm_mon
+    tm.tm_mday
+    tm.tm_hour
+    tm.tm_min
+    tm.tm_sec
 
 (* Used for uid in variables *)
 

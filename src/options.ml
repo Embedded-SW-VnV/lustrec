@@ -36,7 +36,8 @@ type option_output = OutC | OutAda | OutJava | OutEMF | OutHorn | OutLustre
 let output = ref OutC
 
 let pp_output fmt =
-  Format.pp_print_string fmt
+  Format.pp_print_string
+    fmt
     (match !output with
     | OutC ->
       "C"
@@ -113,6 +114,9 @@ let al_nb_max = ref 15
 
 (* Printer options *)
 let kind2_print = ref false
+
+(* C main options *)
+let c_main_options = ref false
 
 (* Local Variables: *)
 (* compile-command:"make -C .." *)

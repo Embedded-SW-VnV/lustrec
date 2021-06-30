@@ -95,7 +95,9 @@ let check_bound loc d = mkdim_appl loc "<=" [ mkdim_int loc 0; d ]
 
 (* Builds a dimension expr representing 0<=i<d *)
 let check_access loc d i =
-  mkdim_appl loc "&&"
+  mkdim_appl
+    loc
+    "&&"
     [ mkdim_appl loc "<=" [ mkdim_int loc 0; i ]; mkdim_appl loc "<" [ i; d ] ]
 
 let rec repr dim = match dim.dim_desc with Dlink dim' -> repr dim' | _ -> dim
@@ -302,7 +304,8 @@ let rec instantiate inst_dim_vars dim =
   | Dvar | Dident _ | Dint _ | Dbool _ ->
     dim
   | Dite (i, t, e) ->
-    mkdim_ite dim.dim_loc
+    mkdim_ite
+      dim.dim_loc
       (instantiate inst_dim_vars i)
       (instantiate inst_dim_vars t)
       (instantiate inst_dim_vars e)

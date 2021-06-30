@@ -23,7 +23,8 @@ let rec get_expr_vars v =
   | Fun (_, args) ->
     List.fold_left
       (fun accu v -> VSet.union accu (get_expr_vars v))
-      VSet.empty args
+      VSet.empty
+      args
   | _ ->
     assert false
 (* Invalid argument *)
@@ -45,7 +46,7 @@ let hash_map = Hashtbl.create 13
 
 (* If string length of f is longer than 50 chars, we select the 10 first and
    last and put a hash in the middle *)
-let print_protect fmt f =
+let pp_protect fmt f =
   fprintf str_formatter "%t" f;
   let s = flush_str_formatter () in
   let l = String.length s in
@@ -69,10 +70,9 @@ let print_protect fmt f =
 
 let pp_var_string fmt v =
   fprintf fmt "\"%t\"" (fun fmt ->
-      print_protect fmt (fun fmt -> fprintf fmt "%s" v))
+      pp_protect fmt (fun fmt -> fprintf fmt "%s" v))
 
-let pp_var_name fmt v =
-  print_protect fmt (fun fmt -> Printers.pp_var_name fmt v)
+let pp_var_name fmt v = pp_protect fmt (fun fmt -> Printers.pp_var_name fmt v)
 (*let pp_node_args = fprintf_list ~sep:", " pp_var_name*)
 
 (********* Printing types ***********)
@@ -92,12 +92,22 @@ let rec pp_emf_dim fmt dim_expr =
   | Dident s ->
     fprintf fmt "\"kind\": \"ident\",@ \"value\": \"%s\"" s
   | Dappl (f, args) ->
-    fprintf fmt "\"kind\": \"fun\",@ \"id\": \"%s\",@ \"args\": [@[%a@]]" f
-      (pp_comma_list pp_emf_dim) args
+    fprintf
+      fmt
+      "\"kind\": \"fun\",@ \"id\": \"%s\",@ \"args\": [@[%a@]]"
+      f
+      (pp_comma_list pp_emf_dim)
+      args
   | Dite (i, t, e) ->
-    fprintf fmt
+    fprintf
+      fmt
       "\"kind\": \"ite\",@ \"guard\": \"%a\",@ \"then\": %a,@ \"else\": %a"
-      pp_emf_dim i pp_emf_dim t pp_emf_dim e
+      pp_emf_dim
+      i
+      pp_emf_dim
+      t
+      pp_emf_dim
+      e
   | Dlink e ->
     pp_emf_dim fmt e
   | Dvar | Dunivar ->
@@ -145,9 +155,12 @@ let rec pp_concrete_type dec_t infered_t fmt =
            return something usefull *)
         Types.new_var ()
     in
-    fprintf fmt "{ \"kind\": \"array\", \"base_type\": %t, \"dim\": %a }"
+    fprintf
+      fmt
+      "{ \"kind\": \"array\", \"base_type\": %t, \"dim\": %a }"
       (pp_concrete_type e inf_base)
-      pp_emf_dim dim
+      pp_emf_dim
+      dim
 
 (* | _ -> eprintf
  *          "unhandled construct in type printing for EMF backend: %a@."
@@ -170,8 +183,11 @@ and pp_tag_type id typ inf fmt =
     | Tydec_enum const_list ->
       (* enum can be mapped to int *)
       let size = List.length const_list in
-      fprintf fmt "{ \"name\": \"%s\", \"kind\": \"enum\", \"size\": \"%i\" }"
-        id size
+      fprintf
+        fmt
+        "{ \"name\": \"%s\", \"kind\": \"enum\", \"size\": \"%i\" }"
+        id
+        size
     | Tydec_struct _ ->
       fprintf fmt "{ \"name\": \"%s\", \"kind\": \"struct\" }" id
     | Tydec_any ->
@@ -205,10 +221,15 @@ and pp_infered_type fmt t =
     | Tlink ty ->
       pp_infered_type fmt ty
     | Tarray (dim, base_t) ->
-      fprintf fmt "{ \"kind\": \"array\", \"base_type\": %a, \"dim\": %a }"
-        pp_infered_type base_t pp_emf_dim dim
+      fprintf
+        fmt
+        "{ \"kind\": \"array\", \"base_type\": %a, \"dim\": %a }"
+        pp_infered_type
+        base_t
+        pp_emf_dim
+        dim
     | _ ->
-      eprintf "unhandled type: %a@." Types.print_node_ty t;
+      eprintf "unhandled type: %a@." Types.pp_node_ty t;
       assert false
 
 (*let pp_cst_type fmt v = match v.value_desc with | Cst c-> pp_cst_type c
@@ -237,9 +258,15 @@ let pp_emf_list ?(eol : ('a, formatter, unit) Stdlib.format = "") pp fmt l =
 
 (* Print the variable declaration *)
 let pp_emf_var_decl fmt v =
-  fprintf fmt
+  fprintf
+    fmt
     "@[{\"name\": \"%a\", \"datatype\": %a, \"original_name\": \"%a\"}@]"
-    pp_var_name v pp_var_type v Printers.pp_var_name v
+    pp_var_name
+    v
+    pp_var_type
+    v
+    Printers.pp_var_name
+    v
 
 let pp_emf_vars_decl = pp_emf_list pp_emf_var_decl
 
@@ -283,8 +310,11 @@ let pp_emf_cst c inf fmt =
       fprintf fmt "@]}")
     else (
       fprintf fmt "{@[\"type\": \"constant\",@ \"value\": \"%a\",@ " pp_tag_id t;
-      fprintf fmt "\"origin_type\": \"%s\",@ \"origin_value\": \"%s\",@ "
-        typ.tydef_id t;
+      fprintf
+        fmt
+        "\"origin_type\": \"%s\",@ \"origin_value\": \"%s\",@ "
+        typ.tydef_id
+        t;
       pp_typ fmt;
       fprintf fmt "@]}")
   | Const_string s ->
@@ -292,8 +322,11 @@ let pp_emf_cst c inf fmt =
     pp_typ fmt;
     fprintf fmt "@]}"
   | _ ->
-    fprintf fmt "{@[\"type\": \"constant\",@ \"value\": \"%a\",@ "
-      Printers.pp_const c;
+    fprintf
+      fmt
+      "{@[\"type\": \"constant\",@ \"value\": \"%a\",@ "
+      Printers.pp_const
+      c;
     pp_typ fmt;
     fprintf fmt "@]}"
 
@@ -308,19 +341,30 @@ let rec pp_emf_cst_or_var m fmt v =
     fprintf fmt "\"datatype\": %a@ " pp_var_type v;
     fprintf fmt "@]}"
   | Array vl ->
-    fprintf fmt "{@[\"type\": \"array\",@ \"value\": @[[%a@]]@ "
-      (pp_emf_cst_or_var_list m) vl;
+    fprintf
+      fmt
+      "{@[\"type\": \"array\",@ \"value\": @[[%a@]]@ "
+      (pp_emf_cst_or_var_list m)
+      vl;
     fprintf fmt "@]}"
   | Access (arr, idx) ->
-    fprintf fmt
+    fprintf
+      fmt
       "{@[\"type\": \"array access\",@ \"array\": @[[%a@]],@ \"idx\": \
        @[[%a@]]@ "
-      (pp_emf_cst_or_var m) arr (pp_emf_cst_or_var m) idx;
+      (pp_emf_cst_or_var m)
+      arr
+      (pp_emf_cst_or_var m)
+      idx;
     fprintf fmt "@]}"
   | Power (v, nb) ->
-    fprintf fmt
+    fprintf
+      fmt
       "{@[\"type\": \"power\",@ \"expr\": @[[%a@]],@ \"nb\": @[[%a@]]@ "
-      (pp_emf_cst_or_var m) v (pp_emf_cst_or_var m) nb;
+      (pp_emf_cst_or_var m)
+      v
+      (pp_emf_cst_or_var m)
+      nb;
     fprintf fmt "@]}"
   | Fun _ ->
     eprintf "Fun expression should have been normalized: %a@." (pp_val m) v;
@@ -338,10 +382,16 @@ let rec pp_emf_expr fmt e =
   | Expr_const c ->
     pp_emf_cst c e.expr_type fmt
   | Expr_ident id ->
-    fprintf fmt "{@[\"type\": \"variable\",@ \"value\": \"%a\",@ " print_protect
+    fprintf
+      fmt
+      "{@[\"type\": \"variable\",@ \"value\": \"%a\",@ "
+      pp_protect
       (fun fmt -> pp_print_string fmt id);
-    fprintf fmt "\"datatype\": %t@ "
-      (pp_concrete_type Tydec_any
+    fprintf
+      fmt
+      "\"datatype\": %t@ "
+      (pp_concrete_type
+         Tydec_any
          (* don't know much about that time since it was not declared. That may
             not work with clock constants *)
          e.expr_type);
@@ -355,8 +405,11 @@ let rec pp_emf_expr fmt e =
      expr) list | Expr_appl of call_t *)
   | _ ->
     Log.report ~level:2 (fun fmt ->
-        fprintf fmt "Warning: unhandled expression %a in annotation.@ "
-          Printers.pp_expr e;
+        fprintf
+          fmt
+          "Warning: unhandled expression %a in annotation.@ "
+          Printers.pp_expr
+          e;
         fprintf fmt "Will not be produced in the experted JSON EMF@.");
     fprintf fmt "\"unhandled construct, complain to Ploc\""
 
@@ -386,7 +439,9 @@ let rec pp_emf_expr fmt e =
  * let pp_emf_consts = pp_emf_list pp_emf_const *)
 
 let pp_emf_eexpr fmt ee =
-  fprintf fmt "{@[<hov 0>%t\"quantifiers\": \"%a\",@ \"qfexpr\": @[%a@]@] }"
+  fprintf
+    fmt
+    "{@[<hov 0>%t\"quantifiers\": \"%a\",@ \"qfexpr\": @[%a@]@] }"
     (fun fmt ->
       match ee.eexpr_name with
       | None ->
@@ -394,7 +449,9 @@ let pp_emf_eexpr fmt ee =
       | Some name ->
         Format.fprintf fmt "\"name\": \"%s\",@ " name)
     (pp_print_list ~pp_sep:pp_print_semicolon Printers.pp_quantifiers)
-    ee.eexpr_quantifiers pp_emf_expr ee.eexpr_qfexpr
+    ee.eexpr_quantifiers
+    pp_emf_expr
+    ee.eexpr_qfexpr
 
 let pp_emf_eexprs = pp_emf_list pp_emf_eexpr
 
@@ -438,27 +495,43 @@ let rec pp_emf_typ_dec fmt tydef_dec =
   | Tydec_const c ->
     fprintf fmt "\"kind\": \"alias\",@ \"value\": \"%s\"" c
   | Tydec_enum el ->
-    fprintf fmt "\"kind\": \"enum\",@ \"elements\": [%a]"
+    fprintf
+      fmt
+      "\"kind\": \"enum\",@ \"elements\": [%a]"
       (pp_comma_list (fun fmt e -> fprintf fmt "\"%s\"" e))
       el
   | Tydec_struct s ->
-    fprintf fmt "\"kind\": \"struct\",@ \"fields\": [%a]"
+    fprintf
+      fmt
+      "\"kind\": \"struct\",@ \"fields\": [%a]"
       (pp_comma_list (fun fmt (id, typ) ->
            fprintf fmt "\"%s\": %a" id pp_emf_typ_dec typ))
       s
   | Tydec_array (dim, typ) ->
-    fprintf fmt "\"kind\": \"array\",@ \"dim\": @[%a@],@ \"base\": %a"
-      pp_emf_dim dim pp_emf_typ_dec typ);
+    fprintf
+      fmt
+      "\"kind\": \"array\",@ \"dim\": @[%a@],@ \"base\": %a"
+      pp_emf_dim
+      dim
+      pp_emf_typ_dec
+      typ);
   fprintf fmt "}"
 
 let pp_emf_typedef fmt typdef_top =
   let typedef = Corelang.typedef_of_top typdef_top in
-  fprintf fmt "{ \"%s\": @[%a@] }" typedef.tydef_id pp_emf_typ_dec
+  fprintf
+    fmt
+    "{ \"%s\": @[%a@] }"
+    typedef.tydef_id
+    pp_emf_typ_dec
     typedef.tydef_desc
 
 let pp_emf_top_const fmt const_top =
   let const = Corelang.const_of_top const_top in
-  fprintf fmt "{ \"%s\": %t }" const.const_id
+  fprintf
+    fmt
+    "{ \"%s\": %t }"
+    const.const_id
     (pp_emf_cst const.const_value const.const_type)
 
 (* Local Variables: *)

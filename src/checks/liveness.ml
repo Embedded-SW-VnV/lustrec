@@ -36,7 +36,9 @@ let compute_fanin n g =
       if ISet.mem v locals then
         Hashtbl.add fanin v (IdentDepGraph.in_degree g v)
       else if ExprDep.is_read_var v && not (ISet.mem v inputs) then
-        Hashtbl.add fanin (ExprDep.undo_read_var v)
+        Hashtbl.add
+          fanin
+          (ExprDep.undo_read_var v)
           (IdentDepGraph.in_degree g v))
     g;
   fanin
@@ -72,7 +74,8 @@ let compute_unused_variables n g =
   let outputs = ExprDep.node_output_variables n in
   ISet.fold
     (fun var unused -> ISet.diff unused (cone_of_influence g var))
-    (ISet.union outputs mems) (ISet.union inputs mems)
+    (ISet.union outputs mems)
+    (ISet.union inputs mems)
 
 (* XXX: UNUSED *)
 (* computes the set of potentially reusable variables. We don't reuse input
@@ -90,7 +93,8 @@ let kill_instance_variables ctx inst =
 let kill_root ctx head =
   IdentDepGraph.iter_succ
     (IdentDepGraph.remove_edge ctx.dep_graph head.var_id)
-    ctx.dep_graph head.var_id
+    ctx.dep_graph
+    head.var_id
 
 (* Recursively removes useless variables, i.e. [ctx.evaluated] variables that
    are current roots of the dep graph [ctx.dep_graph] - [evaluated] is the set
@@ -135,7 +139,8 @@ let is_aliasable_input node var =
     | Some (_, args) ->
       List.fold_right
         (fun e r -> match e.expr_desc with Expr_ident id -> id :: r | _ -> r)
-        args []
+        args
+        []
   in
   fun v -> is_aliasable v && List.mem v.var_id inputs_var
 
@@ -152,14 +157,21 @@ let pp_reuse_policy fmt policy =
         Hashtbl.iter (fun s t -> fprintf fmt "@,%s -> %s" s t.var_id) policy))
 
 let pp_context fmt ctx =
-  Format.fprintf fmt
+  Format.fprintf
+    fmt
     "@[<v 2>{ /*BEGIN context */@,\
      eval     = %a;@,\
      graph    = %a;@,\
      disjoint = %a;@,\
      policy   = %a;@,\
-     /* END context */ }@]" Disjunction.pp_ciset ctx.evaluated pp_dep_graph
-    ctx.dep_graph Disjunction.pp_disjoint_map ctx.disjoint pp_reuse_policy
+     /* END context */ }@]"
+    Disjunction.pp_ciset
+    ctx.evaluated
+    pp_dep_graph
+    ctx.dep_graph
+    Disjunction.pp_disjoint_map
+    ctx.disjoint
+    pp_reuse_policy
     ctx.policy
 
 (* computes the reusable dependencies of variable [var] in graph [g], once [var]
@@ -204,7 +216,9 @@ let compute_reuse node ctx heads var =
     IdentDepGraph.fold_pred
       (fun p r ->
         r && Disjunction.CISet.exists (fun d -> p = d.var_id) disjoint)
-      ctx.dep_graph v.var_id true
+      ctx.dep_graph
+      v.var_id
+      true
   in
   let eligibles =
     if ISet.mem var.var_id (ExprDep.node_memory_variables node) then
@@ -221,14 +235,21 @@ let compute_reuse node ctx heads var =
       quasi_dead
   in
   Log.report ~level:7 (fun fmt ->
-      Format.fprintf fmt
+      Format.fprintf
+        fmt
         "@[<v>eligibles    : %a@,\
          live         : %a@,\
          disjoint live: %a@,\
          dead         : %a@,\
          @]"
-        Disjunction.pp_ciset eligibles Disjunction.pp_ciset live
-        Disjunction.pp_ciset disjoint_live Disjunction.pp_ciset dead);
+        Disjunction.pp_ciset
+        eligibles
+        Disjunction.pp_ciset
+        live
+        Disjunction.pp_ciset
+        disjoint_live
+        Disjunction.pp_ciset
+        dead);
   (try
      let reuse =
        match Disjunction.CISet.max_elt_opt disjoint_live with
@@ -256,30 +277,46 @@ let compute_reuse_policy node schedule disjoint g =
       let heads = List.map (fun v -> get_node_var v node) heads in
       Log.report ~level:6 (fun fmt ->
           Format.(
-            fprintf fmt
+            fprintf
+              fmt
               "@[<v>@[<v 2>new context:@,\
                %a@]@,\
                NEW HEADS:%a@,\
                COMPUTE_DEPENDENCIES@,\
                @]"
-              pp_context ctx
-              (pp_print_list ~pp_open_box:pp_open_hbox ~pp_sep:pp_print_space
+              pp_context
+              ctx
+              (pp_print_list
+                 ~pp_open_box:pp_open_hbox
+                 ~pp_sep:pp_print_space
                  (fun fmt head ->
-                   fprintf fmt "%s (%a)" head.var_id Printers.pp_node_eq
+                   fprintf
+                     fmt
+                     "%s (%a)"
+                     head.var_id
+                     Printers.pp_node_eq
                      (get_node_eq head.var_id node)))
               heads));
       compute_dependencies heads ctx;
       Log.report ~level:6 (fun fmt ->
-          Format.fprintf fmt "@[<v>@[<v 2>new context:@,%a@]@,COMPUTE_REUSE@,@]"
-            pp_context ctx);
+          Format.fprintf
+            fmt
+            "@[<v>@[<v 2>new context:@,%a@]@,COMPUTE_REUSE@,@]"
+            pp_context
+            ctx);
       List.iter (compute_reuse node ctx heads) heads;
       (*compute_evaluated heads ctx;*)
       Log.report ~level:6 (fun fmt ->
           Format.(
-            fprintf fmt "@[<v>%a@,@]"
+            fprintf
+              fmt
+              "@[<v>%a@,@]"
               (pp_print_list ~pp_open_box:pp_open_vbox0 (fun fmt head ->
-                   fprintf fmt "reuse %s instead of %s"
-                     (Hashtbl.find ctx.policy head.var_id).var_id head.var_id))
+                   fprintf
+                     fmt
+                     "reuse %s instead of %s"
+                     (Hashtbl.find ctx.policy head.var_id).var_id
+                     head.var_id))
               heads)))
     schedule;
   IdentDepGraph.clear ctx.dep_graph;

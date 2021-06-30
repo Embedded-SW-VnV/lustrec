@@ -41,7 +41,8 @@ let header_libs header =
         Utils.list_union nd.nodei_in_lib accu
       | _ ->
         accu)
-    [] header
+    []
+    header
 
 let compiled_dependencies deps =
   List.filter (fun dep -> header_has_code dep.content) deps
@@ -49,7 +50,8 @@ let compiled_dependencies deps =
 let lib_dependencies deps =
   List.fold_left
     (fun accu dep -> Utils.list_union (header_libs dep.content) accu)
-    [] deps
+    []
+    deps
 
 let fprintf_dependencies fmt (deps : dep_t list) =
   (* eprintf "Deps: %a@." pp_deps dep; *)
@@ -91,7 +93,7 @@ functor
        shorter version if it is long (md5?) - a provided name given when calling
        the makefile so the user can control the expected name of the binary *)
 
-    let print_makefile basename nodename (dependencies : dep_t list) fmt =
+    let pp_makefile basename nodename (dependencies : dep_t list) fmt =
       let binname =
         let s = basename ^ "_" ^ nodename in
         if
@@ -107,22 +109,32 @@ functor
       fprintf fmt "BINNAME?=%s@." binname;
       fprintf fmt "GCC=gcc -O0@.";
       fprintf fmt "LUSTREC=%s@." Sys.executable_name;
-      fprintf fmt "LUSTREC_BASE=%s@."
+      fprintf
+        fmt
+        "LUSTREC_BASE=%s@."
         (Filename.dirname (Filename.dirname Sys.executable_name));
       fprintf fmt "INC=%s@." Version.include_path
       (*"${LUSTREC_BASE}/include/lustrec"*);
       fprintf fmt "@.";
 
       (* Main binary *)
-      fprintf fmt "%s_%s: %s.c %s_main.c@." basename "run" (*nodename*) basename
+      fprintf
+        fmt
+        "%s_%s: %s.c %s_main.c@."
+        basename
+        "run"
+        (*nodename*) basename
         basename;
       fprintf fmt "\t${GCC} -I${INC} -I. -c %s.c@." basename;
       fprintf fmt "\t${GCC} -I${INC} -I. -c %s_main.c@." basename;
       fprintf_dependencies fmt dependencies;
-      fprintf fmt "\t${GCC} -o ${BINNAME} io_frontend.o %a %s.o %s_main.o %a@."
+      fprintf
+        fmt
+        "\t${GCC} -o ${BINNAME} io_frontend.o %a %s.o %s_main.o %a@."
         (pp_print_list (fun fmt dep -> fprintf fmt "%s.o" dep.name))
         (compiled_dependencies dependencies)
-        basename (* library .o *) basename
+        basename
+        (* library .o *) basename
         (* main function . o *)
         (pp_print_list (fun fmt lib -> fprintf fmt "-l%s" lib))
         (lib_dependencies dependencies);

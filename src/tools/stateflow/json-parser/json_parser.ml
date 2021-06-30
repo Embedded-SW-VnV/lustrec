@@ -150,7 +150,8 @@ module Parser (Ext : ParseExt) = struct
     match datatype with
     | "bool" ->
       ( Tydec_bool,
-        mkexpr location
+        mkexpr
+          location
           (Expr_const
              (Const_tag
                 ((fun s ->
@@ -180,7 +181,9 @@ module Parser (Ext : ParseExt) = struct
         m "parse_variable %s" (json |> member "name" |> to_string));
     let location = Location.dummy_loc in
     let datatype, initial_value = lustre_datatype_of_json json location in
-    mkvar_decl location ~orig:true
+    mkvar_decl
+      location
+      ~orig:true
       ( json |> member "name" |> to_string,
         { ty_dec_desc = datatype; ty_dec_loc = location },
         { ck_dec_desc = Ckdec_any; ck_dec_loc = location },

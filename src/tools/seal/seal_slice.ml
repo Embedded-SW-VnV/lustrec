@@ -32,7 +32,10 @@ let coi_var deps nd v =
       (ISet.singleton vname, ISet.empty)
   in
   report ~level:3 (fun fmt ->
-      Format.fprintf fmt "COI of var %s: (%a // %a)@." v.var_id
+      Format.fprintf
+        fmt
+        "COI of var %s: (%a // %a)@."
+        v.var_id
         (fprintf_list ~sep:"," Format.pp_print_string)
         (ISet.elements vset)
         (fprintf_list ~sep:"," Format.pp_print_string)
@@ -71,7 +74,9 @@ let slice_node vars_to_keep msch nd =
     compute_sliced_vars vars_to_keep msch.Scheduling_type.dep_graph nd
   in
   report ~level:3 (fun fmt ->
-      Format.fprintf fmt "COI Vars: %a@."
+      Format.fprintf
+        fmt
+        "COI Vars: %a@."
         (Utils.fprintf_list ~sep:"," Format.pp_print_string)
         coi_vars);
   let outputs =
@@ -81,7 +86,8 @@ let slice_node vars_to_keep msch nd =
     match outputs with
     | [] ->
       report ~level:2 (fun fmt ->
-          Format.fprintf fmt
+          Format.fprintf
+            fmt
             "No visible output variable, subtituting with provided vars@ ");
       vars_to_keep
     | l ->

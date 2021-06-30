@@ -45,7 +45,12 @@ let rec pp_machine_instr typed_submachines env instr fmt =
   in
   (* Print a case *)
   let pp_case fmt (g, hl) =
-    fprintf fmt "case %a is@,%aend case" (pp_value env) g pp_block
+    fprintf
+      fmt
+      "case %a is@,%aend case"
+      (pp_value env)
+      g
+      pp_block
       (List.map pp_when hl)
   in
   (* Print a if *)
@@ -64,7 +69,12 @@ let rec pp_machine_instr typed_submachines env instr fmt =
       | Some i2 ->
         fun fmt -> fprintf fmt "else@,%a" pp_block (List.map pp_instr i2)
     in
-    fprintf fmt "if %a then@,%a%tend if" pp_cond g pp_block
+    fprintf
+      fmt
+      "if %a then@,%a%tend if"
+      pp_cond
+      g
+      pp_block
       (List.map pp_instr instrs1)
       pp_else
   in
@@ -109,7 +119,9 @@ let rec pp_machine_instr typed_submachines env instr fmt =
     pp_case fmt (g, hl)
   | MComment s ->
     let lines = String.split_on_char '\n' s in
-    fprintf fmt "%a"
+    fprintf
+      fmt
+      "%a"
       (pp_print_list ~pp_sep:pp_print_nothing pp_oneline_comment)
       lines
   | _ ->
@@ -171,7 +183,11 @@ let pp_reset_definition env typed_submachines fmt (m, m_spec_opt) =
   let pp_instr_list =
     List.map (pp_machine_instr typed_submachines env) (assigns @ m.minit)
   in
-  pp_procedure pp_reset_procedure_name (build_pp_arg_reset m) None fmt
+  pp_procedure
+    pp_reset_procedure_name
+    (build_pp_arg_reset m)
+    None
+    fmt
     (AdaProcedureContent ([], pp_instr_list))
 
 (** Print the package definition(ads) of a machine. It requires the list of all
@@ -185,7 +201,9 @@ let pp_file fmt (typed_submachines, ((opt_spec_machine, guarantees), machine)) =
   let env = List.map (fun x -> x.var_id, pp_state_name) machine.mmemory in
   let pp_reset fmt =
     if is_machine_statefull machine then
-      fprintf fmt "%a;@,@,"
+      fprintf
+        fmt
+        "%a;@,@,"
         (pp_reset_definition env typed_submachines)
         (machine, opt_spec_machine)
     else fprintf fmt ""
@@ -198,14 +216,20 @@ let pp_file fmt (typed_submachines, ((opt_spec_machine, guarantees), machine)) =
   in
   let packages = List.map pp_str (List.fold_left aux [] machine.mcalls) in
   let pp_content fmt =
-    fprintf fmt "%t%a" (*Define the reset procedure*) pp_reset
+    fprintf
+      fmt
+      "%t%a"
+      (*Define the reset procedure*) pp_reset
       (*Define the step procedure*)
       (pp_step_definition env typed_submachines)
       (machine, opt_spec_machine, guarantees)
   in
-  fprintf fmt "%a%a;@."
+  fprintf
+    fmt
+    "%a%a;@."
     (* Include all the required packages*)
-    (pp_print_list ~pp_sep:pp_print_semicolon
+    (pp_print_list
+       ~pp_sep:pp_print_semicolon
        ~pp_epilogue:(fun fmt () -> fprintf fmt ";@,@,")
        (pp_with AdaPrivate))
     packages

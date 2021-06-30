@@ -75,7 +75,11 @@ let check_stateless_decls decls =
       fprintf fmt "@ .. checking stateless/stateful status@ ");
   try Stateless.check_prog decls
   with Stateless.Error (loc, err) as exc ->
-    eprintf "Stateless status error: %a%a@." Stateless.pp_error err Location.pp
+    eprintf
+      "Stateless status error: %a%a@."
+      Stateless.pp_error
+      err
+      Location.pp
       loc;
     raise exc
 
@@ -83,7 +87,11 @@ let force_stateful_decls decls =
   Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. forcing stateful status@ ");
   try Stateless.force_prog decls
   with Stateless.Error (loc, err) as exc ->
-    eprintf "Stateless status error: %a%a@." Stateless.pp_error err Location.pp
+    eprintf
+      "Stateless status error: %a%a@."
+      Stateless.pp_error
+      err
+      Location.pp
       loc;
     raise exc
 
@@ -143,7 +151,9 @@ let check_compatibility (_, computed_types_env, computed_clocks_env)
     Typing.check_env_compat header declared_types_env computed_types_env;
 
     (* checking clocks compatibility with computed clocks*)
-    Clock_calculus.check_env_compat header declared_clocks_env
+    Clock_calculus.check_env_compat
+      header
+      declared_clocks_env
       computed_clocks_env;
 
     (* checking stateless status compatibility *)
@@ -153,19 +163,28 @@ let check_compatibility (_, computed_types_env, computed_clocks_env)
     eprintf
       "Type mismatch between computed type and declared type in lustre \
        interface file: %a%a@."
-      Types.pp_error err Location.pp loc;
+      Types.pp_error
+      err
+      Location.pp
+      loc;
     raise exc
   | Clocks.Error (loc, err) as exc ->
     eprintf
       "Clock mismatch between computed clock and declared clock in lustre \
        interface file: %a%a@."
-      Clocks.pp_error err Location.pp loc;
+      Clocks.pp_error
+      err
+      Location.pp
+      loc;
     raise exc
   | Stateless.Error (loc, err) as exc ->
     eprintf
       "Stateless status mismatch between defined status and declared status in \
        lustre interface file: %a%a@."
-      Stateless.pp_error err Location.pp loc;
+      Stateless.pp_error
+      err
+      Location.pp
+      loc;
     raise exc
 
 (* Process each node/imported node and introduce the associated contract node *)
@@ -202,9 +221,11 @@ let resolve_contracts prog =
                     (imp_c.imports = [] && imp_c.locals = []
                    && imp_c.consts = [] && imp_c.stmts = [])
                 then (
-                  Format.eprintf "Invalid processed contract: %i %i %i %i@.@?"
+                  Format.eprintf
+                    "Invalid processed contract: %i %i %i %i@.@?"
                     (List.length imp_c.imports)
-                    (List.length imp_c.locals) (List.length imp_c.consts)
+                    (List.length imp_c.locals)
+                    (List.length imp_c.consts)
                     (List.length imp_c.stmts);
                   assert false (* should be processed *))
             in
@@ -212,7 +233,8 @@ let resolve_contracts prog =
             let imp_nd =
               rename_node
                 (fun x -> x (* not changing node names *))
-                name_prefix imp_nd
+                name_prefix
+                imp_nd
             in
             let imp_in = imp_nd.node_inputs in
             let imp_out = imp_nd.node_outputs in
@@ -288,7 +310,10 @@ let resolve_contracts prog =
     in
     let new_nd_id = mk_new_name used (id ^ "_coco") in
     let new_nd =
-      mktop_decl c.spec_loc top.top_decl_owner top.top_decl_itf
+      mktop_decl
+        c.spec_loc
+        top.top_decl_owner
+        top.top_decl_itf
         (Node
            {
              node_id = new_nd_id;
@@ -373,7 +398,8 @@ let resolve_contracts prog =
               { top with top_decl_desc = ImportedNode ind } :: accu_nodes ))
         | _ ->
           accu_contracts, top :: accu_nodes)
-      ([], []) prog
+      ([], [])
+      prog
   in
   List.rev new_contracts @ List.rev prog
 

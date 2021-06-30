@@ -48,7 +48,14 @@ let unfoldable_value value =
  *   { e with expr_type = Type_predef.type_real; expr_clock = expr.expr_clock } *)
 
 let pp_inject_real pp_var pp_val fmt (var, value) =
-  Format.fprintf fmt "%s(%a, %a, %s);" inject_real_id pp_var var pp_val value
+  Format.fprintf
+    fmt
+    "%s(%a, %a, %s);"
+    inject_real_id
+    pp_var
+    var
+    pp_val
+    value
     (mpfr_rnd ())
 
 (* XXX: UNUSED *)
@@ -57,7 +64,14 @@ let pp_inject_real pp_var pp_val fmt (var, value) =
  *   { e with expr_type = Type_predef.type_real; expr_clock = expr.expr_clock } *)
 
 let pp_inject_copy pp_var fmt (var, value) =
-  Format.fprintf fmt "%s(%a, %a, %s);" inject_copy_id pp_var var pp_var value
+  Format.fprintf
+    fmt
+    "%s(%a, %a, %s);"
+    inject_copy_id
+    pp_var
+    var
+    pp_var
+    value
     (mpfr_rnd ())
 
 let pp_inject_assign pp_var fmt ((_, value) as vv) =
@@ -173,7 +187,8 @@ let inject_op id =
 let homomorphic_funs =
   List.fold_right
     (fun id res -> try base_inject_op id :: res with Not_found -> res)
-    Basic_library.internal_funs []
+    Basic_library.internal_funs
+    []
 
 let is_homomorphic_fun id = List.mem id homomorphic_funs
 
@@ -211,7 +226,8 @@ let inject_list alias node inject_element defvars elist =
     (fun t (defvars, qlist) ->
       let defvars, norm_t = inject_element alias node defvars t in
       defvars, norm_t :: qlist)
-    elist (defvars, [])
+    elist
+    (defvars, [])
 
 let rec inject_expr ?(alias = true) node defvars expr =
   let res =
@@ -285,7 +301,8 @@ and inject_branches node defvars hl =
     (fun (t, h) (defvars, norm_q) ->
       let defvars, norm_h = inject_expr node defvars h in
       defvars, (t, norm_h) :: norm_q)
-    hl (defvars, [])
+    hl
+    (defvars, [])
 
 let inject_eq node defvars eq =
   let (defs', vars'), norm_rhs =
@@ -329,14 +346,18 @@ let inject_node node =
       (fun (vars, def_accu, assert_accu) assert_ ->
         let assert_expr = assert_.assert_expr in
         let (defs, vars'), expr =
-          inject_expr ~alias:false norm_ctx ([], vars)
+          inject_expr
+            ~alias:false
+            norm_ctx
+            ([], vars)
             (* defvar only contains vars *)
             assert_expr
         in
         ( vars',
           defs @ def_accu,
           { assert_ with assert_expr = expr } :: assert_accu ))
-      (vars, [], []) node.node_asserts
+      (vars, [], [])
+      node.node_asserts
   in
   let new_locals = List.filter is_local vars in
   (* Compute traceability info: - gather newly bound variables - compute the

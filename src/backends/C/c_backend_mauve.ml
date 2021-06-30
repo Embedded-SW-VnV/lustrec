@@ -25,7 +25,8 @@ let fsm_name node = node ^ "FSM"
 
 let print_mauve_header fmt basename =
   fprintf fmt "#include \"mauve/runtime.hpp\"@.";
-  pp_import_alloc_prototype fmt
+  pp_import_alloc_prototype
+    fmt
     { local = true; name = basename; content = []; is_stateful = true }
   (* assuming it is stateful*);
   pp_print_newline fmt ();
@@ -77,8 +78,13 @@ let print_mauve_shell fmt mauve_machine =
     (fun v ->
       let v_name = v.var_id in
       let v_type = pp_c_basic_type_desc v.var_type in
-      fprintf fmt "\tReadPort<%s> & port_%s = mk_readPort<%s>(\"%s\", " v_type
-        v_name v_type v_name;
+      fprintf
+        fmt
+        "\tReadPort<%s> & port_%s = mk_readPort<%s>(\"%s\", "
+        v_type
+        v_name
+        v_type
+        v_name;
       print_mauve_default fmt mauve_machine v;
       fprintf fmt ");@.")
     mauve_machine.mstep.step_inputs;
@@ -88,8 +94,13 @@ let print_mauve_shell fmt mauve_machine =
     (fun v ->
       let v_name = v.var_id in
       let v_type = pp_c_basic_type_desc v.var_type in
-      fprintf fmt "\tWritePort<%s> & port_%s = mk_writePort<%s>(\"%s\");@."
-        v_type v_name v_type v_name)
+      fprintf
+        fmt
+        "\tWritePort<%s> & port_%s = mk_writePort<%s>(\"%s\");@."
+        v_type
+        v_name
+        v_type
+        v_name)
     mauve_machine.mstep.step_outputs;
 
   fprintf fmt "};@.";
@@ -122,7 +133,10 @@ let print_mauve_core fmt mauve_machine =
   fprintf fmt " *          CORE@.";
   fprintf fmt " */@.";
 
-  fprintf fmt "struct %s: public Core<%s> {@." (core_name node_name)
+  fprintf
+    fmt
+    "struct %s: public Core<%s> {@."
+    (core_name node_name)
     (shell_name node_name);
 
   (* Attribute *)
@@ -217,15 +231,23 @@ let print_mauve_fsm fmt mauve_machine =
   fprintf fmt " *          FSM@.";
   fprintf fmt " */@.";
 
-  fprintf fmt "struct %s: public FiniteStateMachine<%s, %s> {@."
-    (fsm_name node_name) (shell_name node_name) (core_name node_name);
+  fprintf
+    fmt
+    "struct %s: public FiniteStateMachine<%s, %s> {@."
+    (fsm_name node_name)
+    (shell_name node_name)
+    (core_name node_name);
 
   (* Attribute *)
-  fprintf fmt
+  fprintf
+    fmt
     "\tExecState<%s>    & update  = mk_execution      (\"Update\" , \
      &%s::update);@."
-    (core_name node_name) (core_name node_name);
-  fprintf fmt "\tSynchroState<%s> & synchro = mk_synchronization(\"Synchro\", "
+    (core_name node_name)
+    (core_name node_name);
+  fprintf
+    fmt
+    "\tSynchroState<%s> & synchro = mk_synchronization(\"Synchro\", "
     (core_name node_name);
   print_mauve_period fmt mauve_machine;
   fprintf fmt ");@.";

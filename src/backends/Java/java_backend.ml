@@ -97,14 +97,22 @@ let rec pp_machine_instr m machines instance_out_list fmt instr =
     fprintf fmt "%s = %a;" i0 (Basic_library.pp_java i (pp_val m)) vl
   | MStep ([ i0 ], i, [ init; step ]) when List.assoc i m.minstances = "_arrow"
     ->
-    fprintf fmt
+    fprintf
+      fmt
       "@[<v 2>if (%s) {@,\
        %s = false;@,\
        %s = %a;@]@,\
        @[<v 2>} else {@,\
        %s = %a;@]@,\
        };@,"
-      i i i0 (pp_val m) init i0 (pp_val m) step
+      i
+      i
+      i0
+      (pp_val m)
+      init
+      i0
+      (pp_val m)
+      step
   | MStep (il, i, vl) ->
     let out =
       try List.assoc i instance_out_list
@@ -112,10 +120,15 @@ let rec pp_machine_instr m machines instance_out_list fmt instr =
         eprintf "impossible to find instance %s in the list@.@?" i;
         assert false
     in
-    fprintf fmt "%s = %s.step (%a);@," out i
+    fprintf
+      fmt
+      "%s = %s.step (%a);@,"
+      out
+      i
       (Utils.fprintf_list ~sep:", " (pp_val m))
       vl;
-    Utils.fprintf_list ~sep:"@,"
+    Utils.fprintf_list
+      ~sep:"@,"
       (fun fmt (o, oname) -> fprintf fmt "%s = %s.%s;" o out oname)
       fmt
       (List.map2
@@ -123,14 +136,24 @@ let rec pp_machine_instr m machines instance_out_list fmt instr =
          il
          (get_output_of_machine machines (List.assoc i m.minstances)))
   | MBranch (g, hl) ->
-    Format.fprintf fmt "@[<v 2>switch(%a) {@,%a@,}@]" (pp_val m) g
-      (Utils.fprintf_list ~sep:"@,"
+    Format.fprintf
+      fmt
+      "@[<v 2>switch(%a) {@,%a@,}@]"
+      (pp_val m)
+      g
+      (Utils.fprintf_list
+         ~sep:"@,"
          (pp_machine_branch m machines instance_out_list))
       hl
 
 and pp_machine_branch m machines instance_out_list fmt (t, h) =
-  Format.fprintf fmt "@[<v 2>case %a:@,%a@,break;@]" pp_tag t
-    (Utils.fprintf_list ~sep:"@,"
+  Format.fprintf
+    fmt
+    "@[<v 2>case %a:@,%a@,break;@]"
+    pp_tag
+    t
+    (Utils.fprintf_list
+       ~sep:"@,"
        (pp_machine_instr m machines instance_out_list))
     h
 
@@ -149,7 +172,9 @@ let pp_local_field_instances =
       fprintf fmt "protected %s %s;" (get_class_name node_type) node_inst)
 
 let pp_output_constructor fmt outputs =
-  fprintf fmt "@[<v 2>public Output(%a) {@,%a@]@,}"
+  fprintf
+    fmt
+    "@[<v 2>public Output(%a) {@,%a@]@,}"
     (fprintf_list ~sep:"; " pp_var)
     outputs
     (fprintf_list ~sep:"@," (fun fmt v ->
@@ -157,12 +182,19 @@ let pp_output_constructor fmt outputs =
     outputs
 
 let pp_output_class fmt step =
-  fprintf fmt "@[<v 2>public class Output {@,%a@,@,%a@]@,}@,"
-    (pp_local_fields "public") step.step_outputs pp_output_constructor
+  fprintf
+    fmt
+    "@[<v 2>public class Output {@,%a@,@,%a@]@,}@,"
+    (pp_local_fields "public")
+    step.step_outputs
+    pp_output_constructor
     step.step_outputs
 
 let pp_constructor fmt (name, instances) =
-  fprintf fmt "@[<v 2>public %s () {@,%a@]@,}@," (String.capitalize name)
+  fprintf
+    fmt
+    "@[<v 2>public %s () {@,%a@]@,}@,"
+    (String.capitalize name)
     (fprintf_list ~sep:"@," (fun fmt (node_inst, node_type) ->
          match node_type with
          | "_arrow" ->
@@ -172,7 +204,9 @@ let pp_constructor fmt (name, instances) =
     instances
 
 let pp_reset machines fmt m =
-  fprintf fmt "@[<v 2>public void reset () {@,%a@]@,}@,"
+  fprintf
+    fmt
+    "@[<v 2>public void reset () {@,%a@]@,}@,"
     (fprintf_list ~sep:"@," (pp_machine_instr m machines []))
     m.minit
 
@@ -180,7 +214,9 @@ let pp_step machines fmt m : unit =
   let out_assoc_list =
     List.map (fun (node_inst, _) -> node_inst, "out_" ^ node_inst) m.minstances
   in
-  fprintf fmt "@[<v 2>public Output step (%a) {@,%a%t@,%a%a%t@,%a@,%t@]@,}@,"
+  fprintf
+    fmt
+    "@[<v 2>public Output step (%a) {@,%a%t@,%a%a%t@,%a@,%t@]@,}@,"
     (Utils.fprintf_list ~sep:",@ " pp_var)
     m.mstep.step_inputs
     (* locals *)
@@ -199,7 +235,9 @@ let pp_step machines fmt m : unit =
     m.mstep.step_instrs
     (* create out object and return it *)
       (fun fmt ->
-      fprintf fmt "return new Output(%a);"
+      fprintf
+        fmt
+        "return new Output(%a);"
         (fprintf_list ~sep:"," (fun fmt v -> pp_print_string fmt v.var_id))
         m.mstep.step_outputs)
 
@@ -207,18 +245,22 @@ let print_machine machines fmt m =
   if m.mname.node_id = "_arrow" then ()
   else
     (* We don't print arrow function *)
-    fprintf fmt "@[<v 2>class %s {@,%a%t%a%t%t%a@,%a@,%a@,%a@]@,}@.@.@."
+    fprintf
+      fmt
+      "@[<v 2>class %s {@,%a%t%a%t%t%a@,%a@,%a@,%a@]@,}@.@.@."
       (String.capitalize m.mname.node_id)
       (* class name *)
       (pp_local_fields "protected")
       m.mmemory
       (* fields *)
       (pp_newline_if_non_empty m.mmemory)
-      pp_local_field_instances m.minstances
+      pp_local_field_instances
+      m.minstances
       (* object fields *)
       (pp_newline_if_non_empty m.minstances)
       (pp_newline_if_non_empty m.minstances)
-      pp_output_class m.mstep
+      pp_output_class
+      m.mstep
       (* class for output of step method *)
       pp_constructor
       (m.mname.node_id, m.minstances)
@@ -264,22 +306,38 @@ let read_input fmt typ =
 
 let print_main_fun basename machines m fmt =
   let m_class = String.capitalize m.mname.node_id in
-  fprintf fmt "@[<v 2>class %s {@,@,@[<v 2>%s {@,%t@,%t@]@,}@,@]@,}@."
+  fprintf
+    fmt
+    "@[<v 2>class %s {@,@,@[<v 2>%s {@,%t@,%t@]@,}@,@]@,}@."
     (String.capitalize basename)
     "public static void main (String[] args)"
     (fun fmt -> fprintf fmt "%s main_node = new %s();" m_class m_class)
     (fun fmt ->
-      fprintf fmt "@[<v 2>while (true) {@,%a@,%t@,%a@]@,}@,"
+      fprintf
+        fmt
+        "@[<v 2>while (true) {@,%a@,%t@,%a@]@,}@,"
         (fprintf_list ~sep:"@," (fun fmt v ->
-             fprintf fmt "System.out.println(\"%s?\");@,%a = %a;" v.var_id
-               pp_var v read_input v.var_type))
+             fprintf
+               fmt
+               "System.out.println(\"%s?\");@,%a = %a;"
+               v.var_id
+               pp_var
+               v
+               read_input
+               v.var_type))
         m.mstep.step_inputs
         (fun fmt ->
-          fprintf fmt "%s.Output out = main_node.step(%a);" m_class
+          fprintf
+            fmt
+            "%s.Output out = main_node.step(%a);"
+            m_class
             (fprintf_list ~sep:", " (fun fmt v -> pp_print_string fmt v.var_id))
             m.mstep.step_inputs)
         (fprintf_list ~sep:"@," (fun fmt v ->
-             fprintf fmt "System.out.println(\"%s = \" + out.%s);" v.var_id
+             fprintf
+               fmt
+               "System.out.println(\"%s = \" + out.%s);"
+               v.var_id
                v.var_id))
         m.mstep.step_outputs)
 
@@ -373,7 +431,8 @@ let translate_to_java source_fmt basename prog machines =
               res
             | None ->
               if m.mname.node_id = main_node then Some m else None)
-          None machines
+          None
+          machines
       in
       match main_node_opt with
       | None ->

@@ -120,8 +120,11 @@ let rec translate_expr env expr =
          removed for C or Java backends. *)
       Fun ("ite", [ translate_expr g; translate_expr t; translate_expr e ])
     | _ ->
-      Format.eprintf "Normalization error for backend %t: %a@."
-        Options.pp_output Printers.pp_expr expr;
+      Format.eprintf
+        "Normalization error for backend %t: %a@."
+        Options.pp_output
+        Printers.pp_expr
+        expr;
       raise NormalizationError
   in
   mk_val value_desc expr.expr_type
@@ -226,7 +229,9 @@ let reset_instance env i r c =
   | Some r ->
     let r = translate_guard env r in
     let _, inst =
-      control_on_clock env c
+      control_on_clock
+        env
+        c
         (mk_conditional r [ mkinstr (MSetReset i) ] [ mkinstr (MNoReset i) ])
     in
     Some r, [ inst ]
@@ -250,7 +255,9 @@ let translate_eq env ctx nd inputs locals outputs i eq =
         ( Lustre_live.existential_vars id i eq (locals @ outputs),
           And
             [
-              mk_transition ~i:(i - 1) id
+              mk_transition
+                ~i:(i - 1)
+                id
                 (vdecls_to_vals (inputs @ locals_pi @ outputs_pi));
               a;
             ] ) )
@@ -267,7 +274,9 @@ let translate_eq env ctx nd inputs locals outputs i eq =
             (if fst (get_stateless_status_node nd) then []
             else [ mk_memory_pack ~i id ])
             @ [
-                mk_transition ~i id
+                mk_transition
+                  ~i
+                  id
                   (vdecls_to_vals (inputs @ locals_i @ outputs_i));
               ];
         }
@@ -334,14 +343,16 @@ let translate_eq env ctx nd inputs locals outputs i eq =
     let env_cks =
       List.fold_right
         (fun arg cks -> arg.expr_clock :: cks)
-        el [ eq.eq_rhs.expr_clock ]
+        el
+        [ eq.eq_rhs.expr_clock ]
     in
     let call_ck =
       Clock_calculus.compute_root_clock (Clock_predef.ck_tuple env_cks)
     in
     let r, reset_inst = reset_instance inst r call_ck in
     let ctx =
-      ctl ~ck:call_ck
+      ctl
+        ~ck:call_ck
         (MStep (var_p, inst, vl))
         (mk_memory_pack ~inst (node_name node_f))
         (mk_transition ?r ~inst (node_name node_f) (vl @ vdecls_to_vals var_p))
@@ -366,8 +377,10 @@ let translate_eq env ctx nd inputs locals outputs i eq =
     let instr, spec = translate_act (var_x, eq.eq_rhs) in
     control_on_clock eq.eq_rhs.expr_clock instr True spec ctx
   | _ ->
-    Format.eprintf "internal error: Machine_code.translate_eq %a@?"
-      Printers.pp_node_eq eq;
+    Format.eprintf
+      "internal error: Machine_code.translate_eq %a@?"
+      Printers.pp_node_eq
+      eq;
     assert false
 
 let constant_equations locals =
@@ -381,14 +394,16 @@ let constant_equations locals =
         }
         :: eqs
       else eqs)
-    [] locals
+    []
+    locals
 
 let translate_eqs env ctx nd inputs locals outputs eqs =
   List.fold_left
     (fun (ctx, i) eq ->
       let ctx = translate_eq env ctx nd inputs locals outputs i eq in
       ctx, i + 1)
-    (ctx, 1) eqs
+    (ctx, 1)
+    eqs
   |> fst
 
 (****************************************************************)
@@ -407,7 +422,9 @@ let process_asserts nd =
           let loc = expr.expr_loc in
           let var_id = nd.node_id ^ "_assert_" ^ string_of_int i in
           let assert_var =
-            mkvar_decl loc ~orig:false
+            mkvar_decl
+              loc
+              ~orig:false
               (* fresh var *)
               ( var_id,
                 mktyp loc Tydec_bool,
@@ -425,7 +442,8 @@ let process_asserts nd =
             assert_var :: vars,
             eq :: eqlist,
             { expr with expr_desc = Expr_ident var_id } :: assertlist ))
-        (1, [], [], []) exprl
+        (1, [], [], [])
+        exprl
     in
     vars, eql, assertl
 
@@ -473,7 +491,9 @@ let transition_0 nd =
 
 let transition_toplevel nd i =
   let tr =
-    mk_transition nd.node_id ~i
+    mk_transition
+      nd.node_id
+      ~i
       (vdecls_to_vals (nd.node_inputs @ nd.node_outputs))
   in
   {

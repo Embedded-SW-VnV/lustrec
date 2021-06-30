@@ -47,7 +47,8 @@ let rec check_expr checks expr =
     | Expr_access (e1, d) ->
       check_expr
         (CSet.add
-           (Dimension.check_access expr.expr_loc
+           (Dimension.check_access
+              expr.expr_loc
               (Types.array_type_dimension e1.expr_type)
               d)
            checks)
@@ -74,7 +75,8 @@ let rec check_expr checks expr =
 
 let rec check_var_decl_type loc checks ty =
   if Types.is_array_type ty then
-    check_var_decl_type loc
+    check_var_decl_type
+      loc
       (CSet.add
          (Dimension.check_bound loc (Types.array_type_dimension ty))
          checks)

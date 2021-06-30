@@ -96,7 +96,7 @@ let pp_type fmt typ =
       eprintf "Tarrow@.";
       assert false (*TODO*)
     | Ttuple l ->
-      eprintf "Ttuple %a @." (pp_print_list print_ty) l;
+      eprintf "Ttuple %a @." (pp_print_list pp) l;
       assert false (*TODO*)
     | Tenum _ ->
       eprintf "Tenum@.";
@@ -117,7 +117,7 @@ let pp_type fmt typ =
       eprintf "Tvar@.";
       assert false
 (*TODO*)
-(*| _ -> eprintf "Type error : %a@." Types.print_ty typ; assert false *)
+(*| _ -> eprintf "Type error : %a@." Types.pp typ; assert false *)
 
 (** Return a default ada constant for a given type. @param cst_typ the constant
     type **)
@@ -152,9 +152,13 @@ let pp_package_name_with_polymorphic substitution machine fmt =
   assert (
     List.for_all2
       (fun poly1 (poly2, _) -> poly1 = poly2)
-      polymorphic_types substituion);
+      polymorphic_types
+      substituion);
   let instantiated_types = snd (List.split substitution) in
-  fprintf fmt "%t%a" (pp_package_name machine)
+  fprintf
+    fmt
+    "%t%a"
+    (pp_package_name machine)
     (pp_print_list
        ~pp_prologue:(fun fmt () -> pp_print_string fmt "_")
        ~pp_sep:(fun fmt () -> pp_print_string fmt "_")
@@ -183,7 +187,8 @@ let pp_var env fmt var =
 
     @param fmt the formater to use @param t the tag to print **)
 let pp_ada_tag fmt t =
-  pp_print_string fmt
+  pp_print_string
+    fmt
     (if t = tag_true then "True" else if t = tag_false then "False" else t)
 
 (** Printing function for machine type constants. For the moment, arrays are not
@@ -219,9 +224,19 @@ let pp_ada_const fmt c =
 let pp_mod pp_value v1 v2 fmt =
   if !Options.integer_div_euclidean then
     (* (a rem b) + (a rem b < 0 ? abs(b) : 0) *)
-    Format.fprintf fmt
-      "((%a rem %a) + (if (%a rem %a) < 0 then abs(%a) else 0))" pp_value v1
-      pp_value v2 pp_value v1 pp_value v2 pp_value v2
+    Format.fprintf
+      fmt
+      "((%a rem %a) + (if (%a rem %a) < 0 then abs(%a) else 0))"
+      pp_value
+      v1
+      pp_value
+      v2
+      pp_value
+      v1
+      pp_value
+      v2
+      pp_value
+      v2
   else
     (* Ada behavior for rem *)
     Format.fprintf fmt "(%a rem %a)" pp_value v1 pp_value v2
@@ -236,8 +251,14 @@ let pp_mod pp_value v1 v2 fmt =
 let pp_div pp_value v1 v2 fmt =
   if !Options.integer_div_euclidean then
     (* (a - ((a rem b) + (if a rem b < 0 then abs (b) else 0))) / b) *)
-    Format.fprintf fmt "(%a - %t) / %a" pp_value v1 (pp_mod pp_value v1 v2)
-      pp_value v2
+    Format.fprintf
+      fmt
+      "(%a - %t) / %a"
+      pp_value
+      v1
+      (pp_mod pp_value v1 v2)
+      pp_value
+      v2
   else
     (* Ada behavior for / *)
     Format.fprintf fmt "(%a / %a)" pp_value v1 pp_value v2
@@ -272,8 +293,15 @@ let pp_basic_lib_fun pp_value ident fmt vl =
   | "!=", [ v1; v2 ] ->
     Format.fprintf fmt "(%a %s %a)" pp_value v1 "/=" pp_value v2
   | "ite", [ v1; v2; v3 ] ->
-    Format.fprintf fmt "(if %a then %a else %a)" pp_value v1 pp_value v2
-      pp_value v3
+    Format.fprintf
+      fmt
+      "(if %a then %a else %a)"
+      pp_value
+      v1
+      pp_value
+      v2
+      pp_value
+      v3
   | op, [ v1; v2 ] ->
     Format.fprintf fmt "(%a %s %a)" pp_value v1 op pp_value v2
   | _, [ v1 ] when List.mem_assoc ident ada_supported_funs ->

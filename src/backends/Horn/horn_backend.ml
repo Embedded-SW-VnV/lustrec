@@ -58,7 +58,10 @@ let print_type_definitions fmt =
           match tdef.tydef_desc with
           | Tydec_enum tl ->
             incr cpt_type;
-            fprintf fmt "(declare-datatypes () ((%s %a)));@.@." var
+            fprintf
+              fmt
+              "(declare-datatypes () ((%s %a)));@.@."
+              var
               (pp_print_list pp_print_string)
               tl
           | _ ->
@@ -118,7 +121,8 @@ let preprocess machines =
         }
         :: res
       else m :: res)
-    machines []
+    machines
+    []
 
 let translate fmt prog machines =
   let machines = preprocess machines in

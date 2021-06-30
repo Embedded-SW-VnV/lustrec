@@ -18,12 +18,14 @@ let process_sw vars f_e sw =
             List.assoc vid remaining :: res, List.remove_assoc vid remaining
           else (
             Format.eprintf
-              "Looking for variable %s in remaining expressions: [%a]@." vid
+              "Looking for variable %s in remaining expressions: [%a]@."
+              vid
               (Utils.fprintf_list ~sep:";@ " (fun fmt (id, e) ->
                    Format.fprintf fmt "(%s -> %a)" id Printers.pp_expr e))
               remaining;
             assert false (* Missing variable v in list *)))
-        vars ([], el)
+        vars
+        ([], el)
     in
     assert (forgotten = []);
     let loc = (List.hd el).expr_loc in
@@ -57,8 +59,10 @@ let process_sw vars f_e sw =
       let g_opt, up_e, loc = process_branch g_opt up in
       match g_opt with
       | None ->
-        Format.eprintf "SEAL issue: process_sw with %a"
-          (pp_sys Printers.pp_expr) sw;
+        Format.eprintf
+          "SEAL issue: process_sw with %a"
+          (pp_sys Printers.pp_expr)
+          sw;
         assert false (* How could this happen anyway ? *)
       | Some g ->
         let tl_e = process_sw f_e tl in
@@ -166,10 +170,16 @@ let to_lustre basename prog new_node orig_node =
   let fmt_verif = Format.formatter_of_out_channel out_verif in
   let check_nd = Lustre_utils.check_eq new_node orig_node in
   let check_top =
-    Corelang.mktop_decl Location.dummy_loc output_file_verif false
+    Corelang.mktop_decl
+      Location.dummy_loc
+      output_file_verif
+      false
       (Node check_nd)
   in
-  Format.fprintf fmt_verif "%a@." Printers.pp_prog
+  Format.fprintf
+    fmt_verif
+    "%a@."
+    Printers.pp_prog
     (prog @ [ new_top; check_top ])
 
 let node_to_lustre basename prog m sw_init sw_step init_out update_out =

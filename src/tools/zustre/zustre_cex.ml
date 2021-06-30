@@ -33,7 +33,9 @@ let build_cex machine machines _decl_err =
 
   let conjuncts = List.rev (get_conjuncts cex) in
 
-  Format.eprintf "cex: %s@.%i conjuncts: @[<v 0>%a@]@." (Z3.Expr.to_string cex)
+  Format.eprintf
+    "cex: %s@.%i conjuncts: @[<v 0>%a@]@."
+    (Z3.Expr.to_string cex)
     (List.length conjuncts)
     (Utils.fprintf_list ~sep:"@ " (fun fmt e ->
          Format.fprintf fmt "%s" (Z3.Expr.to_string e)))
@@ -65,7 +67,8 @@ let build_cex machine machines _decl_err =
             in
             let input_values = Utils.List.extract args 1 (1 + nb_inputs) in
             let output_values =
-              Utils.List.extract args
+              Utils.List.extract
+                args
                 (1 + nb_inputs + nb_mems)
                 (1 + nb_inputs + nb_mems + nb_outputs)
             in
@@ -88,7 +91,9 @@ let build_cex machine machines _decl_err =
   let main = List.sort (fun (id1, _) (id2, _) -> compare id1 id2) main in
   List.iter
     (fun (id, expr) ->
-      Format.eprintf "Id %i: %a@." id
+      Format.eprintf
+        "Id %i: %a@."
+        id
         (Utils.fprintf_list ~sep:", " (fun fmt e ->
              Format.fprintf fmt "%s" (Z3.Expr.to_string e)))
         (fst expr))
@@ -213,8 +218,11 @@ let build_cex machine machines _decl_err =
                                        [
                                          ( "type",
                                            let _ =
-                                             Format.fprintf Format.str_formatter
-                                               "%a" Printers.pp_var_type vardecl
+                                             Format.fprintf
+                                               Format.str_formatter
+                                               "%a"
+                                               Printers.pp_var_type
+                                               vardecl
                                            in
                                            let s =
                                              Format.flush_str_formatter ()

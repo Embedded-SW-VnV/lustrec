@@ -111,7 +111,7 @@ module type S = sig
 
   val is_generic_type : t -> bool
 
-  val print_ty : Format.formatter -> t -> unit
+  val pp : Format.formatter -> t -> unit
 
   val repr : t -> t
 
@@ -137,7 +137,7 @@ module type S = sig
 
   val type_list_of_type : t -> t list
 
-  val print_node_ty : Format.formatter -> t -> unit
+  val pp_node_ty : Format.formatter -> t -> unit
 
   val get_clock_base_type : t -> t option
 
@@ -266,83 +266,91 @@ module Make (BasicT : BASIC_TYPES) = struct
   (* Pretty-print*)
   open Format
 
-  let rec print_struct_ty_field pp_basic fmt (label, ty) =
-    fprintf fmt "%a : %a" pp_print_string label (print_ty_param pp_basic) ty
+  let rec pp_struct_ty_field pp_basic fmt (label, ty) =
+    fprintf fmt "%a : %a" pp_print_string label (pp_ty_param pp_basic) ty
 
-  and print_ty_param pp_basic fmt ty =
-    let print_ty = print_ty_param pp_basic in
+  and pp_ty_param pp_basic fmt ty =
+    let pp_ty = pp_ty_param pp_basic in
     match ty.tdesc with
     | Tvar ->
       fprintf fmt "_%s" (name_of_type ty.tid)
     | Tbasic t ->
       pp_basic fmt t
     | Tclock t ->
-      fprintf fmt "%a%s" print_ty t
-        (if !Options.kind2_print then "" else " clock")
+      fprintf fmt "%a%s" pp_ty t (if !Options.kind2_print then "" else " clock")
     | Tstatic (_, t) ->
-      print_ty fmt t
-    (* fprintf fmt "(%a:%a)" Dimension.pp_dimension d print_ty t *)
+      pp_ty fmt t
+    (* fprintf fmt "(%a:%a)" Dimension.pp_dimension d pp_ty t *)
     | Tconst t ->
       fprintf fmt "%s" t
     | Tarrow (ty1, ty2) ->
-      fprintf fmt "%a -> %a" print_ty ty1 print_ty ty2
+      fprintf fmt "%a -> %a" pp_ty ty1 pp_ty ty2
     | Ttuple tylist ->
-      fprintf fmt "(%a)"
-        (pp_print_list
-           ~pp_sep:(fun fmt () -> pp_print_string fmt " * ")
-           print_ty)
+      fprintf
+        fmt
+        "(%a)"
+        (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt " * ") pp_ty)
         tylist
     | Tenum taglist ->
       fprintf fmt "enum {%a }" (pp_comma_list pp_print_string) taglist
     | Tstruct fieldlist ->
-      fprintf fmt "struct {%a }"
-        (pp_print_list ~pp_sep:pp_print_semicolon
-           (print_struct_ty_field pp_basic))
+      fprintf
+        fmt
+        "struct {%a }"
+        (pp_print_list ~pp_sep:pp_print_semicolon (pp_struct_ty_field pp_basic))
         fieldlist
     | Tarray (e, ty) ->
-      fprintf fmt "%a^%a" print_ty ty Dimension.pp e
+      fprintf fmt "%a^%a" pp_ty ty Dimension.pp e
     | Tlink ty ->
-      print_ty fmt ty
+      pp_ty fmt ty
     | Tunivar ->
       fprintf fmt "'%s" (name_of_type ty.tid)
 
-  let print_ty = print_ty_param BasicT.pp
+  let pp = pp_ty_param BasicT.pp
 
-  let rec print_node_struct_ty_field fmt (label, ty) =
-    fprintf fmt "%a : %a" pp_print_string label print_node_ty ty
+  let rec pp_node_struct_ty_field fmt (label, ty) =
+    fprintf fmt "%a : %a" pp_print_string label pp_node_ty ty
 
-  and print_node_ty fmt ty =
+  and pp_node_ty fmt ty =
     match ty.tdesc with
     | Tvar ->
-      (*Format.eprintf "DEBUG:Types.print_node@.";*)
+      (*Format.eprintf "DEBUG:Types.pp_node@.";*)
       fprintf fmt "_%s" (name_of_type ty.tid)
     | Tbasic t ->
       BasicT.pp fmt t
     | Tclock t ->
-      fprintf fmt "%a%s" print_node_ty t
+      fprintf
+        fmt
+        "%a%s"
+        pp_node_ty
+        t
         (if !Options.kind2_print then "" else " clock")
     | Tstatic (_, t) ->
-      fprintf fmt "%a" print_node_ty t
+      fprintf fmt "%a" pp_node_ty t
     | Tconst t ->
       fprintf fmt "%s" t
     | Tarrow (ty1, ty2) ->
-      fprintf fmt "%a -> %a" print_node_ty ty1 print_node_ty ty2
+      fprintf fmt "%a -> %a" pp_node_ty ty1 pp_node_ty ty2
     | Ttuple tylist ->
-      fprintf fmt "(%a)"
+      fprintf
+        fmt
+        "(%a)"
         (pp_print_list
            ~pp_sep:(fun fmt () -> pp_print_string fmt "")
-           print_node_ty)
+           pp_node_ty)
         tylist
     | Tenum taglist ->
       fprintf fmt "enum {%a }" (pp_comma_list pp_print_string) taglist
     | Tstruct fieldlist ->
-      fprintf fmt "struct {%a }"
-        (pp_print_list ~pp_sep:pp_print_semicolon print_node_struct_ty_field)
+      fprintf
+        fmt
+        "struct {%a }"
+        (pp_print_list ~pp_sep:pp_print_semicolon pp_node_struct_ty_field)
         fieldlist
     | Tarray (e, ty) ->
-      fprintf fmt "%a^%a" print_node_ty ty Dimension.pp e
+      fprintf fmt "%a^%a" pp_node_ty ty Dimension.pp e
     | Tlink ty ->
-      print_node_ty fmt ty
+      pp_node_ty fmt ty
     | Tunivar ->
       fprintf fmt "'%s" (name_of_type ty.tid)
 
@@ -364,19 +372,24 @@ module Make (BasicT : BASIC_TYPES) = struct
     | WrongArity (ar1, ar2) ->
       fprintf fmt "Expecting %d argument(s), found %d@." ar1 ar2
     | WrongMorphism (ar1, ar2) ->
-      fprintf fmt
-        "Expecting %d argument(s) for homomorphic extension, found %d@." ar1 ar2
+      fprintf
+        fmt
+        "Expecting %d argument(s) for homomorphic extension, found %d@."
+        ar1
+        ar2
     | Type_mismatch id ->
       fprintf fmt "Definition and declaration of type %s don't agree@." id
     | Undefined_var vset ->
-      fprintf fmt "No definition provided for variable(s): %a@."
+      fprintf
+        fmt
+        "No definition provided for variable(s): %a@."
         (pp_comma_list pp_print_string)
         (ISet.elements vset)
     | Declared_but_undefined id ->
       fprintf fmt "%s is declared but not defined@." id
     | Type_clash (ty1, ty2) ->
       Utils.reset_names ();
-      fprintf fmt "Expected type %a, got type %a@." print_ty ty1 print_ty ty2
+      fprintf fmt "Expected type %a, got type %a@." pp ty1 pp ty2
     | Poly_imported_node _ ->
       fprintf fmt "Imported nodes cannot have a polymorphic type@."
 
@@ -525,7 +538,7 @@ module Make (BasicT : BASIC_TYPES) = struct
     | Tarray (d, _) ->
       d
     | _ ->
-      eprintf "internal error: Types.array_type_dimension %a@." print_ty ty;
+      eprintf "internal error: Types.array_type_dimension %a@." pp ty;
       assert false
 
   let rec array_type_multi_dimension ty =
@@ -540,7 +553,7 @@ module Make (BasicT : BASIC_TYPES) = struct
     | Tarray (_, ty') ->
       ty'
     | _ ->
-      eprintf "internal error: Types.array_element_type %a@." print_ty ty;
+      eprintf "internal error: Types.array_element_type %a@." pp ty;
       assert false
 
   let rec array_base_type ty =
@@ -572,7 +585,7 @@ module Make (BasicT : BASIC_TYPES) = struct
     (* Functions are not first order, I don't think the var case needs to be
        considered here *)
     | _ ->
-      eprintf "type %a is not a map@.Unable to split@.@?" print_ty ty;
+      eprintf "type %a is not a map@.Unable to split@.@?" pp ty;
       assert false
 
   (** Returns the type corresponding to a type list. *)

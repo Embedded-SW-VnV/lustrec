@@ -44,19 +44,25 @@ let test_var_skeleton var id var_type value =
   assert_bool "user variables are considered as constants" var.var_dec_const;
   assert_equal
     ~msg:("problem with variable " ^ var.var_id ^ " clock type")
-    Ckdec_any var.var_dec_clock.ck_dec_desc;
+    Ckdec_any
+    var.var_dec_clock.ck_dec_desc;
   assert_equal
     ~msg:("problem with variable " ^ var.var_id ^ " ident")
     ~printer:(fun x -> x)
-    id var.var_id;
+    id
+    var.var_id;
   assert_equal
     ~msg:("problem with variable " ^ var.var_id ^ " type")
-    ~printer:string_of_var_type var_type var.var_dec_type.ty_dec_desc;
+    ~printer:string_of_var_type
+    var_type
+    var.var_dec_type.ty_dec_desc;
   match var.var_dec_value with
   | Some { expr_desc = d } ->
     assert_equal
       ~msg:("problem with variable " ^ var.var_id ^ " value")
-      ~printer:string_of_var_value value d
+      ~printer:string_of_var_value
+      value
+      d
   | _ ->
     raise
       (OUnitTest.OUnit_failure "User variables should have an initial value")
@@ -68,7 +74,10 @@ let test_simple_var_bool_false tests_ctxt =
   in
   match prog with
   | Program ("simple_var_bool_false", [], [ x ]) ->
-    test_var_skeleton x "my_bool_var_false" Tydec_bool
+    test_var_skeleton
+      x
+      "my_bool_var_false"
+      Tydec_bool
       (Expr_const (Const_tag tag_false))
   | _ ->
     raise
@@ -82,7 +91,10 @@ let test_simple_var_bool_true tests_ctxt =
   in
   match prog with
   | Program ("simple_var_bool_true", [], [ x ]) ->
-    test_var_skeleton x "my_bool_var_true" Tydec_bool
+    test_var_skeleton
+      x
+      "my_bool_var_true"
+      Tydec_bool
       (Expr_const (Const_tag tag_true))
   | _ ->
     raise
@@ -135,7 +147,10 @@ let test_simple_var_real_zero tests_ctxt =
   in
   match prog with
   | Program ("simple_var_real_zero", [], [ x ]) ->
-    test_var_skeleton x "my_real_var_zero" Tydec_real
+    test_var_skeleton
+      x
+      "my_real_var_zero"
+      Tydec_real
       (Expr_const (Const_real (Num.num_of_int 0, 1, "0.0")))
   | _ ->
     raise
@@ -149,7 +164,10 @@ let test_simple_var_real_pos tests_ctxt =
   in
   match prog with
   | Program ("simple_var_real_pos", [], [ x ]) ->
-    test_var_skeleton x "my_real_var_pos" Tydec_real
+    test_var_skeleton
+      x
+      "my_real_var_pos"
+      Tydec_real
       (Expr_const (Const_real (Num.num_of_int 2115, 2, "21.15")))
   | _ ->
     raise
@@ -163,7 +181,10 @@ let test_simple_var_real_neg tests_ctxt =
   in
   match prog with
   | Program ("simple_var_real_neg", [], [ x ]) ->
-    test_var_skeleton x "my_real_var_neg" Tydec_real
+    test_var_skeleton
+      x
+      "my_real_var_neg"
+      Tydec_real
       (Expr_const (Const_real (Num.num_of_int (-224), 2, "-2.24")))
   | _ ->
     raise
@@ -177,7 +198,10 @@ let test_simple_var_real_e tests_ctxt =
   in
   match prog with
   | Program ("simple_var_real_e", [], [ x ]) ->
-    test_var_skeleton x "my_real_var_e" Tydec_real
+    test_var_skeleton
+      x
+      "my_real_var_e"
+      Tydec_real
       (Expr_const (Const_real (Num.num_of_int (-2115), 4, "-21.15e-02")))
   | _ ->
     raise

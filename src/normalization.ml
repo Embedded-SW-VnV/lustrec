@@ -124,7 +124,7 @@ let replace_expr locals expr =
 (* IS IT USED ? TODO 
 (* Create an alias for [expr], if none exists yet *)
 let mk_expr_alias (parentid, vars) (defs, vars) expr =
-(*Format.eprintf "mk_expr_alias %a %a %a@." Printers.pp_expr expr Types.print_ty expr.expr_type Clocks.print_ck expr.expr_clock;*)
+(*Format.eprintf "mk_expr_alias %a %a %a@." Printers.pp_expr expr Types.pp expr.expr_type Clocks.pp_ck expr.expr_clock;*)
   match get_expr_alias defs expr with
   | Some eq ->
     let aliases = List.map (fun id -> List.find (fun v -> v.var_id = id) vars) eq.eq_lhs in
@@ -151,7 +151,7 @@ let mk_expr_alias_opt opt norm_ctx (defs, vars) expr =
   if !debug then
     Log.report ~plugin:"normalization" ~level:2 (fun fmt ->
         Format.fprintf fmt "mk_expr_alias_opt %B %a %a %a@." opt
-          Printers.pp_expr expr Types.print_ty expr.expr_type Clocks.pp
+          Printers.pp_expr expr Types.pp expr.expr_type Clocks.pp
           expr.expr_clock);
   match expr.expr_desc with
   | Expr_ident _ -> (defs, vars), expr
@@ -171,7 +171,7 @@ let mk_expr_alias_opt opt norm_ctx (defs, vars) expr =
           * Format.eprintf "existing defs are: @[[%a@]]@."
           *   (fprintf_list ~sep:"@ "(fun fmt eq ->
           *        Format.fprintf fmt "ck:%a isckeq=%b, , iseq=%b, eq=%a"
-          *          Clocks.print_ck eq.eq_rhs.expr_clock
+          *          Clocks.pp_ck eq.eq_rhs.expr_clock
           *          (Clocks.eq_clock expr.expr_clock eq.eq_rhs.expr_clock)
           *          (is_eq_expr eq.eq_rhs expr)
           *          Printers.pp_node_eq eq))
@@ -213,7 +213,7 @@ let mk_dim_alias opt norm_ctx (defs, vars) dim =
 
 let unfold_offsets norm_ctx defvars e offsets =
   let add_offset (defvars, e) d =
-    (*Format.eprintf "add_offset %a(%a) %a @." Printers.pp_expr e Types.print_ty e.expr_type Dimension.pp_dimension d; *)
+    (*Format.eprintf "add_offset %a(%a) %a @." Printers.pp_expr e Types.pp e.expr_type Dimension.pp_dimension d; *)
     let defvars, d =
       mk_dim_alias !params.force_alias_internal_fun norm_ctx defvars d
     in
@@ -255,7 +255,7 @@ let normalize_list alias norm_ctx offsets norm_element defvars elist =
 
 let rec normalize_expr ?(alias = true) ?(alias_basic = false) norm_ctx offsets
     defvars expr =
-  (* Format.eprintf "normalize %B %a:%a [%a]@." alias Printers.pp_expr expr Types.print_ty expr.expr_type (Utils.fprintf_list ~sep:"," Dimension.pp_dimension) offsets; *)
+  (* Format.eprintf "normalize %B %a:%a [%a]@." alias Printers.pp_expr expr Types.pp expr.expr_type (Utils.fprintf_list ~sep:"," Dimension.pp_dimension) offsets; *)
   match expr.expr_desc with
   | Expr_const _ | Expr_ident _ -> unfold_offsets norm_ctx defvars expr offsets
   | Expr_array elist ->
@@ -452,7 +452,7 @@ let decouple_outputs norm_ctx defvars eq =
   defvars', { eq with eq_lhs = lhs' }
 
 let normalize_eq norm_ctx defvars eq =
-  (*Format.eprintf "normalize_eq %a@." Types.print_ty eq.eq_rhs.expr_type;*)
+  (*Format.eprintf "normalize_eq %a@." Types.pp eq.eq_rhs.expr_type;*)
   match eq.eq_rhs.expr_desc with
   | Expr_pre _ | Expr_fby _ ->
       let defvars', eq' = decouple_outputs norm_ctx defvars eq in
@@ -564,9 +564,9 @@ let normalize_pred_eexpr norm_ctx (def, vars) ee =
 
       (*
     let env = Typing.type_var_decl [] !Global.type_env xxxx output_var in (* typing the variable *)
-    (* Format.eprintf "typing var %s: %a@." output_id Types.print_ty output_var.var_type; *)
+    (* Format.eprintf "typing var %s: %a@." output_id Types.pp output_var.var_type; *)
     let env = Typing.type_var_decl_list (vars@node.node_outputs@node.node_inputs) env (vars@node.node_outputs@node.node_inputs) in
-    (*Format.eprintf "Env: %a@.@?" (Env.pp_env Types.print_ty) env;*)
+    (*Format.eprintf "Env: %a@.@?" (Env.pp_env Types.pp) env;*)
     let undefined_vars = List.fold_left (Typing.type_eq (env, quant_vars@vars) false) todefine defs in
   (* check that table is empty *)
     if (not (ISet.is_empty undefined_vars)) then
@@ -611,9 +611,9 @@ let normalize_pred_eexpr norm_ctx (def, vars) ee =
   try
     let env = Typing.type_var_decl_list quant_vars !Global.type_env quant_vars in
     let env = Typing.type_var_decl [] env output_var in (* typing the variable *)
-    (* Format.eprintf "typing var %s: %a@." output_id Types.print_ty output_var.var_type; *)
+    (* Format.eprintf "typing var %s: %a@." output_id Types.pp output_var.var_type; *)
     let env = Typing.type_var_decl_list (vars@node.node_outputs@node.node_inputs) env (vars@node.node_outputs@node.node_inputs) in
-    (*Format.eprintf "Env: %a@.@?" (Env.pp_env Types.print_ty) env;*)
+    (*Format.eprintf "Env: %a@.@?" (Env.pp_env Types.pp) env;*)
     let undefined_vars = List.fold_left (Typing.type_eq (env, quant_vars@vars) false) todefine defs in
   (* check that table is empty *)
     if (not (ISet.is_empty undefined_vars)) then
@@ -855,8 +855,8 @@ let normalize_node node =
               (expr_of_expr_list loc [ expr_of_vdecl v; typ_as_string ])
           in
           Annotations.add_expr_ann node.node_id pair.eexpr_tag
-            Machine_types.keyword;
-          { annots = [ Machine_types.keyword, pair ]; annot_loc = loc }
+            Machine_types.keywords;
+          { annots = [ Machine_types.keywords, pair ]; annot_loc = loc }
           :: annots)
         else annots)
       new_annots new_locals

@@ -117,7 +117,8 @@ let rec expand_list ck_substs var_substs elist =
     (fun e (eqs, locs, elist) ->
       let eqs', locs', e' = expand_expr ck_substs var_substs e in
       eqs' @ eqs, locs' @ locs, e' :: elist)
-    elist ([], [], [])
+    elist
+    ([], [], [])
 
 (* Expands the node instance [nd(args)]. *)
 and expand_nodeinst parent_ck_substs parent_vsubsts nd args =
@@ -143,7 +144,8 @@ and expand_nodeinst parent_ck_substs parent_vsubsts nd args =
            in
            Hashtbl.add var_substs i.var_id i'.var_id;
            { eq_lhs = [ i'.var_id ]; eq_rhs = e; eq_loc = i.var_loc }, i')
-         nd.node_inputs (expr_list_of_expr args'))
+         nd.node_inputs
+         (expr_list_of_expr args'))
   in
   (* Transform node local variables into local variables of the main node *)
   let loc_sub =
@@ -261,7 +263,8 @@ and expand_eqs ck_substs var_substs eqs =
     (fun (acc_eqs, acc_locals) eq ->
       let new_eqs, new_locals, eq' = expand_eq ck_substs var_substs eq in
       eq' :: (new_eqs @ acc_eqs), new_locals @ acc_locals)
-    ([], []) eqs
+    ([], [])
+    eqs
 
 (* Expands the body of a node, replacing recursively all the node calls it
    contains by the body of the corresponding node. *)

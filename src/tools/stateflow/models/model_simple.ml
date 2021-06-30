@@ -8,7 +8,8 @@ let condition _ =
   condition
     {
       expr =
-        Corelang.mkexpr Location.dummy
+        Corelang.mkexpr
+          Location.dummy
           (Lustre_types.Expr_const (Corelang.const_of_bool true));
       cinputs = [];
       coutputs = [];

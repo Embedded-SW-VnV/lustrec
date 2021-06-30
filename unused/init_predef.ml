@@ -61,7 +61,8 @@ let env =
   let env' =
     List.fold_right
       (fun op env -> Env.add_value env op init_unary_poly_op)
-      [ "uminus"; "not" ] init_env
+      [ "uminus"; "not" ]
+      init_env
   in
   let env' =
     List.fold_right
@@ -88,7 +89,8 @@ let env =
   let env' =
     List.fold_right
       (fun op env -> Env.add_value env op init_ternary_poly_op)
-      [ "ite" ] init_env
+      [ "ite" ]
+      init_env
   in
   env'
 

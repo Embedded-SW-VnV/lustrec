@@ -104,7 +104,8 @@ let inline_call node loc uid args reset locals caller =
   let rename v =
     if v = tag_true || v = tag_false || not (is_node_var node v) then v
     else
-      Corelang.mk_new_node_name caller
+      Corelang.mk_new_node_name
+        caller
         (Format.sprintf "%s_%i_%s" node.node_id uid v)
   in
   let eqs, auts = get_node_eqs node in
@@ -142,7 +143,8 @@ let inline_call node loc uid args reset locals caller =
   in
   let rename_var v =
     let vdecl =
-      Corelang.mkvar_decl v.var_loc
+      Corelang.mkvar_decl
+        v.var_loc
         ( rename v.var_id,
           {
             v.var_dec_type with
@@ -199,7 +201,8 @@ let inline_call node loc uid args reset locals caller =
   in
   let assign_inputs =
     Eq
-      (mkeq loc
+      (mkeq
+         loc
          ( List.map (fun v -> v.var_id) inputs',
            expr_of_expr_list args.expr_loc (List.map snd dynamic_inputs) ))
   in
@@ -239,7 +242,8 @@ let rec inline_expr ?(selection_on_annotation = false) expr locals node nodes =
           inline_expr e locals node nodes
         in
         e' :: el_tail, locals', eqs' @ eqs, asserts @ asserts', annots @ annots')
-      el ([], locals, [], [], [])
+      el
+      ([], locals, [], [], [])
   in
   let inline_pair e1 e2 =
     let el', l', eqs', asserts', annots' = inline_tuple [ e1; e2 ] in
@@ -529,7 +533,8 @@ let global_inline prog (*type_env clock_env*) =
           main_opt, top :: nodes, others
         | _ ->
           main_opt, nodes, top :: others)
-      prog (None, [], [])
+      prog
+      (None, [], [])
   in
 
   (* Recursively each call of a node in the top node is replaced *)
@@ -577,12 +582,15 @@ let local_inline prog (* type_env clock_env *) =
       let nodes_with_anns =
         List.fold_left
           (fun accu (k, _) -> ISet.add k accu)
-          ISet.empty local_anns
+          ISet.empty
+          local_anns
       in
       ISet.iter
         (fun node_id ->
           Log.report ~level:2 (fun fmt ->
-              Format.fprintf fmt "Node %s has local expression annotations@ "
+              Format.fprintf
+                fmt
+                "Node %s has local expression annotations@ "
                 node_id))
         nodes_with_anns;
       List.fold_right
@@ -590,7 +598,9 @@ let local_inline prog (* type_env clock_env *) =
           (match top.top_decl_desc with
           | Node nd when ISet.mem nd.node_id nodes_with_anns ->
             Log.report ~level:2 (fun fmt ->
-                Format.fprintf fmt "[local inline] Processing node %s@ "
+                Format.fprintf
+                  fmt
+                  "[local inline] Processing node %s@ "
                   nd.node_id);
             let inlined_node =
               inline_node ~selection_on_annotation:true nd prog
@@ -602,7 +612,8 @@ let local_inline prog (* type_env clock_env *) =
           | _ ->
             top)
           :: accu)
-        prog [])
+        prog
+        [])
     else (
       Log.report ~level:2 (fun fmt ->
           Format.fprintf fmt "No local inline information!@ ");

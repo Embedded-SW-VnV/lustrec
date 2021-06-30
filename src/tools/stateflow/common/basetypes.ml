@@ -36,7 +36,9 @@ let pp_junction_name = Format.pp_print_string
 let pp_path fmt p =
   Utils.Format.pp_print_list
     ~pp_sep:(fun fmt () -> Format.pp_print_string fmt ".")
-    pp_state_name fmt p
+    pp_state_name
+    fmt
+    p
 
 (* XXX: UNUSED *)
 (* let pp_event fmt e =
@@ -124,8 +126,17 @@ module Action = struct
     match call with
     | Ecall ->
       fun (p, p', f) ->
-        Format.fprintf fmt "%a(%a, %a, %a)" pp_call call pp_path p pp_path p'
-          pp_frontier f
+        Format.fprintf
+          fmt
+          "%a(%a, %a, %a)"
+          pp_call
+          call
+          pp_path
+          p
+          pp_path
+          p'
+          pp_frontier
+          f
     | Dcall ->
       fun p -> Format.fprintf fmt "%a(%a)" pp_call call pp_path p
     | Xcall ->

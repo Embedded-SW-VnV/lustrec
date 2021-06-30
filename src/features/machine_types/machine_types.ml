@@ -34,7 +34,7 @@ open Lustre_types
 
 let is_active = false
 
-let keyword = [ "machine_types" ]
+let keywords = [ "machine_types" ]
 
 module MT = struct
   type int_typ =
@@ -221,7 +221,7 @@ module ConvTypes = struct
       else if Types.BasicT.is_real_type b then MTypes.type_real
       else if Types.BasicT.is_bool_type b then MTypes.type_bool
       else (
-        Format.eprintf "importing %a with issues!@.@?" Types.print_ty main_typ;
+        Format.eprintf "importing %a with issues!@.@?" Types.pp main_typ;
         assert false)
     in
     map_type_basic import_basic main_typ
@@ -272,7 +272,10 @@ module ConvTypes = struct
         Format.eprintf
           "unhandled basic mtype is %a. Issues while dealing with basic type \
            %a@.@?"
-          MTypes.print_ty machine_type MTypes.BasicT.pp b;
+          MTypes.pp
+          machine_type
+          MTypes.BasicT.pp
+          b;
         assert false)
     in
     map_mtype_basic export_basic machine_type
@@ -294,7 +297,7 @@ let pp_table fmt =
   Format.fprintf fmt "@[<v 0>[";
   Hashtbl.iter
     (fun v typ ->
-      Format.fprintf fmt "%a -> %a,@ " Printers.pp_var v MTypes.print_ty typ)
+      Format.fprintf fmt "%a -> %a,@ " Printers.pp_var v MTypes.pp typ)
     machine_type_table;
   Format.fprintf fmt "@]"
 
@@ -320,28 +323,29 @@ let is_exportable v =
 (* could depend on the actual computed type *)
 
 let type_name typ =
-  MTypes.print_ty Format.str_formatter typ;
+  MTypes.pp Format.str_formatter typ;
   Format.flush_str_formatter ()
 
 let pp_var_type fmt v =
   let typ = get_specified_type v in
-  MTypes.print_ty fmt typ
+  MTypes.pp fmt typ
 
 let pp_c_var_type fmt v =
   let typ = get_specified_type v in
-  MTypes.print_ty_param MT.pp_c fmt typ
+  MTypes.pp_ty_param MT.pp_c fmt typ
 
 (************** Checking types ******************)
 
 let erroneous_annotation loc =
-  Format.eprintf "Invalid annotation for machine_type at loc %a@." Location.pp
+  Format.eprintf
+    "Invalid annotation for machine_type at loc %a@."
+    Location.pp
     loc;
   assert false
 
 let valid_subtype subtype typ =
   let mismatch subtyp typ =
-    Format.eprintf "Subtype mismatch %a vs %a@." MTypes.print_ty subtyp
-      Types.print_ty typ;
+    Format.eprintf "Subtype mismatch %a vs %a@." MTypes.pp subtyp Types.pp typ;
     false
   in
   match (MTypes.dynamic_type subtype).MTypes.tdesc with
@@ -396,7 +400,7 @@ let register_node vars annots =
       let annl = annot.annots in
       List.fold_left
         (fun accu (kwd, value) ->
-          if kwd = keyword then
+          if kwd = keywords then
             let expr = value.eexpr_qfexpr in
             match Corelang.expr_list_of_expr expr with
             | [ var_id; type_name ] -> (
@@ -404,9 +408,12 @@ let register_node vars annots =
               | Expr_ident var_id, Expr_const (Const_string type_name) ->
                 let var = List.find (fun v -> v.var_id = var_id) vars in
                 Log.report ~level:2 (fun fmt ->
-                    Format.fprintf fmt
+                    Format.fprintf
+                      fmt
                       "Recorded type %s for variable %a (parent node is %s)@ "
-                      type_name Printers.pp_var var
+                      type_name
+                      Printers.pp_var
+                      var
                       (match var.var_parent_nodeid with
                       | Some id ->
                         id
@@ -420,8 +427,10 @@ let register_node vars annots =
             | _ ->
               erroneous_annotation expr.expr_loc
           else accu)
-        accu annl)
-    [] annots
+        accu
+        annl)
+    []
+    annots
 
 let check_node nd vars =
   (* TODO check that all access to vars are valid *)
@@ -441,7 +450,8 @@ let load prog =
   let init_env =
     Env.fold
       (fun id typ env -> Env.add_value env id (ConvTypes.import typ))
-      Basic_library.type_env Env.initial
+      Basic_library.type_env
+      Env.initial
   in
   let env =
     List.fold_left
@@ -459,7 +469,7 @@ let load prog =
           let ty_node = MTypes.new_ty (MTypes.Tarrow (ty_ins, ty_outs)) in
           Typing.generalize ty_node;
           let env = Env.add_value type_env nd.node_id ty_node in
-          (* Format.eprintf "Env: %a" (Env.pp_env MTypes.print_ty) env; *)
+          (* Format.eprintf "Env: %a" (Env.pp_env MTypes.pp) env; *)
           env
         | _ ->
           type_env
@@ -467,13 +477,14 @@ let load prog =
         (*    let vars = ind.nodei_inputs @ ind.nodei_outputs in *)
         (*    register_node ind.nodei_id vars ind.nodei_annot *)
         (*      | _ -> () TODO: shall we load something for Open statements? *))
-      init_env prog
+      init_env
+      prog
   in
   typing_env := env
 
 let type_expr (parentid, init_vars) expr =
   let init_env = !typing_env in
-  (* Format.eprintf "Init env: %a@." (Env.pp_env MTypes.print_ty) init_env; *)
+  (* Format.eprintf "Init env: %a@." (Env.pp_env MTypes.pp) init_env; *)
   (* Rebuilding the variables environment from accumulated knowledge *)
   let env, vars =
     (* First, we add non specified variables *)
@@ -483,7 +494,8 @@ let type_expr (parentid, init_vars) expr =
           let env = Env.add_value env v.var_id (ConvTypes.import v.var_type) in
           env, v :: vars
         else env, vars)
-      (init_env, []) init_vars
+      (init_env, [])
+      init_vars
   in
 
   (* Then declared ones *)
@@ -496,18 +508,21 @@ let type_expr (parentid, init_vars) expr =
           let env = Env.add_value env vdecl.var_id machine_type in
           env, vdecl :: vds
         else env, vds)
-      machine_type_table (env, vars)
+      machine_type_table
+      (env, vars)
   in
 
-  (* Format.eprintf "env with local vars: %a@." (Env.pp_env MTypes.print_ty)
-     env; *)
+  (* Format.eprintf "env with local vars: %a@." (Env.pp_env MTypes.pp) env; *)
   (* Format.eprintf "expr = %a@." Printers.pp_expr expr; *)
   (* let res = *)
-  Typing.type_expr (env, vars) false (* not in main node *) false
+  Typing.type_expr
+    (env, vars)
+    false
+    (* not in main node *) false
     (* no a constant *) expr
 
 (* in *)
-(* Format.eprintf "typing ok = %a@." MTypes.print_ty res; *)
+(* Format.eprintf "typing ok = %a@." MTypes.pp res; *)
 (* res *)
 
 (* Typing the expression (vars = expr) in node *)
@@ -517,12 +532,12 @@ let type_def node vars expr =
   (*   Printers.pp_expr expr *)
   (* ; *)
   let typ = type_expr node expr in
-  (* Format.eprintf "Type is %a. Saving stuff@.@." MTypes.print_ty typ; *)
+  (* Format.eprintf "Type is %a. Saving stuff@.@." MTypes.pp typ; *)
   let typ = MTypes.type_list_of_type typ in
   List.iter2 register_var vars typ
 
 let has_machine_type () =
-  let annl = Annotations.get_expr_annotations keyword in
+  let annl = Annotations.get_expr_annotations keywords in
   (* Format.eprintf "has _mchine _type annotations: %i@." (List.length annl); *)
   List.length annl > 0
 

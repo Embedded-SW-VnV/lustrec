@@ -27,7 +27,8 @@ let tiny_run ~basename prog machines =
     match !Options.main_node with
     | "" ->
       Format.eprintf "Tiny verifier requires a main node.@.";
-      Format.eprintf "@[<v 2>Available ones are:@ %a@]@.@?"
+      Format.eprintf
+        "@[<v 2>Available ones are:@ %a@]@.@?"
         (Utils.fprintf_list ~sep:"@ " (fun fmt m ->
              Format.fprintf fmt "%s" m.Machine_code_types.mname.node_id))
         machines;
@@ -37,7 +38,9 @@ let tiny_run ~basename prog machines =
       match Machine_code_common.get_machine_opt machines s with
       | None ->
         Global.main_node := s;
-        Format.eprintf "Code generation error: %a@." Error.pp_error_msg
+        Format.eprintf
+          "Code generation error: %a@."
+          Error.pp_error_msg
           Error.Main_not_found;
         raise (Error.Error (Location.dummy_loc, Error.Main_not_found))
       | Some _ ->

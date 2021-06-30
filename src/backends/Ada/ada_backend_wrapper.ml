@@ -46,7 +46,9 @@ let pp_main_adb fmt machine =
        [
          [
            AdaLocalVar
-             (build_pp_state_decl_from_subinstance AdaNoMode None
+             (build_pp_state_decl_from_subinstance
+                AdaNoMode
+                None
                 (asprintf "%t" pp_state_name, ([], machine)));
          ];
        ]
@@ -64,29 +66,43 @@ let pp_main_adb fmt machine =
   let get_type var = Types.repr var.var_type in
   let pp_read fmt var =
     if Types.is_bool_type (get_type var) then
-      fprintf fmt "%t := Integer'Value(Ada.Text_IO.Get_Line) /= 0"
+      fprintf
+        fmt
+        "%t := Integer'Value(Ada.Text_IO.Get_Line) /= 0"
         (pp_var_name var)
     else
-      fprintf fmt "%t := %a'Value(Ada.Text_IO.Get_Line)" (pp_var_name var)
-        pp_var_type var
+      fprintf
+        fmt
+        "%t := %a'Value(Ada.Text_IO.Get_Line)"
+        (pp_var_name var)
+        pp_var_type
+        var
   in
   let pp_write fmt var =
     let t = get_type var in
     if Types.is_bool_type t then
-      fprintf fmt
+      fprintf
+        fmt
         "Ada.Text_IO.Put_Line(\"'%t': '\" & (if %t then \"1\" else \"0\") & \
          \"' \")"
-        (pp_var_name var) (pp_var_name var)
+        (pp_var_name var)
+        (pp_var_name var)
     else if Types.is_int_type t then
-      fprintf fmt
+      fprintf
+        fmt
         "Ada.Text_IO.Put(\"'%t': '\");@,\
          Integer_IO.Put(%t);@,\
-         Ada.Text_IO.Put_Line(\"' \")" (pp_var_name var) (pp_var_name var)
+         Ada.Text_IO.Put_Line(\"' \")"
+        (pp_var_name var)
+        (pp_var_name var)
     else if Types.is_real_type t then
-      fprintf fmt
+      fprintf
+        fmt
         "Ada.Text_IO.Put(\"'%t': '\");@,\
          Float_IO.Put(%t, Fore=>0, Aft=> 15, Exp => 0);@,\
-         Ada.Text_IO.Put_Line(\"' \")" (pp_var_name var) (pp_var_name var)
+         Ada.Text_IO.Put_Line(\"' \")"
+        (pp_var_name var)
+        (pp_var_name var)
     else assert false
     (* Could not be the top level inputs *)
   in
@@ -96,13 +112,16 @@ let pp_main_adb fmt machine =
     let args =
       pp_state_name
       ::
-      List.map pp_var_name
+      List.map
+        pp_var_name
         (machine.mstep.step_inputs @ machine.mstep.step_outputs)
     in
-    fprintf fmt
+    fprintf
+      fmt
       "while not Ada.Text_IO.End_Of_File loop@,  @[<v>%a;@,%a;@,%a;@]@,end loop"
       (pp_print_list ~pp_sep:pp_print_semicolon pp_read)
-      machine.mstep.step_inputs pp_call
+      machine.mstep.step_inputs
+      pp_call
       (pp_package_access (pp_package, pp_step_procedure_name), [ args ])
       (pp_print_list ~pp_sep:pp_print_semicolon pp_write)
       machine.mstep.step_outputs
@@ -113,15 +132,21 @@ let pp_main_adb fmt machine =
     (if statefull then
      [
        (fun fmt ->
-         pp_call fmt
+         pp_call
+           fmt
            ( pp_package_access (pp_package, pp_reset_procedure_name),
              [ [ pp_state_name ] ] ));
      ]
     else [])
     @ [ pp_loop ]
   in
-  fprintf fmt "@[<v>%a;@,%a;@,@,%a;@]" (pp_with AdaPrivate) (pp_str text_io)
-    (pp_with AdaPrivate) (pp_package_name machine)
+  fprintf
+    fmt
+    "@[<v>%a;@,%a;@,@,%a;@]"
+    (pp_with AdaPrivate)
+    (pp_str text_io)
+    (pp_with AdaPrivate)
+    (pp_package_name machine)
     (pp_procedure pp_main_procedure_name [] None)
     (AdaProcedureContent (locals, instrs))
 
@@ -140,12 +165,17 @@ let pp_project_name basename fmt = fprintf fmt "%s.gpr" basename
 let pp_for_single name arg fmt = fprintf fmt "for %s use \"%s\"" name arg
 
 let pp_for name args fmt =
-  fprintf fmt "for %s use (@[%a@])" name
+  fprintf
+    fmt
+    "for %s use (@[%a@])"
+    name
     (pp_comma_list (fun fmt arg -> fprintf fmt "\"%s\"" arg))
     args
 
 let pp_content fmt lines =
-  fprintf fmt "  @[<v>%a%a@]"
+  fprintf
+    fmt
+    "  @[<v>%a%a@]"
     (pp_print_list ~pp_sep:pp_print_semicolon (fun fmt pp ->
          fprintf fmt "%t" pp))
     lines
@@ -169,9 +199,12 @@ let pp_project_file machines basename fmt machine_opt =
       [ asprintf "%a" pp_main_filename m ]
   in
   let project_name = basename ^ if machine_opt = None then "_lib" else "_exe" in
-  fprintf fmt "%sproject %s is@,%a@,end %s;"
+  fprintf
+    fmt
+    "%sproject %s is@,%a@,end %s;"
     (if machine_opt = None then "library " else "")
-    project_name pp_content
+    project_name
+    pp_content
     ((match machine_opt with
      | None ->
        [
@@ -186,14 +219,18 @@ let pp_project_file machines basename fmt machine_opt =
     @ [
         pp_for_single "Object_Dir" "obj";
         pp_for "Source_Files" adbs;
-        pp_package "Builder"
+        pp_package
+          "Builder"
           [
-            pp_for_single "Global_Configuration_Pragmas"
+            pp_for_single
+              "Global_Configuration_Pragmas"
               (asprintf "%a" pp_project_configuration_name basename);
           ];
-        pp_package "Prove"
+        pp_package
+          "Prove"
           [
-            pp_for "Switches"
+            pp_for
+              "Switches"
               [
                 "--mode=prove";
                 "--report=statistics";

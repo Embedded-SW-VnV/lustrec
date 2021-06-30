@@ -97,7 +97,7 @@ module type S = sig
 
   val is_generic_type : t -> bool
 
-  val print_ty : Format.formatter -> t -> unit
+  val pp : Format.formatter -> t -> unit
 
   val repr : t -> t
 
@@ -123,7 +123,7 @@ module type S = sig
 
   val type_list_of_type : t -> t list
 
-  val print_node_ty : Format.formatter -> t -> unit
+  val pp_node_ty : Format.formatter -> t -> unit
 
   val get_clock_base_type : t -> t option
 
@@ -155,7 +155,7 @@ end
 module Make (BasicT : BASIC_TYPES) : sig
   include S
 
-  val print_ty_param :
+  val pp_ty_param :
     (Format.formatter -> basic_type -> unit) -> Format.formatter -> t -> unit
 end
 with module BasicT = BasicT

@@ -29,14 +29,19 @@ let rec pp_vhdl_type fmt t =
   | Bit_vector (n, m) ->
     Format.fprintf fmt "bit_vector(%i downto %i)" n m
   | Range (base, n, m) ->
-    Format.fprintf fmt "%trange %i to %i"
+    Format.fprintf
+      fmt
+      "%trange %i to %i"
       (fun fmt ->
         match base with Some s -> Format.fprintf fmt "%s " s | None -> ())
-      n m
+      n
+      m
   | Array (n, m, base) ->
     Format.fprintf fmt "array (%i to %i) of %a" n m pp_vhdl_type base
   | Enumerated sl ->
-    Format.fprintf fmt "(%a)"
+    Format.fprintf
+      fmt
+      "(%a)"
       (Utils.fprintf_list ~sep:", " Format.pp_print_string)
       sl
 
@@ -91,7 +96,12 @@ type vhdl_declaration_t =
 let pp_vhdl_declaration fmt decl =
   match decl with
   | VarDecl v ->
-    Format.fprintf fmt "variable %s : %a%t;" v.name pp_vhdl_type v.typ
+    Format.fprintf
+      fmt
+      "variable %s : %a%t;"
+      v.name
+      pp_vhdl_type
+      v.typ
       (fun fmt ->
         match v.init_val with
         | Some initv ->
@@ -99,8 +109,14 @@ let pp_vhdl_declaration fmt decl =
         | _ ->
           ())
   | CstDecl v ->
-    Format.fprintf fmt "constant %s : %a := %a;" v.name pp_vhdl_type v.typ
-      pp_cst_val v.init_val
+    Format.fprintf
+      fmt
+      "constant %s : %a := %a;"
+      v.name
+      pp_vhdl_type
+      v.typ
+      pp_cst_val
+      v.init_val
   | SigDecl v ->
     Format.fprintf fmt "signal %s : %a%t;" v.name pp_vhdl_type v.typ (fun fmt ->
         match v.init_val with
@@ -199,15 +215,26 @@ let rec pp_vhdl_expr fmt e =
     Format.fprintf fmt "%s%t" s.name (fun fmt ->
         match s.att with None -> () | Some att -> pp_signal_attribute fmt att)
   | SuffixMod s ->
-    Format.fprintf fmt "%a %a" pp_vhdl_expr s.expr pp_suffix_selection
+    Format.fprintf
+      fmt
+      "%a %a"
+      pp_vhdl_expr
+      s.expr
+      pp_suffix_selection
       s.selection
   | Op op -> (
     match op.args with
     | [] ->
       assert false
     | [ e1; e2 ] ->
-      Format.fprintf fmt "@[<hov 3>%a %s %a@]" pp_vhdl_expr e1 op.id
-        pp_vhdl_expr e2
+      Format.fprintf
+        fmt
+        "@[<hov 3>%a %s %a@]"
+        pp_vhdl_expr
+        e1
+        op.id
+        pp_vhdl_expr
+        e2
     | _ ->
       assert false
       (* all ops are binary up to now *)
@@ -252,8 +279,13 @@ let rec pp_vhdl_sequential_stmt fmt stmt =
       (fun idx ifcase ->
         if idx = 0 then Format.fprintf fmt "@[<v 3>if"
         else Format.fprintf fmt "@ @[<v 3>elsif";
-        Format.fprintf fmt " %a then@ %a@]" pp_vhdl_expr ifcase.if_cond
-          pp_vhdl_sequential_stmts ifcase.if_block)
+        Format.fprintf
+          fmt
+          " %a then@ %a@]"
+          pp_vhdl_expr
+          ifcase.if_cond
+          pp_vhdl_sequential_stmts
+          ifcase.if_block)
       ifva.if_cases;
     let _ =
       match ifva.default with
@@ -264,7 +296,10 @@ let rec pp_vhdl_sequential_stmt fmt stmt =
     in
     Format.fprintf fmt "@ end if;"
   | Case caseva ->
-    Format.fprintf fmt "@[<v 3>case %a is@ %a@]@ end case;" pp_vhdl_expr
+    Format.fprintf
+      fmt
+      "@[<v 3>case %a is@ %a@]@ end case;"
+      pp_vhdl_expr
       caseva.guard
       (Utils.fprintf_list ~sep:"@ " pp_vhdl_case)
       caseva.branches
@@ -273,8 +308,13 @@ and pp_vhdl_sequential_stmts fmt l =
   Utils.fprintf_list ~sep:"@ " pp_vhdl_sequential_stmt fmt l
 
 and pp_vhdl_case fmt case =
-  Format.fprintf fmt "when %a => %a" pp_vhdl_expr case.when_cond
-    pp_vhdl_sequential_stmt case.when_stmt
+  Format.fprintf
+    fmt
+    "when %a => %a"
+    pp_vhdl_expr
+    case.when_cond
+    pp_vhdl_sequential_stmt
+    case.when_stmt
 
 type signal_condition_t = {
   expr : vhdl_expr_t;
@@ -332,12 +372,16 @@ let pp_vhdl_concurrent_stmt fmt stmt =
                 Format.fprintf fmt " else %a" pp_vhdl_expr else_case))
   in
   let pp_process fmt p =
-    Format.fprintf fmt "@[<v 0>%tprocess %a@ @[<v 3>begin@ %a@]@ end process;@]"
+    Format.fprintf
+      fmt
+      "@[<v 0>%tprocess %a@ @[<v 3>begin@ %a@]@ end process;@]"
       (fun fmt ->
         match p.id with Some id -> Format.fprintf fmt "%s: " id | None -> ())
       (fun fmt asigs ->
         if asigs <> [] then
-          Format.fprintf fmt "(@[<hov 0>%a)@]"
+          Format.fprintf
+            fmt
+            "(@[<hov 0>%a)@]"
             (Utils.fprintf_list ~sep:",@ " Format.pp_print_string)
             asigs)
       p.active_sigs
@@ -345,9 +389,18 @@ let pp_vhdl_concurrent_stmt fmt stmt =
       p.body
   in
   let pp_sig_sel fmt va =
-    Format.fprintf fmt "@[<v 3>with %a select@ %a;@]" pp_vhdl_expr va.sel
+    Format.fprintf
+      fmt
+      "@[<v 3>with %a select@ %a;@]"
+      pp_vhdl_expr
+      va.sel
       (Utils.fprintf_list ~sep:"@ " (fun fmt b ->
-           Format.fprintf fmt "%s <= %a when %t" b.sel_lhs pp_vhdl_expr b.expr
+           Format.fprintf
+             fmt
+             "%s <= %a when %t"
+             b.sel_lhs
+             pp_vhdl_expr
+             b.expr
              (fun fmt ->
                match b.when_sel with
                | None ->
@@ -389,7 +442,13 @@ let pp_vhdl_port_kind fmt p =
 type vhdl_port_t = { name : string; kind : vhdl_port_kind_t; typ : vhdl_type_t }
 
 let pp_vhdl_port fmt p =
-  Format.fprintf fmt "%s : %a %a" p.name pp_vhdl_port_kind p.kind pp_vhdl_type
+  Format.fprintf
+    fmt
+    "%s : %a %a"
+    p.name
+    pp_vhdl_port_kind
+    p.kind
+    pp_vhdl_type
     p.typ
 
 type vhdl_entity_t = {
@@ -399,7 +458,10 @@ type vhdl_entity_t = {
 }
 
 let pp_vhdl_entity fmt e =
-  Format.fprintf fmt "@[<v 3>entity %s is@ %t%t@]@ end %s;@ " e.name
+  Format.fprintf
+    fmt
+    "@[<v 3>entity %s is@ %t%t@]@ end %s;@ "
+    e.name
     (fun fmt ->
       List.iter
         (fun g -> Format.fprintf fmt "generic %a;@ " pp_vhdl_generic g)
@@ -407,7 +469,9 @@ let pp_vhdl_entity fmt e =
     (fun fmt ->
       if e.ports = [] then ()
       else
-        Format.fprintf fmt "port (@[<hov 0>%a@]);"
+        Format.fprintf
+          fmt
+          "port (@[<hov 0>%a@]);"
           (Utils.fprintf_list ~sep:",@ " pp_vhdl_port)
           e.ports)
     e.name
@@ -420,9 +484,13 @@ let pp_vhdl_entity fmt e =
 type vhdl_package_t = { name : string; shared_defs : vhdl_definition_t list }
 
 let pp_vhdl_package fmt p =
-  Format.fprintf fmt "@[<v 3>package %s is@ %a@]@ end %s;@ " p.name
+  Format.fprintf
+    fmt
+    "@[<v 3>package %s is@ %a@]@ end %s;@ "
+    p.name
     (Utils.fprintf_list ~sep:"@ " pp_vhdl_definition)
-    p.shared_defs p.name
+    p.shared_defs
+    p.name
 
 type vhdl_load_t = Library of string | Use of string list
 
@@ -431,7 +499,9 @@ let pp_vhdl_load fmt l =
   | Library s ->
     Format.fprintf fmt "library %s;@ " s
   | Use sl ->
-    Format.fprintf fmt "use %a;@ "
+    Format.fprintf
+      fmt
+      "use %a;@ "
       (Utils.fprintf_list ~sep:"." Format.pp_print_string)
       sl
 
@@ -447,13 +517,16 @@ type vhdl_architecture_t = {
 }
 
 let pp_vhdl_architecture fmt a =
-  Format.fprintf fmt
-    "@[<v 3>architecture %s of %s is@ %a@]@ @[<v 3>begin@ %a@]@ end %s;" a.name
+  Format.fprintf
+    fmt
+    "@[<v 3>architecture %s of %s is@ %a@]@ @[<v 3>begin@ %a@]@ end %s;"
+    a.name
     a.entity
     (Utils.fprintf_list ~sep:"@ " pp_vhdl_declaration)
     a.declarations
     (Utils.fprintf_list ~sep:"@ " pp_vhdl_concurrent_stmt)
-    a.body a.name
+    a.body
+    a.name
 
 (* TODO. Configuraiton is optional *)
 type vhdl_configuration_t = unit
@@ -469,7 +542,9 @@ type vhdl_design_t = {
 }
 
 let pp_vhdl_design fmt d =
-  Format.fprintf fmt "@[<v 0>%a%t%a%t%a%t%a%t@]"
+  Format.fprintf
+    fmt
+    "@[<v 0>%a%t%a%t%a%t%a%t@]"
     (Utils.fprintf_list ~sep:"@ " pp_vhdl_package)
     d.packages
     (fun fmt -> if d.packages <> [] then Format.fprintf fmt "@ ")

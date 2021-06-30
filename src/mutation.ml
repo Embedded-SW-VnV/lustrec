@@ -121,7 +121,8 @@ let merge_records records_list =
               r1opt
             | Some x, Some y ->
               Some (x + y))
-          r1.nb_op r2.nb_op;
+          r1.nb_op
+          r2.nb_op;
     }
   in
   List.fold_left merge_record empty_records records_list
@@ -459,8 +460,11 @@ let pp_directive_json fmt d =
   | Boolexpr _ ->
     Format.fprintf fmt "\"mutation\": \"not\""
   | Op (o, _, d) ->
-    Format.fprintf fmt
-      "\"mutation\": \"op_conv\", \"from\": \"%s\", \"to\": \"%s\"" o d
+    Format.fprintf
+      fmt
+      "\"mutation\": \"op_conv\", \"from\": \"%s\", \"to\": \"%s\""
+      o
+      d
   | IncrIntCst _ ->
     Format.fprintf fmt "\"mutation\": \"cst_incr\""
   | DecrIntCst _ ->
@@ -470,9 +474,13 @@ let pp_directive_json fmt d =
 
 let pp_loc_json fmt (n, eqlhs, l) =
   Format.(
-    fprintf fmt "\"node_id\": \"%s\", \"eq_lhs\": [%a], \"loc_line\": \"%i\"" n
+    fprintf
+      fmt
+      "\"node_id\": \"%s\", \"eq_lhs\": [%a], \"loc_line\": \"%i\""
+      n
       (pp_comma_list (fun fmt -> fprintf fmt "\"%s\""))
-      eqlhs (Location.line_of l))
+      eqlhs
+      (Location.line_of l))
 
 (* XXX: UNUSED *)
 (* let fold_mutate_int i =
@@ -632,7 +640,8 @@ let fold_mutate_node nd =
       node_stmts =
         List.fold_right
           (fun stmt res -> fold_mutate_stmt stmt :: res)
-          nd.node_stmts [];
+          nd.node_stmts
+          [];
     }
   in
   rename_node rename_app (fun x -> x) nd
@@ -658,8 +667,10 @@ let create_mutant prog directive =
     | None, Some mi ->
       mi
     | _ ->
-      Format.eprintf "Failed when creating mutant for directive %a@.@?"
-        pp_directive directive;
+      Format.eprintf
+        "Failed when creating mutant for directive %a@.@?"
+        pp_directive
+        directive;
       let _ =
         match !target with
         | Some dir' ->
@@ -792,8 +803,10 @@ let fold_mutate nb prog =
         (fun cst_id set ->
           IntSet.fold
             (fun ith_cst set -> DblIntSet.add (cst_id, ith_cst) set)
-            !records.consts set)
-        possible_const_id DblIntSet.empty
+            !records.consts
+            set)
+        possible_const_id
+        DblIntSet.empty
   in
 
   let create_new_switch registered build =
@@ -865,7 +878,8 @@ let fold_mutate nb prog =
               in
               let op_mut = op_mutation op in
               let new_op =
-                List.nth op_mut
+                List.nth
+                  op_mut
                   (try Random.int (List.length op_mut) with _ -> 0)
               in
               true, Op (op, (try Random.int nb_op with _ -> 0), new_op)
@@ -887,9 +901,11 @@ let fold_mutate nb prog =
       let ok, random_mutation = apply_transform transforms in
       let stop_process () =
         report ~level:1 (fun fmt ->
-            fprintf fmt
+            fprintf
+              fmt
               "Only %i mutants directives generated out of %i expected@ "
-              (nb - rnb) nb);
+              (nb - rnb)
+              nb);
         mutants
       in
       if not ok then stop_process ()
@@ -897,8 +913,11 @@ let fold_mutate nb prog =
         try
           let new_mutant = find_next_new mutants random_mutation in
           report ~level:2 (fun fmt ->
-              fprintf fmt " %i mutants directive generated out of %i expected@ "
-                (nb - rnb) nb);
+              fprintf
+                fmt
+                " %i mutants directive generated out of %i expected@ "
+                (nb - rnb)
+                nb);
           create_mutants_directives (rnb - 1) (new_mutant :: mutants)
         with Not_found -> stop_process ()
       else create_mutants_directives (rnb - 1) (random_mutation :: mutants)

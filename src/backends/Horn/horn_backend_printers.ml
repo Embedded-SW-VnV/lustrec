@@ -33,7 +33,8 @@ let pp_horn_var _ fmt id =
 
 (* Used to print boolean constants *)
 let pp_horn_tag fmt t =
-  pp_print_string fmt
+  pp_print_string
+    fmt
     (if t = tag_true then "true" else if t = tag_false then "false" else t)
 
 (* Prints a constant value *)
@@ -61,7 +62,12 @@ let rec pp_default_val fmt t =
     | Types.Tarray _ ->
       (* TODO PL: this strange code has to be (heavily) checked *)
       let valt = Types.array_element_type t in
-      fprintf fmt "((as const (Array Int %a)) %a)" pp_type valt pp_default_val
+      fprintf
+        fmt
+        "((as const (Array Int %a)) %a)"
+        pp_type
+        valt
+        pp_default_val
         valt
     | Types.Tstruct _ ->
       assert false
@@ -74,23 +80,48 @@ let pp_mod pp_val v1 v2 fmt =
   if Types.is_int_type v1.value_type && not !Options.integer_div_euclidean then
     (* C semantics: converting it from Euclidean operators (a mod_M b) - ((a
        mod_M b > 0 && a < 0) ? abs(b) : 0) *)
-    Format.fprintf fmt
-      "(- (mod %a %a) (ite (and (> (mod %a %a) 0) (< %a 0)) (abs %a) 0))" pp_val
-      v1 pp_val v2 pp_val v1 pp_val v2 pp_val v1 pp_val v2
+    Format.fprintf
+      fmt
+      "(- (mod %a %a) (ite (and (> (mod %a %a) 0) (< %a 0)) (abs %a) 0))"
+      pp_val
+      v1
+      pp_val
+      v2
+      pp_val
+      v1
+      pp_val
+      v2
+      pp_val
+      v1
+      pp_val
+      v2
   else Format.fprintf fmt "(mod %a %a)" pp_val v1 pp_val v2
 
 let pp_div pp_val v1 v2 fmt =
   if Types.is_int_type v1.value_type && not !Options.integer_div_euclidean then
     (* C semantics: converting it from Euclidean operators (a - (a mod_C b))
        div_M b *)
-    Format.fprintf fmt "(div (- %a %t) %a)" pp_val v1 (pp_mod pp_val v1 v2)
-      pp_val v2
+    Format.fprintf
+      fmt
+      "(div (- %a %t) %a)"
+      pp_val
+      v1
+      (pp_mod pp_val v1 v2)
+      pp_val
+      v2
   else Format.fprintf fmt "(div %a %a)" pp_val v1 pp_val v2
 
 let pp_basic_lib_fun i pp_val fmt vl =
   match i, vl with
   | "ite", [ v1; v2; v3 ] ->
-    Format.fprintf fmt "(@[<hov 2>ite %a@ %a@ %a@])" pp_val v1 pp_val v2 pp_val
+    Format.fprintf
+      fmt
+      "(@[<hov 2>ite %a@ %a@ %a@])"
+      pp_val
+      v1
+      pp_val
+      v2
+      pp_val
       v3
   | "uminus", [ v ] ->
     Format.fprintf fmt "(- %a)" pp_val v
@@ -137,7 +168,10 @@ let rec pp_horn_val ?(is_lhs = false) m self pp_var fmt v =
       | [] ->
         pp_default_val fmt v.value_type (* (get_type v) *)
       | h :: t ->
-        fprintf fmt "(store %a %i %a)" print
+        fprintf
+          fmt
+          "(store %a %i %a)"
+          print
           (t, x + 1)
           x
           (pp_horn_val ~is_lhs m self pp_var)
@@ -145,7 +179,9 @@ let rec pp_horn_val ?(is_lhs = false) m self pp_var fmt v =
     in
     print fmt (il, 0)
   | Access (tab, index) ->
-    fprintf fmt "(select %a %a)"
+    fprintf
+      fmt
+      "(select %a %a)"
       (pp_horn_val ~is_lhs m self pp_var)
       tab
       (pp_horn_val ~is_lhs m self pp_var)
@@ -157,8 +193,10 @@ let rec pp_horn_val ?(is_lhs = false) m self pp_var fmt v =
     if is_memory m v then
       if Types.is_array_type v.var_type then assert false
       else
-        pp_var fmt
-          (rename_machine self
+        pp_var
+          fmt
+          (rename_machine
+             self
              ((if is_lhs then rename_next else rename_current (* self *)) v))
     else pp_var fmt (rename_machine self v)
   | Fun (n, vl) ->
@@ -180,7 +218,9 @@ let rec pp_value_suffix m self pp_value fmt value =
    [value]: assigned value - [pp_var]: printer for variables *)
 let pp_assign m pp_var fmt var_name value =
   let self = m.mname.node_id in
-  fprintf fmt "(= %a %a)"
+  fprintf
+    fmt
+    "(= %a %a)"
     (pp_horn_val ~is_lhs:true m self pp_var)
     var_name
     (pp_value_suffix m self pp_var)
@@ -194,11 +234,13 @@ let pp_no_reset machines m fmt i =
   in
 
   let m_list =
-    rename_machine_list (concat m.mname.node_id i)
+    rename_machine_list
+      (concat m.mname.node_id i)
       (rename_mid_list (full_memory_vars machines target_machine))
   in
   let c_list =
-    rename_machine_list (concat m.mname.node_id i)
+    rename_machine_list
+      (concat m.mname.node_id i)
       (rename_current_list (full_memory_vars machines target_machine))
   in
   match c_list, m_list with
@@ -209,7 +251,8 @@ let pp_no_reset machines m fmt i =
     List.iter2
       (fun mhd chd ->
         fprintf fmt "(= %a %a)@ " (pp_horn_var m) mhd (pp_horn_var m) chd)
-      m_list c_list;
+      m_list
+      c_list;
     fprintf fmt ")@]@ @]"
 
 let pp_instance_reset machines m fmt i =
@@ -218,11 +261,17 @@ let pp_instance_reset machines m fmt i =
     List.find (fun m -> m.mname.node_id = node_name n) machines
   in
 
-  fprintf fmt "(%a @[<v 0>%a)@]" pp_machine_reset_name (node_name n)
+  fprintf
+    fmt
+    "(%a @[<v 0>%a)@]"
+    pp_machine_reset_name
+    (node_name n)
     (pp_print_list (pp_horn_var m))
-    (rename_machine_list (concat m.mname.node_id i)
+    (rename_machine_list
+       (concat m.mname.node_id i)
        (rename_current_list (full_memory_vars machines target_machine))
-    @ rename_machine_list (concat m.mname.node_id i)
+    @ rename_machine_list
+        (concat m.mname.node_id i)
         (rename_mid_list (full_memory_vars machines target_machine)))
 
 let pp_instance_call machines reset_instances m fmt i inputs outputs =
@@ -248,7 +297,9 @@ let pp_instance_call machines reset_instances m fmt i inputs outputs =
     match node_name n, inputs, outputs, mid_mems, next_mems with
     | "_arrow", [ i1; i2 ], [ o ], [ mem_m ], [ mem_x ] ->
       fprintf fmt "@[<v 5>(and ";
-      fprintf fmt "(= %a (ite %a %a %a))"
+      fprintf
+        fmt
+        "(= %a (ite %a %a %a))"
         (pp_horn_val ~is_lhs:true m self (pp_horn_var m))
         (mk_val (Var o) o.var_type)
         (* output var *)
@@ -262,11 +313,17 @@ let pp_instance_call machines reset_instances m fmt i inputs outputs =
       fprintf fmt "(= %a false)" (pp_horn_var m) mem_x;
       fprintf fmt ")@]"
     | _ ->
-      fprintf fmt "(%a @[<v 0>%a%a%a)@]" pp_machine_step_name (node_name n)
-        (pp_print_list ~pp_epilogue:pp_print_cut
+      fprintf
+        fmt
+        "(%a @[<v 0>%a%a%a)@]"
+        pp_machine_step_name
+        (node_name n)
+        (pp_print_list
+           ~pp_epilogue:pp_print_cut
            (pp_horn_val m self (pp_horn_var m)))
         inputs
-        (pp_print_list ~pp_epilogue:pp_print_cut
+        (pp_print_list
+           ~pp_epilogue:pp_print_cut
            (pp_horn_val m self (pp_horn_var m)))
         (List.map (fun v -> mk_val (Var v) v.var_type) outputs)
         (pp_print_list (pp_horn_var m))
@@ -274,8 +331,13 @@ let pp_instance_call machines reset_instances m fmt i inputs outputs =
   with Not_found ->
     (* stateless node instance *)
     let n, _ = List.assoc i m.mcalls in
-    fprintf fmt "(%a @[<v 0>%a%a)@]" pp_machine_stateless_name (node_name n)
-      (pp_print_list ~pp_epilogue:pp_print_cut
+    fprintf
+      fmt
+      "(%a @[<v 0>%a%a)@]"
+      pp_machine_stateless_name
+      (node_name n)
+      (pp_print_list
+         ~pp_epilogue:pp_print_cut
          (pp_horn_val m self (pp_horn_var m)))
       inputs
       (pp_print_list (pp_horn_val m self (pp_horn_var m)))
@@ -328,13 +390,17 @@ let rec pp_machine_instr machines reset_instances (m : machine_t) fmt instr :
        of the branch, then all others have to have the mem_m = mem_c statement. *)
     let self = m.mname.node_id in
     let pp_branch fmt (tag, instrs) =
-      fprintf fmt "@[<v 3>(or (not (= %a %a))@ "
+      fprintf
+        fmt
+        "@[<v 3>(or (not (= %a %a))@ "
         (*"@[<v 3>(=> (= %a %s)@ "*)
         (* Issues with some versions of Z3. It seems that => within Horn
            predicate may cause trouble. I have hard time producing a MWE, so
            I'll just keep the fix here as (not a) or b *)
         (pp_horn_val m self (pp_horn_var m))
-        g pp_horn_tag tag;
+        g
+        pp_horn_tag
+        tag;
       let _ (* rs *) =
         pp_machine_instrs machines reset_instances m fmt instrs
       in
@@ -358,7 +424,8 @@ and pp_machine_instrs machines reset_instances m fmt instrs =
           let rs = ppi rs fmt i in
           fprintf fmt "@ ";
           rs)
-        reset_instances instrs
+        reset_instances
+        instrs
     in
     fprintf fmt "@])";
     rs
@@ -372,9 +439,15 @@ let pp_machine_reset machines fmt m =
 
   (* print "x_m = x_c" for each local memory *)
   (pp_print_list (fun fmt v ->
-       fprintf fmt "(= %a %a)" (pp_horn_var m) (rename_mid v) (pp_horn_var m)
+       fprintf
+         fmt
+         "(= %a %a)"
+         (pp_horn_var m)
+         (rename_mid v)
+         (pp_horn_var m)
          (rename_current v)))
-    fmt locals;
+    fmt
+    locals;
   fprintf fmt "@ ";
 
   (* print "child_reset ( associated vars _ {c,m} )" for each subnode. Special
@@ -385,12 +458,16 @@ let pp_machine_reset machines fmt m =
          fprintf fmt "(= %s._arrow._first_m true)" (concat m.mname.node_id id)
        else
          let machine_n = get_machine machines name in
-         fprintf fmt "(%s_reset @[<hov 0>%a@])" name
+         fprintf
+           fmt
+           "(%s_reset @[<hov 0>%a@])"
+           name
            (pp_print_list (pp_horn_var m))
            (rename_machine_list
               (concat m.mname.node_id id)
               (reset_vars machines machine_n))))
-    fmt m.minstances;
+    fmt
+    m.minstances;
 
   fprintf fmt "@]@ )"
 
@@ -406,7 +483,10 @@ let print_machine machines fmt m =
     fprintf fmt "; %s@." m.mname.node_id;
 
     (* Printing variables *)
-    pp_print_list ~pp_open_box:pp_open_vbox0 pp_decl_var fmt
+    pp_print_list
+      ~pp_open_box:pp_open_vbox0
+      pp_decl_var
+      fmt
       (inout_vars m
       @ rename_current_list (full_memory_vars machines m)
       @ rename_mid_list (full_memory_vars machines m)
@@ -416,8 +496,12 @@ let print_machine machines fmt m =
 
     if is_stateless m then (
       (* Declaring single predicate *)
-      fprintf fmt "(declare-rel %a (%a))@." pp_machine_stateless_name
-        m.mname.node_id (pp_print_list pp_type)
+      fprintf
+        fmt
+        "(declare-rel %a (%a))@."
+        pp_machine_stateless_name
+        m.mname.node_id
+        (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (inout_vars m));
 
       match m.mstep.step_asserts with
@@ -426,9 +510,16 @@ let print_machine machines fmt m =
         fprintf fmt "; Stateless step rule @.";
         fprintf fmt "@[<v 2>(rule (=> @ ";
         ignore
-          (pp_machine_instrs machines []
-             (* No reset info for stateless nodes *) m fmt m.mstep.step_instrs);
-        fprintf fmt "@ (%a @[<v 0>%a)@]@]@.))@.@." pp_machine_stateless_name
+          (pp_machine_instrs
+             machines
+             []
+             (* No reset info for stateless nodes *) m
+             fmt
+             m.mstep.step_instrs);
+        fprintf
+          fmt
+          "@ (%a @[<v 0>%a)@]@]@.))@.@."
+          pp_machine_stateless_name
           m.mname.node_id
           (pp_print_list (pp_horn_var m))
           (inout_vars m)
@@ -441,26 +532,43 @@ let print_machine machines fmt m =
         (*Rule for step*)
         fprintf fmt "@[<v 2>(rule (=> @ (and @ ";
         ignore (pp_machine_instrs machines [] m fmt m.mstep.step_instrs);
-        fprintf fmt "@. %a)@ (%a @[<v 0>%a)@]@]@.))@.@." (pp_conj pp_val)
-          assertsl pp_machine_stateless_name m.mname.node_id
+        fprintf
+          fmt
+          "@. %a)@ (%a @[<v 0>%a)@]@]@.))@.@."
+          (pp_conj pp_val)
+          assertsl
+          pp_machine_stateless_name
+          m.mname.node_id
           (pp_print_list (pp_horn_var m))
           (step_vars machines m))
     else (
       (* Declaring predicate *)
-      fprintf fmt "(declare-rel %a (%a))@." pp_machine_reset_name
-        m.mname.node_id (pp_print_list pp_type)
+      fprintf
+        fmt
+        "(declare-rel %a (%a))@."
+        pp_machine_reset_name
+        m.mname.node_id
+        (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (reset_vars machines m));
 
-      fprintf fmt "(declare-rel %a (%a))@." pp_machine_step_name m.mname.node_id
+      fprintf
+        fmt
+        "(declare-rel %a (%a))@."
+        pp_machine_step_name
+        m.mname.node_id
         (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (step_vars machines m));
 
       pp_print_newline fmt ();
 
       (* Rule for reset *)
-      fprintf fmt "@[<v 2>(rule (=> @ %a@ (%a @[<v 0>%a)@]@]@.))@.@."
+      fprintf
+        fmt
+        "@[<v 2>(rule (=> @ %a@ (%a @[<v 0>%a)@]@]@.))@.@."
         (pp_machine_reset machines)
-        m pp_machine_reset_name m.mname.node_id
+        m
+        pp_machine_reset_name
+        m.mname.node_id
         (pp_print_list (pp_horn_var m))
         (reset_vars machines m);
 
@@ -470,7 +578,10 @@ let print_machine machines fmt m =
         (* Rule for step*)
         fprintf fmt "@[<v 2>(rule (=> @ ";
         ignore (pp_machine_instrs machines [] m fmt m.mstep.step_instrs);
-        fprintf fmt "@ (%a @[<v 0>%a)@]@]@.))@.@." pp_machine_step_name
+        fprintf
+          fmt
+          "@ (%a @[<v 0>%a)@]@]@.))@.@."
+          pp_machine_step_name
           m.mname.node_id
           (pp_print_list (pp_horn_var m))
           (step_vars machines m)
@@ -484,8 +595,13 @@ let print_machine machines fmt m =
         (*Rule for step*)
         fprintf fmt "@[<v 2>(rule (=> @ (and @ ";
         ignore (pp_machine_instrs machines [] m fmt m.mstep.step_instrs);
-        fprintf fmt "@. %a)@ (%a @[<v 0>%a)@]@]@.))@.@." (pp_conj pp_val)
-          assertsl pp_machine_step_name m.mname.node_id
+        fprintf
+          fmt
+          "@. %a)@ (%a @[<v 0>%a)@]@]@.))@.@."
+          (pp_conj pp_val)
+          assertsl
+          pp_machine_step_name
+          m.mname.node_id
           (pp_print_list (pp_horn_var m))
           (step_vars machines m)))
 
@@ -510,7 +626,11 @@ let get_sf_info () =
   in
 
   Log.report ~level:1 (fun fmt ->
-      fprintf fmt "... sf_name: %s@, .. flags: %s@ .. arity: %s@," sf_name flags
+      fprintf
+        fmt
+        "... sf_name: %s@, .. flags: %s@ .. arity: %s@,"
+        sf_name
+        flags
         arity);
   sf_name, flags, arity
 
@@ -525,12 +645,17 @@ let print_sfunction machines fmt m =
 
     (* Check if there is annotation for s-function *)
     if m.mannot != [] then
-      Format.fprintf fmt "; @[%a@]@]@\n"
+      Format.fprintf
+        fmt
+        "; @[%a@]@]@\n"
         (pp_print_list Printers.pp_s_function)
         m.mannot;
 
     (* Printing variables *)
-    pp_print_list ~pp_open_box:pp_open_vbox0 pp_decl_var fmt
+    pp_print_list
+      ~pp_open_box:pp_open_vbox0
+      pp_decl_var
+      fmt
       (step_vars machines m
       @ rename_machine_list m.mname.node_id m.mstep.step_locals);
     Format.pp_print_newline fmt ();
@@ -538,26 +663,42 @@ let print_sfunction machines fmt m =
 
     if is_stateless m then (
       (* Declaring single predicate *)
-      Format.fprintf fmt "(declare-rel %a (%a))@." pp_machine_stateless_name
-        m.mname.node_id (pp_print_list pp_type)
+      Format.fprintf
+        fmt
+        "(declare-rel %a (%a))@."
+        pp_machine_stateless_name
+        m.mname.node_id
+        (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (reset_vars machines m));
       Format.pp_print_newline fmt ();
       (* Rule for single predicate *)
       let str_flags = sf_name ^ " " ^ mk_flags (int_of_string flags) in
-      Format.fprintf fmt "@[<v 2>(rule (=> @ (%s %a) (%a %a)@]@.))@.@."
+      Format.fprintf
+        fmt
+        "@[<v 2>(rule (=> @ (%s %a) (%a %a)@]@.))@.@."
         str_flags
         (pp_print_list (pp_horn_var m))
-        (reset_vars machines m) pp_machine_stateless_name m.mname.node_id
+        (reset_vars machines m)
+        pp_machine_stateless_name
+        m.mname.node_id
         (pp_print_list (pp_horn_var m))
         (reset_vars machines m))
     else (
       (* Declaring predicate *)
-      Format.fprintf fmt "(declare-rel %a (%a))@." pp_machine_reset_name
-        m.mname.node_id (pp_print_list pp_type)
+      Format.fprintf
+        fmt
+        "(declare-rel %a (%a))@."
+        pp_machine_reset_name
+        m.mname.node_id
+        (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (inout_vars m));
 
-      Format.fprintf fmt "(declare-rel %a (%a))@." pp_machine_step_name
-        m.mname.node_id (pp_print_list pp_type)
+      Format.fprintf
+        fmt
+        "(declare-rel %a (%a))@."
+        pp_machine_step_name
+        m.mname.node_id
+        (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (step_vars machines m));
 
       Format.pp_print_newline fmt ();
@@ -567,7 +708,10 @@ let print_sfunction machines fmt m =
         (* Rule for step*)
         fprintf fmt "@[<v 2>(rule (=> @ ";
         ignore (pp_machine_instrs machines [] m fmt m.mstep.step_instrs);
-        fprintf fmt "@ (%a @[<v 0>%a)@]@]@.))@.@." pp_machine_step_name
+        fprintf
+          fmt
+          "@ (%a @[<v 0>%a)@]@]@.))@.@."
+          pp_machine_step_name
           m.mname.node_id
           (pp_print_list (pp_horn_var m))
           (step_vars machines m)
@@ -581,8 +725,13 @@ let print_sfunction machines fmt m =
         (*Rule for step*)
         fprintf fmt "@[<v 2>(rule (=> @ (and @ ";
         ignore (pp_machine_instrs machines [] m fmt m.mstep.step_instrs);
-        fprintf fmt "@. %a)(%a @[<v 0>%a)@]@]@.))@.@." (pp_conj pp_val) assertsl
-          pp_machine_step_name m.mname.node_id
+        fprintf
+          fmt
+          "@. %a)(%a @[<v 0>%a)@]@]@.))@.@."
+          (pp_conj pp_val)
+          assertsl
+          pp_machine_step_name
+          m.mname.node_id
           (pp_print_list (pp_horn_var m))
           (step_vars machines m)))
 
@@ -593,7 +742,8 @@ let rec pp_xml_expr fmt expr =
   | None ->
     fprintf fmt "%t"
   | Some ann ->
-    fprintf fmt "@[(%a %t)@]" pp_xml_expr_annot ann) (fun fmt ->
+    fprintf fmt "@[(%a %t)@]" pp_xml_expr_annot ann)
+    (fun fmt ->
       match expr.expr_desc with
       | Expr_const c ->
         Printers.pp_const fmt c
@@ -608,9 +758,15 @@ let rec pp_xml_expr fmt expr =
       | Expr_tuple el ->
         fprintf fmt "(%a)" pp_xml_tuple el
       | Expr_ite (c, t, e) ->
-        fprintf fmt
+        fprintf
+          fmt
           "@[<hov 1>(if %a then@ @[<hov 2>%a@]@ else@ @[<hov 2>%a@]@])"
-          pp_xml_expr c pp_xml_expr t pp_xml_expr e
+          pp_xml_expr
+          c
+          pp_xml_expr
+          t
+          pp_xml_expr
+          e
       | Expr_arrow (e1, e2) ->
         fprintf fmt "(%a -> %a)" pp_xml_expr e1 pp_xml_expr e2
       | Expr_fby (e1, e2) ->
@@ -679,12 +835,15 @@ and pp_xml_call fmt id e =
     fprintf fmt "%s (%a)" id pp_xml_expr e
 
 and pp_xml_eexpr fmt e =
-  fprintf fmt "%a%t %a"
+  fprintf
+    fmt
+    "%a%t %a"
     (pp_print_list ~pp_sep:pp_print_semicolon Printers.pp_quantifiers)
     e.eexpr_quantifiers
     (fun fmt ->
       match e.eexpr_quantifiers with [] -> () | _ -> fprintf fmt ";")
-    pp_xml_expr e.eexpr_qfexpr
+    pp_xml_expr
+    e.eexpr_qfexpr
 
 (* XXX: UNUSED *)
 (* and pp_xml_sf_value fmt e =
@@ -714,7 +873,9 @@ and pp_xml_eexpr fmt e =
  *   pp_print_list pp_xml_annot fmt expr_ann.annots *)
 and pp_xml_expr_annot fmt expr_ann =
   let pp_xml_annot fmt (kwds, ee) =
-    Format.fprintf fmt "(*! %t: %a; *)"
+    Format.fprintf
+      fmt
+      "(*! %t: %a; *)"
       (fun fmt ->
         match kwds with
         | [] ->
@@ -722,12 +883,15 @@ and pp_xml_expr_annot fmt expr_ann =
         | [ x ] ->
           Format.pp_print_string fmt x
         | _ ->
-          Format.fprintf fmt "/%a/"
+          Format.fprintf
+            fmt
+            "/%a/"
             (pp_print_list
                ~pp_sep:(fun fmt () -> pp_print_string fmt "/")
                pp_print_string)
             kwds)
-      pp_xml_eexpr ee
+      pp_xml_eexpr
+      ee
   in
   pp_print_list pp_xml_annot fmt expr_ann.annots
 

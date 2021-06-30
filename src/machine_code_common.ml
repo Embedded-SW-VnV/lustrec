@@ -60,7 +60,11 @@ module PrintSpec = struct
     in
     match p with
     | Transition (f, inst, i, vars, _r, _mems, _insts) ->
-      fprintf fmt "Transition_%a<%a>%a%a" pp_print_string f
+      fprintf
+        fmt
+        "Transition_%a<%a>%a%a"
+        pp_print_string
+        f
         (pp_print_option
            ~none:(fun fmt () -> pp_print_string fmt "SELF")
            pp_print_string)
@@ -70,10 +74,21 @@ module PrintSpec = struct
         (pp_print_parenthesized pp_expr)
         vars
     | Reset (f, inst, r) ->
-      fprintf fmt "Reset_%a<%a> on %a" pp_print_string f pp_print_string inst
-        (pp_val m) r
+      fprintf
+        fmt
+        "Reset_%a<%a> on %a"
+        pp_print_string
+        f
+        pp_print_string
+        inst
+        (pp_val m)
+        r
     | MemoryPack (f, inst, i) ->
-      fprintf fmt "MemoryPack_%a<%a>%a" pp_print_string f
+      fprintf
+        fmt
+        "MemoryPack_%a<%a>%a"
+        pp_print_string
+        f
         (pp_print_option
            ~none:(fun fmt () -> pp_print_string fmt "SELF")
            pp_print_string)
@@ -101,25 +116,42 @@ module PrintSpec = struct
         pp_print_list
           ~pp_sep:(fun fmt () -> fprintf fmt "@ ∧ ")
           (fun fmt spec -> fprintf fmt "@[%a@]" pp_spec spec)
-          fmt fs
+          fmt
+          fs
       | Or fs ->
         pp_print_list
           ~pp_sep:(fun fmt () -> fprintf fmt "@ ∨ ")
           (fun fmt spec -> fprintf fmt "@[%a@]" pp_spec spec)
-          fmt fs
+          fmt
+          fs
       | Imply (a, b) ->
         fprintf fmt "%a@ -> %a" pp_spec a pp_spec b
       | Exists (xs, a) ->
-        fprintf fmt "@[<hv 2>∃ @[<h>%a,@]@ %a@]"
+        fprintf
+          fmt
+          "@[<hv 2>∃ @[<h>%a,@]@ %a@]"
           (pp_comma_list Printers.pp_var)
-          xs pp_spec a
+          xs
+          pp_spec
+          a
       | Forall (xs, a) ->
-        fprintf fmt "@[<hv 2>∀ @[<h>%a,@]@ %a@]"
+        fprintf
+          fmt
+          "@[<hv 2>∀ @[<h>%a,@]@ %a@]"
           (pp_comma_list Printers.pp_var)
-          xs pp_spec a
+          xs
+          pp_spec
+          a
       | Ternary (e, a, b) ->
-        fprintf fmt "If %a Then (@[<hov>%a@]) Else (@[<hov>%a@])" pp_expr e
-          pp_spec a pp_spec b
+        fprintf
+          fmt
+          "If %a Then (@[<hov>%a@]) Else (@[<hov>%a@])"
+          pp_expr
+          e
+          pp_spec
+          a
+          pp_spec
+          b
       | Predicate p ->
         pp_predicate m fmt p
       | StateVarPack r ->
@@ -135,7 +167,9 @@ let pp_spec m =
   | Options.SpecNo ->
     pp_print_nothing
   | _ ->
-    pp_print_list ~pp_open_box:pp_open_vbox0 ~pp_prologue:pp_print_cut
+    pp_print_list
+      ~pp_open_box:pp_open_vbox0
+      ~pp_prologue:pp_print_cut
       (fun fmt -> fprintf fmt "@[<h>--%@ %a@]" (PrintSpec.pp_spec m))
 
 let rec pp_instr m fmt i =
@@ -155,11 +189,20 @@ let rec pp_instr m fmt i =
   | MNoReset i ->
     fprintf fmt "noreset %s" i
   | MStep (il, i, vl) ->
-    fprintf fmt "%a := %s%a" (pp_comma_list pp_vdecl) il i
+    fprintf
+      fmt
+      "%a := %s%a"
+      (pp_comma_list pp_vdecl)
+      il
+      i
       (pp_print_parenthesized pp_val)
       vl
   | MBranch (g, hl) ->
-    fprintf fmt "@[<v 2>case(%a) {@,%a@]@,}" pp_val g
+    fprintf
+      fmt
+      "@[<v 2>case(%a) {@,%a@]@,}"
+      pp_val
+      g
       (pp_print_list ~pp_open_box:pp_open_vbox0 pp_branch)
       hl
   | MComment s ->
@@ -179,7 +222,10 @@ let rec pp_instr m fmt i =
   pp_spec m fmt i.instr_spec
 
 and pp_branch m fmt (t, h) =
-  fprintf fmt "@[<v 2>%s:@,%a@]" t
+  fprintf
+    fmt
+    "@[<v 2>%s:@,%a@]"
+    t
     (pp_print_list ~pp_open_box:pp_open_vbox0 (pp_instr m))
     h
 
@@ -204,7 +250,8 @@ let machine_vars m =
   m.mstep.step_inputs @ m.mstep.step_locals @ m.mstep.step_outputs @ m.mmemory
 
 let pp_step m fmt s =
-  fprintf fmt
+  fprintf
+    fmt
     "@[<v>inputs : %a@ outputs: %a@ locals : %a@ checks : %a@ instrs : @[%a@]@ \
      asserts : @[%a@]@]@ "
     (pp_comma_list Printers.pp_var)
@@ -214,7 +261,9 @@ let pp_step m fmt s =
     (pp_comma_list Printers.pp_var)
     s.step_locals
     (pp_comma_list (fun fmt (_, c) -> pp_val m fmt c))
-    s.step_checks (pp_instrs m) s.step_instrs
+    s.step_checks
+    (pp_instrs m)
+    s.step_instrs
     (pp_comma_list (pp_val m))
     s.step_asserts
 
@@ -224,10 +273,15 @@ let pp_static_call fmt (node, args) =
 let pp_instance fmt (o1, o2) = fprintf fmt "(%s, %a)" o1 pp_static_call o2
 
 let pp_memory_pack m fmt mp =
-  fprintf fmt "@[<v 2>MemoryPack_%a<SELF>%a =@ %a@]" pp_print_string
+  fprintf
+    fmt
+    "@[<v 2>MemoryPack_%a<SELF>%a =@ %a@]"
+    pp_print_string
     mp.mpname.node_id
     (pp_print_option pp_print_int)
-    mp.mpindex (PrintSpec.pp_spec m) mp.mpformula
+    mp.mpindex
+    (PrintSpec.pp_spec m)
+    mp.mpformula
 
 let pp_memory_packs m fmt =
   match !Options.spec with
@@ -237,12 +291,17 @@ let pp_memory_packs m fmt =
     fprintf fmt "@[<v 2>memory_packs:@ %a@]" (pp_print_list (pp_memory_pack m))
 
 let pp_transition m fmt t =
-  fprintf fmt "@[<v 2>Transition_%a<SELF>%a%a =@ %a@]" pp_print_string
+  fprintf
+    fmt
+    "@[<v 2>Transition_%a<SELF>%a%a =@ %a@]"
+    pp_print_string
     t.tname.node_id
     (pp_print_option pp_print_int)
     t.tindex
     (pp_print_parenthesized pp_vdecl)
-    t.tvars (PrintSpec.pp_spec m) t.tformula
+    t.tvars
+    (PrintSpec.pp_spec m)
+    t.tformula
 
 let pp_transitions m fmt =
   match !Options.spec with
@@ -252,7 +311,8 @@ let pp_transitions m fmt =
     fprintf fmt "@[<v 2>transitions:@ %a@]" (pp_print_list (pp_transition m))
 
 let pp_machine fmt m =
-  fprintf fmt
+  fprintf
+    fmt
     "@[<v 2>machine %s@ mem      : %a@ instances: %a@ init     : %a@ const    \
      : %a@ step     :@   @[<v 2>%a@]@ spec     : @[<v>%t@ %a@ @ %a@]@ annot    \
      : @[%a@]@]@ "
@@ -260,7 +320,12 @@ let pp_machine fmt m =
     (pp_comma_list Printers.pp_var)
     m.mmemory
     (pp_comma_list pp_instance)
-    m.minstances (pp_instrs m) m.minit (pp_instrs m) m.mconst (pp_step m)
+    m.minstances
+    (pp_instrs m)
+    m.minit
+    (pp_instrs m)
+    m.mconst
+    (pp_step m)
     m.mstep
     (fun fmt ->
       match m.mspec.mnode_spec with
@@ -270,7 +335,9 @@ let pp_machine fmt m =
         fprintf fmt "cocospec: %s" id
       | Some (Contract spec) ->
         Printers.pp_spec fmt spec)
-    (pp_memory_packs m) m.mspec.mmemory_packs (pp_transitions m)
+    (pp_memory_packs m)
+    m.mspec.mmemory_packs
+    (pp_transitions m)
     m.mspec.mtransitions
     (pp_print_list Printers.pp_expr_annot)
     m.mannot
@@ -362,12 +429,14 @@ let arrow_machine =
           [
             mk_conditional
               (mk_val (Var var_state) Type_predef.type_bool)
-              (List.map mkinstr
+              (List.map
+                 mkinstr
                  [
                    MStateAssign (var_state, cst false);
                    MLocalAssign (var_output, mk_val (Var var_input1) t_arg);
                  ])
-              (List.map mkinstr
+              (List.map
+                 mkinstr
                  [ MLocalAssign (var_output, mk_val (Var var_input2) t_arg) ]);
           ];
         step_asserts = [];
@@ -425,13 +494,16 @@ let new_instance =
     let o =
       if Stateless.check_node callee then node_name callee
       else
-        Printf.sprintf "ni_%d"
+        Printf.sprintf
+          "ni_%d"
           (incr cpt;
            !cpt)
     in
     let o =
       if !Options.ansi && is_generic_node callee then
-        Printf.sprintf "%s_inst_%d" o
+        Printf.sprintf
+          "%s_inst_%d"
+          o
           (incr cpt;
            !cpt)
       else o
@@ -446,12 +518,15 @@ let get_machine_opt machines name =
         res
       | None ->
         if m.mname.node_id = name then Some m else None)
-    None machines
+    None
+    machines
 
 let get_machine machines node_name =
   try desome (get_machine_opt machines node_name)
   with DeSome ->
-    eprintf "Unable to find machine %s in machines %a@.@?" node_name
+    eprintf
+      "Unable to find machine %s in machines %a@.@?"
+      node_name
       (pp_comma_list (fun fmt m -> pp_print_string fmt m.mname.node_id))
       machines;
     assert false

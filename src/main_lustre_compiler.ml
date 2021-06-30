@@ -72,8 +72,11 @@ let compile dirname basename extension =
   let prog, machine_code = Compiler_stages.stage2 params prog in
 
   Log.report ~level:3 (fun fmt ->
-      fprintf fmt "@ @[<v 2>.. Generated machines:@ %a@]"
-        Machine_code_common.pp_machines machine_code);
+      fprintf
+        fmt
+        "@ @[<v 2>.. Generated machines:@ %a@]"
+        Machine_code_common.pp_machines
+        machine_code);
 
   if Scopes.Plugin.show_scopes () then (
     let all_scopes = Scopes.compute_scopes prog !Options.main_node in
@@ -103,7 +106,8 @@ let anonymous filename =
       (fun (ok, ext) ext' ->
         if (not ok) && Filename.check_suffix filename ext' then true, ext'
         else ok, ext)
-      (false, "") extensions
+      (false, "")
+      extensions
   in
   if ok_ext then (
     Options_management.setup ();

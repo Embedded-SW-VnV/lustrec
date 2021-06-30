@@ -97,7 +97,8 @@ module SF = struct
           res
         | SFFunction _ ->
           res)
-      ActiveStates.Vars.empty defs
+      ActiveStates.Vars.empty
+      defs
 
   (* XXX: UNUSED *)
   (* let init_env model = ActiveStates.Env.from_set (states model) false *)
@@ -121,13 +122,25 @@ module SF = struct
       Format.fprintf fmt "Junction %a" pp_junction_name j
 
   let pp_trans fmt t =
-    Format.fprintf fmt "@[<hov 0>(@[<hov 0>%a,@ %a,@ %a,@ %a,@ %a@]@ )@]"
-      pp_event t.event Condition.pp_cond t.condition Action.pp_act
-      t.condition_act Action.pp_act t.transition_act pp_dest t.dest
+    Format.fprintf
+      fmt
+      "@[<hov 0>(@[<hov 0>%a,@ %a,@ %a,@ %a,@ %a@]@ )@]"
+      pp_event
+      t.event
+      Condition.pp_cond
+      t.condition
+      Action.pp_act
+      t.condition_act
+      Action.pp_act
+      t.transition_act
+      pp_dest
+      t.dest
 
   let pp_transitions fmt l =
     Format.(
-      fprintf fmt "@[<hov 0>[@[<hov 0>%a@]@ ]@]"
+      fprintf
+        fmt
+        "@[<hov 0>[@[<hov 0>%a@]@ ]@]"
         (pp_print_list ~pp_sep:pp_print_semicolon pp_trans)
         l)
 
@@ -135,12 +148,18 @@ module SF = struct
     match c with
     | Or (_T, _S) ->
       Format.(
-        fprintf fmt "Or(%a, {%a})" pp_transitions _T
+        fprintf
+          fmt
+          "Or(%a, {%a})"
+          pp_transitions
+          _T
           (pp_print_list ~pp_sep:pp_print_semicolon pp_state_name)
           _S)
     | And _S ->
       Format.(
-        fprintf fmt "And({%a})"
+        fprintf
+          fmt
+          "And({%a})"
           (pp_print_list ~pp_sep:pp_print_semicolon pp_state_name)
           _S)
 

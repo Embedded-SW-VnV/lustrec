@@ -52,7 +52,8 @@ module ParseExt = struct
           let loc = Location.dummy_loc in
           raise (Parse.Error (loc, Parse.String_Syntax_error actions)))
     with Util.Type_error _ ->
-      Format.eprintf "Unable to explore json subtree: empty string %s@."
+      Format.eprintf
+        "Unable to explore json subtree: empty string %s@."
         (to_string json);
       default
 
@@ -63,7 +64,9 @@ module ParseExt = struct
           { expr = e; cinputs = in_; coutputs = out_; cvariables = locals_ })
 
   let parse_action =
-    protect Action.nil Parser_lustre.stmt_list
+    protect
+      Action.nil
+      Parser_lustre.stmt_list
       (fun (stmts, asserts, annots) (in_, out_, locals_) ->
         if asserts != [] || annots != [] then assert false
           (* Stateflow equations should not use asserts nor define annotations *)
@@ -125,7 +128,8 @@ let json_parse _ file pp =
     let module Sem = CPS.Semantics (T) (Model) in
     let prog = Sem.code_gen modularmode in
     let header =
-      List.map Corelang.mktop
+      List.map
+        Corelang.mktop
         [
           LustreSpec.Open (false, "lustrec_math");
           LustreSpec.Open (false, "conv");
@@ -155,8 +159,12 @@ let json_parse _ file pp =
     Format.eprintf "Print expanded lustre model in sf_gen_test_noauto.lus@.";
     ()
   with Parse.Error (l, err) ->
-    Format.eprintf "Parse error at loc %a : %a@.@?" Location.pp_loc l
-      Parse.pp_error err
+    Format.eprintf
+      "Parse error at loc %a : %a@.@?"
+      Location.pp_loc
+      l
+      Parse.pp_error
+      err
 
 (* term representing argument for file *)
 let file =

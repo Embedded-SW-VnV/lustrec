@@ -170,7 +170,7 @@ let get_instr_id fmt i =
       incr branch_cpt;
       fprintf fmt "branch_%i" !branch_cpt
   | MStep (outs, id, _) ->
-      print_protect fmt (fun fmt ->
+      pp_protect fmt (fun fmt ->
         fprintf fmt "%a_%s" (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "_")
                                pp_var_name) outs id)
   | _ -> ()
@@ -355,7 +355,7 @@ let rec pp_emf_instr m fmt i =
                    (fun v -> not (ISet.mem v.var_id branch_all_lhs))
                    branch_inputs
                in
-               fprintf fmt "@[<v 2>\"%a\": {@ " print_protect (fun fmt ->
+               fprintf fmt "@[<v 2>\"%a\": {@ " pp_protect (fun fmt ->
                    Format.pp_print_string fmt tag);
                fprintf fmt "\"guard_value\": \"%a\",@ " pp_tag_id tag;
                fprintf fmt "\"inputs\": [%a],@ " pp_emf_vars_decl
@@ -376,7 +376,7 @@ let rec pp_emf_instr m fmt i =
         let is_stateful = List.mem_assoc f m.minstances in
         fprintf fmt "\"kind\": \"%s\",@ \"name\": \"%a\",@ \"id\": \"%s\",@ "
           (if is_stateful then "statefulcall" else "statelesscall")
-          print_protect
+          pp_protect
           (fun fmt -> pp_print_string fmt node_f.node_id)
           f;
         fprintf fmt "\"lhs\": [@[%a@]],@ \"args\": [@[%a@]]"
@@ -454,7 +454,7 @@ let pp_emf_annots_list cpt fmt annots_list =
 (* let pp_emf_contract fmt nd =
  *   let c = Printers.node_as_contract nd in
  *   fprintf fmt "@[<v 2>\"%a\": {@ "
- *     print_protect (fun fmt -> pp_print_string fmt nd.node_id);
+ *     pp_protect (fun fmt -> pp_print_string fmt nd.node_id);
  *   fprintf fmt "\"contract\": %a@ "
  *     pp_emf_spec c;
  *   fprintf fmt "@]@ }" *)
@@ -465,7 +465,7 @@ let pp_machine fmt m =
     m.mstep.step_instrs
   in
   (* try *)
-  fprintf fmt "@[<v 2>\"%a\": {@ " print_protect (fun fmt ->
+  fprintf fmt "@[<v 2>\"%a\": {@ " pp_protect (fun fmt ->
       pp_print_string fmt m.mname.node_id);
   (match m.mspec.mnode_spec with
    | Some (Contract _) -> fprintf fmt "\"contract\": \"true\",@ "
@@ -506,7 +506,7 @@ let pp_machine fmt m =
 let pp_emf_imported_node fmt top =
   let ind = Corelang.imported_node_of_top top in
   (* try *)
-  fprintf fmt "@[<v 2>\"%a\": {@ " print_protect (fun fmt ->
+  fprintf fmt "@[<v 2>\"%a\": {@ " pp_protect (fun fmt ->
       pp_print_string fmt ind.nodei_id);
   fprintf fmt "\"imported\": \"true\",@ ";
   fprintf fmt "\"inputs\": [%a],@ " pp_emf_vars_decl ind.nodei_inputs;

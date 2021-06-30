@@ -587,7 +587,8 @@ and clock_expr env expr =
           let ckh = clock_uncarry (clock_expr env h) in
           unify_tuple_clock
             (Some (new_ck (Con (cvar, crvar, t)) true))
-            ckh h.expr_loc)
+            ckh
+            h.expr_loc)
         hl;
       let cr = clock_carrier env c expr.expr_loc cvar in
       try_unify_carrier cr crvar expr.expr_loc;
@@ -596,8 +597,13 @@ and clock_expr env expr =
       cres
   in
   Log.report ~level:4 (fun fmt ->
-      Format.fprintf fmt "Clock of expr %a: %a@ " Printers.pp_expr expr
-        Clocks.pp resulting_ck);
+      Format.fprintf
+        fmt
+        "Clock of expr %a: %a@ "
+        Printers.pp_expr
+        expr
+        Clocks.pp
+        resulting_ck);
   resulting_ck
 
 let clock_of_vlist vars =
@@ -608,7 +614,8 @@ let clock_of_vlist vars =
     environment [env] *)
 let clock_eq env eq =
   let expr_lhs =
-    expr_of_expr_list eq.eq_loc
+    expr_of_expr_list
+      eq.eq_loc
       (List.map (fun v -> expr_of_ident v eq.eq_loc) eq.eq_lhs)
   in
   let ck_rhs = clock_expr env eq.eq_rhs in
@@ -636,7 +643,8 @@ let clock_coreclock env cck id loc scoped =
             expr_loc = loc;
             expr_annot = None;
           })
-        dummy_id_expr cl
+        dummy_id_expr
+        cl
     in
     clock_expr temp_env when_expr
 
@@ -698,7 +706,11 @@ let clock_node env loc nd =
   (* if (is_main && is_polymorphic ck_node) then raise (Error
      (loc,(Cannot_be_polymorphic ck_node))); *)
   Log.report ~level:3 (fun fmt ->
-      Format.fprintf fmt "Generalized clock of %s: %a@ @ " nd.node_id Clocks.pp
+      Format.fprintf
+        fmt
+        "Generalized clock of %s: %a@ @ "
+        nd.node_id
+        Clocks.pp
         ck_node);
   nd.node_clock <- ck_node;
   Env.add_value env nd.node_id ck_node

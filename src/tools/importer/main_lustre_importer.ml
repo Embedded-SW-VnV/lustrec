@@ -52,7 +52,8 @@ let () =
      Format.printf "Error: %s\n" e; *)
   match vhdl_file_t_of_yojson vhdl1_json with
   | Ok x ->
-    Format.printf "Parsed VHDL: \n%s\n"
+    Format.printf
+      "Parsed VHDL: \n%s\n"
       (pretty_to_string (vhdl_file_t_to_yojson x))
   | Error e ->
     Format.printf "Error: %s\n" e

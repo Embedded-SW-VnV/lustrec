@@ -126,7 +126,10 @@ let schedule_node n =
 let compute_node_reuse_table report =
   let disjoint = Disjunction.clock_disjoint_map (get_node_vars report.node) in
   let reuse =
-    Liveness.compute_reuse_policy report.node report.schedule disjoint
+    Liveness.compute_reuse_policy
+      report.node
+      report.schedule
+      disjoint
       report.dep_graph
   in
   (* if !Options.print_reuse then begin Log.report ~level:0 (fun fmt ->
@@ -148,7 +151,8 @@ let schedule_prog prog =
           IMap.add nd.node_id report sch_map )
       | _ ->
         top_decl :: accu_prog, sch_map)
-    prog ([], IMap.empty)
+    prog
+    ([], IMap.empty)
 
 let compute_prog_reuse_table report = IMap.map compute_node_reuse_table report
 
@@ -160,7 +164,8 @@ let remove_node_inlined_locals locals report =
       (fun heads q ->
         let heads' = List.filter (fun v -> not (is_inlined v)) heads in
         if heads' = [] then q else heads' :: q)
-      report.schedule []
+      report.schedule
+      []
   in
   IMap.iter (fun v _ -> Hashtbl.remove report.fanin_table v) locals;
   IMap.iter
@@ -186,7 +191,10 @@ let pp_schedule fmt node_schs =
   IMap.iter
     (fun nd report ->
       Format.(
-        fprintf fmt "%s schedule: %a@ " nd
+        fprintf
+          fmt
+          "%s schedule: %a@ "
+          nd
           (pp_print_list ~pp_sep:pp_print_semicolon pp_eq_schedule)
           report.schedule))
     node_schs
@@ -200,7 +208,11 @@ let pp_fanin_table fmt node_schs =
 let pp_dep_graph fmt node_schs =
   IMap.iter
     (fun nd report ->
-      Format.fprintf fmt "%s dependency graph: %a@ " nd pp_dep_graph
+      Format.fprintf
+        fmt
+        "%s dependency graph: %a@ "
+        nd
+        pp_dep_graph
         report.dep_graph)
     node_schs
 
@@ -220,8 +232,11 @@ let pp_warning_unused fmt node_schs =
           (fun u ->
             let vu = get_node_var u nd in
             if vu.var_orig then
-              Format.fprintf fmt
-                "  Warning: variable '%s' seems unused@,  %a@,@," u Location.pp
+              Format.fprintf
+                fmt
+                "  Warning: variable '%s' seems unused@,  %a@,@,"
+                u
+                Location.pp
                 vu.var_loc)
           unused)
     node_schs
@@ -231,7 +246,9 @@ let pp_warning_unused fmt node_schs =
    [sch] *)
 let sort_equations_from_schedule eqs sch =
   Log.report ~level:10 (fun fmt ->
-      Format.fprintf fmt "schedule: %a@ "
+      Format.fprintf
+        fmt
+        "schedule: %a@ "
         (Format.pp_print_list ~pp_sep:Format.pp_print_semicolon pp_eq_schedule)
         sch);
   let split_eqs = Splitting.tuple_split_eq_list eqs in
@@ -251,20 +268,27 @@ let sort_equations_from_schedule eqs sch =
         else
           let eq_v, remainder = find_eq vl node_eqs_remainder in
           eq_v :: accu, remainder)
-      ([], split_eqs) sch
+      ([], split_eqs)
+      sch
   in
   let eqs = List.rev eqs_rev in
   let unused =
     if List.length remainder > 0 then (
       Log.report ~level:3 (fun fmt ->
-          Format.fprintf fmt
+          Format.fprintf
+            fmt
             "[Warning] Equations not used are@ %a@ Full equation set is:@ %a@ "
-            Printers.pp_node_eqs remainder Printers.pp_node_eqs eqs);
+            Printers.pp_node_eqs
+            remainder
+            Printers.pp_node_eqs
+            eqs);
       let vars =
         List.fold_left (fun accu eq -> eq.eq_lhs @ accu) [] remainder
       in
       Log.report ~level:1 (fun fmt ->
-          Format.fprintf fmt "[Warning] Unused variables: %a@ "
+          Format.fprintf
+            fmt
+            "[Warning] Unused variables: %a@ "
             (Format.pp_comma_list Format.pp_print_string)
             vars);
       vars)

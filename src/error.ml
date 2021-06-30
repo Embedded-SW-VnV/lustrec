@@ -37,10 +37,14 @@ let return_code kind =
 
 let pp fmt = function
   | Main_not_found ->
-    fprintf fmt "Could not find the definition of main node %s.@."
+    fprintf
+      fmt
+      "Could not find the definition of main node %s.@."
       !Global.main_node
   | Main_wrong_kind ->
-    fprintf fmt "Node %s does not correspond to a valid main node definition.@."
+    fprintf
+      fmt
+      "Node %s does not correspond to a valid main node definition.@."
       !Global.main_node
   | No_main_specified ->
     fprintf fmt "No main node specified (use -node option)@."
@@ -49,12 +53,14 @@ let pp fmt = function
   | Already_bound_symbol sym ->
     fprintf fmt "%s is already defined.@." sym
   | Unknown_library sym ->
-    fprintf fmt
+    fprintf
+      fmt
       "impossible to load library %s.lusic.@.Please compile the corresponding \
        interface or source file.@."
       sym
   | Wrong_number sym ->
-    fprintf fmt
+    fprintf
+      fmt
       "library %s.lusic has a different version number and may crash \
        compiler.@.Please recompile the corresponding interface or source \
        file.@."

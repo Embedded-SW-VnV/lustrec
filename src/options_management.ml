@@ -17,8 +17,10 @@ let print_version () =
   printf
     "@[<v>Lustrec compiler, version %s (%s)@,\
      Standard lib: %s@,\
-     User provided include directory: @[<h>%a@]@]@." Version.number
-    Version.codename Version.include_path
+     User provided include directory: @[<h>%a@]@]@."
+    Version.number
+    Version.codename
+    Version.include_path
     (pp_print_list ~pp_sep:pp_print_space pp_print_string)
     !include_dirs
 
@@ -47,11 +49,14 @@ let search_lib_path (local, full_file_name) =
         | None ->
           let path_to_lib = dir ^ "/" ^ full_file_name in
           if Sys.file_exists path_to_lib then Some dir else None)
-      paths None
+      paths
+      None
   in
   match name with
   | None ->
-    Format.eprintf "Unable to find library %s in paths %a@.@?" full_file_name
+    Format.eprintf
+      "Unable to find library %s in paths %a@.@?"
+      full_file_name
       (Utils.Format.pp_comma_list Format.pp_print_string)
       paths;
     raise Not_found
@@ -217,6 +222,9 @@ let lustrec_options =
             cpp := true;
             static_mem := false),
         "generates the mauve code" );
+      ( "-c_main_options",
+        Arg.Set c_main_options,
+        "instrument the main C code with command line options" );
     ]
 
 let lustret_options =

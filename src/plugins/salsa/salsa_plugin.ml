@@ -42,7 +42,8 @@ module Plugin : PluginType.S = struct
               (c.const_id, c.const_value) :: accu
             | _ ->
               accu)
-          [] (Corelang.get_consts prog)
+          []
+          (Corelang.get_consts prog)
       in
       let res =
         List.map

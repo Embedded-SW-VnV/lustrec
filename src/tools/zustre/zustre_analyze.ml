@@ -46,7 +46,9 @@ let check machines node =
   let main_name node_id = "MAIN" ^ "_" ^ node_id in
 
   let decl_main =
-    decl_rel ~no_additional_vars:true (main_name node_id)
+    decl_rel
+      ~no_additional_vars:true
+      (main_name node_id)
       (int_sort :: List.map (fun v -> type_to_sort v.var_type) main_memory_next)
   in
 
@@ -67,7 +69,9 @@ let check machines node =
   let _ = List.map decl_var main_memory_next in
 
   let horn_head =
-    Z3.Expr.mk_app !ctx decl_main
+    Z3.Expr.mk_app
+      !ctx
+      decl_main
       (idx_0 :: (* uid_0:: *)
                 List.map horn_var_to_expr main_memory_next)
   in
@@ -83,10 +87,12 @@ let check machines node =
       let _ = List.map decl_var vars in
 
       let horn_body =
-        Z3.Boolean.mk_and !ctx
+        Z3.Boolean.mk_and
+          !ctx
           [
             Z3.Expr.mk_app !ctx decl_init [];
-            Z3.Expr.mk_app !ctx
+            Z3.Expr.mk_app
+              !ctx
               (get_fdecl (machine_stateless_name node))
               (idx_0 :: uid_0 :: List.map horn_var_to_expr vars);
           ]
@@ -103,15 +109,18 @@ let check machines node =
 
       (* rule => (INIT_STATE and reset(mid) and step(mid, next)) MAIN(next) *)
       let horn_body =
-        Z3.Boolean.mk_and !ctx
+        Z3.Boolean.mk_and
+          !ctx
           [
             Z3.Expr.mk_app !ctx decl_init [];
-            Z3.Expr.mk_app !ctx
+            Z3.Expr.mk_app
+              !ctx
               (get_fdecl (machine_reset_name node))
               (idx_0
                ::
                uid_0 :: List.map horn_var_to_expr (reset_vars machines machine));
-            Z3.Expr.mk_app !ctx
+            Z3.Expr.mk_app
+              !ctx
               (get_fdecl (machine_step_name node))
               (idx_0
                ::
@@ -150,17 +159,24 @@ let check machines node =
   let k_var = Z3.Expr.mk_const_f !ctx (decl_var k) in
 
   let horn_head =
-    Z3.Expr.mk_app !ctx decl_main
-      (Z3.Arithmetic.mk_add !ctx
+    Z3.Expr.mk_app
+      !ctx
+      decl_main
+      (Z3.Arithmetic.mk_add
+         !ctx
          [ k_var; Z3.Arithmetic.Integer.mk_numeral_i !ctx 1 ]
        :: List.map horn_var_to_expr main_memory_next)
   in
   let horn_body =
-    Z3.Boolean.mk_and !ctx
+    Z3.Boolean.mk_and
+      !ctx
       [
-        Z3.Expr.mk_app !ctx decl_main
+        Z3.Expr.mk_app
+          !ctx
+          decl_main
           (k_var :: List.map horn_var_to_expr main_memory_current);
-        Z3.Expr.mk_app !ctx
+        Z3.Expr.mk_app
+          !ctx
           (get_fdecl (step_name node))
           (k_var
            :: uid_0 :: List.map horn_var_to_expr (step_vars machines machine));
@@ -171,7 +187,9 @@ let check machines node =
     step_vars_c_m_x machines machine @ main_output_dummy @ main_input_dummy
   in
   let _ =
-    add_rule ~dont_touch:[ decl_main ] (k :: vars)
+    add_rule
+      ~dont_touch:[ decl_main ]
+      (k :: vars)
       (Z3.Boolean.mk_implies !ctx horn_body horn_head)
   in
 
@@ -183,11 +201,15 @@ let check machines node =
   add_rule
     (*~dont_touch:[decl_main;decl_err]*)
     (k :: main_memory_next)
-    (Z3.Boolean.mk_implies !ctx
-       (Z3.Boolean.mk_and !ctx
+    (Z3.Boolean.mk_implies
+       !ctx
+       (Z3.Boolean.mk_and
+          !ctx
           [
             not_prop;
-            Z3.Expr.mk_app !ctx decl_main
+            Z3.Expr.mk_app
+              !ctx
+              decl_main
               (k_var :: List.map horn_var_to_expr main_memory_next);
           ])
        (Z3.Expr.mk_app !ctx decl_err []));
@@ -202,7 +224,8 @@ let check machines node =
   (* Debug instructions *)
   let rules_expr = Z3.Fixedpoint.get_rules !fp in
   if !debug then
-    Format.eprintf "@[<v 2>Registered rules:@ %a@ @]@."
+    Format.eprintf
+      "@[<v 2>Registered rules:@ %a@ @]@."
       (Utils.fprintf_list ~sep:"@ " (fun fmt e ->
            Format.pp_print_string fmt (Z3.Expr.to_string e)))
       rules_expr;

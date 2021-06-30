@@ -381,11 +381,13 @@ struct
             if List.mem l acc then
               raise (Error (loc, Already_bound ("struct field " ^ l)))
             else
-              try_unify ty_struct
+              try_unify
+                ty_struct
                 (type_struct_const_field ~is_annot loc (l, c))
                 loc;
             l :: acc)
-          [] fl
+          []
+          fl
       in
       try
         let total =
@@ -416,7 +418,7 @@ struct
 
   let rec type_add_const env const arg targ =
     (*Format.eprintf "Typing.type_add_const %a %a@." Printers.pp_expr arg
-      Types.print_ty targ;*)
+      Types.pp targ;*)
     if const then (
       let d =
         if is_dimension_type targ then dimension_of_expr arg
@@ -454,8 +456,7 @@ struct
       type_add_const env const real_arg (type_expr env in_main const real_arg)
     in
     (*Format.eprintf "subtyping const %B real %a:%a vs formal %a@." const
-      Printers.pp_expr real_arg Types.print_ty real_type Types.print_ty
-      formal_type;*)
+      Printers.pp_expr real_arg Types.pp real_type Types.pp formal_type;*)
     try_unify ~sub formal_type real_type loc
 
   (* typing an application implies: - checking that const formal parameters
@@ -481,12 +482,12 @@ struct
   and type_dependent_call env in_main loc const f targs =
     (* Format.eprintf "Typing.type_dependent_call %s@." f; *)
     let tins, touts = new_var (), new_var () in
-    (* Format.eprintf "tin=%a, tout=%a@." print_ty tins print_ty touts; *)
+    (* Format.eprintf "tin=%a, tout=%a@." pp tins pp touts; *)
     let tfun =
       (* Type_predef. *)
       type_arrow tins touts
     in
-    (* Format.eprintf "fun=%a@." print_ty tfun; *)
+    (* Format.eprintf "fun=%a@." pp tfun; *)
     type_subtyping_arg env in_main const (expr_of_ident f loc) tfun;
     (* Format.eprintf "type subtyping@."; *)
     let tins = type_list_of_type tins in
@@ -496,18 +497,21 @@ struct
       List.iter2
         (fun (a, t) ti ->
           let t' =
-            type_add_const env
+            type_add_const
+              env
               (const
               || (* Types. *)
               get_static_value ti <> None)
-              a t
+              a
+              t
           in
-          (* Format.eprintf "uniying ti=%a t'=%a touts=%a@." print_ty ti
-             print_ty t' print_ty touts; *)
+          (* Format.eprintf "uniying ti=%a t'=%a touts=%a@." pp ti pp t' pp
+             touts; *)
           try_unify ~sub:true ti t' a.expr_loc
-          (* Format.eprintf "unified ti=%a t'=%a touts=%a@." print_ty ti
-             print_ty t' print_ty touts; *))
-        targs tins;
+          (* Format.eprintf "unified ti=%a t'=%a touts=%a@." pp ti pp t' pp
+             touts; *))
+        targs
+        tins;
       touts)
 
   (* type a simple call without dependent types but possible homomorphic
@@ -519,7 +523,7 @@ struct
       type_arrow tins touts
     in
     type_subtyping_arg env in_main const (expr_of_ident f loc) tfun;
-    (*Format.eprintf "try unify %a %a@." Types.print_ty tins Types.print_ty
+    (*Format.eprintf "try unify %a %a@." Types.pp tins Types.pp
       (type_of_type_list targs);*)
     try_unify ~sub:true tins (type_of_type_list targs) loc;
     touts
@@ -543,7 +547,8 @@ struct
           with Not_found ->
             Format.eprintf
               "Failure in typing expr %a. Not in typing environement@."
-              Printers.pp_expr expr;
+              Printers.pp_expr
+              expr;
             raise (Error (expr.expr_loc, Unbound_value ("identifier " ^ v)))
         in
         let ty = instantiate (ref []) (ref []) tyv in
@@ -560,7 +565,8 @@ struct
         let ty_elt = new_var () in
         List.iter
           (fun e ->
-            try_unify ty_elt
+            try_unify
+              ty_elt
               (type_appl env in_main expr.expr_loc const "uminus" [ e ])
               e.expr_loc)
           elist;
@@ -572,14 +578,21 @@ struct
         expr.expr_type <- Expr_type_hub.export ty;
         ty
       | Expr_access (e1, d) ->
-        type_subtyping_arg env in_main false
+        type_subtyping_arg
+          env
+          in_main
+          false
           (* not necessary a constant *)
           (expr_of_dimension d)
           (* Type_predef. *)
           type_int;
         let ty_elt = new_var () in
         let d = Dimension.mkdim_var () in
-        type_subtyping_arg env in_main const e1
+        type_subtyping_arg
+          env
+          in_main
+          const
+          e1
           ((* Type_predef. *)
            type_array d ty_elt);
         expr.expr_type <- Expr_type_hub.export ty_elt;
@@ -589,7 +602,11 @@ struct
           (* Types. *)
           get_static_value (Env.lookup_value (fst env) id)
         in
-        type_subtyping_arg env in_main true (expr_of_dimension d)
+        type_subtyping_arg
+          env
+          in_main
+          true
+          (expr_of_dimension d)
           (* Type_predef. *)
           type_int;
         Dimension.eval Basic_library.eval_dim_env eval_const d;
@@ -673,9 +690,14 @@ struct
         typ_out
     in
     Log.report ~level:3 (fun fmt ->
-        Format.fprintf fmt "Type of expr %a: %a@ " Printers.pp_expr expr
+        Format.fprintf
+          fmt
+          "Type of expr %a: %a@ "
+          Printers.pp_expr
+          expr
           (* Types. *)
-          print_ty resulting_ty);
+          pp
+          resulting_ty);
     resulting_ty
 
   and type_branches ?(is_annot = false) env in_main loc const hl =
@@ -689,7 +711,8 @@ struct
             type_subtyping_arg env in_main const h typ_out;
             if List.mem t accu then raise (Error (loc, Already_bound t))
             else t :: accu)
-          [] hl
+          []
+          hl
       in
       let type_labels = get_enum_type_tags (coretype_type typ_in) in
       if List.sort compare used_labels <> List.sort compare type_labels then
@@ -703,7 +726,11 @@ struct
   (* Eexpr are always in annotations. TODO: add the quantifiers variables to the
      env *)
   let type_eexpr env eexpr =
-    type_expr ~is_annot:true env false (* not in main *) false (* not a const *)
+    type_expr
+      ~is_annot:true
+      env
+      false
+      (* not in main *) false (* not a const *)
       eexpr.eexpr_qfexpr
 
   (** [type_eq env eq] types equation [eq] in environment [env] *)
@@ -711,7 +738,8 @@ struct
     (*Format.eprintf "Typing.type_eq %a@." Printers.pp_node_eq eq;*)
     (* Check undefined variables, type lhs *)
     let expr_lhs =
-      expr_of_expr_list eq.eq_loc
+      expr_of_expr_list
+        eq.eq_loc
         (List.map (fun v -> expr_of_ident v eq.eq_loc) eq.eq_lhs)
     in
     let ty_lhs = type_expr env in_main false expr_lhs in
@@ -728,12 +756,14 @@ struct
              if get_static_value ty <> None then
                raise (Error (eq.eq_loc, Assigned_constant id))
              else match get_clock_base_type ty with None -> ty | Some ty -> ty)
-           (type_list_of_type ty_lhs) eq.eq_lhs)
+           (type_list_of_type ty_lhs)
+           eq.eq_lhs)
     in
     let undefined_vars =
       List.fold_left
         (fun uvars v -> define_var v uvars)
-        undefined_vars eq.eq_lhs
+        undefined_vars
+        eq.eq_lhs
     in
     (* Type rhs wrt to lhs type with subtyping, i.e. a constant rhs value may be
        assigned to a (always non-constant) lhs variable *)
@@ -760,7 +790,8 @@ struct
               expr_loc = loc;
               expr_annot = None;
             })
-          dummy_id_expr cl
+          dummy_id_expr
+          cl
       in
       ignore (type_expr env false false when_expr)
 
@@ -769,7 +800,7 @@ struct
     | Tydec_clock ty | Tydec_array (_, ty) ->
       check_type_declaration loc ty
     | Tydec_const tname ->
-      (* Format.eprintf "TABLE: %a@." print_type_table (); *)
+      (* Format.eprintf "TABLE: %a@." pp_type_table (); *)
       if not (Hashtbl.mem type_table cty) then
         raise (Error (loc, Unbound_type tname))
     | _ ->
@@ -777,14 +808,18 @@ struct
 
   let type_var_decl vd_env env vdecl =
     (*Format.eprintf "Typing.type_var_decl START %a:%a@." Printers.pp_var vdecl
-      Printers.print_dec_ty vdecl.var_dec_type.ty_dec_desc;*)
+      Printers.pp_dec_ty vdecl.var_dec_type.ty_dec_desc;*)
     check_type_declaration vdecl.var_loc vdecl.var_dec_type.ty_dec_desc;
     let eval_const id =
       (* Types. *)
       get_static_value (Env.lookup_value env id)
     in
     let type_dim d =
-      type_subtyping_arg (env, vd_env) false true (expr_of_dimension d)
+      type_subtyping_arg
+        (env, vd_env)
+        false
+        true
+        (expr_of_dimension d)
         (* Type_predef. *)
         type_int;
       Dimension.eval Basic_library.eval_dim_env eval_const d
@@ -804,9 +839,12 @@ struct
       type_subtyping_arg (env, vd_env) false ~sub:false true v ty_static);
     try_unify ty_static (Expr_type_hub.import vdecl.var_type) vdecl.var_loc;
     let new_env = Env.add_value env vdecl.var_id ty_static in
-    type_coreclock (new_env, vd_env) vdecl.var_dec_clock vdecl.var_id
+    type_coreclock
+      (new_env, vd_env)
+      vdecl.var_dec_clock
+      vdecl.var_id
       vdecl.var_loc;
-    (*Format.eprintf "END %a@." Types.print_ty ty_static;*)
+    (*Format.eprintf "END %a@." Types.pp ty_static;*)
     new_env
 
   let type_var_decl_list vd_env env l =
@@ -829,7 +867,9 @@ struct
     let env =
       type_var_decl_list
         (* this argument seems useless to me, cf TODO at top of the file*)
-        vd_env env vd_env
+        vd_env
+        env
+        vd_env
     in
     (* typing stmts *)
     let eqs =
@@ -841,15 +881,21 @@ struct
     let _ =
       List.fold_left
         (type_eq (env, vd_env) false (*is_main*))
-        undefined_vars_init eqs
+        undefined_vars_init
+        eqs
     in
     (* Typing each predicate expr *)
     let type_pred_ee ee : unit =
-      type_subtyping_arg (env, vd_env) false (* not in main *) false
+      type_subtyping_arg
+        (env, vd_env)
+        false
+        (* not in main *) false
         (* not a const *)
-        ee.eexpr_qfexpr type_bool
+        ee.eexpr_qfexpr
+        type_bool
     in
-    List.iter type_pred_ee
+    List.iter
+      type_pred_ee
       (c.assume @ c.guarantees
       @ List.flatten (List.map (fun m -> m.ensure @ m.require) c.modes));
     (*TODO enrich env locally with locals and consts type each pre/post as a
@@ -889,7 +935,11 @@ struct
     List.iter
       (fun assert_ ->
         let assert_expr = assert_.assert_expr in
-        type_subtyping_arg (new_env, vd_env) is_main false assert_expr
+        type_subtyping_arg
+          (new_env, vd_env)
+          is_main
+          false
+          assert_expr
           (* Type_predef. *)
           type_bool)
       nd.node_asserts;
@@ -912,7 +962,8 @@ struct
       List.fold_left
         (fun res vdecl ->
           if vdecl.var_dec_const then ISet.add vdecl.var_id res else res)
-        ISet.empty nd.node_locals
+        ISet.empty
+        nd.node_locals
     in
     let undefined_vars = ISet.diff undefined_vars local_consts in
 
@@ -1011,7 +1062,9 @@ struct
     if vdecl.var_dec_const then
       match get_static_value (Expr_type_hub.import vdecl.var_type) with
       | None ->
-        Format.eprintf "internal error: %a@." (* Types. *) print_ty
+        Format.eprintf
+          "internal error: %a@."
+          (* Types. *) pp
           (Expr_type_hub.import vdecl.var_type);
         assert false
       | Some d ->
@@ -1057,7 +1110,7 @@ struct
         try
           let computed_t = Env.lookup_value computed k in
           let computed_t = instantiate (ref []) (ref []) computed_t in
-          (* Types.print_ty Format.std_formatter decl_type_k; Types.print_ty
+          (* Types.pp Format.std_formatter decl_type_k; Types.pp
              Format.std_formatter computed_t;*)
           try_unify ~sub:true ~semi:true decl_type_k computed_t loc
         with Not_found -> (
@@ -1076,7 +1129,7 @@ struct
   let check_typedef_top decl =
     (*Format.eprintf "check_typedef %a@." Printers.pp_short_decl decl;*)
     (*Format.eprintf "%a" Printers.pp_typedef (typedef_of_top decl);*)
-    (*Format.eprintf "%a" Corelang.print_type_table ();*)
+    (*Format.eprintf "%a" Corelang.pp_type_table ();*)
     match decl.top_decl_desc with
     | TypeDef ty -> (
       let owner = decl.top_decl_owner in

@@ -24,10 +24,17 @@ let pp_trace trace_filename mutation_list =
   let trace_file = open_out trace_filename in
   let trace_fmt = formatter_of_out_channel trace_file in
   Format.(
-    fprintf trace_fmt "@[<v 2>{@ %a@ }@]@.@?"
+    fprintf
+      trace_fmt
+      "@[<v 2>{@ %a@ }@]@.@?"
       (pp_comma_list (fun fmt (mutation, mutation_loc, mutant_name) ->
-           fprintf fmt "\"%s\": { @[<v 0>%a,@ %a@ }@]" mutant_name
-             Mutation.pp_directive_json mutation Mutation.pp_loc_json
+           fprintf
+             fmt
+             "\"%s\": { @[<v 0>%a,@ %a@ }@]"
+             mutant_name
+             Mutation.pp_directive_json
+             mutation
+             Mutation.pp_loc_json
              mutation_loc))
       mutation_list)
 
@@ -110,14 +117,19 @@ let testgen_source dirname basename extension =
         let mutant_out =
           try open_out mutant_filename
           with Sys_error _ ->
-            Format.eprintf "Unable to open file %s for writing.@."
+            Format.eprintf
+              "Unable to open file %s for writing.@."
               mutant_filename;
             exit 1
         in
         let mutant_fmt = formatter_of_out_channel mutant_out in
         report ~level:1 (fun fmt ->
-            fprintf fmt ".. generating mutant %s: %a@,@?" mutant_filename
-              Mutation.pp_directive mutation);
+            fprintf
+              fmt
+              ".. generating mutant %s: %a@,@?"
+              mutant_filename
+              Mutation.pp_directive
+              mutation);
         Format.fprintf mutant_fmt "%a@." Printers.pp_prog mutant;
         mutation, mutation_loc, mutant_basename)
       mutants
@@ -144,9 +156,13 @@ let testgen_source dirname basename extension =
   let cmake_file = open_out cmakelists in
   let cmake_fmt = formatter_of_out_channel cmake_file in
   Format.fprintf cmake_fmt "cmake_minimum_required(VERSION 3.5)@.";
-  Format.fprintf cmake_fmt "include(\"%s/helpful_functions.cmake\")@."
+  Format.fprintf
+    cmake_fmt
+    "include(\"%s/helpful_functions.cmake\")@."
     Version.testgen_path;
-  Format.fprintf cmake_fmt "include(\"%s/FindLustre.cmake\")@."
+  Format.fprintf
+    cmake_fmt
+    "include(\"%s/FindLustre.cmake\")@."
     Version.testgen_path;
   Format.fprintf cmake_fmt "LUSTREFILES(LFILES ${CMAKE_CURRENT_SOURCE_DIR} )@.";
   Format.fprintf cmake_fmt "@[<v 2>FOREACH(lus_file ${LFILES})@ ";
@@ -174,7 +190,8 @@ let anonymous filename =
       (fun (ok, ext) ext' ->
         if (not ok) && Filename.check_suffix filename ext' then true, ext'
         else ok, ext)
-      (false, "") extensions
+      (false, "")
+      extensions
   in
   if ok_ext then
     let dirname = Filename.dirname filename in

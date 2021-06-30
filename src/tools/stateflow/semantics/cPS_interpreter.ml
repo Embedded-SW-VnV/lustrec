@@ -138,7 +138,8 @@ module Interpreter (Transformer : TransformerType) = struct
         in
         let cond = Transformer.(event trans.event && trans.condition) in
         Transformer.(
-          eval_cond cond
+          eval_cond
+            cond
             (eval_act (module Theta) trans.condition_act
             >> eval_dest trans.dest wrapper success' fail)
             fail.local)
@@ -159,9 +160,17 @@ module Interpreter (Transformer : TransformerType) = struct
 
       let rec eval_open_path mode p p1 p2 success_p2 =
         Log.report ~level:sf_level (fun fmt ->
-            Format.fprintf fmt
+            Format.fprintf
+              fmt
               "@[<v 2>open_path_rec[[mode %a, prefix %a, src %a, dst %a]]@ "
-              pp_mode mode pp_path p pp_path p1 pp_path p2);
+              pp_mode
+              mode
+              pp_path
+              p
+              pp_path
+              p1
+              pp_path
+              p2);
         match frontier p1, frontier p2 with
         | ([ x ], ps), ([ y ], pd) when x = y ->
           eval_open_path mode (p @ [ x ]) ps pd success_p2
@@ -193,8 +202,15 @@ module Interpreter (Transformer : TransformerType) = struct
         | E -> (
           Transformer.(
             Log.report ~level:sf_level (fun fmt ->
-                Format.fprintf fmt "@[<v 2>C_%a[[%a, %a]]@ " pp_tag tag pp_path
-                  prefix SF.pp_comp comp);
+                Format.fprintf
+                  fmt
+                  "@[<v 2>C_%a[[%a, %a]]@ "
+                  pp_tag
+                  tag
+                  pp_path
+                  prefix
+                  SF.pp_comp
+                  comp);
             match comp with
             | Or (_T, []) ->
               null
@@ -207,7 +223,8 @@ module Interpreter (Transformer : TransformerType) = struct
             | And _S ->
               List.fold_right
                 (fun p -> ( >> ) (Theta.theta E (prefix @ [ p ]) [] Loose))
-                _S null))
+                _S
+                null))
         | D -> (
           Transformer.(
             match comp with
@@ -221,7 +238,8 @@ module Interpreter (Transformer : TransformerType) = struct
             | And _S ->
               List.fold_right
                 (fun p -> ( >> ) (Theta.theta D (prefix @ [ p ])))
-                _S null))
+                _S
+                null))
         | X -> (
           Transformer.(
             match comp with
@@ -235,7 +253,8 @@ module Interpreter (Transformer : TransformerType) = struct
             | And _S ->
               List.fold_right
                 (fun p -> ( >> ) (Theta.theta X (prefix @ [ p ]) Loose))
-                _S null))
+                _S
+                null))
         | J ->
           assert false
 
@@ -248,9 +267,17 @@ module Interpreter (Transformer : TransformerType) = struct
           fun path frontier ->
             Transformer.(
               Log.report ~level:sf_level (fun fmt ->
-                  Format.fprintf fmt
-                    "@[<v 2>S_%a[[node %a, dest %a, frontier %a]]@ " pp_tag tag
-                    pp_path p pp_path path pp_frontier frontier);
+                  Format.fprintf
+                    fmt
+                    "@[<v 2>S_%a[[node %a, dest %a, frontier %a]]@ "
+                    pp_tag
+                    tag
+                    pp_path
+                    p
+                    pp_path
+                    path
+                    pp_frontier
+                    frontier);
               frontier = Loose
               >? (eval_act (module Theta) p_def.state_actions.entry_act
                  >> eval_act (module Theta) (open_path p))
@@ -263,7 +290,12 @@ module Interpreter (Transformer : TransformerType) = struct
         | D ->
           Transformer.(
             Log.report ~level:sf_level (fun fmt ->
-                Format.fprintf fmt "@[<v 2>S_%a[[node %a]]@ " pp_tag tag pp_path
+                Format.fprintf
+                  fmt
+                  "@[<v 2>S_%a[[node %a]]@ "
+                  pp_tag
+                  tag
+                  pp_path
                   p);
             let wrapper_i = eval_open_path Inner [] p in
             let wrapper_o = eval_open_path Outer [] p in
@@ -284,8 +316,15 @@ module Interpreter (Transformer : TransformerType) = struct
           fun frontier ->
             Transformer.(
               Log.report ~level:sf_level (fun fmt ->
-                  Format.fprintf fmt "@[<v 2>S_%a[[node %a, frontier %a]]@ "
-                    pp_tag tag pp_path p pp_frontier frontier);
+                  Format.fprintf
+                    fmt
+                    "@[<v 2>S_%a[[node %a, frontier %a]]@ "
+                    pp_tag
+                    tag
+                    pp_path
+                    p
+                    pp_frontier
+                    frontier);
               eval_C X p p_def.internal_composition
               >> (frontier = Loose
                  >? (eval_act (module Theta) p_def.state_actions.exit_act

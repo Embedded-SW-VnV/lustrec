@@ -52,14 +52,20 @@ let pp_transition_predicate fmt (_, m) =
   in
   let inputs = build_pp_var_decl_step_input AdaIn None m in
   let outputs = build_pp_var_decl_step_output AdaIn None m in
-  pp_predicate pp_transition_name
+  pp_predicate
+    pp_transition_name
     ([ [ old_state; new_state ] ] @ inputs @ outputs)
-    true fmt None
+    true
+    fmt
+    None
 
 let pp_invariant_predicate fmt () =
-  pp_predicate pp_invariant_name
+  pp_predicate
+    pp_invariant_name
     [ [ build_pp_state_decl AdaIn None ] ]
-    true fmt None
+    true
+    fmt
+    None
 
 (** Print a new statement instantiating a generic package. @param fmt the
     formater to print on @param substitutions the instanciation substitution
@@ -140,12 +146,15 @@ let pp_file fmt (typed_submachines, ((m_spec_opt, guarantees), m)) =
 
   let pp_state_decl_and_reset fmt =
     let init fmt =
-      pp_call fmt
+      pp_call
+        fmt
         ( pp_access pp_axiomatize_package_name pp_init_name,
           [ [ pp_state_name ] ] )
     in
     let contract = Some (false, false, [], [ init ]) in
-    fprintf fmt "%t;@,@,%a;@,@,"
+    fprintf
+      fmt
+      "%t;@,@,%a;@,@,"
       (*Declare the state type*)
       (pp_type_decl pp_state_type AdaPrivate)
       (*Declare the reset procedure*)
@@ -154,14 +163,19 @@ let pp_file fmt (typed_submachines, ((m_spec_opt, guarantees), m)) =
   in
 
   let pp_private_section fmt =
-    fprintf fmt "@,private@,@,%a%a%a"
+    fprintf
+      fmt
+      "@,private@,@,%a%a%a"
       (*Instantiate the polymorphic type that need to be instantiated*)
-      (pp_print_list ~pp_sep:pp_print_semicolon
+      (pp_print_list
+         ~pp_sep:pp_print_semicolon
          ~pp_epilogue:(fun fmt () -> fprintf fmt ";@,@,")
          pp_new_package)
-      typed_machines_to_instanciate (*Define the state type*) pp_ifstatefull
+      typed_machines_to_instanciate
+      (*Define the state type*) pp_ifstatefull
       (fun fmt -> pp_record pp_state_type fmt var_lists)
-      (pp_print_list ~pp_sep:pp_print_semicolon
+      (pp_print_list
+         ~pp_sep:pp_print_semicolon
          ~pp_prologue:(fun fmt () -> fprintf fmt ";@,@,")
          (fun fmt pp -> pp fmt))
       ghost_private
@@ -181,11 +195,13 @@ let pp_file fmt (typed_submachines, ((m_spec_opt, guarantees), m)) =
             @ if output != [] then [ output ] else []
           in
           let transition fmt =
-            pp_call fmt
+            pp_call
+              fmt
               (pp_access pp_axiomatize_package_name pp_transition_name, args)
           in
           let invariant fmt =
-            pp_call fmt
+            pp_call
+              fmt
               ( pp_access pp_axiomatize_package_name pp_invariant_name,
                 [ [ pp_state_name ] ] )
           in
@@ -205,29 +221,42 @@ let pp_file fmt (typed_submachines, ((m_spec_opt, guarantees), m)) =
           Some (true, false, [], []) )
     in
     let ghost_public = List.map pp_guarantee guarantees in
-    fprintf fmt "@,%a%a%a%a@,@,%a;@,@,%t"
-      (pp_print_list ~pp_sep:pp_print_semicolon
+    fprintf
+      fmt
+      "@,%a%a%a%a@,@,%a;@,@,%t"
+      (pp_print_list
+         ~pp_sep:pp_print_semicolon
          ~pp_epilogue:(fun fmt () -> fprintf fmt ";@,@,")
          (fun fmt pp -> pp fmt))
-      ghost_public pp_ifstatefull pp_state_decl_and_reset
+      ghost_public
+      pp_ifstatefull
+      pp_state_decl_and_reset
       (*Declare the step procedure*)
-      (pp_procedure pp_step_procedure_name (build_pp_arg_step m) pp_contract_opt)
-      AdaNoContent pp_ifstatefull
+      (pp_procedure
+         pp_step_procedure_name
+         (build_pp_arg_step m)
+         pp_contract_opt)
+      AdaNoContent
+      pp_ifstatefull
       (fun fmt -> fprintf fmt ";@,")
       (pp_package pp_axiomatize_package_name [] false)
       (fun fmt ->
-        fprintf fmt
+        fprintf
+          fmt
           "pragma Annotate (GNATProve, External_Axiomatization);@,\
            @,\
            %a;@,\
            %a;@,\
            %a"
           (*Declare the init predicate*)
-          pp_init_predicate ()
+          pp_init_predicate
+          ()
           (*Declare the transition predicate*)
-          pp_transition_predicate (m_spec_opt, m)
+          pp_transition_predicate
+          (m_spec_opt, m)
           (*Declare the invariant predicate*)
-          pp_invariant_predicate ())
+          pp_invariant_predicate
+          ())
       (*Print the private section*)
       pp_private_section
   in
@@ -235,9 +264,12 @@ let pp_file fmt (typed_submachines, ((m_spec_opt, guarantees), m)) =
   let pp_poly_type id = pp_type_decl (pp_polymorphic_type id) AdaPrivate in
   let pp_generics = List.map pp_poly_type polymorphic_types in
 
-  fprintf fmt "@[<v>%a%a;@]@."
+  fprintf
+    fmt
+    "@[<v>%a%a;@]@."
     (* Include all the subinstance package*)
-    (pp_print_list ~pp_sep:pp_print_semicolon
+    (pp_print_list
+       ~pp_sep:pp_print_semicolon
        ~pp_epilogue:(fun fmt () -> fprintf fmt ";@,@,")
        (pp_with AdaNoVisibility))
     machines_to_import
