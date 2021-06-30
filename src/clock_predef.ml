@@ -20,9 +20,10 @@ let ck_bin_univ =
   let univ = new_univar () in
   new_ck (Carrow (new_ck (Ctuple [ univ; univ ]) true, univ)) true
 
-let ck_ite =
-  let univ = new_univar () in
-  new_ck (Carrow (new_ck (Ctuple [ univ; univ; univ ]) true, univ)) true
+(* XXX: UNUSED *)
+(* let ck_ite =
+ *   let univ = new_univar () in
+ *   new_ck (Carrow (new_ck (Ctuple [ univ; univ; univ ]) true, univ)) true *)
 
 let ck_nullary_univ =
   let univ = new_univar () in
@@ -32,18 +33,22 @@ let ck_unary_univ =
   let univ = new_univar () in
   new_ck (Carrow (univ, univ)) true
 
-let ck_bool_to_clock =
-  let univ = new_univar () in
-  let cuniv = new_carrier Carry_var false in
-  new_ck (Carrow (univ, new_ck (Ccarrying (cuniv, univ)) false))
+(* XXX: UNUSED *)
+(* let ck_bool_to_clock =
+ *   let univ = new_univar () in
+ *   let cuniv = new_carrier Carry_var false in
+ *   new_ck (Carrow (univ, new_ck (Ccarrying (cuniv, univ)) false)) *)
 
-let ck_clock_to_bool =
-  let univ = new_univar () in
-  let cuniv = new_carrier Carry_var false in
-  new_ck (Carrow (new_ck (Ccarrying (cuniv, univ)) false, univ))
+(* XXX: UNUSED *)
+(* let ck_clock_to_bool =
+ *   let univ = new_univar () in
+ *   let cuniv = new_carrier Carry_var false in
+ *   new_ck (Carrow (new_ck (Ccarrying (cuniv, univ)) false, univ)) *)
 
-let ck_carrier id ck =
-  new_ck (Ccarrying (new_carrier (Carry_const id) true, ck)) true
+(* XXX: UNUSED *)
+(* let ck_carrier id ck =
+ *   new_ck (Ccarrying (new_carrier (Carry_const id) true, ck)) true *)
+
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

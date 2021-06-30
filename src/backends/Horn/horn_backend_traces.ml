@@ -22,8 +22,9 @@ open Machine_code_types
 open Horn_backend_common
 open Horn_backend_printers
 
-let pp_traces =
-  pp_comma_list (fun fmt (v, e) -> fprintf fmt "%s -> %a" v Printers.pp_expr e)
+(* XXX: UNUSED *)
+(* let pp_traces =
+ *   pp_comma_list (fun fmt (v, e) -> fprintf fmt "%s -> %a" v Printers.pp_expr e) *)
 
 (* Compute memories associated to each machine *)
 let compute_mems machines m =
@@ -51,8 +52,7 @@ let machines_traces machines =
         let filtered =
           List.filter (fun (kwds, _) -> kwds = [ "traceability" ]) all_annots
         in
-        (* List.iter (eprintf "Annots: %a@." Printers.pp_expr_annot)
-           (m.mannot); *)
+        (* List.iter (eprintf "Annots: %a@." Printers.pp_expr_annot) (m.mannot); *)
         let content = List.map snd filtered in
         (* Elements are supposed to be a pair (tuple): variable, expression *)
         List.map
@@ -117,8 +117,7 @@ let memories_next machines m =
                   false)
               m.mname.node_stmts
           with _ ->
-            eprintf
-              "Unable to find definition of %s in stmts %a@.prefix=%a@.@?"
+            eprintf "Unable to find definition of %s in stmts %a@.prefix=%a@.@?"
               var_id Printers.pp_node_stmts m.mname.node_stmts
               (pp_comma_list (fun fmt (id, n) ->
                    fprintf fmt "(%s,%s)" id n.mname.node_id))
@@ -146,10 +145,11 @@ let memories_next machines m =
         assert false)
     (memories_old machines m)
 
-let pp_prefix_rev fmt prefix =
-  pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ".")
-    (fun fmt (id, n) -> fprintf fmt "(%s,%s)" id n.mname.node_id)
-    fmt (List.rev prefix)
+(* XXX: UNUSED *)
+(* let pp_prefix_rev fmt prefix =
+ *   pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ".")
+ *     (fun fmt (id, n) -> fprintf fmt "(%s,%s)" id n.mname.node_id)
+ *     fmt (List.rev prefix) *)
 
 let traces_file fmt machines =
   let pp_l = pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt " | ") in
@@ -172,14 +172,17 @@ let traces_file fmt machines =
            rename_machine_list m.mname.node_id m.mstep.step_outputs
          in
          fprintf fmt "<input name=\"%a\" type=\"%a\">%a</input>@ "
-           (pp_l (pp_horn_var m)) input_vars
-           (pp_l (fun fmt id -> pp_type fmt id.var_type)) input_vars
-           (pp_l (pp_horn_var m)) m.mstep.step_inputs;
+           (pp_l (pp_horn_var m))
+           input_vars
+           (pp_l (fun fmt id -> pp_type fmt id.var_type))
+           input_vars
+           (pp_l (pp_horn_var m))
+           m.mstep.step_inputs;
 
          fprintf fmt "<output name=\"%a\" type=\"%a\">%a</output>@ "
            (pp_l pp_var) output_vars
-           (pp_l (fun fmt id -> pp_type fmt id.var_type)) output_vars
-           (pp_l pp_var) m.mstep.step_outputs;
+           (pp_l (fun fmt id -> pp_type fmt id.var_type))
+           output_vars (pp_l pp_var) m.mstep.step_outputs;
 
          let local_vars =
            try full_memory_vars ~without_arrow:true machines m
@@ -191,9 +194,9 @@ let traces_file fmt machines =
          let step_local_vars = rename_current_list local_vars in
 
          fprintf fmt "<localInit name=\"%a\" type=\"%a\">%t%a</localInit>@ "
-           (pp_l pp_var)
+           (pp_l pp_var) init_local_vars
+           (pp_l (fun fmt id -> pp_type fmt id.var_type))
            init_local_vars
-           (pp_l (fun fmt id -> pp_type fmt id.var_type)) init_local_vars
            (fun fmt ->
              match memories_next with [] -> () | _ -> fprintf fmt "")
            (pp_l (fun fmt (_, ee) -> fprintf fmt "%a" pp_xml_expr ee))
@@ -201,7 +204,8 @@ let traces_file fmt machines =
 
          fprintf fmt "<localStep name=\"%a\" type=\"%a\">%t%a</localStep>@ "
            (pp_l pp_var) step_local_vars
-           (pp_l (fun fmt id -> pp_type fmt id.var_type)) step_local_vars
+           (pp_l (fun fmt id -> pp_type fmt id.var_type))
+           step_local_vars
            (fun fmt -> match memories_old with [] -> () | _ -> fprintf fmt "")
            (pp_l (fun fmt (_, ee) -> fprintf fmt "(%a)" pp_xml_expr ee))
            memories_old;
@@ -210,7 +214,8 @@ let traces_file fmt machines =
          let arrow_vars_curr = rename_current_list arrow_vars
          and arrow_vars_mid = rename_mid_list arrow_vars
          and arrow_vars_next = rename_next_list arrow_vars in
-         pp_print_list (fun fmt v -> fprintf fmt "<reset name=\"%a\"/>" pp_var v)
+         pp_print_list
+           (fun fmt v -> fprintf fmt "<reset name=\"%a\"/>" pp_var v)
            fmt
            (arrow_vars_curr @ arrow_vars_mid @ arrow_vars_next);
          fprintf fmt "@]@ </Node>"))

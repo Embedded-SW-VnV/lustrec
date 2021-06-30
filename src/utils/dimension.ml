@@ -11,11 +11,7 @@
 
 open Format
 
-type t = {
-  mutable dim_desc : dim_desc;
-  dim_loc : Location.t;
-  dim_id : int;
-}
+type t = { mutable dim_desc : dim_desc; dim_loc : Location.t; dim_id : int }
 
 and dim_desc =
   | Dbool of bool
@@ -71,8 +67,7 @@ let rec pp fmt dim =
   | Dbool b ->
     fprintf fmt "%B" b
   | Dite (i, t, e) ->
-    fprintf fmt "if %a then %a else %a" pp i pp t
-      pp e
+    fprintf fmt "if %a then %a else %a" pp i pp t pp e
   | Dappl (f, [ arg ]) ->
     fprintf fmt "(%s%a)" f pp arg
   | Dappl (f, [ arg1; arg2 ]) ->
@@ -156,37 +151,42 @@ let rec is_polymorphic dim =
    sub-expressions, where unsupported operations (eg. '/') are treated as
    variables. *)
 
-let rec factors dim =
-  match dim.dim_desc with
-  | Dappl (f, args) when f = "*" ->
-    List.flatten (List.map factors args)
-  | _ ->
-    [ dim ]
+(* XXX: UNUSED *)
+(* let rec factors dim =
+ *   match dim.dim_desc with
+ *   | Dappl (f, args) when f = "*" ->
+ *     List.flatten (List.map factors args)
+ *   | _ ->
+ *     [ dim ] *)
 
-let rec factors_constant fs =
-  match fs with
-  | [] ->
-    1
-  | f :: q -> (
-    match f.dim_desc with
-    | Dint i ->
-      i * factors_constant q
-    | _ ->
-      factors_constant q)
+(* XXX: UNUSED *)
+(* let rec factors_constant fs =
+ *   match fs with
+ *   | [] ->
+ *     1
+ *   | f :: q -> (
+ *     match f.dim_desc with
+ *     | Dint i ->
+ *       i * factors_constant q
+ *     | _ ->
+ *       factors_constant q) *)
 
-let norm_factors fs =
-  let k = factors_constant fs in
-  let nk = List.filter (fun d -> not (is_const d)) fs in
-  k, List.sort compare nk
+(* XXX: UNUSED *)
+(* let norm_factors fs =
+ *   let k = factors_constant fs in
+ *   let nk = List.filter (fun d -> not (is_const d)) fs in
+ *   k, List.sort compare nk *)
 
-let rec terms dim =
-  match dim.dim_desc with
-  | Dappl (f, args) when f = "+" ->
-    List.flatten (List.map terms args)
-  | _ ->
-    [ dim ]
+(* XXX: UNUSED *)
+(* let rec terms dim =
+ *   match dim.dim_desc with
+ *   | Dappl (f, args) when f = "+" ->
+ *     List.flatten (List.map terms args)
+ *   | _ ->
+ *     [ dim ] *)
 
-let normalize dim = dim
+(* XXX: UNUSED *)
+(* let normalize dim = dim *)
 
 (* let rec unnormalize loc l = let l = List.sort (fun (k, l) (k', l') -> compare
    l l') (List.map (fun (k, l) -> (k, List.sort compare l)) l) in match l with |

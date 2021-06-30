@@ -1,7 +1,6 @@
 open Format
 open Machine_code_types
 open Lustre_types
-open Types
 open Ada_printer
 open Misc_printer
 

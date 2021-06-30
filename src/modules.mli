@@ -17,5 +17,4 @@ val load :
   program_t * dep_t list * (Types.t Env.t * Clocks.t Env.t)
 
 (* Returns an updated env with the type/clock declaration of the program *)
-val get_envs_from_top_decls :
-  program_t -> Types.t Env.t * Clocks.t Env.t
+val get_envs_from_top_decls : program_t -> Types.t Env.t * Clocks.t Env.t

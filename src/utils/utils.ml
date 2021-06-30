@@ -11,13 +11,15 @@
 
 open Graph
 
-type rat = int * int
+(* XXX: UNUSED *)
+(* type rat = int * int *)
 
 type ident = string
 
 type tag = int
 
-type longident = (string * tag) list
+(* XXX: UNUSED *)
+(* type longident = (string * tag) list *)
 
 exception TransposeError of int * int
 
@@ -84,18 +86,20 @@ let option_map f o = match o with None -> None | Some e -> Some (f e)
 
 let add_cons x l = if List.mem x l then l else x :: l
 
-let rec remove_duplicates l =
-  match l with [] -> [] | t :: q -> add_cons t (remove_duplicates q)
+(* XXX: UNUSED *)
+(* let rec remove_duplicates l =
+ *   match l with [] -> [] | t :: q -> add_cons t (remove_duplicates q) *)
 
-let position pred l =
-  let rec pos p l =
-    match l with
-    | [] ->
-      assert false
-    | t :: q ->
-      if pred t then p else pos (p + 1) q
-  in
-  pos 0 l
+(* XXX: UNUSED *)
+(* let position pred l =
+ *   let rec pos p l =
+ *     match l with
+ *     | [] ->
+ *       assert false
+ *     | t :: q ->
+ *       if pred t then p else pos (p + 1) q
+ *   in
+ *   pos 0 l *)
 
 (* TODO: Lélio: why n+1? cf former def below *)
 (* if n < 0 then [] else x :: duplicate x (n - 1) *)
@@ -128,37 +132,43 @@ let transpose_list ll =
       q;
     transpose ll
 
-let rec filter_upto p n l =
-  if n = 0 then []
-  else
-    match l with
-    | [] ->
-      []
-    | t :: q ->
-      if p t then t :: filter_upto p (n - 1) q else filter_upto p n q
+(* XXX: UNUSED *)
+(* let rec filter_upto p n l =
+ *   if n = 0 then []
+ *   else
+ *     match l with
+ *     | [] ->
+ *       []
+ *     | t :: q ->
+ *       if p t then t :: filter_upto p (n - 1) q else filter_upto p n q *)
 
+(* XXX: UNUSED *)
 (** [gcd a b] returns the greatest common divisor of [a] and [b]. *)
-let rec gcd a b = if b = 0 then a else gcd b (a mod b)
+(* let rec gcd a b = if b = 0 then a else gcd b (a mod b) *)
 
+(* XXX: UNUSED *)
 (** [lcm a b] returns the least common multiple of [a] and [b]. *)
-let lcm a b = if a = 0 && b = 0 then 0 else a * b / gcd a b
+(* let lcm a b = if a = 0 && b = 0 then 0 else a * b / gcd a b *)
 
+(* XXX: UNUSED *)
 (** [sum_rat (a,b) (a',b')] returns the sum of rationals [(a,b)] and [(a',b')] *)
-let sum_rat (a, b) (a', b') =
-  if a = 0 && b = 0 then a', b'
-  else if a' = 0 && b' = 0 then a, b
-  else
-    let lcm_bb' = lcm b b' in
-    (a * lcm_bb' / b) + (a' * lcm_bb' / b'), lcm_bb'
+(* let sum_rat (a, b) (a', b') =
+ *   if a = 0 && b = 0 then a', b'
+ *   else if a' = 0 && b' = 0 then a, b
+ *   else
+ *     let lcm_bb' = lcm b b' in
+ *     (a * lcm_bb' / b) + (a' * lcm_bb' / b'), lcm_bb' *)
 
-let simplify_rat (a, b) =
-  let gcd = gcd a b in
-  if gcd = 0 then a, b else a / gcd, b / gcd
+(* XXX: UNUSED *)
+(* let simplify_rat (a, b) =
+ *   let gcd = gcd a b in
+ *   if gcd = 0 then a, b else a / gcd, b / gcd *)
 
-let max_rat (a, b) (a', b') =
-  let ratio_ab = float_of_int a /. float_of_int b in
-  let ratio_ab' = float_of_int a' /. float_of_int b' in
-  if ratio_ab > ratio_ab' then a, b else a', b'
+(* XXX: UNUSED *)
+(* let max_rat (a, b) (a', b') =
+ *   let ratio_ab = float_of_int a /. float_of_int b in
+ *   let ratio_ab' = float_of_int a' /. float_of_int b' in
+ *   if ratio_ab > ratio_ab' then a, b else a', b' *)
 
 (** [list_union l1 l2] returns the union of list [l1] and [l2]. The result
     contains no duplicates. *)
@@ -173,23 +183,25 @@ let list_union l1 l2 =
   let l1' = aux l1 [] in
   aux l2 l1'
 
+(* XXX: UNUSED *)
 (** [hashtbl_add h1 h2] adds all the bindings in [h2] to [h1]. If the
     intersection is not empty, it replaces the former binding *)
-let hashtbl_add h1 h2 =
-  Hashtbl.iter (fun key value -> Hashtbl.replace h1 key value) h2
+(* let hashtbl_add h1 h2 =
+ *   Hashtbl.iter (fun key value -> Hashtbl.replace h1 key value) h2 *)
 
-let hashtbl_iterlast h f1 f2 =
-  let l = Hashtbl.length h in
-  ignore
-    (Hashtbl.fold
-       (fun k v cpt ->
-         if cpt = l then (
-           f2 k v;
-           cpt + 1)
-         else (
-           f1 k v;
-           cpt + 1))
-       h 1)
+(* XXX: UNUSED *)
+(* let hashtbl_iterlast h f1 f2 =
+ *   let l = Hashtbl.length h in
+ *   ignore
+ *     (Hashtbl.fold
+ *        (fun k v cpt ->
+ *          if cpt = l then (
+ *            f2 k v;
+ *            cpt + 1)
+ *          else (
+ *            f1 k v;
+ *            cpt + 1))
+ *        h 1) *)
 
 (** Match types variables to 'a, 'b, ..., for pretty-printing. Type variables
     are identified by integers. *)
@@ -276,20 +288,13 @@ let name_of_delay id =
     inames := (id, name) :: !inames;
     name
 
-open Format
-
-let print_rat fmt (a, b) =
-  if b = 1 then Format.fprintf fmt "%i" a
-  else if b < 0 then Format.fprintf fmt "%i/%i" (-a) (-b)
-  else Format.fprintf fmt "%i/%i" a b
+(* XXX: UNUSED *)
+(* let print_rat fmt (a, b) =
+ *   if b = 1 then Format.fprintf fmt "%i" a
+ *   else if b < 0 then Format.fprintf fmt "%i/%i" (-a) (-b)
+ *   else Format.fprintf fmt "%i/%i" a b *)
 
 (* Generic pretty printing *)
-
-let pp_final_char_if_non_empty c l fmt =
-  match l with [] -> () | _ -> Format.fprintf fmt "%(%)" c
-
-let pp_newline_if_non_empty l fmt =
-  match l with [] -> () | _ -> Format.fprintf fmt "@,"
 
 module Format = struct
   include Format
@@ -318,10 +323,6 @@ module Format = struct
   let pp_print_obrace fmt () = pp_print_string fmt "{"
 
   let pp_print_cbrace fmt () = pp_print_string fmt "}"
-
-  let pp_print_opar' fmt () = pp_print_string fmt "( "
-
-  let pp_print_cpar' fmt () = pp_print_string fmt " )"
 
   let pp_print_obrace' fmt () = pp_print_string fmt "{ "
 
@@ -360,14 +361,9 @@ module Format = struct
       ?pp_eol ?pp_nil ?pp_sep pp_v =
     let i = ref 0 in
     pp_print_list ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol
-     ?pp_nil ?pp_sep (fun fmt x ->
+      ?pp_nil ?pp_sep (fun fmt x ->
         pp_v fmt !i x;
         incr i)
-
-  let pp_print_list2 ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box
-      ?pp_eol ?pp_nil ?pp_sep pp_v fmt (l1, l2) =
-    pp_print_list ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box ?pp_eol
-      ?pp_nil ?pp_sep pp_v fmt (List.combine l1 l2)
 
   let pp_print_list_i2 ?pp_prologue ?pp_epilogue ?pp_op ?pp_cl ?pp_open_box
       ?pp_eol ?pp_nil ?pp_sep pp_v fmt (l1, l2) =
@@ -389,56 +385,6 @@ module Format = struct
     pp_print_list ~pp_op:pp_print_obrace' ~pp_cl:pp_print_cbrace' ~pp_sep
 end
 
-let fprintf_list ?(eol : ('a, formatter, unit) format = "") ~sep f fmt l =
-  Format.(pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "%(%)" sep) f fmt l);
-  if l <> [] then Format.fprintf fmt "%(%)" eol
-
-let pp_list l pp_fun beg_str end_str sep_str =
-  if beg_str = "\n" then print_newline () else print_string beg_str;
-  let rec pp_l l =
-    match l with
-    | [] ->
-      ()
-    | [ hd ] ->
-      pp_fun hd
-    | hd :: tl ->
-      pp_fun hd;
-      if sep_str = "\n" then print_newline () else print_string sep_str;
-      pp_l tl
-  in
-  pp_l l;
-  if end_str = "\n" then print_newline () else print_string end_str
-
-let pp_array a pp_fun beg_str end_str sep_str =
-  if beg_str = "\n" then print_newline () else print_string beg_str;
-  let n = Array.length a in
-  if n > 0 then (
-    Array.iter
-      (fun x ->
-        pp_fun x;
-        print_string sep_str)
-      (Array.sub a 0 (n - 1));
-    pp_fun a.(n - 1));
-  if end_str = "\n" then print_newline () else print_string end_str
-
-let pp_hashtbl t pp_fun beg_str end_str sep_str =
-  if beg_str = "\n" then print_newline () else print_string beg_str;
-  let pp_fun1 k v =
-    pp_fun k v;
-    if sep_str = "\n" then print_newline () else print_string sep_str
-  in
-  hashtbl_iterlast t pp_fun1 pp_fun;
-  if end_str = "\n" then print_newline () else print_string end_str
-
-let pp_longident lid =
-  let pp_fun (nid, tag) =
-    print_string nid;
-    print_string "(";
-    print_int tag;
-    print_string ")"
-  in
-  pp_list lid pp_fun "" "." "."
-
 let pp_date fmt tm =
   let open Unix in
   Format.fprintf fmt "%i/%i/%i, %02i:%02i:%02i" (tm.tm_year + 1900) tm.tm_mon
@@ -446,11 +392,12 @@ let pp_date fmt tm =
 
 (* Used for uid in variables *)
 
-let get_new_id =
-  let var_id_cpt = ref 0 in
-  fun () ->
-    incr var_id_cpt;
-    !var_id_cpt
+(* XXX: UNUSED *)
+(* let get_new_id =
+ *   let var_id_cpt = ref 0 in
+ *   fun () ->
+ *     incr var_id_cpt;
+ *     !var_id_cpt *)
 
 let new_tag =
   let last_tag = ref (-1) in
@@ -458,44 +405,46 @@ let new_tag =
     incr last_tag;
     !last_tag
 
-module List = struct
-  include List
+(* XXX: UNUSED *)
+(* module List = struct
+ *   include List
+ *
+ *   let iteri2 f l1 l2 =
+ *     if List.length l1 <> List.length l2 then
+ *       raise (Invalid_argument "iteri2: lists have different lengths")
+ *     else
+ *       let rec run idx l1 l2 =
+ *         match l1, l2 with
+ *         | [], [] ->
+ *           ()
+ *         | hd1 :: tl1, hd2 :: tl2 ->
+ *           f idx hd1 hd2;
+ *           run (idx + 1) tl1 tl2
+ *         | _ ->
+ *           assert false
+ *       in
+ *       run 0 l1 l2
+ *
+ *   let rec extract l fst last =
+ *     if last < fst then assert false
+ *     else
+ *       match l, fst with
+ *       | hd :: tl, 0 ->
+ *         if last = 0 then [] else hd :: extract tl 0 (last - 1)
+ *       | _ :: tl, _ ->
+ *         extract tl (fst - 1) (last - 1)
+ *       | [], 0 ->
+ *         if last = 0 then [] else assert false (\* List too short *\)
+ *       | _ ->
+ *         assert false
+ * end *)
 
-  let iteri2 f l1 l2 =
-    if List.length l1 <> List.length l2 then
-      raise (Invalid_argument "iteri2: lists have different lengths")
-    else
-      let rec run idx l1 l2 =
-        match l1, l2 with
-        | [], [] ->
-          ()
-        | hd1 :: tl1, hd2 :: tl2 ->
-          f idx hd1 hd2;
-          run (idx + 1) tl1 tl2
-        | _ ->
-          assert false
-      in
-      run 0 l1 l2
-
-  let rec extract l fst last =
-    if last < fst then assert false
-    else
-      match l, fst with
-      | hd :: tl, 0 ->
-        if last = 0 then [] else hd :: extract tl 0 (last - 1)
-      | _ :: tl, _ ->
-        extract tl (fst - 1) (last - 1)
-      | [], 0 ->
-        if last = 0 then [] else assert false (* List too short *)
-      | _ ->
-        assert false
-end
-
-let get_date () =
-  let tm = Unix.localtime (Unix.time ()) in
-  let fmt = Format.str_formatter in
-  pp_date fmt tm;
-  Format.flush_str_formatter ()
+(* XXX: UNUSED *)
+(* let get_date () =
+ *   let tm = Unix.localtime (Unix.time ()) in
+ *   let fmt = Format.str_formatter in
+ *   pp_date fmt tm;
+ *   Format.flush_str_formatter () *)
 
 (* Local Variables: *)
 (* compile-command:"make -C .." *)

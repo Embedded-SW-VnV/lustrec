@@ -329,8 +329,7 @@ let rec pp_emf_cst_or_var m fmt v =
     (* TODO: handle reset flag *)
     assert false
 
-and pp_emf_cst_or_var_list m =
-  pp_comma_list (pp_emf_cst_or_var m)
+and pp_emf_cst_or_var_list m = pp_comma_list (pp_emf_cst_or_var m)
 
 (* Printer lustre expr and eexpr *)
 
@@ -348,9 +347,7 @@ let rec pp_emf_expr fmt e =
          e.expr_type);
     fprintf fmt "@]}"
   | Expr_tuple el ->
-    fprintf fmt "[@[<hov 0>%a@ @]]"
-      (pp_comma_list pp_emf_expr)
-      el
+    fprintf fmt "[@[<hov 0>%a@ @]]" (pp_comma_list pp_emf_expr) el
   (* Missing these | Expr_ite of expr * expr * expr | Expr_arrow of expr * expr
      | Expr_fby of expr * expr | Expr_array of expr list | Expr_access of expr *
      Dimension.dim_expr | Expr_power of expr * Dimension.dim_expr | Expr_pre of
@@ -375,16 +372,18 @@ let rec pp_emf_expr fmt e =
 (* | Expr_merge of ident * (label * expr) list *)
 (* | Expr_appl of call_t *)
 
-let pp_emf_exprs = pp_emf_list pp_emf_expr
+(* XXX: UNUSED *)
+(* let pp_emf_exprs = pp_emf_list pp_emf_expr *)
 
-let pp_emf_const fmt v =
-  fprintf fmt
-    "@[<hov 0>{\"name\": \"%a\",@ \"datatype\":%a,@ \"original_name\": \
-     \"%a\",@ \"value\": %a}@]"
-    pp_var_name v pp_var_type v Printers.pp_var_name v pp_emf_expr
-    (match v.var_dec_value with None -> assert false | Some e -> e)
-
-let pp_emf_consts = pp_emf_list pp_emf_const
+(* XXX: UNUSED *)
+(* let pp_emf_const fmt v =
+ *   fprintf fmt
+ *     "@[<hov 0>{\"name\": \"%a\",@ \"datatype\":%a,@ \"original_name\": \
+ *      \"%a\",@ \"value\": %a}@]"
+ *     pp_var_name v pp_var_type v Printers.pp_var_name v pp_emf_expr
+ *     (match v.var_dec_value with None -> assert false | Some e -> e)
+ *
+ * let pp_emf_consts = pp_emf_list pp_emf_const *)
 
 let pp_emf_eexpr fmt ee =
   fprintf fmt "{@[<hov 0>%t\"quantifiers\": \"%a\",@ \"qfexpr\": @[%a@]@] }"
@@ -405,21 +404,22 @@ let pp_emf_eexprs = pp_emf_list pp_emf_eexpr
    spec peut etre associer a chaque imported node une minimachine et rajouter un
    champ a spec dans machine code pour stoquer memoire et instr *)
 
-let pp_emf_stmt fmt stmt =
-  match stmt with
-  | Aut _ ->
-    assert false
-  | Eq eq ->
-    fprintf fmt "@[ @[<v 2>\"%a\": {@ "
-      (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "_") pp_print_string)
-      eq.eq_lhs;
-    fprintf fmt "\"lhs\": [%a],@ "
-      (pp_comma_list (fun fmt vid -> fprintf fmt "\"%s\"" vid))
-      eq.eq_lhs;
-    fprintf fmt "\"rhs\": %a,@ " pp_emf_expr eq.eq_rhs;
-    fprintf fmt "@]@]@ }"
-
-let pp_emf_stmts = pp_emf_list pp_emf_stmt
+(* XXX: UNUSED *)
+(* let pp_emf_stmt fmt stmt =
+ *   match stmt with
+ *   | Aut _ ->
+ *     assert false
+ *   | Eq eq ->
+ *     fprintf fmt "@[ @[<v 2>\"%a\": {@ "
+ *       (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "_") pp_print_string)
+ *       eq.eq_lhs;
+ *     fprintf fmt "\"lhs\": [%a],@ "
+ *       (pp_comma_list (fun fmt vid -> fprintf fmt "\"%s\"" vid))
+ *       eq.eq_lhs;
+ *     fprintf fmt "\"rhs\": %a,@ " pp_emf_expr eq.eq_rhs;
+ *     fprintf fmt "@]@]@ }"
+ *
+ * let pp_emf_stmts = pp_emf_list pp_emf_stmt *)
 
 (* Printing the type declaration, not its use *)
 let rec pp_emf_typ_dec fmt tydef_dec =
@@ -439,7 +439,8 @@ let rec pp_emf_typ_dec fmt tydef_dec =
     fprintf fmt "\"kind\": \"alias\",@ \"value\": \"%s\"" c
   | Tydec_enum el ->
     fprintf fmt "\"kind\": \"enum\",@ \"elements\": [%a]"
-      (pp_comma_list (fun fmt e -> fprintf fmt "\"%s\"" e)) el
+      (pp_comma_list (fun fmt e -> fprintf fmt "\"%s\"" e))
+      el
   | Tydec_struct s ->
     fprintf fmt "\"kind\": \"struct\",@ \"fields\": [%a]"
       (pp_comma_list (fun fmt (id, typ) ->

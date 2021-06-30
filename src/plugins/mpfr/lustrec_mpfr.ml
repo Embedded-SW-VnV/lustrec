@@ -26,7 +26,8 @@ let mpfr_rnd () = "MPFR_RNDN"
 
 let mpfr_prec () = !Options.mpfr_prec
 
-let inject_id = "MPFRId"
+(* XXX: UNUSED *)
+(* let inject_id = "MPFRId" *)
 
 let inject_copy_id = "mpfr_set"
 
@@ -41,17 +42,19 @@ let mpfr_t = "mpfr_t"
 let unfoldable_value value =
   not (Types.is_real_type value.value_type && is_const_value value)
 
-let inject_id_id expr =
-  let e = mkpredef_call expr.expr_loc inject_id [ expr ] in
-  { e with expr_type = Type_predef.type_real; expr_clock = expr.expr_clock }
+(* XXX: UNUSED *)
+(* let inject_id_id expr =
+ *   let e = mkpredef_call expr.expr_loc inject_id [ expr ] in
+ *   { e with expr_type = Type_predef.type_real; expr_clock = expr.expr_clock } *)
 
 let pp_inject_real pp_var pp_val fmt (var, value) =
   Format.fprintf fmt "%s(%a, %a, %s);" inject_real_id pp_var var pp_val value
     (mpfr_rnd ())
 
-let inject_assign expr =
-  let e = mkpredef_call expr.expr_loc inject_copy_id [ expr ] in
-  { e with expr_type = Type_predef.type_real; expr_clock = expr.expr_clock }
+(* XXX: UNUSED *)
+(* let inject_assign expr =
+ *   let e = mkpredef_call expr.expr_loc inject_copy_id [ expr ] in
+ *   { e with expr_type = Type_predef.type_real; expr_clock = expr.expr_clock } *)
 
 let pp_inject_copy pp_var fmt (var, value) =
   Format.fprintf fmt "%s(%a, %a, %s);" inject_copy_id pp_var var pp_var value

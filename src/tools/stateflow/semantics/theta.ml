@@ -25,15 +25,16 @@ module KenvTheta (T : TransformerType) = struct
       list;
   }
 
-  let init_env src =
-    List.fold_left
-      (fun accu d ->
-        match d with
-        | Datatype.State (p, _) ->
-          ActiveStates.Env.add p false accu
-        | _ ->
-          accu)
-      ActiveStates.Env.empty src
+  (* XXX: UNUSED *)
+  (* let init_env src =
+   *   List.fold_left
+   *     (fun accu d ->
+   *       match d with
+   *       | Datatype.State (p, _) ->
+   *         ActiveStates.Env.add p false accu
+   *       | _ ->
+   *         accu)
+   *     ActiveStates.Env.empty src *)
 
   module type KenvType = sig
     val kenv : kenv_t

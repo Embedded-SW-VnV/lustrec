@@ -74,14 +74,15 @@ let compute_unused_variables n g =
     (fun var unused -> ISet.diff unused (cone_of_influence g var))
     (ISet.union outputs mems) (ISet.union inputs mems)
 
+(* XXX: UNUSED *)
 (* computes the set of potentially reusable variables. We don't reuse input
    variables, due to possible aliasing *)
-let node_reusable_variables node =
-  let mems = ExprDep.node_memory_variables node in
-  List.fold_left
-    (fun acc l ->
-      if ISet.mem l.var_id mems then acc else Disjunction.CISet.add l acc)
-    Disjunction.CISet.empty node.node_locals
+(* let node_reusable_variables node =
+ *   let mems = ExprDep.node_memory_variables node in
+ *   List.fold_left
+ *     (fun acc l ->
+ *       if ISet.mem l.var_id mems then acc else Disjunction.CISet.add l acc)
+ *     Disjunction.CISet.empty node.node_locals *)
 
 let kill_instance_variables ctx inst =
   IdentDepGraph.remove_vertex ctx.dep_graph inst
@@ -174,10 +175,11 @@ let compute_dependencies heads ctx =
   List.iter (kill_root ctx) heads;
   remove_roots ctx
 
-let compute_evaluated heads ctx =
-  List.iter
-    (fun head -> ctx.evaluated <- Disjunction.CISet.add head ctx.evaluated)
-    heads
+(* XXX: UNUSED *)
+(* let compute_evaluated heads ctx =
+ *   List.iter
+ *     (fun head -> ctx.evaluated <- Disjunction.CISet.add head ctx.evaluated)
+ *     heads *)
 
 (* tests whether a variable [v] may be (re)used instead of [var]. The conditions
    are: - [v] has been really used ([v] is its own representative) - same type -

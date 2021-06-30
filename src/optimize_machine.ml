@@ -16,7 +16,6 @@ open Machine_code_types
 open Corelang
 open Causality
 open Machine_code_common
-open Dimension
 module Mpfr = Lustrec_mpfr
 
 let pp_elim m fmt elim =
@@ -70,12 +69,13 @@ and eliminate_expr m elim expr =
   | Cst _ | ResetFlag ->
     expr
 
-let eliminate_dim elim dim =
-  Dimension.expr_replace_expr
-    (fun v ->
-      try dimension_of_value (IMap.find v elim)
-      with Not_found -> mkdim_ident dim.dim_loc v)
-    dim
+(* XXX: UNUSED *)
+(* let eliminate_dim elim dim =
+ *   Dimension.expr_replace_expr
+ *     (fun v ->
+ *       try dimension_of_value (IMap.find v elim)
+ *       with Not_found -> mkdim_ident dim.dim_loc v)
+ *     dim *)
 
 (* 8th Jan 2016: issues when merging salsa with horn_encoding: The following
    functions seem unsused. They have to be adapted to the new type for expr *)
@@ -98,8 +98,7 @@ let rec simplify_cst_expr m offset typ cst =
     mk_val (Cst cst) typ
   | Index i :: q, Const_array cl when Dimension.is_const i ->
     let elt_typ = Types.array_element_type typ in
-    simplify_cst_expr m q elt_typ
-      (List.nth cl (Dimension.size_const i))
+    simplify_cst_expr m q elt_typ (List.nth cl (Dimension.size_const i))
   | Index i :: q, Const_array cl ->
     let elt_typ = Types.array_element_type typ in
     unfold_expr_offset m [ Index i ]
@@ -167,8 +166,9 @@ let rec simplify_instr_offset m instr =
 
 and simplify_instrs_offset m instrs = List.map (simplify_instr_offset m) instrs
 
-let is_scalar_const c =
-  match c with Const_real _ | Const_int _ | Const_tag _ -> true | _ -> false
+(* XXX: UNUSED *)
+(* let is_scalar_const c =
+ *   match c with Const_real _ | Const_int _ | Const_tag _ -> true | _ -> false *)
 
 (* An instruction v = expr may (and will) be unfolded iff: - either expr is
    atomic (no complex expressions, only const, vars and array/struct accesses) -
@@ -567,21 +567,22 @@ and instrs_are_skip instrs = List.for_all instr_is_skip instrs
 
 let instr_cons instr cont = if instr_is_skip instr then cont else instr :: cont
 
-let rec instr_remove_skip instr cont =
-  match get_instr_desc instr with
-  | MLocalAssign (i, { value_desc = Var v; _ }) when i = v ->
-    cont
-  | MStateAssign (i, { value_desc = Var v; _ }) when i = v ->
-    cont
-  | MBranch (g, hl) ->
-    update_instr_desc instr
-      (MBranch (g, List.map (fun (h, il) -> h, instrs_remove_skip il []) hl))
-    :: cont
-  | _ ->
-    instr :: cont
-
-and instrs_remove_skip instrs cont =
-  List.fold_right instr_remove_skip instrs cont
+(* XXX: UNUSED *)
+(* let rec instr_remove_skip instr cont =
+ *   match get_instr_desc instr with
+ *   | MLocalAssign (i, { value_desc = Var v; _ }) when i = v ->
+ *     cont
+ *   | MStateAssign (i, { value_desc = Var v; _ }) when i = v ->
+ *     cont
+ *   | MBranch (g, hl) ->
+ *     update_instr_desc instr
+ *       (MBranch (g, List.map (fun (h, il) -> h, instrs_remove_skip il []) hl))
+ *     :: cont
+ *   | _ ->
+ *     instr :: cont
+ *
+ * and instrs_remove_skip instrs cont =
+ *   List.fold_right instr_remove_skip instrs cont *)
 
 let rec value_replace_var fvar value =
   match value.value_desc with

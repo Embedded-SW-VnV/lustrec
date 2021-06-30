@@ -35,20 +35,16 @@ with type elt = var_decl = struct
   include Set.Make (VDeclModule)
 
   let pp fmt s =
-    Format.fprintf fmt "{@[%a}@]"
-      (pp_comma_list Printers.pp_var)
-      (elements s)
+    Format.fprintf fmt "{@[%a}@]" (pp_comma_list Printers.pp_var) (elements s)
 
   (* Strangley the find_first function of Set.Make is incorrect (at the current
      time of writting this comment. Had to switch to lists *)
   let get id s = List.find (fun v -> v.var_id = id) (elements s)
 end
 
-let dummy_type_dec =
-  { ty_dec_desc = Tydec_any; ty_dec_loc = Location.dummy }
+let dummy_type_dec = { ty_dec_desc = Tydec_any; ty_dec_loc = Location.dummy }
 
-let dummy_clock_dec =
-  { ck_dec_desc = Ckdec_any; ck_dec_loc = Location.dummy }
+let dummy_clock_dec = { ck_dec_desc = Ckdec_any; ck_dec_loc = Location.dummy }
 
 (************************************************************)
 (* *)
@@ -1204,7 +1200,8 @@ let pp_decl_clock fmt cdecl =
   | Const _ | Include _ | Open _ | TypeDef _ ->
     ()
 
-let pp_prog_clock fmt prog = pp_print_list ~pp_sep:pp_print_nothing pp_decl_clock fmt prog
+let pp_prog_clock fmt prog =
+  pp_print_list ~pp_sep:pp_print_nothing pp_decl_clock fmt prog
 
 (* filling node table with internal functions *)
 let vdecls_of_typ_ck cpt ty =

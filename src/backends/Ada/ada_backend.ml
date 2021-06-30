@@ -158,10 +158,14 @@ let translate_to_ada basename machines =
   List.iter check machines;
 
   log_str_level_two 1 "Generating ads";
-  List.iter (write_file destname (_pp_filename "ads") Ada_backend_ads.pp_file) _machines;
+  List.iter
+    (write_file destname (_pp_filename "ads") Ada_backend_ads.pp_file)
+    _machines;
 
   log_str_level_two 1 "Generating adb";
-  List.iter (write_file destname (_pp_filename "adb") Ada_backend_adb.pp_file) _machines;
+  List.iter
+    (write_file destname (_pp_filename "adb") Ada_backend_adb.pp_file)
+    _machines;
 
   (* If a main node is given we generate a main adb file and a project file *)
   log_str_level_two 1 "Generating wrapper files";

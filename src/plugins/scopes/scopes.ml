@@ -59,10 +59,13 @@ let rec compute_scopes ?(first = true) prog root_node : scope_t list =
   with Not_found -> []
 
 let pp_scopes =
-  Format.(pp_print_list (fun fmt ((_, v) as s) ->
-      fprintf fmt "%a: %a"
-        (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ".") pp_print_string)
-        (scope_to_sl s) Types.print_ty v.var_type))
+  Format.(
+    pp_print_list (fun fmt ((_, v) as s) ->
+        fprintf fmt "%a: %a"
+          (pp_print_list
+             ~pp_sep:(fun fmt () -> pp_print_string fmt ".")
+             pp_print_string)
+          (scope_to_sl s) Types.print_ty v.var_type))
 
 (* let print_path fmt p = *)
 (* Utils.fprintf_list ~sep:"." (fun fmt (id, _) -> Format.pp_print_string fmt
@@ -178,8 +181,7 @@ let extract_scopes_defs scopes =
       assert false
   in
   List.map
-    (fun (sl, scope) ->
-       String.concat "." sl, scope_path_name scope "main_mem.")
+    (fun (sl, scope) -> String.concat "." sl, scope_path_name scope "main_mem.")
     scopes
 
 let pp_scopes_files _basename _mname fmt scopes =
@@ -319,10 +321,13 @@ let process_scopes main_node prog machines =
     List.filter
       (fun sl ->
         let res = is_valid_path sl main_node prog machines in
-        if not res then
-          Format.(eprintf "Scope %a is cancelled due to variable removal@."
-            (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ".") pp_print_string)
-            sl);
+        (if not res then
+         Format.(
+           eprintf "Scope %a is cancelled due to variable removal@."
+             (pp_print_list
+                ~pp_sep:(fun fmt () -> pp_print_string fmt ".")
+                pp_print_string)
+             sl));
         res)
       selected_scopes
   in

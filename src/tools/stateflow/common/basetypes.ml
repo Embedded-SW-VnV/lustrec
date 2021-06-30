@@ -34,14 +34,17 @@ let pp_state_name = Format.pp_print_string
 let pp_junction_name = Format.pp_print_string
 
 let pp_path fmt p =
-  Utils.Format.pp_print_list ~pp_sep:(fun fmt () -> Format.pp_print_string fmt ".") pp_state_name fmt p
+  Utils.Format.pp_print_list
+    ~pp_sep:(fun fmt () -> Format.pp_print_string fmt ".")
+    pp_state_name fmt p
 
-let pp_event fmt e =
-  match e with
-  | None ->
-    Format.fprintf fmt "none"
-  | Some s ->
-    Format.fprintf fmt "%s" s
+(* XXX: UNUSED *)
+(* let pp_event fmt e =
+ *   match e with
+ *   | None ->
+ *     Format.fprintf fmt "none"
+ *   | Some s ->
+ *     Format.fprintf fmt "%s" s *)
 
 let pp_base_act fmt a = Printers.pp_node_stmts fmt a.defs
 

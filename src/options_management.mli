@@ -1,18 +1,21 @@
 type options_spec = (string * Arg.spec * string) list
 
-val core_dependency: string -> string
-val plugin_opt: string * (unit -> unit) * (Format.formatter -> unit) *
-                options_spec -> options_spec
+val core_dependency : string -> string
 
-val name_dependency: ('a * string) -> string -> string
-val get_witness_dir: string -> string
+val plugin_opt :
+  string * (unit -> unit) * (Format.formatter -> unit) * options_spec ->
+  options_spec
 
-val verifier_opt: string * (unit -> unit) * options_spec -> options_spec
+val name_dependency : 'a * string -> string -> string
 
-val lustrec_options: options_spec
+val get_witness_dir : string -> string
 
-val lustrev_options: options_spec
+val verifier_opt : string * (unit -> unit) * options_spec -> options_spec
 
-val lustret_options: options_spec
+val lustrec_options : options_spec
 
-val setup: unit -> unit
+val lustrev_options : options_spec
+
+val lustret_options : options_spec
+
+val setup : unit -> unit

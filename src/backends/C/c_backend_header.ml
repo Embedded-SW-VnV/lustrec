@@ -15,7 +15,6 @@ open Corelang
 open Machine_code_types
 open Machine_code_common
 open C_backend_common
-
 module Mpfr = Lustrec_mpfr
 
 (********************************************************************************************)
@@ -406,8 +405,7 @@ functor
             /* Global clear declaration */@,\
             extern %a;@,\
             @,"
-           pp_global_init_prototype baseNAME pp_global_clear_prototype
-           baseNAME
+           pp_global_init_prototype baseNAME pp_global_clear_prototype baseNAME
         else pp_print_nothing)
         ()
         (* Print the struct declarations of all machines. *)

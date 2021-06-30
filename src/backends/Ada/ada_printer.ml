@@ -92,16 +92,15 @@ let pp_args ~pp_sep fmt = function
       args
 
 let pp_block fmt pp_item_list =
-  pp_print_list
-    ~pp_open_box:pp_open_vbox0
+  pp_print_list ~pp_open_box:pp_open_vbox0
     ~pp_prologue:(fun fmt () -> pp_print_string fmt "   ")
-    ~pp_epilogue:pp_print_semicolon
-    ~pp_sep:pp_print_semicolon (fun fmt pp -> pp fmt)
-    fmt
-    pp_item_list
+    ~pp_epilogue:pp_print_semicolon ~pp_sep:pp_print_semicolon
+    (fun fmt pp -> pp fmt)
+    fmt pp_item_list
 
 let pp_and l fmt =
-  fprintf fmt "(%t)" (pp_group ~pp_sep:(fun fmt () -> fprintf fmt "@ and then ") l)
+  fprintf fmt "(%t)"
+    (pp_group ~pp_sep:(fun fmt () -> fprintf fmt "@ and then ") l)
 
 let pp_or l fmt =
   fprintf fmt "(%t)" (pp_group ~pp_sep:(fun fmt () -> fprintf fmt "@ or ") l)
@@ -123,7 +122,8 @@ let pp_ada_with fmt = function
       if not import then fprintf fmt ""
       else
         fprintf fmt " Import%a"
-          (if contract = [] then pp_print_nothing else pp_print_comma) ()
+          (if contract = [] then pp_print_nothing else pp_print_comma)
+          ()
     in
     let pp_aspect aspect fmt pps =
       if pps = [] then fprintf fmt ""
@@ -189,7 +189,9 @@ and pp_content pp_name fmt = function
     fprintf fmt " is@,  @[<v 2>(%t)@]" pp_content
   | AdaProcedureContent (local_list, pp_instr_list) ->
     fprintf fmt " is@,%abegin@,%aend %t" pp_block
-      (List.map (fun l -> pp_group ~pp_sep:pp_print_semicolon (List.map pp_local l)) local_list)
+      (List.map
+         (fun l -> pp_group ~pp_sep:pp_print_semicolon (List.map pp_local l))
+         local_list)
       pp_block pp_instr_list pp_name
   | AdaRecord var_list ->
     assert (var_list != []);
@@ -197,14 +199,16 @@ and pp_content pp_name fmt = function
     fprintf fmt " is@,  @[<v>record@,  @[<v>%a@]@,end record@]" pp_block
       (List.map (pp_group ~pp_sep:pp_print_semicolon) pp_lists)
   | AdaPackageInstanciation (pp_name, instanciations) ->
-    fprintf fmt " is new %t%a" pp_name (pp_args ~pp_sep:pp_print_comma)
+    fprintf fmt " is new %t%a" pp_name
+      (pp_args ~pp_sep:pp_print_comma)
       (List.map pp_generic_instanciation instanciations)
 
 and pp_def fmt
     (pp_generics, kind_def, pp_name, args, pp_type_opt, content, pp_with_opt) =
   let pp_arg_lists = apply_var_decl_lists args in
   fprintf fmt "%a%a %t%a%a%a%a" pp_generic pp_generics pp_kind_def kind_def
-    pp_name (pp_args ~pp_sep:pp_print_semicolon)
+    pp_name
+    (pp_args ~pp_sep:pp_print_semicolon)
     (List.map (pp_group ~pp_sep:pp_print_semicolon) pp_arg_lists)
     (pp_opt "return") pp_type_opt (pp_content pp_name) content pp_ada_with
     pp_with_opt
@@ -392,7 +396,8 @@ let pp_oneline_comment fmt s =
   fprintf fmt "-- %s@," s
 
 let pp_call fmt (pp_name, args) =
-  fprintf fmt "%t%a" pp_name (pp_args ~pp_sep:pp_print_comma)
+  fprintf fmt "%t%a" pp_name
+    (pp_args ~pp_sep:pp_print_comma)
     (List.map (pp_group ~pp_sep:pp_print_comma) args)
 
 (** Print the complete name of variable. @param m the machine to check if it is

@@ -22,4 +22,4 @@ module type S = sig
   val c_backend_main_loop_body_suffix : Format.formatter -> unit -> unit
 end
 
-module Default: S
+module Default : S

@@ -36,11 +36,7 @@ and carrier_expr = {
   carrier_id : int;
 }
 
-type t = {
-  mutable cdesc : clock_desc;
-  mutable cscoped : bool;
-  cid : int;
-}
+type t = { mutable cdesc : clock_desc; mutable cscoped : bool; cid : int }
 
 (* pck stands for periodic clock. Easier not to separate pck from other clocks *)
 and clock_desc =
@@ -102,8 +98,11 @@ let rec print_ck_long fmt ck =
   | Carrow (ck1, ck2) ->
     fprintf fmt "%a -> %a" print_ck_long ck1 print_ck_long ck2
   | Ctuple cklist ->
-    fprintf fmt "(%a)" (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt " * ")
-                          print_ck_long) cklist
+    fprintf fmt "(%a)"
+      (pp_print_list
+         ~pp_sep:(fun fmt () -> pp_print_string fmt " * ")
+         print_ck_long)
+      cklist
   | Con (ck, c, l) ->
     fprintf fmt "%a on %s(%a)" print_ck_long ck l print_carrier c
   | Cvar ->
@@ -133,7 +132,8 @@ let new_carrier desc scoped =
   incr new_carrier_id;
   { carrier_desc = desc; carrier_id = !new_carrier_id; carrier_scoped = scoped }
 
-let new_carrier_name () = new_carrier Carry_name true
+(* XXX: UNUSED *)
+(* let new_carrier_name () = new_carrier Carry_name true *)
 
 let rec repr = function { cdesc = Clink ck'; _ } -> repr ck' | ck -> ck
 
@@ -146,32 +146,35 @@ let rec carrier_repr = function
 let get_carrier_name ck =
   match (repr ck).cdesc with Ccarrying (cr, _) -> Some cr | _ -> None
 
-let rename_carrier_static rename cr =
-  match (carrier_repr cr).carrier_desc with
-  | Carry_const id ->
-    { cr with carrier_desc = Carry_const (rename id) }
-  | _ ->
-    Format.eprintf "internal error: Clocks.rename_carrier_static %a@."
-      print_carrier cr;
-    assert false
+(* XXX: UNUSED *)
+(* let rename_carrier_static rename cr =
+ *   match (carrier_repr cr).carrier_desc with
+ *   | Carry_const id ->
+ *     { cr with carrier_desc = Carry_const (rename id) }
+ *   | _ ->
+ *     Format.eprintf "internal error: Clocks.rename_carrier_static %a@."
+ *       print_carrier cr;
+ *     assert false *)
 
-let rec rename_static rename ck =
-  match (repr ck).cdesc with
-  | Ccarrying (cr, ck') ->
-    {
-      ck with
-      cdesc =
-        Ccarrying (rename_carrier_static rename cr, rename_static rename ck');
-    }
-  | Con (ck', cr, l) ->
-    {
-      ck with
-      cdesc = Con (rename_static rename ck', rename_carrier_static rename cr, l);
-    }
-  | _ ->
-    ck
+(* XXX: UNUSED *)
+(* let rec rename_static rename ck =
+ *   match (repr ck).cdesc with
+ *   | Ccarrying (cr, ck') ->
+ *     {
+ *       ck with
+ *       cdesc =
+ *         Ccarrying (rename_carrier_static rename cr, rename_static rename ck');
+ *     }
+ *   | Con (ck', cr, l) ->
+ *     {
+ *       ck with
+ *       cdesc = Con (rename_static rename ck', rename_carrier_static rename cr, l);
+ *     }
+ *   | _ ->
+ *     ck *)
 
-let uncarrier ck = match ck.cdesc with Ccarrying (_, ck') -> ck' | _ -> ck
+(* XXX: UNUSED *)
+(* let uncarrier ck = match ck.cdesc with Ccarrying (_, ck') -> ck' | _ -> ck *)
 
 (* Removes all links in a clock. Only used for clocks simplification though. *)
 let rec simplify ck =
@@ -224,33 +227,35 @@ let clock_current ck =
            assert false)
        (clock_list_of_clock ck))
 
-let clock_of_impnode_clock ck =
-  let ck = repr ck in
-  match ck.cdesc with
-  | Carrow _ | Clink _ | Cvar | Cunivar ->
-    failwith "internal error clock_of_impnode_clock"
-  | Ctuple cklist ->
-    List.hd cklist
-  | Con (_, _, _) | Ccarrying (_, _) ->
-    ck
+(* XXX: UNUSED *)
+(* let clock_of_impnode_clock ck =
+ *   let ck = repr ck in
+ *   match ck.cdesc with
+ *   | Carrow _ | Clink _ | Cvar | Cunivar ->
+ *     failwith "internal error clock_of_impnode_clock"
+ *   | Ctuple cklist ->
+ *     List.hd cklist
+ *   | Con (_, _, _) | Ccarrying (_, _) ->
+ *     ck *)
 
+(* XXX: UNUSED *)
 (** [is_polymorphic ck] returns true if [ck] is polymorphic. *)
-let rec is_polymorphic ck =
-  match ck.cdesc with
-  | Cvar ->
-    false
-  | Carrow (ck1, ck2) ->
-    is_polymorphic ck1 || is_polymorphic ck2
-  | Ctuple ckl ->
-    List.exists (fun c -> is_polymorphic c) ckl
-  | Con (ck', _, _) ->
-    is_polymorphic ck'
-  | Cunivar ->
-    true
-  | Clink ck' ->
-    is_polymorphic ck'
-  | Ccarrying (_, ck') ->
-    is_polymorphic ck'
+(* let rec is_polymorphic ck =
+ *   match ck.cdesc with
+ *   | Cvar ->
+ *     false
+ *   | Carrow (ck1, ck2) ->
+ *     is_polymorphic ck1 || is_polymorphic ck2
+ *   | Ctuple ckl ->
+ *     List.exists (fun c -> is_polymorphic c) ckl
+ *   | Con (ck', _, _) ->
+ *     is_polymorphic ck'
+ *   | Cunivar ->
+ *     true
+ *   | Clink ck' ->
+ *     is_polymorphic ck'
+ *   | Ccarrying (_, ck') ->
+ *     is_polymorphic ck' *)
 
 (* Used mainly for debug, non-linear complexity. *)
 
@@ -357,7 +362,9 @@ let pp fmt ck =
     | Carrow (ck1, ck2) ->
       fprintf fmt "%a -> %a" aux ck1 aux ck2
     | Ctuple cklist ->
-      fprintf fmt "(%a)" (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt " * ") aux) cklist
+      fprintf fmt "(%a)"
+        (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt " * ") aux)
+        cklist
     | Con (ck, c, l) ->
       fprintf fmt "%a on %s(%a)" aux ck l print_carrier c
     | Cvar ->
@@ -373,8 +380,7 @@ let pp fmt ck =
   in
   let cvars = constrained_vars_of_clock ck in
   aux fmt ck;
-  if cvars <> [] then
-    fprintf fmt " (where %a)" (pp_comma_list print_cvar) cvars
+  if cvars <> [] then fprintf fmt " (where %a)" (pp_comma_list print_cvar) cvars
 
 (* prints only the Con components of a clock, useful for printing nodes *)
 let rec pp_suffix fmt ck =
@@ -398,8 +404,7 @@ let pp_error fmt = function
       cr1 print_carrier cr2
   | Cannot_be_polymorphic ck ->
     reset_names ();
-    fprintf fmt "The main node cannot have a polymorphic clock: %a@." pp
-      ck
+    fprintf fmt "The main node cannot have a polymorphic clock: %a@." pp ck
   | Invalid_imported_clock ck ->
     reset_names ();
     fprintf fmt "Not a valid imported node clock: %a@." pp ck
@@ -448,24 +453,25 @@ let uneval const cr =
    with | Carry_const id -> Carry_const (f id) | Carry_link ce -> Carry_link (re
    ce) | _ -> cd *)
 
-let rec rename_clock_expr fvar c =
-  { c with cdesc = rename_clock_desc fvar c.cdesc }
-
-and rename_clock_desc fvar cd =
-  let re = rename_clock_expr fvar in
-  match cd with
-  | Carrow (c1, c2) ->
-    Carrow (re c1, re c2)
-  | Ctuple cl ->
-    Ctuple (List.map re cl)
-  | Con (c1, car, id) ->
-    Con (re c1, car, fvar id)
-  | Cvar | Cunivar ->
-    cd
-  | Clink c ->
-    Clink (re c)
-  | Ccarrying (car, c) ->
-    Ccarrying (car, re c)
+(* XXX: UNUSED *)
+(* let rec rename_clock_expr fvar c =
+ *   { c with cdesc = rename_clock_desc fvar c.cdesc }
+ *
+ * and rename_clock_desc fvar cd =
+ *   let re = rename_clock_expr fvar in
+ *   match cd with
+ *   | Carrow (c1, c2) ->
+ *     Carrow (re c1, re c2)
+ *   | Ctuple cl ->
+ *     Ctuple (List.map re cl)
+ *   | Con (c1, car, id) ->
+ *     Con (re c1, car, fvar id)
+ *   | Cvar | Cunivar ->
+ *     cd
+ *   | Clink c ->
+ *     Clink (re c)
+ *   | Ccarrying (car, c) ->
+ *     Ccarrying (car, re c) *)
 
 (* Local Variables: *)
 (* compile-command:"make -C .." *)

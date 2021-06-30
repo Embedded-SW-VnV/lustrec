@@ -24,17 +24,17 @@ open Ada_backend_common
 
 (** Printing function for basic assignement [var := value].
 
-    @param fmt the formater to print on @param var_name the name of the
-    variable @param value the value to be assigned **)
+    @param fmt the formater to print on @param var_name the name of the variable
+    @param value the value to be assigned **)
 let pp_assign env fmt var value =
   fprintf fmt "%a := %a" (pp_var env) var (pp_value env) value
 
 (** Printing function for instruction. See {!type:Machine_code_types.instr_t}
     for more details on machine types.
 
-    @param typed_submachines list of all typed machine instances of this
-    machine @param machine the current machine @param fmt the formater to
-    print on @param instr the instruction to print **)
+    @param typed_submachines list of all typed machine instances of this machine
+    @param machine the current machine @param fmt the formater to print on
+    @param instr the instruction to print **)
 let rec pp_machine_instr typed_submachines env instr fmt =
   let pp_instr = pp_machine_instr typed_submachines env in
   (* Print args for a step call *)
@@ -49,9 +49,9 @@ let rec pp_machine_instr typed_submachines env instr fmt =
       (List.map pp_when hl)
   in
   (* Print a if *)
-  (* If neg is true the we must test for the negation of the condition. It
-     first check that we don't have a negation and a else case, if so it
-     inverses the two branch and remove the negation doing a recursive call. *)
+  (* If neg is true the we must test for the negation of the condition. It first
+     check that we don't have a negation and a else case, if so it inverses the
+     two branch and remove the negation doing a recursive call. *)
   let pp_if fmt (neg, g, instrs1, instrs2) =
     let pp_cond =
       if neg then fun fmt x -> fprintf fmt "! (%a)" (pp_value env) x
@@ -78,9 +78,7 @@ let rec pp_machine_instr typed_submachines env instr fmt =
   (* reset *)
   | MSetReset i when List.mem_assoc i typed_submachines ->
     let substitution, submachine = get_instance i typed_submachines in
-    let pp_package =
-      pp_package_name_with_polymorphic substitution submachine
-    in
+    let pp_package = pp_package_name_with_polymorphic substitution submachine in
     let args =
       if is_machine_statefull submachine then [ [ pp_state i ] ] else []
     in
@@ -94,9 +92,7 @@ let rec pp_machine_instr typed_submachines env instr fmt =
     pp_assign env fmt i0 value
   | MStep (il, i, vl) when List.mem_assoc i typed_submachines ->
     let substitution, submachine = get_instance i typed_submachines in
-    let pp_package =
-      pp_package_name_with_polymorphic substitution submachine
-    in
+    let pp_package = pp_package_name_with_polymorphic substitution submachine in
     let input = List.map (fun x fmt -> pp_value env fmt x) vl in
     let output = List.map pp_var_name il in
     let args =
@@ -113,14 +109,16 @@ let rec pp_machine_instr typed_submachines env instr fmt =
     pp_case fmt (g, hl)
   | MComment s ->
     let lines = String.split_on_char '\n' s in
-    fprintf fmt "%a" (pp_print_list ~pp_sep:pp_print_nothing pp_oneline_comment) lines
+    fprintf fmt "%a"
+      (pp_print_list ~pp_sep:pp_print_nothing pp_oneline_comment)
+      lines
   | _ ->
     assert false
 
 (** Print the definition of the step procedure from a machine.
 
-    @param typed_submachines list of all typed machine instances of this
-    machine @param fmt the formater to print on @param machine the machine **)
+    @param typed_submachines list of all typed machine instances of this machine
+    @param fmt the formater to print on @param machine the machine **)
 let pp_step_definition env typed_submachines fmt (m, m_spec_opt, guarantees) =
   let transform_local_to_state_assign instr =
     match instr.instr_desc with
@@ -152,15 +150,15 @@ let pp_step_definition env typed_submachines fmt (m, m_spec_opt, guarantees) =
   let content =
     AdaProcedureContent
       ( ((if pp_local_ghost_list = [] then [] else [ pp_local_ghost_list ])
-         @ if pp_local_list = [] then [] else [ pp_local_list ]),
+        @ if pp_local_list = [] then [] else [ pp_local_list ]),
         pp_instr_list )
   in
   pp_procedure pp_step_procedure_name (build_pp_arg_step m) None fmt content
 
 (** Print the definition of the reset procedure from a machine.
 
-    @param typed_submachines list of all typed machine instances of this
-    machine @param fmt the formater to print on @param machine the machine **)
+    @param typed_submachines list of all typed machine instances of this machine
+    @param fmt the formater to print on @param machine the machine **)
 let pp_reset_definition env typed_submachines fmt (m, m_spec_opt) =
   let build_assign = function
     | var ->
@@ -176,15 +174,14 @@ let pp_reset_definition env typed_submachines fmt (m, m_spec_opt) =
   pp_procedure pp_reset_procedure_name (build_pp_arg_reset m) None fmt
     (AdaProcedureContent ([], pp_instr_list))
 
-(** Print the package definition(ads) of a machine. It requires the list of
-    all typed instance. A typed submachine instance is (ident, type_machine)
-    with ident the instance name and typed_machine is (substitution, machine)
-    with machine the machine associated to the instance and substitution the
-    instanciation of all its polymorphic types. @param fmt the formater to
-    print on @param typed_submachines list of all typed machine instances of
-    this machine @param m the machine **)
-let pp_file fmt (typed_submachines, ((opt_spec_machine, guarantees), machine))
-  =
+(** Print the package definition(ads) of a machine. It requires the list of all
+    typed instance. A typed submachine instance is (ident, type_machine) with
+    ident the instance name and typed_machine is (substitution, machine) with
+    machine the machine associated to the instance and substitution the
+    instanciation of all its polymorphic types. @param fmt the formater to print
+    on @param typed_submachines list of all typed machine instances of this
+    machine @param m the machine **)
+let pp_file fmt (typed_submachines, ((opt_spec_machine, guarantees), machine)) =
   let env = List.map (fun x -> x.var_id, pp_state_name) machine.mmemory in
   let pp_reset fmt =
     if is_machine_statefull machine then
@@ -208,8 +205,7 @@ let pp_file fmt (typed_submachines, ((opt_spec_machine, guarantees), machine))
   in
   fprintf fmt "%a%a;@."
     (* Include all the required packages*)
-    (pp_print_list
-       ~pp_sep:pp_print_semicolon
+    (pp_print_list ~pp_sep:pp_print_semicolon
        ~pp_epilogue:(fun fmt () -> fprintf fmt ";@,@,")
        (pp_with AdaPrivate))
     packages

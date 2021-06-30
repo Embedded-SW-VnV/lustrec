@@ -308,14 +308,15 @@ let rec semi_unify ck1 ck2 =
     | _, _ ->
       raise (Unify (ck1, ck2))
 
+(* XXX: UNUSED *)
 (* Returns the value corresponding to a pclock (integer) factor expression.
    Expects a constant expression (checked by typing). *)
-let int_factor_of_expr e =
-  match e.expr_desc with
-  | Expr_const (Const_int i) ->
-    i
-  | _ ->
-    failwith "Internal error: int_factor_of_expr"
+(* let int_factor_of_expr e =
+ *   match e.expr_desc with
+ *   | Expr_const (Const_int i) ->
+ *     i
+ *   | _ ->
+ *     failwith "Internal error: int_factor_of_expr" *)
 
 (** [clock_uncarry ck] drops the possible carrier(s) name(s) from clock [ck] *)
 let rec clock_uncarry ck =
@@ -738,14 +739,16 @@ let clock_imported_node env loc nd =
   nd.nodei_clock <- ck_node;
   Env.add_value env nd.nodei_id ck_node
 
-let new_env = clock_var_decl_list
+(* XXX: UNUSED *)
+(* let new_env = clock_var_decl_list *)
 
 let clock_top_const env cdecl =
   let ck = new_var false in
   try_generalize ck cdecl.const_loc;
   Env.add_value env cdecl.const_id ck
 
-let clock_top_consts env clist = List.fold_left clock_top_const env clist
+(* XXX: UNUSED *)
+(* let clock_top_consts env clist = List.fold_left clock_top_const env clist *)
 
 let rec clock_top_decl env decl =
   match decl.top_decl_desc with

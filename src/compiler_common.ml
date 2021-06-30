@@ -16,8 +16,7 @@ open Corelang
 
 let check_main () =
   if !Options.main_node = "" then (
-    eprintf "Code generation error: %a@." Error.pp
-      Error.No_main_specified;
+    eprintf "Code generation error: %a@." Error.pp Error.No_main_specified;
     raise (Error.Error (Location.dummy, Error.No_main_specified)))
 
 let create_dest_dir () =
@@ -76,16 +75,16 @@ let check_stateless_decls decls =
       fprintf fmt "@ .. checking stateless/stateful status@ ");
   try Stateless.check_prog decls
   with Stateless.Error (loc, err) as exc ->
-    eprintf "Stateless status error: %a%a@." Stateless.pp_error err
-      Location.pp loc;
+    eprintf "Stateless status error: %a%a@." Stateless.pp_error err Location.pp
+      loc;
     raise exc
 
 let force_stateful_decls decls =
   Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. forcing stateful status@ ");
   try Stateless.force_prog decls
   with Stateless.Error (loc, err) as exc ->
-    eprintf "Stateless status error: %a%a@." Stateless.pp_error err
-      Location.pp loc;
+    eprintf "Stateless status error: %a%a@." Stateless.pp_error err Location.pp
+      loc;
     raise exc
 
 let type_decls env decls =
@@ -107,8 +106,7 @@ let clock_decls env decls =
   let new_env =
     try Clock_calculus.clock_prog env decls
     with Clocks.Error (loc, err) as exc ->
-      eprintf "Clock calculus error: %a%a@." Clocks.pp_error err Location.pp
-        loc;
+      eprintf "Clock calculus error: %a%a@." Clocks.pp_error err Location.pp loc;
       raise exc
   in
   Log.report ~level:1 (fun fmt -> fprintf fmt "@]");
@@ -117,13 +115,14 @@ let clock_decls env decls =
         fprintf fmt "@[<v 2>  %a@]@ " Corelang.pp_prog_clock decls);
   new_env
 
+(* XXX: UNUSED *)
 (* Typing/Clocking with an empty env *)
-let check_top_decls header =
-  let new_tenv = type_decls Basic_library.type_env header in
-  (* Typing *)
-  let new_cenv = clock_decls Basic_library.clock_env header in
-  (* Clock calculus *)
-  header, new_tenv, new_cenv
+(* let check_top_decls header =
+ *   let new_tenv = type_decls Basic_library.type_env header in
+ *   (\* Typing *\)
+ *   let new_cenv = clock_decls Basic_library.clock_env header in
+ *   (\* Clock calculus *\)
+ *   header, new_tenv, new_cenv *)
 
 (* List.fold_right (fun top_decl (ty_env, ck_env) -> match
    top_decl.top_decl_desc with | Node nd -> (Env.add_value ty_env nd.node_id

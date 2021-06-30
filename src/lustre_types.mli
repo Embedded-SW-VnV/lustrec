@@ -225,5 +225,6 @@ type spec_types =
   | LocalContract of contract_desc
   | TopContract of top_decl list
 
-val tag_true: label
-val tag_false: label
+val tag_true : label
+
+val tag_false : label

@@ -1,14 +1,15 @@
-let base_types =
-  [
-    "integer";
-    "character";
-    "bit";
-    "real";
-    "natural";
-    "positive";
-    "std_logic";
-    "std_logic_vector";
-  ]
+(* XXX: UNUSED *)
+(* let base_types =
+ *   [
+ *     "integer";
+ *     "character";
+ *     "bit";
+ *     "real";
+ *     "natural";
+ *     "positive";
+ *     "std_logic";
+ *     "std_logic_vector";
+ *   ] *)
 
 type vhdl_type_t =
   | Base of string
@@ -23,14 +24,16 @@ type vhdl_type_t =
 (* Constants *)
 (************************************************************************************)
 
+(* XXX: UNUSED *)
 (* Std_logic values : 'U': uninitialized. This signal hasn't been set yet. 'X':
    unknown. Impossible to determine this value/result. '0': logic 0 '1': logic 1
    'Z': High Impedance 'W': Weak signal, can't tell if it should be 0 or 1. 'L':
    Weak signal that should probably go to 0 'H': Weak signal that should
    probably go to 1 '-': Don't care. *)
-let std_logic_cst = [ "U"; "X"; "0"; "1"; "Z"; "W"; "L"; "H"; "-" ]
+(* let std_logic_cst = [ "U"; "X"; "0"; "1"; "Z"; "W"; "L"; "H"; "-" ] *)
 
-let literal_base = [ "B"; "O"; "X"; "UB"; "UO"; "UX"; "SB"; "SO"; "SX"; "D" ]
+(* XXX: UNUSED *)
+(* let literal_base = [ "B"; "O"; "X"; "UB"; "UO"; "UX"; "SB"; "SO"; "SX"; "D" ] *)
 (* Prefix of CstLiteral *)
 
 (* TODO: do we need more constructors ? *)
@@ -83,21 +86,26 @@ type 'basetype vhdl_type_attributes_t =
   | TAttStringArg of { id : string; arg : string }
 [@@deriving yojson { strict = false }]
 
-let typ_att_noarg = [ "base"; "left"; "right"; "high"; "low" ]
+(* XXX: UNUSED *)
+(* let typ_att_noarg = [ "base"; "left"; "right"; "high"; "low" ] *)
 
-let typ_att_intarg = [ "pos"; "val"; "succ"; "pred"; "leftof"; "rightof" ]
+(* XXX: UNUSED *)
+(* let typ_att_intarg = [ "pos"; "val"; "succ"; "pred"; "leftof"; "rightof" ] *)
 
-let typ_att_valarg = [ "image" ]
+(* XXX: UNUSED *)
+(* let typ_att_valarg = [ "image" ] *)
 
-let typ_att_stringarg = [ "value" ]
+(* XXX: UNUSED *)
+(* let typ_att_stringarg = [ "value" ] *)
 
 type vhdl_array_attributes_t =
   | AAttInt of { id : string; arg : int }
   | AAttAscending
 [@@deriving yojson { strict = false }]
 
-let array_att_intarg =
-  [ "left"; "right"; "high"; "low"; "range"; "reverse_range"; "length" ]
+(* XXX: UNUSED *)
+(* let array_att_intarg =
+ *   [ "left"; "right"; "high"; "low"; "range"; "reverse_range"; "length" ] *)
 
 type vhdl_signal_attributes_t = SigAtt of string
 [@@deriving yojson { strict = false }]
@@ -147,16 +155,20 @@ and vhdl_assoc_element_t = {
 }
 [@@deriving yojson { strict = false }]
 
-let arith_funs = [ "+"; "-"; "*"; "/"; "mod"; "rem"; "abs"; "**"; "&" ]
+(* XXX: UNUSED *)
+(* let arith_funs = [ "+"; "-"; "*"; "/"; "mod"; "rem"; "abs"; "**"; "&" ] *)
 
-let bool_funs = [ "and"; "or"; "nand"; "nor"; "xor"; "not" ]
+(* XXX: UNUSED *)
+(* let bool_funs = [ "and"; "or"; "nand"; "nor"; "xor"; "not" ] *)
 
-let rel_funs =
-  [
-    "<"; ">"; "<="; ">="; "/="; "="; "?="; "?/="; "?<"; "?<="; "?>"; "?>="; "??";
-  ]
+(* XXX: UNUSED *)
+(* let rel_funs =
+ *   [
+ *     "<"; ">"; "<="; ">="; "/="; "="; "?="; "?/="; "?<"; "?<="; "?>"; "?>="; "??";
+ *   ] *)
 
-let shift_funs = [ "sll"; "srl"; "sla"; "sra"; "rol"; "ror" ]
+(* XXX: UNUSED *)
+(* let shift_funs = [ "sll"; "srl"; "sla"; "sra"; "rol"; "ror" ] *)
 
 type vhdl_sequential_stmt_t =
   | VarAssign of { lhs : vhdl_name_t; rhs : vhdl_expr_t }

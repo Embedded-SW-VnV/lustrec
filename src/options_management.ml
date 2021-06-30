@@ -17,8 +17,8 @@ let print_version () =
   printf
     "@[<v>Lustrec compiler, version %s (%s)@,\
      Standard lib: %s@,\
-     User provided include directory: @[<h>%a@]@]@." Version.number Version.codename
-    Version.include_path
+     User provided include directory: @[<h>%a@]@]@." Version.number
+    Version.codename Version.include_path
     (pp_print_list ~pp_sep:pp_print_space pp_print_string)
     !include_dirs
 

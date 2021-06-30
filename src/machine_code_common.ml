@@ -219,9 +219,7 @@ let pp_step m fmt s =
     s.step_asserts
 
 let pp_static_call fmt (node, args) =
-  fprintf fmt "%s<%a>" (node_name node)
-    (pp_comma_list Dimension.pp)
-    args
+  fprintf fmt "%s<%a>" (node_name node) (pp_comma_list Dimension.pp) args
 
 let pp_instance fmt (o1, o2) = fprintf fmt "(%s, %a)" o1 pp_static_call o2
 

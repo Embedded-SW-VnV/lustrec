@@ -10,8 +10,8 @@ and delay_desc =
   | Dunivar
 (* Polymorphic type variable *)
 
-val new_var: unit -> t
+val new_var : unit -> t
 
-val new_univar: unit -> t
+val new_univar : unit -> t
 
-val new_delay: delay_desc -> t
+val new_delay : delay_desc -> t

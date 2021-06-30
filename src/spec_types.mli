@@ -13,7 +13,7 @@ type ('a, _) expression_t =
   | Var : var_decl -> ('a, left_v) expression_t
   | Memory : register_t -> ('a, left_v) expression_t
 
-val type_of_l_value: ('a, left_v) expression_t -> Types.t
+val type_of_l_value : ('a, left_v) expression_t -> Types.t
 
 type 'a predicate_t =
   | Transition :

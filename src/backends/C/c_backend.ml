@@ -104,13 +104,14 @@ let print_c_header basename =
   let header_m =
     match !spec with
     | SpecNo ->
-      C_backend_header.(module EmptyMod : MODIFIERS_HDR)
+      C_backend_header.((module EmptyMod : MODIFIERS_HDR))
     | SpecACSL ->
-      C_backend_header.(module C_backend_spec.HdrMod : MODIFIERS_HDR)
+      C_backend_header.((module C_backend_spec.HdrMod : MODIFIERS_HDR))
     | SpecC ->
-      assert false (* not implemented yet *)
+      assert false
+    (* not implemented yet *)
   in
-  let module Header = C_backend_header.Main (val header_m) in
+  let module Header = C_backend_header.Main ((val header_m)) in
   let destname = !dest_dir ^ "/" ^ basename in
   (* Generating H file *)
   let lusic = Lusic.read_lusic destname ".lusic" in
@@ -135,7 +136,8 @@ let translate_to_c generate_c_header basename prog machines dependencies =
         C_backend_main.((module EmptyMod : MODIFIERS_MAINSRC)),
         C_backend_makefile.((module MakefileMod : MODIFIERS_MKF)) )
     | SpecC ->
-      assert false (* not implemented yet *)
+      assert false
+    (* not implemented yet *)
   in
   let module Header = C_backend_header.Main ((val header_m)) in
   let module Source = C_backend_src.Main ((val source_m)) in

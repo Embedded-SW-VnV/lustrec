@@ -31,7 +31,8 @@ type algebraic_loop = ident list * (call * bool) list * bool
 
 type report = (node_desc * algebraic_loop list) list
 
-exception Error of report
+(* XXX: UNUSED *)
+(* exception Error of report *)
 
 (* Module that extract from the DataCycle the set of node that could be inlined
    to solve the problem. *)
@@ -76,11 +77,12 @@ end
 (* Format.fprintf fmt "@[<v 2>Possible resolution:@ %a@]" pp_resolution
    resolution*)
 
-let pp_resolution fmt resolution =
-  Format.(pp_print_list
-            (fun fmt (eq, _) ->
-               fprintf fmt "inlining: %a" Printers.pp_node_eq eq)
-            fmt resolution)
+(* XXX: UNUSED *)
+(* let pp_resolution fmt resolution =
+ *   Format.(pp_print_list
+ *             (fun fmt (eq, _) ->
+ *                fprintf fmt "inlining: %a" Printers.pp_node_eq eq)
+ *             fmt resolution) *)
 
 let al_is_solved (_, als) = List.for_all (fun (_, _, status) -> status) als
 
@@ -131,12 +133,13 @@ let is_expr_inlined nd expr =
     | _ ->
       assert false)
 
-let pp_calls nd fmt calls =
-  Format.(fprintf fmt "@[<v 0>%a@]"
-            (pp_print_list (fun fmt (funid, expr, _) ->
-                 fprintf fmt "%s: %i (inlined:%b)" funid expr.expr_tag
-                   (is_expr_inlined nd expr)))
-            calls)
+(* XXX: UNUSED *)
+(* let pp_calls nd fmt calls =
+ *   Format.(fprintf fmt "@[<v 0>%a@]"
+ *             (pp_print_list (fun fmt (funid, expr, _) ->
+ *                  fprintf fmt "%s: %i (inlined:%b)" funid expr.expr_tag
+ *                    (is_expr_inlined nd expr)))
+ *             calls) *)
 
 (* Inline the provided expression *)
 let inline_expr node expr =
@@ -385,7 +388,8 @@ let pp_report fmt report =
       in
       pp top.top_decl_loc (fun fmt ->
           fprintf fmt "algebraic loop in node %s: {@[<v 0>%a@]}" nd.node_id
-            (pp_print_list (pp_al nd)) als))
+            (pp_print_list (pp_al nd))
+            als))
     fmt report;
   fprintf fmt "@."
 

@@ -27,31 +27,29 @@ let ansi = ref false
 
 let check = ref false
 
-type option_spec =
-  | SpecNo
-  | SpecACSL
-  | SpecC
+type option_spec = SpecNo | SpecACSL | SpecC
 
 let spec = ref SpecNo
 
-type option_output =
-  | OutC
-  | OutAda
-  | OutJava
-  | OutEMF
-  | OutHorn
-  | OutLustre
+type option_output = OutC | OutAda | OutJava | OutEMF | OutHorn | OutLustre
 
 let output = ref OutC
 
 let pp_output fmt =
-  Format.pp_print_string fmt (match !output with
-  | OutC -> "C"
-  | OutAda -> "Ada"
-  | OutJava -> "Java"
-  | OutEMF -> "EMF"
-  | OutHorn -> "Horn"
-  | OutLustre -> "Lustre")
+  Format.pp_print_string fmt
+    (match !output with
+    | OutC ->
+      "C"
+    | OutAda ->
+      "Ada"
+    | OutJava ->
+      "Java"
+    | OutEMF ->
+      "EMF"
+    | OutHorn ->
+      "Horn"
+    | OutLustre ->
+      "Lustre")
 
 let dest_dir = ref "."
 
@@ -96,8 +94,6 @@ let int_type = ref "int"
 let real_type = ref "double"
 
 let print_prec_double = ref 15
-
-let print_prec_float = ref 10
 
 let sfunction = ref ""
 

@@ -54,17 +54,28 @@ end
 
 (* Module (S)tate(F)low provides basic constructors for action, condition,
    events, as well as printer functions *)
-module SF: sig
-  val no_action: action_t
-  val no_condition: condition_t
-  val no_event: event_t
-  val condition: base_condition_t -> condition_t
-  val event: event_base_t -> event_t
-  val state_action: action_t -> action_t -> action_t -> state_actions_t
-  val states: prog_t -> ActiveStates.Vars.t
-  val global_vars: prog_t -> (Lustre_types.var_decl * Lustre_types.expr) list
-  val pp_dest: Format.formatter -> destination_t -> unit
-  val pp_trans: Format.formatter -> trans_t -> unit
-  val pp_transitions: Format.formatter -> trans_t list -> unit
-  val pp_comp: Format.formatter -> composition_t -> unit
+module SF : sig
+  val no_action : action_t
+
+  val no_condition : condition_t
+
+  val no_event : event_t
+
+  val condition : base_condition_t -> condition_t
+
+  val event : event_base_t -> event_t
+
+  val state_action : action_t -> action_t -> action_t -> state_actions_t
+
+  val states : prog_t -> ActiveStates.Vars.t
+
+  val global_vars : prog_t -> (Lustre_types.var_decl * Lustre_types.expr) list
+
+  val pp_dest : Format.formatter -> destination_t -> unit
+
+  val pp_trans : Format.formatter -> trans_t -> unit
+
+  val pp_transitions : Format.formatter -> trans_t list -> unit
+
+  val pp_comp : Format.formatter -> composition_t -> unit
 end

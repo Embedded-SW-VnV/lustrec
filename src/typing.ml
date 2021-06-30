@@ -14,9 +14,6 @@
 (** Main typing module. Classic inference algorithm with destructive
     unification. *)
 
-let debug _fmt _args = ()
-
-(* Format.eprintf "%a" *)
 (* Though it shares similarities with the clock calculus module, no code is
    shared. Simple environments, very limited identifier scoping, no identifier
    redefinition allowed. *)
@@ -42,13 +39,13 @@ end
 
 module Make
     (T : Types.S)
-    (Expr_type_hub : EXPR_TYPE_HUB with type type_expr = T.t)
-=
+    (Expr_type_hub : EXPR_TYPE_HUB with type type_expr = T.t) =
 struct
   module TP = Type_predef.Make (T)
   include TP
 
-  let pp_typing_env fmt env = Env.pp print_ty fmt env
+  (* XXX: UNUSED *)
+  (* let pp_typing_env fmt env = Env.pp print_ty fmt env *)
 
   (****************************************************************)
   (* Generic functions: occurs, instantiate and generalize         *)
@@ -312,8 +309,7 @@ struct
         | Tstatic (e1, t1'), Tstatic (e2, t2')
         | Tarray (e1, t1'), Tarray (e2, t2') ->
           let eval_const =
-            if semi then fun c ->
-              Some (Dimension.mkdim_ident Location.dummy c)
+            if semi then fun c -> Some (Dimension.mkdim_ident Location.dummy c)
             else fun _ -> None
           in
           unif t1' t2';
@@ -967,7 +963,8 @@ struct
     cdecl.const_type <- Expr_type_hub.export ty;
     new_env
 
-  let type_top_consts env clist = List.fold_left type_top_const env clist
+  (* XXX: UNUSED *)
+  (* let type_top_consts env clist = List.fold_left type_top_const env clist *)
 
   let rec type_top_decl env decl =
     match decl.top_decl_desc with
@@ -986,16 +983,17 @@ struct
     | Include _ | Open _ ->
       env
 
-  let get_type_of_call decl =
-    match decl.top_decl_desc with
-    | Node nd ->
-      let in_typ, out_typ = split_arrow (Expr_type_hub.import nd.node_type) in
-      type_list_of_type in_typ, type_list_of_type out_typ
-    | ImportedNode nd ->
-      let in_typ, out_typ = split_arrow (Expr_type_hub.import nd.nodei_type) in
-      type_list_of_type in_typ, type_list_of_type out_typ
-    | _ ->
-      assert false
+  (* XXX: UNUSED *)
+  (* let get_type_of_call decl =
+   *   match decl.top_decl_desc with
+   *   | Node nd ->
+   *     let in_typ, out_typ = split_arrow (Expr_type_hub.import nd.node_type) in
+   *     type_list_of_type in_typ, type_list_of_type out_typ
+   *   | ImportedNode nd ->
+   *     let in_typ, out_typ = split_arrow (Expr_type_hub.import nd.nodei_type) in
+   *     type_list_of_type in_typ, type_list_of_type out_typ
+   *   | _ ->
+   *     assert false *)
 
   let type_prog env decls =
     try List.fold_left type_top_decl env decls
@@ -1021,8 +1019,9 @@ struct
 
   let uneval_node_generics vdecls = List.iter uneval_vdecl_generics vdecls
 
-  let uneval_spec_generics spec =
-    List.iter uneval_vdecl_generics (spec.consts @ spec.locals)
+  (* XXX: UNUSED *)
+  (* let uneval_spec_generics spec =
+   *   List.iter uneval_vdecl_generics (spec.consts @ spec.locals) *)
 
   let uneval_top_generics decl =
     match decl.top_decl_desc with
@@ -1108,14 +1107,15 @@ struct
   let check_typedef_compat header = List.iter check_typedef_top header
 end
 
-module Expr_type_hub: EXPR_TYPE_HUB with type type_expr = Types.t = struct
+module Expr_type_hub : EXPR_TYPE_HUB with type type_expr = Types.t = struct
   type type_expr = Types.t
 
   let import x = x
+
   let export x = x
 end
 
-include Make(Types)(Expr_type_hub)
+include Make (Types) (Expr_type_hub)
 
 (* Local Variables: *)
 (* compile-command:"make -C .." *)

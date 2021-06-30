@@ -45,8 +45,7 @@ let collecting_semantics machines fmt node machine =
     @ main_output_dummy
   in
 
-  fprintf fmt "(declare-rel MAIN (%a))@."
-    (pp_print_list pp_type)
+  fprintf fmt "(declare-rel MAIN (%a))@." (pp_print_list pp_type)
     (List.map (fun v -> v.var_type) main_memory_next);
 
   (* Init case *)
@@ -157,8 +156,7 @@ let cex_computation machines fmt node machine =
     else pp_machine_reset_name, pp_machine_step_name
   in
 
-  fprintf fmt "(declare-rel CEX (Int %a))@.@."
-    (pp_print_list pp_type)
+  fprintf fmt "(declare-rel CEX (Int %a))@.@." (pp_print_list pp_type)
     (List.map (fun v -> v.var_type) cex_memory_next);
 
   fprintf fmt "; Initial set: Reset(c,m) + One Step(m,x) @.";

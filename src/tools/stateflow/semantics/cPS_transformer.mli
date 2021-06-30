@@ -26,8 +26,9 @@ module type ThetaType = sig
   val theta : ('a, 'b, t) theta_t
 end
 
-val pp_mode: Format.formatter -> mode_t -> unit
-val pp_tag: Format.formatter -> ('a, 'b, 't) tag_t -> unit
+val pp_mode : Format.formatter -> mode_t -> unit
+
+val pp_tag : Format.formatter -> ('a, 'b, 't) tag_t -> unit
 
 module type TransformerType = sig
   type act_t = Action.t
@@ -62,9 +63,12 @@ module type ComparableTransformerType = sig
   val ( == ) : t -> t -> bool
 end
 
-module TransformerStub: sig
+module TransformerStub : sig
   type act_t = Action.t
+
   type cond_t = Condition.t
+
   include ConditionType with type t := cond_t
+
   include ActionType with type t := act_t
 end

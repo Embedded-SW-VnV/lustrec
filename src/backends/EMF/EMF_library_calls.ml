@@ -19,7 +19,8 @@ let pp_call fmt m f outputs inputs =
         "\"kind\": \"functioncall\",@ \"name\": \"%s\",@ \"library\": \"%s\",@ "
         name lib;
       fprintf fmt "\"lhs\": [@[%a@]],@ \"args\": [@[%a@]]"
-        (pp_comma_list (fun fmt v -> fprintf fmt "\"%a\"" Printers.pp_var_name v))
+        (pp_comma_list (fun fmt v ->
+             fprintf fmt "\"%a\"" Printers.pp_var_name v))
         outputs (pp_emf_cst_or_var_list m) inputs
     | _ ->
       Format.eprintf "Calls to function %s in library %s are not handled yet.@."

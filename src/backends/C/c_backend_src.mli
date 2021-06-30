@@ -25,5 +25,6 @@ end
 module EmptyMod : MODIFIERS_SRC
 
 module Main (Mod : MODIFIERS_SRC) : sig
-  val print_lib_c: formatter -> string -> program_t -> machine_t list -> dep_t list -> unit
+  val print_lib_c :
+    formatter -> string -> program_t -> machine_t list -> dep_t list -> unit
 end

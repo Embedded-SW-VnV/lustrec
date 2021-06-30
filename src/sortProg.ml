@@ -50,7 +50,8 @@ let sort prog =
 
   Log.report ~level:3 (fun fmt ->
       Format.fprintf fmt "@ @[<v 2>.. ordered list of declarations:@ %a@]@ "
-        (Format.pp_print_list Printers.pp_short_decl) sorted);
+        (Format.pp_print_list Printers.pp_short_decl)
+        sorted);
   not_nodes @ sorted
 
 let sort_nodes_locals prog =
@@ -58,10 +59,15 @@ let sort_nodes_locals prog =
     (fun top ->
       match top.top_decl_desc with
       | Node nd ->
-        { top with
-          top_decl_desc = Node
-              { nd with
-                node_locals = Causality.VarClockDep.sort nd.node_locals }}
+        {
+          top with
+          top_decl_desc =
+            Node
+              {
+                nd with
+                node_locals = Causality.VarClockDep.sort nd.node_locals;
+              };
+        }
       | _ ->
         top)
     prog

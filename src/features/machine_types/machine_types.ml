@@ -281,8 +281,7 @@ end
 module Typing = Typing.Make (MTypes) (ConvTypes)
 
 (* Associate to each (node_id, var_id) its machine type *)
-let machine_type_table : (var_decl, MTypes.t) Hashtbl.t =
-  Hashtbl.create 13
+let machine_type_table : (var_decl, MTypes.t) Hashtbl.t = Hashtbl.create 13
 
 (* Store the node signatures, with machine types when available *)
 let typing_env = ref Env.initial
@@ -335,8 +334,8 @@ let pp_c_var_type fmt v =
 (************** Checking types ******************)
 
 let erroneous_annotation loc =
-  Format.eprintf "Invalid annotation for machine_type at loc %a@."
-    Location.pp loc;
+  Format.eprintf "Invalid annotation for machine_type at loc %a@." Location.pp
+    loc;
   assert false
 
 let valid_subtype subtype typ =

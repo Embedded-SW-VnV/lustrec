@@ -37,7 +37,7 @@ module type S = sig
 
   type basic_type = BasicT.t
 
-  type t = { mutable tdesc: type_desc; tid: int }
+  type t = { mutable tdesc : type_desc; tid : int }
 
   and type_desc =
     | Tconst of ident
@@ -57,7 +57,7 @@ module type S = sig
     | Tvar
     (* Monomorphic type variable *)
     | Tunivar
-    (* Polymorphic type variable *)
+  (* Polymorphic type variable *)
 
   type error =
     | Unbound_value of ident
@@ -152,9 +152,11 @@ module type S = sig
   val array_type_multi_dimension : t -> Dimension.t list
 end
 
-module Make(BasicT: BASIC_TYPES) : sig
+module Make (BasicT : BASIC_TYPES) : sig
   include S
-  val print_ty_param: (Format.formatter -> basic_type -> unit) -> Format.formatter -> t -> unit
+
+  val print_ty_param :
+    (Format.formatter -> basic_type -> unit) -> Format.formatter -> t -> unit
 end
 with module BasicT = BasicT
 

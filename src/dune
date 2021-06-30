@@ -142,6 +142,7 @@
  (name verifier_register)
  (package lustrec)
  (wrapped false)
+ (modules_without_implementation verifierType)
  (modules verifierList verifierType)
  (libraries lustrec_interface))
 

@@ -76,13 +76,11 @@ let pp_package_name machine fmt =
 let pp_type fmt typ =
   let open Types in
   let t = repr typ in
-  if is_bool_type t then
-    pp_boolean_type fmt
-  else if is_int_type t then
-    pp_integer_type fmt
-  else if is_real_type t then
-    pp_float_type fmt
-  else match t.tdesc with
+  if is_bool_type t then pp_boolean_type fmt
+  else if is_int_type t then pp_integer_type fmt
+  else if is_real_type t then pp_float_type fmt
+  else
+    match t.tdesc with
     | Tunivar ->
       pp_polymorphic_type typ.tid fmt
     | Tbasic _ ->
@@ -125,14 +123,10 @@ let pp_type fmt typ =
     type **)
 let default_ada_cst t =
   let open Types in
-  if is_bool_type t then
-    Const_tag tag_false
-  else if is_int_type t then
-    Const_int 0
-  else if is_real_type t then
-    Const_real Real.zero
-  else
-    assert false
+  if is_bool_type t then Const_tag tag_false
+  else if is_int_type t then Const_int 0
+  else if is_real_type t then Const_real Real.zero
+  else assert false
 
 (** Make a default value from a given type. @param typ the type **)
 let mk_default_value typ =
@@ -160,8 +154,7 @@ let pp_package_name_with_polymorphic substitution machine fmt =
       (fun poly1 (poly2, _) -> poly1 = poly2)
       polymorphic_types substituion);
   let instantiated_types = snd (List.split substitution) in
-  fprintf fmt "%t%a"
-    (pp_package_name machine)
+  fprintf fmt "%t%a" (pp_package_name machine)
     (pp_print_list
        ~pp_prologue:(fun fmt () -> pp_print_string fmt "_")
        ~pp_sep:(fun fmt () -> pp_print_string fmt "_")

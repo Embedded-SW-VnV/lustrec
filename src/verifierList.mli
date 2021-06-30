@@ -1,1 +1,1 @@
-val verifiers: unit -> (module VerifierType.S) list
+val verifiers : unit -> (module VerifierType.S) list

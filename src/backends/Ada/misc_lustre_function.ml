@@ -1,7 +1,5 @@
 open Machine_code_types
 open Lustre_types
-open Corelang
-(* open Machine_code_common *)
 
 let is_machine_statefull m = not m.mname.node_dec_stateless
 
@@ -204,15 +202,16 @@ let get_substitution machine ident submachine =
 let get_instance identifier typed_submachines =
   try List.assoc identifier typed_submachines with Not_found -> assert false
 
-(*Usefull for debug*)
-let pp_type_debug fmt typ =
-  match (Types.repr typ).Types.tdesc with
-  | Types.Tbasic t ->
-    Types.BasicT.pp fmt t
-  | Types.Tunivar ->
-    Format.fprintf fmt "POLY(%i)" typ.Types.tid
-  | _ ->
-    assert false
+(* XXX: UNUSED *)
+(*Useful for debug*)
+(* let pp_type_debug fmt typ =
+ *   match (Types.repr typ).Types.tdesc with
+ *   | Types.Tbasic t ->
+ *     Types.BasicT.pp fmt t
+ *   | Types.Tunivar ->
+ *     Format.fprintf fmt "POLY(%i)" typ.Types.tid
+ *   | _ ->
+ *     assert false *)
 
 let build_if g c1 i1 tl =
   let neg = c1 = tag_false in
@@ -225,74 +224,75 @@ let build_if g c1 i1 tl =
   | _ ->
     neg, g, i1, other
 
-let rec push_if_in_expr = function
-  | [] ->
-    []
-  | instr :: q ->
-    (match get_instr_desc instr with
-    | MBranch (g, (c1, i1) :: tl) when c1 = tag_false || c1 = tag_true ->
-      let _, g, instrs1, instrs2 = build_if g c1 i1 tl in
-      let instrs1_pushed = push_if_in_expr instrs1 in
-      let get_assign instr =
-        match get_instr_desc instr with
-        | MLocalAssign (id, value) ->
-          false, id, value
-        | MStateAssign (id, value) ->
-          true, id, value
-        | _ ->
-          assert false
-      in
-      let gen_eq ident state value1 value2 =
-        assert (check_type_equal ident.var_type value1.value_type);
-        assert (check_type_equal ident.var_type value2.value_type);
-        let value =
-          {
-            value_desc = Fun ("ite", [ g; value1; value2 ]);
-            value_type = ident.var_type;
-            value_annot = None;
-          }
-        in
-        let assign =
-          if state then MStateAssign (ident, value)
-          else MLocalAssign (ident, value)
-        in
-        { instr_desc = assign; lustre_eq = None; instr_spec = [] }
-      in
-      let mkval_var id =
-        { value_desc = Var id; value_type = id.var_type; value_annot = None }
-      in
-      let rec find_split s1 id1 accu = function
-        | [] ->
-          [], accu, mkval_var id1
-        | (s2, id2, v2) :: q when s1 = s2 && id1.var_id = id2.var_id ->
-          accu, q, v2
-        | t :: q ->
-          find_split s1 id1 (t :: accu) q
-      in
-      let gen_from_else l =
-        List.map (fun (s2, id2, v2) -> gen_eq id2 s2 (mkval_var id2) v2) l
-      in
-      let rec gen_assigns if_assigns else_assigns =
-        let res, accu_else =
-          match if_assigns with
-          | (s1, id1, v1) :: q ->
-            let accu, remain, v2 = find_split s1 id1 [] else_assigns in
-            gen_eq id1 s1 v1 v2 :: gen_assigns q remain, accu
-          | [] ->
-            [], else_assigns
-        in
-        gen_from_else accu_else @ res
-      in
-      let if_assigns = List.map get_assign instrs1_pushed in
-      let else_assigns =
-        match instrs2 with
-        | None ->
-          []
-        | Some instrs2 ->
-          let instrs2_pushed = push_if_in_expr instrs2 in
-          List.map get_assign instrs2_pushed
-      in
-      gen_assigns if_assigns else_assigns
-    | _ ->
-      [ instr ])
-    @ push_if_in_expr q
+(* XXX: UNUSED *)
+(* let rec push_if_in_expr = function
+ *   | [] ->
+ *     []
+ *   | instr :: q ->
+ *     (match get_instr_desc instr with
+ *     | MBranch (g, (c1, i1) :: tl) when c1 = tag_false || c1 = tag_true ->
+ *       let _, g, instrs1, instrs2 = build_if g c1 i1 tl in
+ *       let instrs1_pushed = push_if_in_expr instrs1 in
+ *       let get_assign instr =
+ *         match get_instr_desc instr with
+ *         | MLocalAssign (id, value) ->
+ *           false, id, value
+ *         | MStateAssign (id, value) ->
+ *           true, id, value
+ *         | _ ->
+ *           assert false
+ *       in
+ *       let gen_eq ident state value1 value2 =
+ *         assert (check_type_equal ident.var_type value1.value_type);
+ *         assert (check_type_equal ident.var_type value2.value_type);
+ *         let value =
+ *           {
+ *             value_desc = Fun ("ite", [ g; value1; value2 ]);
+ *             value_type = ident.var_type;
+ *             value_annot = None;
+ *           }
+ *         in
+ *         let assign =
+ *           if state then MStateAssign (ident, value)
+ *           else MLocalAssign (ident, value)
+ *         in
+ *         { instr_desc = assign; lustre_eq = None; instr_spec = [] }
+ *       in
+ *       let mkval_var id =
+ *         { value_desc = Var id; value_type = id.var_type; value_annot = None }
+ *       in
+ *       let rec find_split s1 id1 accu = function
+ *         | [] ->
+ *           [], accu, mkval_var id1
+ *         | (s2, id2, v2) :: q when s1 = s2 && id1.var_id = id2.var_id ->
+ *           accu, q, v2
+ *         | t :: q ->
+ *           find_split s1 id1 (t :: accu) q
+ *       in
+ *       let gen_from_else l =
+ *         List.map (fun (s2, id2, v2) -> gen_eq id2 s2 (mkval_var id2) v2) l
+ *       in
+ *       let rec gen_assigns if_assigns else_assigns =
+ *         let res, accu_else =
+ *           match if_assigns with
+ *           | (s1, id1, v1) :: q ->
+ *             let accu, remain, v2 = find_split s1 id1 [] else_assigns in
+ *             gen_eq id1 s1 v1 v2 :: gen_assigns q remain, accu
+ *           | [] ->
+ *             [], else_assigns
+ *         in
+ *         gen_from_else accu_else @ res
+ *       in
+ *       let if_assigns = List.map get_assign instrs1_pushed in
+ *       let else_assigns =
+ *         match instrs2 with
+ *         | None ->
+ *           []
+ *         | Some instrs2 ->
+ *           let instrs2_pushed = push_if_in_expr instrs2 in
+ *           List.map get_assign instrs2_pushed
+ *       in
+ *       gen_assigns if_assigns else_assigns
+ *     | _ ->
+ *       [ instr ])
+ *     @ push_if_in_expr q *)

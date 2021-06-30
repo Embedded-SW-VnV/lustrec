@@ -221,8 +221,7 @@ val get_dependencies : program_t -> top_decl list
 val get_node : ident -> program_t -> node_desc
 (** Returns the node named ident in the provided program. Raise Not_found *)
 
-val rename_static :
-  (ident -> Dimension.t) -> type_dec_desc -> type_dec_desc
+val rename_static : (ident -> Dimension.t) -> type_dec_desc -> type_dec_desc
 
 val rename_carrier : (ident -> ident) -> clock_dec_desc -> clock_dec_desc
 
@@ -294,11 +293,7 @@ val reset_cpt_fresh : unit -> unit
 (* mk_fresh_var parentid to be registered as parent_nodeid, vars is the list of
    existing vars in that context *)
 val mk_fresh_var :
-  ident * var_decl list ->
-  Location.t ->
-  Types.t ->
-  Clocks.t ->
-  var_decl
+  ident * var_decl list -> Location.t -> Types.t -> Clocks.t -> var_decl
 
 val find_eq : ident list -> eq list -> eq * eq list
 

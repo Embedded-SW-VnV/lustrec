@@ -53,9 +53,10 @@ module Make (T : Types.S) = struct
   let type_bin_bool_op =
     type_arrow (type_tuple [ type_bool; type_bool ]) type_bool
 
-  let type_ite_op =
-    let univ = new_univar () in
-    type_arrow (type_tuple [ type_bool; univ; univ ]) univ
+  (* XXX: UNUSED *)
+  (* let type_ite_op =
+   *   let univ = new_univar () in
+   *   type_arrow (type_tuple [ type_bool; univ; univ ]) univ *)
 
   let type_bin_poly_op =
     let univ = new_univar () in
@@ -65,24 +66,28 @@ module Make (T : Types.S) = struct
     let univ = new_univar () in
     new_ty (Tarrow (new_ty (Ttuple [ univ; univ ]), type_bool))
 
-  let type_univ_bool_univ =
-    let univ = new_univar () in
-    type_arrow (type_tuple [ univ; type_bool ]) univ
+  (* XXX: UNUSED *)
+  (* let type_univ_bool_univ =
+   *   let univ = new_univar () in
+   *   type_arrow (type_tuple [ univ; type_bool ]) univ *)
 
-  let type_bool_univ3 =
-    let univ = new_univar () in
-    type_arrow (type_tuple [ type_bool; univ; univ ]) univ
+  (* XXX: UNUSED *)
+  (* let type_bool_univ3 =
+   *   let univ = new_univar () in
+   *   type_arrow (type_tuple [ type_bool; univ; univ ]) univ *)
 
-  let type_access =
-    let d = Dimension.mkdim Location.dummy Dimension.Dunivar in
-    let d' = Dimension.mkdim Location.dummy Dimension.Dunivar in
-    let univ = new_univar () in
-    type_arrow (type_tuple [ type_array d univ; type_static d' type_int ]) univ
+  (* XXX: UNUSED *)
+  (* let type_access =
+   *   let d = Dimension.mkdim Location.dummy Dimension.Dunivar in
+   *   let d' = Dimension.mkdim Location.dummy Dimension.Dunivar in
+   *   let univ = new_univar () in
+   *   type_arrow (type_tuple [ type_array d univ; type_static d' type_int ]) univ *)
 
-  let type_power =
-    let d = Dimension.mkdim Location.dummy Dimension.Dunivar in
-    let univ = new_univar () in
-    type_arrow (type_tuple [ univ; type_static d type_int ]) (type_array d univ)
+  (* XXX: UNUSED *)
+  (* let type_power =
+   *   let d = Dimension.mkdim Location.dummy Dimension.Dunivar in
+   *   let univ = new_univar () in
+   *   type_arrow (type_tuple [ univ; type_static d type_int ]) (type_array d univ) *)
 end
 
 (* module BaseBuilder = *)

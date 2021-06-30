@@ -69,12 +69,13 @@ let mkhandler hand_loc hand_state hand_unless hand_until hand_locals
 let mkautomata loc id handlers =
   { aut_id = id; aut_handlers = handlers; aut_loc = loc }
 
-let expr_of_exit loc restart state conds tag =
-  mkexpr loc
-    (Expr_when
-       ( List.fold_right add_branch conds (mkidentpair loc restart state),
-         state,
-         tag ))
+(* XXX: UNUSED *)
+(* let expr_of_exit loc restart state conds tag =
+ *   mkexpr loc
+ *     (Expr_when
+ *        ( List.fold_right add_branch conds (mkidentpair loc restart state),
+ *          state,
+ *          tag )) *)
 
 let unless_read reads handler =
   let res =
@@ -259,22 +260,23 @@ let node_of_unless nused node aut_id aut_state handler =
 
 let rename_output used name = mk_new_name used (Format.sprintf "%s_out" name)
 
-let rec rename_stmts_outputs frename stmts =
-  match stmts with
-  | [] ->
-    []
-  | Eq eq :: q ->
-    let eq' = Eq { eq with eq_lhs = List.map frename eq.eq_lhs } in
-    eq' :: rename_stmts_outputs frename q
-  | Aut aut :: q ->
-    let handlers' =
-      List.map
-        (fun h ->
-          { h with hand_stmts = rename_stmts_outputs frename h.hand_stmts })
-        aut.aut_handlers
-    in
-    let aut' = Aut { aut with aut_handlers = handlers' } in
-    aut' :: rename_stmts_outputs frename q
+(* XXX: UNUSED *)
+(* let rec rename_stmts_outputs frename stmts =
+ *   match stmts with
+ *   | [] ->
+ *     []
+ *   | Eq eq :: q ->
+ *     let eq' = Eq { eq with eq_lhs = List.map frename eq.eq_lhs } in
+ *     eq' :: rename_stmts_outputs frename q
+ *   | Aut aut :: q ->
+ *     let handlers' =
+ *       List.map
+ *         (fun h ->
+ *           { h with hand_stmts = rename_stmts_outputs frename h.hand_stmts })
+ *         aut.aut_handlers
+ *     in
+ *     let aut' = Aut { aut with aut_handlers = handlers' } in
+ *     aut' :: rename_stmts_outputs frename q *)
 
 let mk_frename used outputs =
   let table =

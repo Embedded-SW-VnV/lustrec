@@ -13,29 +13,40 @@ open Format
 
 let random_seed = ref 0
 
-let threshold_delay = 95
+(* XXX: UNUSED *)
+(* let threshold_delay = 95 *)
 
-let threshold_inc_int = 97
+(* XXX: UNUSED *)
+(* let threshold_inc_int = 97 *)
 
-let threshold_dec_int = 97
+(* XXX: UNUSED *)
+(* let threshold_dec_int = 97 *)
 
-let threshold_random_int = 96
+(* XXX: UNUSED *)
+(* let threshold_random_int = 96 *)
 
-let threshold_switch_int = 100
+(* XXX: UNUSED *)
+(* let threshold_switch_int = 100 *)
 (* not implemented yet *)
 
-let threshold_random_float = 100
+(* XXX: UNUSED *)
+(* let threshold_random_float = 100 *)
 (* not used yet *)
 
-let threshold_negate_bool_var = 95
+(* XXX: UNUSED *)
+(* let threshold_negate_bool_var = 95 *)
 
-let threshold_arith_op = 95
+(* XXX: UNUSED *)
+(* let threshold_arith_op = 95 *)
 
-let threshold_rel_op = 95
+(* XXX: UNUSED *)
+(* let threshold_rel_op = 95 *)
 
-let threshold_bool_op = 95
+(* XXX: UNUSED *)
+(* let threshold_bool_op = 95 *)
 
-let int_consts = ref []
+(* XXX: UNUSED *)
+(* let int_consts = ref [] *)
 
 let rename_app id =
   if List.mem id Basic_library.internal_funs || !Options.no_mutation_suffix then
@@ -79,7 +90,8 @@ let rel_op = [ "<"; "<="; ">"; ">="; "!="; "=" ]
 
 let ops = arith_op @ bool_op @ rel_op
 
-let all_ops = "not" :: ops
+(* XXX: UNUSED *)
+(* let all_ops = "not" :: ops *)
 
 let empty_records =
   {
@@ -177,218 +189,219 @@ let compute_records prog =
 (*                  Random mutation                              *)
 (*****************************************************************)
 
-let check_mut e1 e2 =
-  let rec eq e1 e2 =
-    match e1.expr_desc, e2.expr_desc with
-    | Expr_const c1, Expr_const c2 ->
-      c1 = c2
-    | Expr_ident id1, Expr_ident id2 ->
-      id1 = id2
-    | Expr_tuple el1, Expr_tuple el2 ->
-      List.length el1 = List.length el2 && List.for_all2 eq el1 el2
-    | Expr_ite (i1, t1, e1), Expr_ite (i2, t2, e2) ->
-      eq i1 i2 && eq t1 t2 && eq e1 e2
-    | Expr_arrow (x1, y1), Expr_arrow (x2, y2) ->
-      eq x1 x2 && eq y1 y2
-    | Expr_pre e1, Expr_pre e2 ->
-      eq e1 e2
-    | Expr_appl (id1, e1, _), Expr_appl (id2, e2, _) ->
-      id1 = id2 && eq e1 e2
-    | _ ->
-      false
-  in
-  if not (eq e1 e2) then Some (e1, e2) else None
-
-let mk_cst_expr c = mkexpr Location.dummy (Expr_const c)
-
-let rdm_mutate_int i =
-  if Random.int 100 > threshold_inc_int then i + 1
-  else if Random.int 100 > threshold_dec_int then i - 1
-  else if Random.int 100 > threshold_random_int then Random.int 10
-  else if Random.int 100 > threshold_switch_int then
-    let idx = Random.int (List.length !int_consts) in
-    List.nth !int_consts idx
-  else i
-
-let rdm_mutate_real r =
-  if Random.int 100 > threshold_random_float then
-    (* interval [0, bound] for random values *)
-    let bound = 10 in
-    (* max number of digits after comma *)
-    let digits = 5 in
-    (* number of digits after comma *)
-    let shift = Random.int (digits + 1) in
-    let eshift = 10. ** float_of_int shift in
-    let i = Random.int (1 + (bound * int_of_float eshift)) in
-    let f = float_of_int i /. eshift in
-    Real.create (string_of_int i) shift (string_of_float f)
-  else r
-
-let rdm_mutate_op op =
-  match op with
-  | ("+" | "-" | "*" | "/") when Random.int 100 > threshold_arith_op ->
-    let filtered = List.filter (fun x -> x <> op) [ "+"; "-"; "*"; "/" ] in
-    List.nth filtered (Random.int 3)
-  | ("&&" | "||" | "xor" | "impl") when Random.int 100 > threshold_bool_op ->
-    let filtered =
-      List.filter (fun x -> x <> op) [ "&&"; "||"; "xor"; "impl" ]
-    in
-    List.nth filtered (Random.int 3)
-  | ("<" | "<=" | ">" | ">=" | "!=" | "=")
-    when Random.int 100 > threshold_rel_op ->
-    let filtered =
-      List.filter (fun x -> x <> op) [ "<"; "<="; ">"; ">="; "!="; "=" ]
-    in
-    List.nth filtered (Random.int 5)
-  | _ ->
-    op
-
-let rdm_mutate_var expr =
-  if Types.is_bool_type expr.expr_type then
-    (* if Random.int 100 > threshold_negate_bool_var then *)
-    let new_e = mkpredef_call expr.expr_loc "not" [ expr ] in
-    Some (expr, new_e), new_e
-    (* else  *)
-    (*   expr *)
-  else None, expr
-
-let rdm_mutate_pre orig_expr =
-  let new_e = Expr_pre orig_expr in
-  Some (orig_expr, { orig_expr with expr_desc = new_e }), new_e
-
-let rdm_mutate_const_value c =
-  match c with
-  | Const_int i ->
-    Const_int (rdm_mutate_int i)
-  | Const_real r ->
-    Const_real (rdm_mutate_real r)
-  | Const_array _
-  | Const_string _
-  | Const_modeid _
-  | Const_struct _
-  | Const_tag _ ->
-    c
-
-let rdm_mutate_const c =
-  let new_const = rdm_mutate_const_value c.const_value in
-  let mut = check_mut (mk_cst_expr c.const_value) (mk_cst_expr new_const) in
-  mut, { c with const_value = new_const }
-
-let select_in_list list rdm_mutate_elem =
-  let selected = Random.int (List.length list) in
-  let mutation_opt, new_list, _ =
-    List.fold_right
-      (fun elem (mutation_opt, res, cpt) ->
-        if cpt = selected then
-          let mutation, new_elem = rdm_mutate_elem elem in
-          Some mutation, new_elem :: res, cpt + 1
-        else mutation_opt, elem :: res, cpt + 1)
-      list (None, [], 0)
-  in
-  match mutation_opt with Some mut -> mut, new_list | _ -> assert false
-
-let rec rdm_mutate_expr expr =
-  let mk_e d = { expr with expr_desc = d } in
-  match expr.expr_desc with
-  | Expr_ident _ ->
-    rdm_mutate_var expr
-  | Expr_const c ->
-    let new_const = rdm_mutate_const_value c in
-    let mut = check_mut (mk_cst_expr c) (mk_cst_expr new_const) in
-    mut, mk_e (Expr_const new_const)
-  | Expr_tuple l ->
-    let mut, l' = select_in_list l rdm_mutate_expr in
-    mut, mk_e (Expr_tuple l')
-  | Expr_ite (i, t, e) -> (
-    let mut, l = select_in_list [ i; t; e ] rdm_mutate_expr in
-    match l with
-    | [ i'; t'; e' ] ->
-      mut, mk_e (Expr_ite (i', t', e'))
-    | _ ->
-      assert false)
-  | Expr_arrow (e1, e2) -> (
-    let mut, l = select_in_list [ e1; e2 ] rdm_mutate_expr in
-    match l with
-    | [ e1'; e2' ] ->
-      mut, mk_e (Expr_arrow (e1', e2'))
-    | _ ->
-      assert false)
-  | Expr_pre e ->
-    let select_pre = Random.bool () in
-    if select_pre then
-      let mut, new_expr = rdm_mutate_pre expr in
-      mut, mk_e new_expr
-    else
-      let mut, e' = rdm_mutate_expr e in
-      mut, mk_e (Expr_pre e')
-  | Expr_appl (op_id, args, r) ->
-    let select_op = Random.bool () in
-    if select_op then
-      let new_op_id = rdm_mutate_op op_id in
-      let new_e = mk_e (Expr_appl (new_op_id, args, r)) in
-      let mut = check_mut expr new_e in
-      mut, new_e
-    else
-      let mut, new_args = rdm_mutate_expr args in
-      mut, mk_e (Expr_appl (op_id, new_args, r))
-  (* Other constructs are kept. | Expr_fby of expr * expr | Expr_array of expr
-     list | Expr_access of expr * Dimension.dim_expr | Expr_power of expr *
-     Dimension.dim_expr | Expr_when of expr * ident * label | Expr_merge of
-     ident * (label * expr) list | Expr_uclock of expr * int | Expr_dclock of
-     expr * int | Expr_phclock of expr * rat *)
-  | _ ->
-    None, expr
-
-let rdm_mutate_eq eq =
-  let mutation, new_rhs = rdm_mutate_expr eq.eq_rhs in
-  mutation, { eq with eq_rhs = new_rhs }
-
-let rnd_mutate_stmt stmt =
-  match stmt with
-  | Eq eq ->
-    let mut, new_eq = rdm_mutate_eq eq in
-    report ~level:1 (fun fmt ->
-        fprintf fmt "mutation: %a becomes %a@ " Printers.pp_node_eq eq
-          Printers.pp_node_eq new_eq);
-    mut, Eq new_eq
-  | Aut _ ->
-    assert false
-
-let rdm_mutate_node nd =
-  let mutation, new_node_stmts = select_in_list nd.node_stmts rnd_mutate_stmt in
-  mutation, { nd with node_stmts = new_node_stmts }
-
-let rdm_mutate_top_decl td =
-  match td.top_decl_desc with
-  | Node nd ->
-    let mutation, new_node = rdm_mutate_node nd in
-    mutation, { td with top_decl_desc = Node new_node }
-  | Const cst ->
-    let mut, new_cst = rdm_mutate_const cst in
-    mut, { td with top_decl_desc = Const new_cst }
-  | _ ->
-    None, td
-
-(* Create a single mutant with the provided random seed *)
-let rdm_mutate_prog prog = select_in_list prog rdm_mutate_top_decl
-
-let rdm_mutate nb prog =
-  let rec iterate nb res =
-    incr random_seed;
-    if nb <= 0 then res
-    else (
-      Random.init !random_seed;
-      let mutation, new_mutant = rdm_mutate_prog prog in
-      match mutation with
-      | None ->
-        iterate nb res
-      | Some mutation ->
-        if List.mem_assoc mutation res then iterate nb res
-        else (
-          report ~level:1 (fun fmt -> fprintf fmt "%i mutants remaining@ " nb);
-          iterate (nb - 1) ((mutation, new_mutant) :: res)))
-  in
-  iterate nb []
+(* XXX: UNUSED *)
+(* let check_mut e1 e2 =
+ *   let rec eq e1 e2 =
+ *     match e1.expr_desc, e2.expr_desc with
+ *     | Expr_const c1, Expr_const c2 ->
+ *       c1 = c2
+ *     | Expr_ident id1, Expr_ident id2 ->
+ *       id1 = id2
+ *     | Expr_tuple el1, Expr_tuple el2 ->
+ *       List.length el1 = List.length el2 && List.for_all2 eq el1 el2
+ *     | Expr_ite (i1, t1, e1), Expr_ite (i2, t2, e2) ->
+ *       eq i1 i2 && eq t1 t2 && eq e1 e2
+ *     | Expr_arrow (x1, y1), Expr_arrow (x2, y2) ->
+ *       eq x1 x2 && eq y1 y2
+ *     | Expr_pre e1, Expr_pre e2 ->
+ *       eq e1 e2
+ *     | Expr_appl (id1, e1, _), Expr_appl (id2, e2, _) ->
+ *       id1 = id2 && eq e1 e2
+ *     | _ ->
+ *       false
+ *   in
+ *   if not (eq e1 e2) then Some (e1, e2) else None
+ *
+ * let mk_cst_expr c = mkexpr Location.dummy (Expr_const c)
+ *
+ * let rdm_mutate_int i =
+ *   if Random.int 100 > threshold_inc_int then i + 1
+ *   else if Random.int 100 > threshold_dec_int then i - 1
+ *   else if Random.int 100 > threshold_random_int then Random.int 10
+ *   else if Random.int 100 > threshold_switch_int then
+ *     let idx = Random.int (List.length !int_consts) in
+ *     List.nth !int_consts idx
+ *   else i
+ *
+ * let rdm_mutate_real r =
+ *   if Random.int 100 > threshold_random_float then
+ *     (\* interval [0, bound] for random values *\)
+ *     let bound = 10 in
+ *     (\* max number of digits after comma *\)
+ *     let digits = 5 in
+ *     (\* number of digits after comma *\)
+ *     let shift = Random.int (digits + 1) in
+ *     let eshift = 10. ** float_of_int shift in
+ *     let i = Random.int (1 + (bound * int_of_float eshift)) in
+ *     let f = float_of_int i /. eshift in
+ *     Real.create (string_of_int i) shift (string_of_float f)
+ *   else r
+ *
+ * let rdm_mutate_op op =
+ *   match op with
+ *   | ("+" | "-" | "*" | "/") when Random.int 100 > threshold_arith_op ->
+ *     let filtered = List.filter (fun x -> x <> op) [ "+"; "-"; "*"; "/" ] in
+ *     List.nth filtered (Random.int 3)
+ *   | ("&&" | "||" | "xor" | "impl") when Random.int 100 > threshold_bool_op ->
+ *     let filtered =
+ *       List.filter (fun x -> x <> op) [ "&&"; "||"; "xor"; "impl" ]
+ *     in
+ *     List.nth filtered (Random.int 3)
+ *   | ("<" | "<=" | ">" | ">=" | "!=" | "=")
+ *     when Random.int 100 > threshold_rel_op ->
+ *     let filtered =
+ *       List.filter (fun x -> x <> op) [ "<"; "<="; ">"; ">="; "!="; "=" ]
+ *     in
+ *     List.nth filtered (Random.int 5)
+ *   | _ ->
+ *     op
+ *
+ * let rdm_mutate_var expr =
+ *   if Types.is_bool_type expr.expr_type then
+ *     (\* if Random.int 100 > threshold_negate_bool_var then *\)
+ *     let new_e = mkpredef_call expr.expr_loc "not" [ expr ] in
+ *     Some (expr, new_e), new_e
+ *     (\* else  *\)
+ *     (\*   expr *\)
+ *   else None, expr
+ *
+ * let rdm_mutate_pre orig_expr =
+ *   let new_e = Expr_pre orig_expr in
+ *   Some (orig_expr, { orig_expr with expr_desc = new_e }), new_e
+ *
+ * let rdm_mutate_const_value c =
+ *   match c with
+ *   | Const_int i ->
+ *     Const_int (rdm_mutate_int i)
+ *   | Const_real r ->
+ *     Const_real (rdm_mutate_real r)
+ *   | Const_array _
+ *   | Const_string _
+ *   | Const_modeid _
+ *   | Const_struct _
+ *   | Const_tag _ ->
+ *     c
+ *
+ * let rdm_mutate_const c =
+ *   let new_const = rdm_mutate_const_value c.const_value in
+ *   let mut = check_mut (mk_cst_expr c.const_value) (mk_cst_expr new_const) in
+ *   mut, { c with const_value = new_const }
+ *
+ * let select_in_list list rdm_mutate_elem =
+ *   let selected = Random.int (List.length list) in
+ *   let mutation_opt, new_list, _ =
+ *     List.fold_right
+ *       (fun elem (mutation_opt, res, cpt) ->
+ *         if cpt = selected then
+ *           let mutation, new_elem = rdm_mutate_elem elem in
+ *           Some mutation, new_elem :: res, cpt + 1
+ *         else mutation_opt, elem :: res, cpt + 1)
+ *       list (None, [], 0)
+ *   in
+ *   match mutation_opt with Some mut -> mut, new_list | _ -> assert false
+ *
+ * let rec rdm_mutate_expr expr =
+ *   let mk_e d = { expr with expr_desc = d } in
+ *   match expr.expr_desc with
+ *   | Expr_ident _ ->
+ *     rdm_mutate_var expr
+ *   | Expr_const c ->
+ *     let new_const = rdm_mutate_const_value c in
+ *     let mut = check_mut (mk_cst_expr c) (mk_cst_expr new_const) in
+ *     mut, mk_e (Expr_const new_const)
+ *   | Expr_tuple l ->
+ *     let mut, l' = select_in_list l rdm_mutate_expr in
+ *     mut, mk_e (Expr_tuple l')
+ *   | Expr_ite (i, t, e) -> (
+ *     let mut, l = select_in_list [ i; t; e ] rdm_mutate_expr in
+ *     match l with
+ *     | [ i'; t'; e' ] ->
+ *       mut, mk_e (Expr_ite (i', t', e'))
+ *     | _ ->
+ *       assert false)
+ *   | Expr_arrow (e1, e2) -> (
+ *     let mut, l = select_in_list [ e1; e2 ] rdm_mutate_expr in
+ *     match l with
+ *     | [ e1'; e2' ] ->
+ *       mut, mk_e (Expr_arrow (e1', e2'))
+ *     | _ ->
+ *       assert false)
+ *   | Expr_pre e ->
+ *     let select_pre = Random.bool () in
+ *     if select_pre then
+ *       let mut, new_expr = rdm_mutate_pre expr in
+ *       mut, mk_e new_expr
+ *     else
+ *       let mut, e' = rdm_mutate_expr e in
+ *       mut, mk_e (Expr_pre e')
+ *   | Expr_appl (op_id, args, r) ->
+ *     let select_op = Random.bool () in
+ *     if select_op then
+ *       let new_op_id = rdm_mutate_op op_id in
+ *       let new_e = mk_e (Expr_appl (new_op_id, args, r)) in
+ *       let mut = check_mut expr new_e in
+ *       mut, new_e
+ *     else
+ *       let mut, new_args = rdm_mutate_expr args in
+ *       mut, mk_e (Expr_appl (op_id, new_args, r))
+ *   (\* Other constructs are kept. | Expr_fby of expr * expr | Expr_array of expr
+ *      list | Expr_access of expr * Dimension.dim_expr | Expr_power of expr *
+ *      Dimension.dim_expr | Expr_when of expr * ident * label | Expr_merge of
+ *      ident * (label * expr) list | Expr_uclock of expr * int | Expr_dclock of
+ *      expr * int | Expr_phclock of expr * rat *\)
+ *   | _ ->
+ *     None, expr
+ *
+ * let rdm_mutate_eq eq =
+ *   let mutation, new_rhs = rdm_mutate_expr eq.eq_rhs in
+ *   mutation, { eq with eq_rhs = new_rhs }
+ *
+ * let rnd_mutate_stmt stmt =
+ *   match stmt with
+ *   | Eq eq ->
+ *     let mut, new_eq = rdm_mutate_eq eq in
+ *     report ~level:1 (fun fmt ->
+ *         fprintf fmt "mutation: %a becomes %a@ " Printers.pp_node_eq eq
+ *           Printers.pp_node_eq new_eq);
+ *     mut, Eq new_eq
+ *   | Aut _ ->
+ *     assert false
+ *
+ * let rdm_mutate_node nd =
+ *   let mutation, new_node_stmts = select_in_list nd.node_stmts rnd_mutate_stmt in
+ *   mutation, { nd with node_stmts = new_node_stmts }
+ *
+ * let rdm_mutate_top_decl td =
+ *   match td.top_decl_desc with
+ *   | Node nd ->
+ *     let mutation, new_node = rdm_mutate_node nd in
+ *     mutation, { td with top_decl_desc = Node new_node }
+ *   | Const cst ->
+ *     let mut, new_cst = rdm_mutate_const cst in
+ *     mut, { td with top_decl_desc = Const new_cst }
+ *   | _ ->
+ *     None, td
+ *
+ * (\* Create a single mutant with the provided random seed *\)
+ * let rdm_mutate_prog prog = select_in_list prog rdm_mutate_top_decl
+ *
+ * let rdm_mutate nb prog =
+ *   let rec iterate nb res =
+ *     incr random_seed;
+ *     if nb <= 0 then res
+ *     else (
+ *       Random.init !random_seed;
+ *       let mutation, new_mutant = rdm_mutate_prog prog in
+ *       match mutation with
+ *       | None ->
+ *         iterate nb res
+ *       | Some mutation ->
+ *         if List.mem_assoc mutation res then iterate nb res
+ *         else (
+ *           report ~level:1 (fun fmt -> fprintf fmt "%i mutants remaining@ " nb);
+ *           iterate (nb - 1) ((mutation, new_mutant) :: res)))
+ *   in
+ *   iterate nb [] *)
 
 (*****************************************************************)
 (*                  Random mutation                              *)
@@ -456,24 +469,26 @@ let pp_directive_json fmt d =
     Format.fprintf fmt "\"mutation\": \"cst_switch\", \"to_cst\": \"%i\"" m
 
 let pp_loc_json fmt (n, eqlhs, l) =
-  Format.(fprintf fmt
-            "\"node_id\": \"%s\", \"eq_lhs\": [%a], \"loc_line\": \"%i\"" n
-            (pp_comma_list (fun fmt -> fprintf fmt "\"%s\""))
-            eqlhs (Location.line_of l))
+  Format.(
+    fprintf fmt "\"node_id\": \"%s\", \"eq_lhs\": [%a], \"loc_line\": \"%i\"" n
+      (pp_comma_list (fun fmt -> fprintf fmt "\"%s\""))
+      eqlhs (Location.line_of l))
 
-let fold_mutate_int i =
-  if Random.int 100 > threshold_inc_int then i + 1
-  else if Random.int 100 > threshold_dec_int then i - 1
-  else if Random.int 100 > threshold_random_int then Random.int 10
-  else if Random.int 100 > threshold_switch_int then
-    try
-      let idx = Random.int (List.length !int_consts) in
-      List.nth !int_consts idx
-    with _ -> i
-  else i
+(* XXX: UNUSED *)
+(* let fold_mutate_int i =
+ *   if Random.int 100 > threshold_inc_int then i + 1
+ *   else if Random.int 100 > threshold_dec_int then i - 1
+ *   else if Random.int 100 > threshold_random_int then Random.int 10
+ *   else if Random.int 100 > threshold_switch_int then
+ *     try
+ *       let idx = Random.int (List.length !int_consts) in
+ *       List.nth !int_consts idx
+ *     with _ -> i
+ *   else i *)
 
-let fold_mutate_float f =
-  if Random.int 100 > threshold_random_float then Random.float 10. else f
+(* XXX: UNUSED *)
+(* let fold_mutate_float f =
+ *   if Random.int 100 > threshold_random_float then Random.float 10. else f *)
 
 let fold_mutate_op op =
   (* match op with *)

@@ -13,8 +13,10 @@ type t =
 
 exception Error of Location.t * t
 
-val return_code: t -> int
+val return_code : t -> int
 
-val pp: Format.formatter -> t -> unit
-val pp_error: Location.t -> (Format.formatter -> unit) -> unit
-val pp_warning: Location.t -> (Format.formatter -> unit) -> unit
+val pp : Format.formatter -> t -> unit
+
+val pp_error : Location.t -> (Format.formatter -> unit) -> unit
+
+val pp_warning : Location.t -> (Format.formatter -> unit) -> unit

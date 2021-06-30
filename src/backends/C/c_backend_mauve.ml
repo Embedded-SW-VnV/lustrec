@@ -2,7 +2,6 @@ open Lustre_types
 open Machine_code_types
 open Format
 open C_backend_common
-open Utils
 open Printers
 
 (* module type MODIFIERS_MAINSRC = sig end

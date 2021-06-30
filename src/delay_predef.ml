@@ -12,9 +12,11 @@
 open Delay
 (** Base types and predefined operator types. *)
 
-let delay_zero () = new_univar ()
+(* XXX: UNUSED *)
+(* let delay_zero () = new_univar () *)
 
-let delay_un = new_delay Dundef
+(* XXX: UNUSED *)
+(* let delay_un = new_delay Dundef *)
 
 let delay_nullary_poly_op =
   let univ = new_univar () in

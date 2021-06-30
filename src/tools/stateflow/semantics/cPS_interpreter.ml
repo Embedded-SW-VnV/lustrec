@@ -50,22 +50,6 @@ module Interpreter (Transformer : TransformerType) = struct
   end
 
   module type AbsDenotationType = sig
-    val eval_dest :
-      kenv_t ->
-      destination_t ->
-      Transformer.t wrapper_t ->
-      Transformer.t success_t ->
-      Transformer.t fail_t ->
-      Transformer.t
-
-    val eval_tau :
-      kenv_t ->
-      trans_t ->
-      Transformer.t wrapper_t ->
-      Transformer.t success_t ->
-      Transformer.t fail_t ->
-      Transformer.t
-
     val eval_T :
       kenv_t ->
       transitions_t ->
@@ -74,35 +58,27 @@ module Interpreter (Transformer : TransformerType) = struct
       Transformer.t fail_t ->
       Transformer.t
 
-    val eval_C :
-      kenv_t ->
-      (path_t, 'b, Transformer.t) tag_t ->
-      path_t ->
-      composition_t ->
-      Transformer.t
-
-    val eval_open_path :
-      kenv_t -> mode_t -> path_t -> path_t -> Transformer.t wrapper_t
-
     val eval_S :
       kenv_t -> (path_t, 'b, Transformer.t) tag_t -> path_t -> state_def_t -> 'b
   end
 
   module AbstractKenv (Denot : functor (Kenv : KenvType) -> DenotationType) :
     AbsDenotationType = struct
-    let eval_dest kenv =
-      let module Kenv = struct
-        let kenv = kenv
-      end in
-      let module D = Denot (Kenv) in
-      D.eval_dest
+    (* XXX: UNUSED *)
+    (* let eval_dest kenv =
+     *   let module Kenv = struct
+     *     let kenv = kenv
+     *   end in
+     *   let module D = Denot (Kenv) in
+     *   D.eval_dest *)
 
-    let eval_tau kenv =
-      let module Kenv = struct
-        let kenv = kenv
-      end in
-      let module D = Denot (Kenv) in
-      D.eval_tau
+    (* XXX: UNUSED *)
+    (* let eval_tau kenv =
+     *   let module Kenv = struct
+     *     let kenv = kenv
+     *   end in
+     *   let module D = Denot (Kenv) in
+     *   D.eval_tau *)
 
     let eval_T kenv =
       let module Kenv = struct
@@ -111,19 +87,21 @@ module Interpreter (Transformer : TransformerType) = struct
       let module D = Denot (Kenv) in
       D.eval_T
 
-    let eval_C kenv =
-      let module Kenv = struct
-        let kenv = kenv
-      end in
-      let module D = Denot (Kenv) in
-      D.eval_C
+    (* XXX: UNUSED *)
+    (* let eval_C kenv =
+     *   let module Kenv = struct
+     *     let kenv = kenv
+     *   end in
+     *   let module D = Denot (Kenv) in
+     *   D.eval_C *)
 
-    let eval_open_path kenv =
-      let module Kenv = struct
-        let kenv = kenv
-      end in
-      let module D = Denot (Kenv) in
-      D.eval_open_path
+    (* XXX: UNUSED *)
+    (* let eval_open_path kenv =
+     *   let module Kenv = struct
+     *     let kenv = kenv
+     *   end in
+     *   let module D = Denot (Kenv) in
+     *   D.eval_open_path *)
 
     let eval_S kenv =
       let module Kenv = struct

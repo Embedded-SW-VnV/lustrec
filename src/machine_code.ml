@@ -120,8 +120,8 @@ let rec translate_expr env expr =
          removed for C or Java backends. *)
       Fun ("ite", [ translate_expr g; translate_expr t; translate_expr e ])
     | _ ->
-      Format.eprintf "Normalization error for backend %t: %a@." Options.pp_output
-        Printers.pp_expr expr;
+      Format.eprintf "Normalization error for backend %t: %a@."
+        Options.pp_output Printers.pp_expr expr;
       raise NormalizationError
   in
   mk_val value_desc expr.expr_type

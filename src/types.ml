@@ -51,7 +51,7 @@ module type S = sig
 
   type basic_type = BasicT.t
 
-  type t = { mutable tdesc: type_desc; tid: int }
+  type t = { mutable tdesc : type_desc; tid : int }
 
   and type_desc =
     | Tconst of ident
@@ -71,7 +71,7 @@ module type S = sig
     | Tvar
     (* Monomorphic type variable *)
     | Tunivar
-    (* Polymorphic type variable *)
+  (* Polymorphic type variable *)
 
   type error =
     | Unbound_value of ident
@@ -166,7 +166,7 @@ module type S = sig
   val array_type_multi_dimension : t -> Dimension.t list
 end
 
-module Basic: BASIC_TYPES = struct
+module Basic : BASIC_TYPES = struct
   type t = Tstring | Tint | Treal | Tbool | Trat
   (* Actually unused for now. Only place where it can appear is in a clock
      declaration *)
@@ -219,7 +219,7 @@ module Make (BasicT : BASIC_TYPES) = struct
 
   type basic_type = BasicT.t
 
-  type t = { mutable tdesc: type_desc; tid: int }
+  type t = { mutable tdesc : type_desc; tid : int }
 
   and type_desc =
     | Tconst of ident
@@ -239,7 +239,7 @@ module Make (BasicT : BASIC_TYPES) = struct
     | Tvar
     (* Monomorphic type variable *)
     | Tunivar
-    (* Polymorphic type variable *)
+  (* Polymorphic type variable *)
 
   type error =
     | Unbound_value of ident
@@ -289,11 +289,11 @@ module Make (BasicT : BASIC_TYPES) = struct
     | Ttuple tylist ->
       fprintf fmt "(%a)"
         (pp_print_list
-           ~pp_sep:(fun fmt () -> pp_print_string  fmt " * ") print_ty) tylist
+           ~pp_sep:(fun fmt () -> pp_print_string fmt " * ")
+           print_ty)
+        tylist
     | Tenum taglist ->
-      fprintf fmt "enum {%a }"
-        (pp_comma_list pp_print_string)
-        taglist
+      fprintf fmt "enum {%a }" (pp_comma_list pp_print_string) taglist
     | Tstruct fieldlist ->
       fprintf fmt "struct {%a }"
         (pp_print_list ~pp_sep:pp_print_semicolon
@@ -328,12 +328,13 @@ module Make (BasicT : BASIC_TYPES) = struct
     | Tarrow (ty1, ty2) ->
       fprintf fmt "%a -> %a" print_node_ty ty1 print_node_ty ty2
     | Ttuple tylist ->
-      fprintf fmt "(%a)" (pp_print_list
-           ~pp_sep:(fun fmt () -> pp_print_string  fmt "")  print_node_ty) tylist
+      fprintf fmt "(%a)"
+        (pp_print_list
+           ~pp_sep:(fun fmt () -> pp_print_string fmt "")
+           print_node_ty)
+        tylist
     | Tenum taglist ->
-      fprintf fmt "enum {%a }"
-        (pp_comma_list pp_print_string)
-        taglist
+      fprintf fmt "enum {%a }" (pp_comma_list pp_print_string) taglist
     | Tstruct fieldlist ->
       fprintf fmt "struct {%a }"
         (pp_print_list ~pp_sep:pp_print_semicolon print_node_struct_ty_field)
@@ -381,7 +382,7 @@ module Make (BasicT : BASIC_TYPES) = struct
 
   let new_id = ref (-1)
 
-  let rec bottom: t = { tdesc = Tlink bottom; tid = -666 }
+  let rec bottom : t = { tdesc = Tlink bottom; tid = -666 }
 
   let new_ty desc =
     incr new_id;
@@ -396,33 +397,36 @@ module Make (BasicT : BASIC_TYPES) = struct
   let get_static_value ty =
     match (repr ty).tdesc with Tstatic (d, _) -> Some d | _ -> None
 
-  let get_field_type ty label =
-    match (repr ty).tdesc with
-    | Tstruct fl -> (
-      try Some (List.assoc label fl) with Not_found -> None)
-    | _ ->
-      None
+  (* XXX: UNUSED *)
+  (* let get_field_type ty label =
+   *   match (repr ty).tdesc with
+   *   | Tstruct fl -> (
+   *     try Some (List.assoc label fl) with Not_found -> None)
+   *   | _ ->
+   *     None *)
 
   let is_static_type ty =
     match (repr ty).tdesc with Tstatic _ -> true | _ -> false
 
-  let rec is_scalar_type ty =
-    match (repr ty).tdesc with
-    | Tstatic (_, ty) ->
-      is_scalar_type ty
-    | Tbasic t ->
-      BasicT.is_scalar_type t
-    | _ ->
-      false
+  (* XXX: UNUSED *)
+  (* let rec is_scalar_type ty =
+   *   match (repr ty).tdesc with
+   *   | Tstatic (_, ty) ->
+   *     is_scalar_type ty
+   *   | Tbasic t ->
+   *     BasicT.is_scalar_type t
+   *   | _ ->
+   *     false *)
 
-  let rec is_numeric_type ty =
-    match (repr ty).tdesc with
-    | Tstatic (_, ty) ->
-      is_numeric_type ty
-    | Tbasic t ->
-      BasicT.is_numeric_type t
-    | _ ->
-      false
+  (* XXX: UNUSED *)
+  (* let rec is_numeric_type ty =
+   *   match (repr ty).tdesc with
+   *   | Tstatic (_, ty) ->
+   *     is_numeric_type ty
+   *   | Tbasic t ->
+   *     BasicT.is_numeric_type t
+   *   | _ ->
+   *     false *)
 
   let rec is_real_type ty =
     match (repr ty).tdesc with
@@ -521,8 +525,7 @@ module Make (BasicT : BASIC_TYPES) = struct
     | Tarray (d, _) ->
       d
     | _ ->
-      eprintf "internal error: Types.array_type_dimension %a@." print_ty
-        ty;
+      eprintf "internal error: Types.array_type_dimension %a@." print_ty ty;
       assert false
 
   let rec array_type_multi_dimension ty =
@@ -585,29 +588,31 @@ module Make (BasicT : BASIC_TYPES) = struct
     | _ ->
       [ ty ]
 
+  (* XXX: UNUSED *)
   (** [is_polymorphic ty] returns true if [ty] is polymorphic. *)
-  let rec is_polymorphic ty =
-    match ty.tdesc with
-    | Tenum _ | Tvar | Tbasic _ | Tconst _ ->
-      false
-    | Tclock ty ->
-      is_polymorphic ty
-    | Tarrow (ty1, ty2) ->
-      is_polymorphic ty1 || is_polymorphic ty2
-    | Ttuple tl ->
-      List.exists (fun t -> is_polymorphic t) tl
-    | Tstruct fl ->
-      List.exists (fun (_, t) -> is_polymorphic t) fl
-    | Tlink t' ->
-      is_polymorphic t'
-    | Tarray (d, ty) | Tstatic (d, ty) ->
-      Dimension.is_polymorphic d || is_polymorphic ty
-    | Tunivar ->
-      true
+  (* let rec is_polymorphic ty =
+   *   match ty.tdesc with
+   *   | Tenum _ | Tvar | Tbasic _ | Tconst _ ->
+   *     false
+   *   | Tclock ty ->
+   *     is_polymorphic ty
+   *   | Tarrow (ty1, ty2) ->
+   *     is_polymorphic ty1 || is_polymorphic ty2
+   *   | Ttuple tl ->
+   *     List.exists (fun t -> is_polymorphic t) tl
+   *   | Tstruct fl ->
+   *     List.exists (fun (_, t) -> is_polymorphic t) fl
+   *   | Tlink t' ->
+   *     is_polymorphic t'
+   *   | Tarray (d, ty) | Tstatic (d, ty) ->
+   *     Dimension.is_polymorphic d || is_polymorphic ty
+   *   | Tunivar ->
+   *     true *)
 
-  let mktyptuple nb typ =
-    let array = Array.make nb typ in
-    Ttuple (Array.to_list array)
+  (* XXX: UNUSED *)
+  (* let mktyptuple nb typ =
+   *   let array = Array.make nb typ in
+   *   Ttuple (Array.to_list array) *)
 
   let type_desc t = t.tdesc
 
@@ -619,7 +624,6 @@ module Make (BasicT : BASIC_TYPES) = struct
 
   let type_string = mk_basic BasicT.type_string_builder
 end
-
 
 include Make (Basic)
 

@@ -84,17 +84,18 @@ let topological_sort eq_equiv g =
   IdentDepGraph.clear g;
   !sorted
 
+(* XXX: UNUSED *)
 (* Filters out normalization variables and renames instance variables to keep
    things readable, in a case of a dependency error *)
-let filter_original n vl =
-  List.fold_right
-    (fun v res ->
-      if ExprDep.is_instance_var v then
-        Format.sprintf "node %s" (ExprDep.undo_instance_var v) :: res
-      else
-        let vdecl = get_node_var v n in
-        if vdecl.var_orig then v :: res else res)
-    vl []
+(* let filter_original n vl =
+ *   List.fold_right
+ *     (fun v res ->
+ *       if ExprDep.is_instance_var v then
+ *         Format.sprintf "node %s" (ExprDep.undo_instance_var v) :: res
+ *       else
+ *         let vdecl = get_node_var v n in
+ *         if vdecl.var_orig then v :: res else res)
+ *     vl [] *)
 
 let eq_equiv eq_equiv_hash v1 v2 =
   try Hashtbl.find eq_equiv_hash v1 = Hashtbl.find eq_equiv_hash v2
@@ -179,9 +180,7 @@ let pp_eq_schedule fmt vl =
   | [ v ] ->
     Format.pp_print_string fmt v
   | _ ->
-    Format.fprintf fmt "(%a)"
-      (Format.pp_comma_list Format.pp_print_string)
-      vl
+    Format.fprintf fmt "(%a)" (Format.pp_comma_list Format.pp_print_string) vl
 
 let pp_schedule fmt node_schs =
   IMap.iter
@@ -222,8 +221,8 @@ let pp_warning_unused fmt node_schs =
             let vu = get_node_var u nd in
             if vu.var_orig then
               Format.fprintf fmt
-                "  Warning: variable '%s' seems unused@,  %a@,@," u
-                Location.pp vu.var_loc)
+                "  Warning: variable '%s' seems unused@,  %a@,@," u Location.pp
+                vu.var_loc)
           unused)
     node_schs
 

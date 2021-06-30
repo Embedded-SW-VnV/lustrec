@@ -374,146 +374,147 @@ let inline_all_calls node nodes =
   let nd = match node.top_decl_desc with Node nd -> nd | _ -> assert false in
   { node with top_decl_desc = Node (inline_node nd nodes) }
 
-let witness filename main_name orig inlined (* type_env clock_env *) =
-  let loc = Location.dummy in
-  let rename_local_node nodes prefix id =
-    if List.exists (check_node_name id) nodes then prefix ^ id else id
-  in
-  let main_orig_node =
-    match (List.find (check_node_name main_name) orig).top_decl_desc with
-    | Node nd ->
-      nd
-    | _ ->
-      assert false
-  in
-
-  let orig_rename = rename_local_node orig "orig_" in
-  let inlined_rename = rename_local_node inlined "inlined_" in
-  let identity x = x in
-  let is_node top =
-    match top.top_decl_desc with Node _ -> true | _ -> false
-  in
-  let orig =
-    rename_prog orig_rename (* f_node *) identity (* f_var *) identity
-      (* f_const *) orig
-  in
-  let inlined = rename_prog inlined_rename identity identity inlined in
-  let nodes_origs, others = List.partition is_node orig in
-  let nodes_inlined, _ = List.partition is_node inlined in
-
-  (* One ok_i boolean variable per output var *)
-  let nb_outputs = List.length main_orig_node.node_outputs in
-  let ok_ident = "OK" in
-  let ok_i =
-    List.map
-      (fun id ->
-        mkvar_decl loc
-          ( Format.sprintf "%s_%i" ok_ident id,
-            { ty_dec_desc = Tydec_bool; ty_dec_loc = loc },
-            { ck_dec_desc = Ckdec_any; ck_dec_loc = loc },
-            false,
-            None,
-            None ))
-      (Utils.enumerate nb_outputs)
-  in
-
-  (* OK = ok_1 and ok_2 and ... ok_n-1 *)
-  let ok_output =
-    mkvar_decl loc
-      ( ok_ident,
-        { ty_dec_desc = Tydec_bool; ty_dec_loc = loc },
-        { ck_dec_desc = Ckdec_any; ck_dec_loc = loc },
-        false,
-        None,
-        None )
-  in
-  let main_ok_expr =
-    let mkv x = mkexpr loc (Expr_ident x) in
-    match ok_i with
-    | [] ->
-      assert false
-    | [ x ] ->
-      mkv x.var_id
-    | hd :: tl ->
-      List.fold_left
-        (fun accu elem -> mkpredef_call loc "&&" [ mkv elem.var_id; accu ])
-        (mkv hd.var_id) tl
-  in
-
-  (* Building main node *)
-  let ok_i_eq =
-    {
-      eq_loc = loc;
-      eq_lhs = List.map (fun v -> v.var_id) ok_i;
-      eq_rhs =
-        (let inputs =
-           expr_of_expr_list loc
-             (List.map
-                (fun v -> mkexpr loc (Expr_ident v.var_id))
-                main_orig_node.node_inputs)
-         in
-         let call_orig =
-           mkexpr loc (Expr_appl ("orig_" ^ main_name, inputs, None))
-         in
-         let call_inlined =
-           mkexpr loc (Expr_appl ("inlined_" ^ main_name, inputs, None))
-         in
-         let args = mkexpr loc (Expr_tuple [ call_orig; call_inlined ]) in
-         mkexpr loc (Expr_appl ("=", args, None)));
-    }
-  in
-  let ok_eq = { eq_loc = loc; eq_lhs = [ ok_ident ]; eq_rhs = main_ok_expr } in
-  let main_node =
-    {
-      node_id = "check";
-      node_type = Types.new_var ();
-      node_clock = Clocks.new_var true;
-      node_inputs = main_orig_node.node_inputs;
-      node_outputs = [ ok_output ];
-      node_locals = ok_i;
-      node_gencalls = [];
-      node_checks = [];
-      node_asserts = [];
-      node_stmts = [ Eq ok_i_eq; Eq ok_eq ];
-      node_dec_stateless = false;
-      node_stateless = None;
-      node_spec =
-        Some
-          (Contract
-             (mk_contract_guarantees None
-                (mkeexpr loc (mkexpr loc (Expr_ident ok_ident)))));
-      node_annot = [];
-      node_iscontract = true;
-    }
-  in
-  let main =
-    [
-      {
-        top_decl_desc = Node main_node;
-        top_decl_loc = loc;
-        top_decl_owner = filename;
-        top_decl_itf = false;
-      };
-    ]
-  in
-  let new_prog = others @ nodes_origs @ nodes_inlined @ main in
-
-  (* let _ = Typing.type_prog type_env new_prog in let _ =
-     Clock_calculus.clock_prog clock_env new_prog in *)
-  let witness_file =
-    Options_management.get_witness_dir filename ^ "/" ^ "inliner_witness.lus"
-  in
-  let witness_out = open_out witness_file in
-  let witness_fmt = Format.formatter_of_out_channel witness_out in
-  List.iter
-    (fun vdecl ->
-      Typing.try_unify Type_predef.type_bool vdecl.var_type vdecl.var_loc)
-    (ok_output :: ok_i);
-  Format.fprintf witness_fmt
-    "(* Generated lustre file to check validity of inlining process *)@.";
-  Printers.pp_prog witness_fmt new_prog;
-  Format.fprintf witness_fmt "@.";
-  ()
+(* XXX: UNUSED *)
+(* let witness filename main_name orig inlined (\* type_env clock_env *\) =
+ *   let loc = Location.dummy in
+ *   let rename_local_node nodes prefix id =
+ *     if List.exists (check_node_name id) nodes then prefix ^ id else id
+ *   in
+ *   let main_orig_node =
+ *     match (List.find (check_node_name main_name) orig).top_decl_desc with
+ *     | Node nd ->
+ *       nd
+ *     | _ ->
+ *       assert false
+ *   in
+ *
+ *   let orig_rename = rename_local_node orig "orig_" in
+ *   let inlined_rename = rename_local_node inlined "inlined_" in
+ *   let identity x = x in
+ *   let is_node top =
+ *     match top.top_decl_desc with Node _ -> true | _ -> false
+ *   in
+ *   let orig =
+ *     rename_prog orig_rename (\* f_node *\) identity (\* f_var *\) identity
+ *       (\* f_const *\) orig
+ *   in
+ *   let inlined = rename_prog inlined_rename identity identity inlined in
+ *   let nodes_origs, others = List.partition is_node orig in
+ *   let nodes_inlined, _ = List.partition is_node inlined in
+ *
+ *   (\* One ok_i boolean variable per output var *\)
+ *   let nb_outputs = List.length main_orig_node.node_outputs in
+ *   let ok_ident = "OK" in
+ *   let ok_i =
+ *     List.map
+ *       (fun id ->
+ *         mkvar_decl loc
+ *           ( Format.sprintf "%s_%i" ok_ident id,
+ *             { ty_dec_desc = Tydec_bool; ty_dec_loc = loc },
+ *             { ck_dec_desc = Ckdec_any; ck_dec_loc = loc },
+ *             false,
+ *             None,
+ *             None ))
+ *       (Utils.enumerate nb_outputs)
+ *   in
+ *
+ *   (\* OK = ok_1 and ok_2 and ... ok_n-1 *\)
+ *   let ok_output =
+ *     mkvar_decl loc
+ *       ( ok_ident,
+ *         { ty_dec_desc = Tydec_bool; ty_dec_loc = loc },
+ *         { ck_dec_desc = Ckdec_any; ck_dec_loc = loc },
+ *         false,
+ *         None,
+ *         None )
+ *   in
+ *   let main_ok_expr =
+ *     let mkv x = mkexpr loc (Expr_ident x) in
+ *     match ok_i with
+ *     | [] ->
+ *       assert false
+ *     | [ x ] ->
+ *       mkv x.var_id
+ *     | hd :: tl ->
+ *       List.fold_left
+ *         (fun accu elem -> mkpredef_call loc "&&" [ mkv elem.var_id; accu ])
+ *         (mkv hd.var_id) tl
+ *   in
+ *
+ *   (\* Building main node *\)
+ *   let ok_i_eq =
+ *     {
+ *       eq_loc = loc;
+ *       eq_lhs = List.map (fun v -> v.var_id) ok_i;
+ *       eq_rhs =
+ *         (let inputs =
+ *            expr_of_expr_list loc
+ *              (List.map
+ *                 (fun v -> mkexpr loc (Expr_ident v.var_id))
+ *                 main_orig_node.node_inputs)
+ *          in
+ *          let call_orig =
+ *            mkexpr loc (Expr_appl ("orig_" ^ main_name, inputs, None))
+ *          in
+ *          let call_inlined =
+ *            mkexpr loc (Expr_appl ("inlined_" ^ main_name, inputs, None))
+ *          in
+ *          let args = mkexpr loc (Expr_tuple [ call_orig; call_inlined ]) in
+ *          mkexpr loc (Expr_appl ("=", args, None)));
+ *     }
+ *   in
+ *   let ok_eq = { eq_loc = loc; eq_lhs = [ ok_ident ]; eq_rhs = main_ok_expr } in
+ *   let main_node =
+ *     {
+ *       node_id = "check";
+ *       node_type = Types.new_var ();
+ *       node_clock = Clocks.new_var true;
+ *       node_inputs = main_orig_node.node_inputs;
+ *       node_outputs = [ ok_output ];
+ *       node_locals = ok_i;
+ *       node_gencalls = [];
+ *       node_checks = [];
+ *       node_asserts = [];
+ *       node_stmts = [ Eq ok_i_eq; Eq ok_eq ];
+ *       node_dec_stateless = false;
+ *       node_stateless = None;
+ *       node_spec =
+ *         Some
+ *           (Contract
+ *              (mk_contract_guarantees None
+ *                 (mkeexpr loc (mkexpr loc (Expr_ident ok_ident)))));
+ *       node_annot = [];
+ *       node_iscontract = true;
+ *     }
+ *   in
+ *   let main =
+ *     [
+ *       {
+ *         top_decl_desc = Node main_node;
+ *         top_decl_loc = loc;
+ *         top_decl_owner = filename;
+ *         top_decl_itf = false;
+ *       };
+ *     ]
+ *   in
+ *   let new_prog = others @ nodes_origs @ nodes_inlined @ main in
+ *
+ *   (\* let _ = Typing.type_prog type_env new_prog in let _ =
+ *      Clock_calculus.clock_prog clock_env new_prog in *\)
+ *   let witness_file =
+ *     Options_management.get_witness_dir filename ^ "/" ^ "inliner_witness.lus"
+ *   in
+ *   let witness_out = open_out witness_file in
+ *   let witness_fmt = Format.formatter_of_out_channel witness_out in
+ *   List.iter
+ *     (fun vdecl ->
+ *       Typing.try_unify Type_predef.type_bool vdecl.var_type vdecl.var_loc)
+ *     (ok_output :: ok_i);
+ *   Format.fprintf witness_fmt
+ *     "(\* Generated lustre file to check validity of inlining process *\)@.";
+ *   Printers.pp_prog witness_fmt new_prog;
+ *   Format.fprintf witness_fmt "@.";
+ *   () *)
 (* xx *)
 
 let global_inline prog (*type_env clock_env*) =
@@ -546,26 +547,27 @@ let global_inline prog (*type_env clock_env*) =
      assert false) prog res type_env clock_env ); *)
   res
 
-let pp_inline_calls fmt prog =
-  let local_anns = Annotations.get_expr_annotations keyword in
-  let nodes_with_anns =
-    List.fold_left (fun accu (k, _) -> ISet.add k accu) ISet.empty local_anns
-  in
-  Format.(fprintf fmt "@[<v 0>Inlined expresssions in node (by tags):@ %a@]"
-    (pp_print_list ~pp_sep:pp_print_nothing (fun fmt top ->
-         match top.top_decl_desc with
-         | Node nd when ISet.mem nd.node_id nodes_with_anns ->
-           fprintf fmt "%s: {@[<v 0>%a}@]@ " nd.node_id
-             (pp_print_list pp_print_int)
-             (List.fold_left
-                (fun accu (id, tag) ->
-                  if id = nd.node_id then tag :: accu else accu)
-                [] local_anns)
-         (* | Node nd -> Format.fprintf fmt "%s: no inline annotations"
-            nd.node_id *)
-         | _ ->
-           ())))
-    prog
+(* XXX: UNUSED *)
+(* let pp_inline_calls fmt prog =
+ *   let local_anns = Annotations.get_expr_annotations keyword in
+ *   let nodes_with_anns =
+ *     List.fold_left (fun accu (k, _) -> ISet.add k accu) ISet.empty local_anns
+ *   in
+ *   Format.(fprintf fmt "@[<v 0>Inlined expresssions in node (by tags):@ %a@]"
+ *     (pp_print_list ~pp_sep:pp_print_nothing (fun fmt top ->
+ *          match top.top_decl_desc with
+ *          | Node nd when ISet.mem nd.node_id nodes_with_anns ->
+ *            fprintf fmt "%s: {@[<v 0>%a}@]@ " nd.node_id
+ *              (pp_print_list pp_print_int)
+ *              (List.fold_left
+ *                 (fun accu (id, tag) ->
+ *                   if id = nd.node_id then tag :: accu else accu)
+ *                 [] local_anns)
+ *          (\* | Node nd -> Format.fprintf fmt "%s: no inline annotations"
+ *             nd.node_id *\)
+ *          | _ ->
+ *            ())))
+ *     prog *)
 
 let local_inline prog (* type_env clock_env *) =
   Log.report ~level:2 (fun fmt -> Format.fprintf fmt ".. @[<v 2>Inlining@,");

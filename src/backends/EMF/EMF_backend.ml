@@ -106,9 +106,10 @@ open Machine_code_common
 open Format
 open EMF_common
 
-exception Unhandled of string
-
 module ISet = Utils.ISet
+
+(* XXX: UNUSED *)
+(* exception Unhandled of string *)
 
 (**********************************************)
 (*   Utility functions: arrow and lustre expr *)
@@ -259,24 +260,25 @@ and branch_instr_vars m i =
   | MSpec _ | MComment _ -> assert false
 (* not  available for EMF output *)
 
+(* XXX: UNUSED *)
 (* A kind of super join_guards: all MBranch are postponed and sorted by
    guards so they can be easier merged *)
-let merge_branches instrs =
-  let instrs, branches =
-    List.fold_right
-      (fun i (il, branches) ->
-        match Corelang.get_instr_desc i with
-        | MBranch _ -> il, i :: branches
-        | _ -> i :: il, branches)
-      instrs ([], [])
-  in
-  let sorting_branches b1 b2 =
-    match Corelang.get_instr_desc b1, Corelang.get_instr_desc b2 with
-    | MBranch (g1, _), MBranch (g2, _) -> compare g1 g2
-    | _ -> assert false
-  in
-  let sorted_branches = List.sort sorting_branches branches in
-  instrs @ join_guards_list sorted_branches
+(* let merge_branches instrs =
+ *   let instrs, branches =
+ *     List.fold_right
+ *       (fun i (il, branches) ->
+ *         match Corelang.get_instr_desc i with
+ *         | MBranch _ -> il, i :: branches
+ *         | _ -> i :: il, branches)
+ *       instrs ([], [])
+ *   in
+ *   let sorting_branches b1 b2 =
+ *     match Corelang.get_instr_desc b1, Corelang.get_instr_desc b2 with
+ *     | MBranch (g1, _), MBranch (g2, _) -> compare g1 g2
+ *     | _ -> assert false
+ *   in
+ *   let sorted_branches = List.sort sorting_branches branches in
+ *   instrs @ join_guards_list sorted_branches *)
 
 let rec pp_emf_instr m fmt i =
   let pp_content fmt i =
@@ -418,14 +420,15 @@ let pp_emf_spec_mode fmt m =
 
 let pp_emf_spec_modes = pp_emf_list pp_emf_spec_mode
 
-let pp_emf_spec_import fmt i =
-  fprintf fmt "{@[";
-  fprintf fmt "\"contract\": \"%s\",@ " i.import_nodeid;
-  fprintf fmt "\"inputs\": [%a],@ " pp_emf_expr i.inputs;
-  fprintf fmt "\"outputs\": [%a],@ " pp_emf_expr i.outputs;
-  fprintf fmt "@]}"
-
-let pp_emf_spec_imports = pp_emf_list pp_emf_spec_import
+(* XXX: UNUSED *)
+(* let pp_emf_spec_import fmt i =
+ *   fprintf fmt "{@[";
+ *   fprintf fmt "\"contract\": \"%s\",@ " i.import_nodeid;
+ *   fprintf fmt "\"inputs\": [%a],@ " pp_emf_expr i.inputs;
+ *   fprintf fmt "\"outputs\": [%a],@ " pp_emf_expr i.outputs;
+ *   fprintf fmt "@]}"
+ *
+ * let pp_emf_spec_imports = pp_emf_list pp_emf_spec_import *)
 
 let pp_emf_spec fmt spec =
   fprintf fmt "{ @[<hov 0>";
@@ -461,37 +464,38 @@ let pp_machine fmt m =
     (*merge_branches*)
     m.mstep.step_instrs
   in
-  try
-    fprintf fmt "@[<v 2>\"%a\": {@ " print_protect (fun fmt ->
-        pp_print_string fmt m.mname.node_id);
-    (match m.mspec.mnode_spec with
-    | Some (Contract _) -> fprintf fmt "\"contract\": \"true\",@ "
-    | _ -> ());
-    fprintf fmt "\"imported\": \"false\",@ ";
-    fprintf fmt "\"kind\": %t,@ " (fun fmt ->
-        if not (snd (get_stateless_status m)) then fprintf fmt "\"stateful\""
-        else fprintf fmt "\"stateless\"");
-    fprintf fmt "\"inputs\": [%a],@ " pp_emf_vars_decl m.mstep.step_inputs;
-    fprintf fmt "\"outputs\": [%a],@ " pp_emf_vars_decl m.mstep.step_outputs;
-    fprintf fmt "\"locals\": [%a],@ " pp_emf_vars_decl m.mstep.step_locals;
-    fprintf fmt "\"mems\": [%a],@ " pp_emf_vars_decl m.mmemory;
-    fprintf fmt "\"original_name\": \"%s\",@ " m.mname.node_id;
-    fprintf fmt "\"instrs\": {@[<v 0> %a@]@ },@ " (pp_emf_instrs m) instrs;
-    (match m.mspec.mnode_spec with
-    | None -> ()
-    | Some (Contract c) ->
-        assert (c.locals = [] && c.consts = [] && c.stmts = [] && c.imports = []);
-        fprintf fmt "\"spec\": %a,@ " pp_emf_spec c
-    | Some (NodeSpec id) -> fprintf fmt "\"contract\": \"%s\",@ " id);
-    fprintf fmt "\"annots\": {@[<v 0> %a@]@ }"
-      (pp_emf_annots_list (ref 0))
-      m.mannot;
-    fprintf fmt "@]@ }"
-  with Unhandled msg ->
-    eprintf "[Error] @[<v 0>EMF backend@ Issues while translating node %s@ "
-      m.mname.node_id;
-    eprintf "%s@ " msg;
-    eprintf "node skipped - no output generated@ @]@."
+  (* try *)
+  fprintf fmt "@[<v 2>\"%a\": {@ " print_protect (fun fmt ->
+      pp_print_string fmt m.mname.node_id);
+  (match m.mspec.mnode_spec with
+   | Some (Contract _) -> fprintf fmt "\"contract\": \"true\",@ "
+   | _ -> ());
+  fprintf fmt "\"imported\": \"false\",@ ";
+  fprintf fmt "\"kind\": %t,@ " (fun fmt ->
+      if not (snd (get_stateless_status m)) then fprintf fmt "\"stateful\""
+      else fprintf fmt "\"stateless\"");
+  fprintf fmt "\"inputs\": [%a],@ " pp_emf_vars_decl m.mstep.step_inputs;
+  fprintf fmt "\"outputs\": [%a],@ " pp_emf_vars_decl m.mstep.step_outputs;
+  fprintf fmt "\"locals\": [%a],@ " pp_emf_vars_decl m.mstep.step_locals;
+  fprintf fmt "\"mems\": [%a],@ " pp_emf_vars_decl m.mmemory;
+  fprintf fmt "\"original_name\": \"%s\",@ " m.mname.node_id;
+  fprintf fmt "\"instrs\": {@[<v 0> %a@]@ },@ " (pp_emf_instrs m) instrs;
+  (match m.mspec.mnode_spec with
+   | None -> ()
+   | Some (Contract c) ->
+     assert (c.locals = [] && c.consts = [] && c.stmts = [] && c.imports = []);
+     fprintf fmt "\"spec\": %a,@ " pp_emf_spec c
+   | Some (NodeSpec id) -> fprintf fmt "\"contract\": \"%s\",@ " id);
+  fprintf fmt "\"annots\": {@[<v 0> %a@]@ }"
+    (pp_emf_annots_list (ref 0))
+    m.mannot;
+  fprintf fmt "@]@ }"
+(* XXX: UNUSED *)
+(* with Unhandled msg ->
+ *   eprintf "[Error] @[<v 0>EMF backend@ Issues while translating node %s@ "
+ *     m.mname.node_id;
+ *   eprintf "%s@ " msg;
+ *   eprintf "node skipped - no output generated@ @]@." *)
 
 (*let pp_machine fmt m =                      
   match m.mspec with
@@ -501,23 +505,24 @@ let pp_machine fmt m =
 
 let pp_emf_imported_node fmt top =
   let ind = Corelang.imported_node_of_top top in
-  try
-    fprintf fmt "@[<v 2>\"%a\": {@ " print_protect (fun fmt ->
-        pp_print_string fmt ind.nodei_id);
-    fprintf fmt "\"imported\": \"true\",@ ";
-    fprintf fmt "\"inputs\": [%a],@ " pp_emf_vars_decl ind.nodei_inputs;
-    fprintf fmt "\"outputs\": [%a],@ " pp_emf_vars_decl ind.nodei_outputs;
-    fprintf fmt "\"original_name\": \"%s\"" ind.nodei_id;
-    (match ind.nodei_spec with
-    | None -> fprintf fmt "@ "
-    | Some (Contract _) -> assert false (* should have been processed *)
-    | Some (NodeSpec id) -> fprintf fmt ",@ \"coco_contract\": %s" id);
-    fprintf fmt "@]@ }"
-  with Unhandled msg ->
-    eprintf "[Error] @[<v 0>EMF backend@ Issues while translating node %s@ "
-      ind.nodei_id;
-    eprintf "%s@ " msg;
-    eprintf "node skipped - no output generated@ @]@."
+  (* try *)
+  fprintf fmt "@[<v 2>\"%a\": {@ " print_protect (fun fmt ->
+      pp_print_string fmt ind.nodei_id);
+  fprintf fmt "\"imported\": \"true\",@ ";
+  fprintf fmt "\"inputs\": [%a],@ " pp_emf_vars_decl ind.nodei_inputs;
+  fprintf fmt "\"outputs\": [%a],@ " pp_emf_vars_decl ind.nodei_outputs;
+  fprintf fmt "\"original_name\": \"%s\"" ind.nodei_id;
+  (match ind.nodei_spec with
+   | None -> fprintf fmt "@ "
+   | Some (Contract _) -> assert false (* should have been processed *)
+   | Some (NodeSpec id) -> fprintf fmt ",@ \"coco_contract\": %s" id);
+  fprintf fmt "@]@ }"
+(* XXX: UNUSED *)
+(* with Unhandled msg ->
+ *   eprintf "[Error] @[<v 0>EMF backend@ Issues while translating node %s@ "
+ *     ind.nodei_id;
+ *   eprintf "%s@ " msg;
+ *   eprintf "node skipped - no output generated@ @]@." *)
 
 (****************************************************)
 (* Main function: iterates over node and print them *)

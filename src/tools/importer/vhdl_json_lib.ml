@@ -1,4 +1,5 @@
-open Yojson.Safe.Util
+(* XXX: UNUSED *)
+(* open Yojson.Safe.Util *)
 
 let rec assoc_map_except_str l f str =
   match l with
@@ -26,41 +27,47 @@ let rec prune_str str json =
 
 (*******************)
 
-let rec name_pair_list_to_string l =
-  match l with
-  | (t, `String x) :: tl ->
-    if String.equal t "name" then x :: name_pair_list_to_string tl
-    else name_pair_list_to_string tl
-  | _ ->
-    []
+(* XXX: UNUSED *)
+(* let rec name_pair_list_to_string l =
+ *   match l with
+ *   | (t, `String x) :: tl ->
+ *     if String.equal t "name" then x :: name_pair_list_to_string tl
+ *     else name_pair_list_to_string tl
+ *   | _ ->
+ *     [] *)
 
-let assoc_filter_string l =
-  match l with `Assoc x -> name_pair_list_to_string x | _ -> []
+(* XXX: UNUSED *)
+(* let assoc_filter_string l =
+ *   match l with `Assoc x -> name_pair_list_to_string x | _ -> [] *)
 
 (********************)
 
-let rec pairlist_remove str l f =
-  match l with
-  | (t, j) :: tl ->
-    if String.equal t str then f j :: pairlist_remove str tl f
-    else `Assoc [ t, f j ] :: pairlist_remove str tl f
-  | [] ->
-    []
+(* XXX: UNUSED *)
+(* let rec pairlist_remove str l f =
+ *   match l with
+ *   | (t, j) :: tl ->
+ *     if String.equal t str then f j :: pairlist_remove str tl f
+ *     else `Assoc [ t, f j ] :: pairlist_remove str tl f
+ *   | [] ->
+ *     [] *)
 
 (******************)
-let rec assoc_elem_fst pair_list =
-  match pair_list with (t, _) :: tl -> t :: assoc_elem_fst tl | [] -> []
+(* XXX: UNUSED *)
+(* let rec assoc_elem_fst pair_list =
+ *   match pair_list with (t, _) :: tl -> t :: assoc_elem_fst tl | [] -> [] *)
 
-let rec assoc_elem_snd pair_list =
-  match pair_list with (_, j) :: tl -> j :: assoc_elem_snd tl | [] -> []
+(* XXX: UNUSED *)
+(* let rec assoc_elem_snd pair_list =
+ *   match pair_list with (_, j) :: tl -> j :: assoc_elem_snd tl | [] -> [] *)
 
-let rec assoc_elem_filter pair_list str =
-  match pair_list with
-  | (t, j) :: tl ->
-    if String.equal t str then (t, j) :: assoc_elem_filter tl str
-    else assoc_elem_filter tl str
-  | [] ->
-    []
+(* XXX: UNUSED *)
+(* let rec assoc_elem_filter pair_list str =
+ *   match pair_list with
+ *   | (t, j) :: tl ->
+ *     if String.equal t str then (t, j) :: assoc_elem_filter tl str
+ *     else assoc_elem_filter tl str
+ *   | [] ->
+ *     [] *)
 
 let rec assoc_elem_filternot pair_list str =
   match pair_list with
@@ -78,13 +85,14 @@ let rec assoc_elem_filter_snd pair_list str =
   | [] ->
     []
 
-let assoc_elem_filternot_snd pair_list str =
-  match pair_list with
-  | (t, j) :: tl ->
-    if not (String.equal t str) then j :: assoc_elem_filter_snd tl str
-    else assoc_elem_filter_snd tl str
-  | [] ->
-    []
+(* XXX: UNUSED *)
+(* let assoc_elem_filternot_snd pair_list str =
+ *   match pair_list with
+ *   | (t, j) :: tl ->
+ *     if not (String.equal t str) then j :: assoc_elem_filter_snd tl str
+ *     else assoc_elem_filter_snd tl str
+ *   | [] ->
+ *     [] *)
 
 let rec pairlist_snd_as_list pair_list str =
   match pair_list with
@@ -94,25 +102,30 @@ let rec pairlist_snd_as_list pair_list str =
   | [] ->
     []
 
-let all_members str json =
-  match json with `Assoc l -> assoc_elem_filter_snd l str | _ -> []
+(* XXX: UNUSED *)
+(* let all_members str json =
+ *   match json with `Assoc l -> assoc_elem_filter_snd l str | _ -> [] *)
 
-let retain_other_members str json =
-  match json with `Assoc l -> `Assoc (assoc_elem_filter l str) | _ -> `Null
+(* XXX: UNUSED *)
+(* let retain_other_members str json =
+ *   match json with `Assoc l -> `Assoc (assoc_elem_filter l str) | _ -> `Null *)
 
+(* XXX: UNUSED *)
 (* DESIGN_UNIT as lists *)
-let vhdl_json_designunits_content_as_list json =
-  let designunits_contents =
-    json |> member "DESIGN_FILE" |> all_members "DESIGN_UNIT"
-  in
-  `List designunits_contents
+(* let vhdl_json_designunits_content_as_list json =
+ *   let designunits_contents =
+ *     json |> member "DESIGN_FILE" |> all_members "DESIGN_UNIT"
+ *   in
+ *   `List designunits_contents *)
 
-let vhdl_json_designfile_content_excluding json =
-  json |> member "DESIGN_FILE" |> retain_other_members "DESIGN_UNIT"
+(* XXX: UNUSED *)
+(* let vhdl_json_designfile_content_excluding json =
+ *   json |> member "DESIGN_FILE" |> retain_other_members "DESIGN_UNIT" *)
 
-let vhdl_json_list_designunits json =
-  let designunits_list = vhdl_json_designunits_content_as_list json in
-  `Assoc [ "DESIGN_FILE", `Assoc [ "DESIGN_UNIT", designunits_list ] ]
+(* XXX: UNUSED *)
+(* let vhdl_json_list_designunits json =
+ *   let designunits_list = vhdl_json_designunits_content_as_list json in
+ *   `Assoc [ "DESIGN_FILE", `Assoc [ "DESIGN_UNIT", designunits_list ] ] *)
 
 let rec pairlist_contains_str str l =
   match l with
@@ -189,25 +202,26 @@ let rec prune_null_assoc json =
   | x ->
     x
 
+(* XXX: UNUSED *)
 (* Value printers *)
-let rec print_depth json depth indent =
-  if depth > 0 then
-    match json with
-    | `Assoc ((t, j) :: tl) ->
-      (indent ^ t)
-      ::
-      List.append
-        (print_depth j (depth - 1) (indent ^ "  "))
-        (print_depth (`Assoc tl) depth indent)
-    | `List (hd :: tl) ->
-      List.append
-        (print_depth hd depth indent)
-        (print_depth (`List tl) depth indent)
-    | `String s ->
-      [ indent ^ s ]
-    | _ ->
-      []
-  else []
+(* let rec print_depth json depth indent =
+ *   if depth > 0 then
+ *     match json with
+ *     | `Assoc ((t, j) :: tl) ->
+ *       (indent ^ t)
+ *       ::
+ *       List.append
+ *         (print_depth j (depth - 1) (indent ^ "  "))
+ *         (print_depth (`Assoc tl) depth indent)
+ *     | `List (hd :: tl) ->
+ *       List.append
+ *         (print_depth hd depth indent)
+ *         (print_depth (`List tl) depth indent)
+ *     | `String s ->
+ *       [ indent ^ s ]
+ *     | _ ->
+ *       []
+ *   else [] *)
 
 let rec flatten_ivd json =
   match json with

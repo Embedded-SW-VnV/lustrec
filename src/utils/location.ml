@@ -18,20 +18,17 @@ type filename = string
 
 let dummy = dummy_pos, dummy_pos
 
-let set_input, get_input, get_module =
+let set_input, get_module =
   let input_name : filename ref = ref "__UNINITIALIZED__" in
   let module_name : filename ref = ref "__UNINITIALIZED__" in
   ( (fun name ->
       input_name := name;
       module_name := Filename.chop_extension name),
-    (fun () -> !input_name),
     fun () -> !module_name )
 
 let curr lexbuf = lexbuf.lex_start_p, lexbuf.lex_curr_p
 
 let filename_of (s, _) = s.pos_fname
-
-let filename_of_lexbuf lexbuf = lexbuf.lex_start_p.pos_fname
 
 let shift_pos pos1 pos2 =
   (* Format.eprintf "Shift pos %s by pos %s@." pos1.Lexing.pos_fname pos2.Lexing.pos_fname;

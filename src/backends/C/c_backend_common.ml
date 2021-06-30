@@ -237,8 +237,8 @@ let pp_c_basic_type_desc t_desc =
   else assert false
 (* Not a basic C type. Do not handle arrays or pointers *)
 
-let pp_basic_c_type ?(pp_c_basic_type_desc = pp_c_basic_type_desc)
-    ?var_opt fmt t =
+let pp_basic_c_type ?(pp_c_basic_type_desc = pp_c_basic_type_desc) ?var_opt fmt
+    t =
   match var_opt with
   | Some v when Machine_types.is_exportable v ->
     Machine_types.pp_c_var_type fmt v

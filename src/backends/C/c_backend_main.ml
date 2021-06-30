@@ -14,8 +14,6 @@ open Machine_code_types
 open Machine_code_common
 open Utils.Format
 open C_backend_common
-open Utils
-
 module Mpfr = Lustrec_mpfr
 
 module type MODIFIERS_MAINSRC = sig end

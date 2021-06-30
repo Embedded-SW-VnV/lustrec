@@ -264,17 +264,20 @@ let pp_instance_call machines reset_instances m fmt i inputs outputs =
     | _ ->
       fprintf fmt "(%a @[<v 0>%a%a%a)@]" pp_machine_step_name (node_name n)
         (pp_print_list ~pp_epilogue:pp_print_cut
-           (pp_horn_val m self (pp_horn_var m))) inputs
+           (pp_horn_val m self (pp_horn_var m)))
+        inputs
         (pp_print_list ~pp_epilogue:pp_print_cut
            (pp_horn_val m self (pp_horn_var m)))
         (List.map (fun v -> mk_val (Var v) v.var_type) outputs)
-        (pp_print_list (pp_horn_var m)) (mid_mems @ next_mems)
+        (pp_print_list (pp_horn_var m))
+        (mid_mems @ next_mems)
   with Not_found ->
     (* stateless node instance *)
     let n, _ = List.assoc i m.mcalls in
     fprintf fmt "(%a @[<v 0>%a%a)@]" pp_machine_stateless_name (node_name n)
       (pp_print_list ~pp_epilogue:pp_print_cut
-         (pp_horn_val m self (pp_horn_var m))) inputs
+         (pp_horn_val m self (pp_horn_var m)))
+      inputs
       (pp_print_list (pp_horn_val m self (pp_horn_var m)))
       (List.map (fun v -> mk_val (Var v) v.var_type) outputs)
 
@@ -414,8 +417,7 @@ let print_machine machines fmt m =
     if is_stateless m then (
       (* Declaring single predicate *)
       fprintf fmt "(declare-rel %a (%a))@." pp_machine_stateless_name
-        m.mname.node_id
-        (pp_print_list pp_type)
+        m.mname.node_id (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (inout_vars m));
 
       match m.mstep.step_asserts with
@@ -446,8 +448,7 @@ let print_machine machines fmt m =
     else (
       (* Declaring predicate *)
       fprintf fmt "(declare-rel %a (%a))@." pp_machine_reset_name
-        m.mname.node_id
-        (pp_print_list pp_type)
+        m.mname.node_id (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (reset_vars machines m));
 
       fprintf fmt "(declare-rel %a (%a))@." pp_machine_step_name m.mname.node_id
@@ -538,8 +539,7 @@ let print_sfunction machines fmt m =
     if is_stateless m then (
       (* Declaring single predicate *)
       Format.fprintf fmt "(declare-rel %a (%a))@." pp_machine_stateless_name
-        m.mname.node_id
-        (pp_print_list pp_type)
+        m.mname.node_id (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (reset_vars machines m));
       Format.pp_print_newline fmt ();
       (* Rule for single predicate *)
@@ -553,13 +553,11 @@ let print_sfunction machines fmt m =
     else (
       (* Declaring predicate *)
       Format.fprintf fmt "(declare-rel %a (%a))@." pp_machine_reset_name
-        m.mname.node_id
-        (pp_print_list pp_type)
+        m.mname.node_id (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (inout_vars m));
 
       Format.fprintf fmt "(declare-rel %a (%a))@." pp_machine_step_name
-        m.mname.node_id
-        (pp_print_list pp_type)
+        m.mname.node_id (pp_print_list pp_type)
         (List.map (fun v -> v.var_type) (step_vars machines m));
 
       Format.pp_print_newline fmt ();
@@ -688,32 +686,32 @@ and pp_xml_eexpr fmt e =
       match e.eexpr_quantifiers with [] -> () | _ -> fprintf fmt ";")
     pp_xml_expr e.eexpr_qfexpr
 
-and pp_xml_sf_value fmt e =
-  fprintf fmt "%a"
-    (* (Utils.fprintf_list ~sep:"; " pp_xml_quantifiers) e.eexpr_quantifiers *)
-    (* (fun fmt -> match e.eexpr_quantifiers *)
-    (*             with [] -> () *)
-    (*                | _ -> fprintf fmt ";") *)
-    pp_xml_expr e.eexpr_qfexpr
-
-and pp_xml_s_function fmt expr_ann =
-  let pp_xml_annot fmt (kwds, ee) =
-    Format.fprintf fmt " %t : %a"
-      (fun fmt ->
-        match kwds with
-        | [] ->
-          assert false
-        | [ x ] ->
-          Format.pp_print_string fmt x
-        | _ ->
-          Format.fprintf fmt "%a"
-            (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "/")
-               pp_print_string)
-            kwds)
-      pp_xml_sf_value ee
-  in
-  pp_print_list pp_xml_annot fmt expr_ann.annots
-
+(* XXX: UNUSED *)
+(* and pp_xml_sf_value fmt e =
+ *   fprintf fmt "%a"
+ *     (\* (Utils.fprintf_list ~sep:"; " pp_xml_quantifiers) e.eexpr_quantifiers *\)
+ *     (\* (fun fmt -> match e.eexpr_quantifiers *\)
+ *     (\*             with [] -> () *\)
+ *     (\*                | _ -> fprintf fmt ";") *\)
+ *     pp_xml_expr e.eexpr_qfexpr
+ *
+ * and pp_xml_s_function fmt expr_ann =
+ *   let pp_xml_annot fmt (kwds, ee) =
+ *     Format.fprintf fmt " %t : %a"
+ *       (fun fmt ->
+ *         match kwds with
+ *         | [] ->
+ *           assert false
+ *         | [ x ] ->
+ *           Format.pp_print_string fmt x
+ *         | _ ->
+ *           Format.fprintf fmt "%a"
+ *             (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "/")
+ *                pp_print_string)
+ *             kwds)
+ *       pp_xml_sf_value ee
+ *   in
+ *   pp_print_list pp_xml_annot fmt expr_ann.annots *)
 and pp_xml_expr_annot fmt expr_ann =
   let pp_xml_annot fmt (kwds, ee) =
     Format.fprintf fmt "(*! %t: %a; *)"
@@ -725,7 +723,8 @@ and pp_xml_expr_annot fmt expr_ann =
           Format.pp_print_string fmt x
         | _ ->
           Format.fprintf fmt "/%a/"
-            (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "/")
+            (pp_print_list
+               ~pp_sep:(fun fmt () -> pp_print_string fmt "/")
                pp_print_string)
             kwds)
       pp_xml_eexpr ee

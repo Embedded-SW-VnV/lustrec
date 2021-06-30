@@ -10,7 +10,7 @@ functor
   ->
   struct
     module Prog = struct
-      let init, defs, state_vars, globals =
+      let init, defs, _, _ =
         let (Program (init, defs, globals)) = M.model in
         let state_vars = SF.states M.model in
         init, defs, state_vars, globals
@@ -42,9 +42,10 @@ functor
       let module EvalProg = Interp.Evaluation (Thetaify) (Prog) in
       (module EvalProg : Interp.EvaluationType)
 
-    let compute modular =
-      let module Eval = (val eval modular) in
-      Eval.eval_prog
+    (* XXX: UNUSED *)
+    (* let compute modular =
+     *   let module Eval = (val eval modular) in
+     *   Eval.eval_prog *)
 
     let code_gen modular =
       let module Eval = (val eval modular) in

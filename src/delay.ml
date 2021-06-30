@@ -9,7 +9,6 @@
 (*                                                                  *)
 (********************************************************************)
 
-open Utils
 (** Types definitions and a few utility functions on delay types. Delay analysis
     by type polymorphism instead of constraints *)
 
@@ -25,12 +24,6 @@ and delay_desc =
   | Dunivar
 (* Polymorphic type variable *)
 
-type error = Delay_clash of t * t
-
-exception Unify of t * t
-
-exception Error of Location.t * error
-
 let new_id = ref (-1)
 
 let new_delay desc =
@@ -41,60 +34,58 @@ let new_var () = new_delay Dvar
 
 let new_univar () = new_delay Dunivar
 
-let rec repr = function { ddesc = Dlink i'; _ } -> repr i' | i -> i
+(* XXX: UNUSED *)
+(* let rec repr = function { ddesc = Dlink i'; _ } -> repr i' | i -> i *)
 
+(* XXX: UNUSED *)
 (** Splits [ty] into the [lhs,rhs] of an arrow type. Expects an arrow type
     (ensured by language syntax) *)
-let split_arrow de =
-  match (repr de).ddesc with
-  | Darrow (din, dout) ->
-    din, dout
-  (* Functions are not first order, I don't think the var case needs to be
-     considered here *)
-  | _ ->
-    failwith "Internal error: not an arrow type"
+(* let split_arrow de =
+ *   match (repr de).ddesc with
+ *   | Darrow (din, dout) ->
+ *     din, dout
+ *   (\* Functions are not first order, I don't think the var case needs to be
+ *      considered here *\)
+ *   | _ ->
+ *     failwith "Internal error: not an arrow type" *)
 
+(* XXX: UNUSED *)
 (** Returns the type corresponding to a type list. *)
-let of_delay_list de =
-  if List.length de > 1 then new_delay (Dtuple de) else List.hd de
+(* let of_delay_list de =
+ *   if List.length de > 1 then new_delay (Dtuple de) else List.hd de *)
 
+(* XXX: UNUSED *)
 (** [is_polymorphic de] returns true if [de] is polymorphic. *)
-let rec is_polymorphic de =
-  match de.ddesc with
-  | Dvar ->
-    false
-  | Dundef ->
-    false
-  | Darrow (de1, de2) ->
-    is_polymorphic de1 || is_polymorphic de2
-  | Dtuple dl ->
-    List.exists is_polymorphic dl
-  | Dlink d' ->
-    is_polymorphic d'
-  | Dunivar ->
-    true
+(* let rec is_polymorphic de =
+ *   match de.ddesc with
+ *   | Dvar ->
+ *     false
+ *   | Dundef ->
+ *     false
+ *   | Darrow (de1, de2) ->
+ *     is_polymorphic de1 || is_polymorphic de2
+ *   | Dtuple dl ->
+ *     List.exists is_polymorphic dl
+ *   | Dlink d' ->
+ *     is_polymorphic d'
+ *   | Dunivar ->
+ *     true *)
 
 (* Pretty-print*)
-open Utils.Format
 
-let rec pp fmt de =
-  match de.ddesc with
-  | Dvar ->
-    fprintf fmt "'_%s" (name_of_type de.did)
-  | Dundef ->
-    fprintf fmt "1"
-  | Darrow (de1, de2) ->
-    fprintf fmt "%a->%a" pp de1 pp de2
-  | Dtuple delist ->
-    fprintf fmt "(%a)" (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "*")
-                          pp) delist
-  | Dlink de ->
-    pp fmt de
-  | Dunivar ->
-    fprintf fmt "'%s" (name_of_delay de.did)
-
-let pp_error fmt = function
-  | Delay_clash (de1, de2) ->
-    Utils.reset_names ();
-    fprintf fmt "Expected delay %a, got delay %a@." pp de1 pp
-      de2
+(* XXX: UNUSED *)
+(* let rec pp fmt de =
+ *   match de.ddesc with
+ *   | Dvar ->
+ *     fprintf fmt "'_%s" (name_of_type de.did)
+ *   | Dundef ->
+ *     fprintf fmt "1"
+ *   | Darrow (de1, de2) ->
+ *     fprintf fmt "%a->%a" pp de1 pp de2
+ *   | Dtuple delist ->
+ *     fprintf fmt "(%a)" (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "*")
+ *                           pp) delist
+ *   | Dlink de ->
+ *     pp fmt de
+ *   | Dunivar ->
+ *     fprintf fmt "'%s" (name_of_delay de.did) *)

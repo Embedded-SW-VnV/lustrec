@@ -24,9 +24,8 @@ let build_text_io_package_local typ =
       (fun fmt -> fprintf fmt "Ada.Text_IO.%s_IO" typ),
       [ ((fun fmt -> fprintf fmt "Num"), fun fmt -> fprintf fmt "%s" typ) ] )
 
-(** Print the main file calling in a loop the step function of the main
-    machine. @param fmt the formater to print on @param machine the main
-    machine **)
+(** Print the main file calling in a loop the step function of the main machine.
+    @param fmt the formater to print on @param machine the main machine **)
 let pp_main_adb fmt machine =
   let statefull = is_machine_statefull machine in
 
@@ -44,17 +43,17 @@ let pp_main_adb fmt machine =
       ];
     ]
     @ (if statefull then
+       [
          [
-           [
-             AdaLocalVar
-               (build_pp_state_decl_from_subinstance AdaNoMode None
-                  (asprintf "%t" pp_state_name, ([], machine)));
-           ];
-         ]
-       else [])
+           AdaLocalVar
+             (build_pp_state_decl_from_subinstance AdaNoMode None
+                (asprintf "%t" pp_state_name, ([], machine)));
+         ];
+       ]
+      else [])
     @ (if machine.mstep.step_inputs != [] then
-         [ List.map (build_pp_var_decl_local None) machine.mstep.step_inputs ]
-       else [])
+       [ List.map (build_pp_var_decl_local None) machine.mstep.step_inputs ]
+      else [])
     @
     if machine.mstep.step_outputs != [] then
       [ List.map (build_pp_var_decl_local None) machine.mstep.step_outputs ]
@@ -88,9 +87,8 @@ let pp_main_adb fmt machine =
         "Ada.Text_IO.Put(\"'%t': '\");@,\
          Float_IO.Put(%t, Fore=>0, Aft=> 15, Exp => 0);@,\
          Ada.Text_IO.Put_Line(\"' \")" (pp_var_name var) (pp_var_name var)
-    else
-      assert false
-      (* Could not be the top level inputs *)
+    else assert false
+    (* Could not be the top level inputs *)
   in
 
   (* Loop instructions *)
@@ -102,11 +100,7 @@ let pp_main_adb fmt machine =
         (machine.mstep.step_inputs @ machine.mstep.step_outputs)
     in
     fprintf fmt
-      "while not Ada.Text_IO.End_Of_File loop@,\
-      \  @[<v>%a;@,\
-       %a;@,\
-       %a;@]@,\
-       end loop"
+      "while not Ada.Text_IO.End_Of_File loop@,  @[<v>%a;@,%a;@,%a;@]@,end loop"
       (pp_print_list ~pp_sep:pp_print_semicolon pp_read)
       machine.mstep.step_inputs pp_call
       (pp_package_access (pp_package, pp_step_procedure_name), [ args ])
@@ -117,13 +111,13 @@ let pp_main_adb fmt machine =
   (* Print the file *)
   let instrs =
     (if statefull then
-       [
-         (fun fmt ->
-            pp_call fmt
-              ( pp_package_access (pp_package, pp_reset_procedure_name),
-                [ [ pp_state_name ] ] ));
-       ]
-     else [])
+     [
+       (fun fmt ->
+         pp_call fmt
+           ( pp_package_access (pp_package, pp_reset_procedure_name),
+             [ [ pp_state_name ] ] ));
+     ]
+    else [])
     @ [ pp_loop ]
   in
   fprintf fmt "@[<v>%a;@,%a;@,@,%a;@]" (pp_with AdaPrivate) (pp_str text_io)
@@ -132,16 +126,15 @@ let pp_main_adb fmt machine =
     (AdaProcedureContent (locals, instrs))
 
 (** Print the name of the ada project configuration file. @param fmt the
-    formater to print on @param main_machine the machine associated to the
-    main node **)
+    formater to print on @param main_machine the machine associated to the main
+    node **)
 let pp_project_configuration_name fmt basename = fprintf fmt "%s.adc" basename
 
-(** Print the project configuration file. @param fmt the formater to print on
-    **)
+(** Print the project configuration file. @param fmt the formater to print on **)
 let pp_project_configuration_file fmt = fprintf fmt "pragma SPARK_Mode (On);"
 
-(** Print the name of the ada project file. @param base_name name of the
-    lustre file @param fmt the formater to print on **)
+(** Print the name of the ada project file. @param base_name name of the lustre
+    file @param fmt the formater to print on **)
 let pp_project_name basename fmt = fprintf fmt "%s.gpr" basename
 
 let pp_for_single name arg fmt = fprintf fmt "for %s use \"%s\"" name arg
@@ -153,16 +146,18 @@ let pp_for name args fmt =
 
 let pp_content fmt lines =
   fprintf fmt "  @[<v>%a%a@]"
-    (pp_print_list ~pp_sep:pp_print_semicolon (fun fmt pp -> fprintf fmt "%t" pp))
+    (pp_print_list ~pp_sep:pp_print_semicolon (fun fmt pp ->
+         fprintf fmt "%t" pp))
     lines
-    (if lines = [] then pp_print_nothing else pp_print_semicolon) ()
+    (if lines = [] then pp_print_nothing else pp_print_semicolon)
+    ()
 
 let pp_package name lines fmt =
   fprintf fmt "package %s is@,%a@,end %s" name pp_content lines name
 
 (** Print the gpr project file, if there is a machine in machine_opt then an
-    executable project is made else it is a library. @param fmt the formater
-    to print on @param machine_opt the main machine option **)
+    executable project is made else it is a library. @param fmt the formater to
+    print on @param machine_opt the main machine option **)
 let pp_project_file machines basename fmt machine_opt =
   let adbs =
     List.map (asprintf "%a" (pp_machine_filename "adb")) machines
@@ -173,41 +168,39 @@ let pp_project_file machines basename fmt machine_opt =
     | Some m ->
       [ asprintf "%a" pp_main_filename m ]
   in
-  let project_name =
-    basename ^ if machine_opt = None then "_lib" else "_exe"
-  in
+  let project_name = basename ^ if machine_opt = None then "_lib" else "_exe" in
   fprintf fmt "%sproject %s is@,%a@,end %s;"
     (if machine_opt = None then "library " else "")
     project_name pp_content
     ((match machine_opt with
-        | None ->
+     | None ->
+       [
+         pp_for_single "Library_Name" basename;
+         pp_for_single "Library_Dir" "lib";
+       ]
+     | Some _ ->
+       [
+         pp_for "Main" [ asprintf "%t" pp_main_procedure_name ];
+         pp_for_single "Exec_Dir" "bin";
+       ])
+    @ [
+        pp_for_single "Object_Dir" "obj";
+        pp_for "Source_Files" adbs;
+        pp_package "Builder"
           [
-            pp_for_single "Library_Name" basename;
-            pp_for_single "Library_Dir" "lib";
-          ]
-        | Some _ ->
+            pp_for_single "Global_Configuration_Pragmas"
+              (asprintf "%a" pp_project_configuration_name basename);
+          ];
+        pp_package "Prove"
           [
-            pp_for "Main" [ asprintf "%t" pp_main_procedure_name ];
-            pp_for_single "Exec_Dir" "bin";
-          ])
-     @ [
-       pp_for_single "Object_Dir" "obj";
-       pp_for "Source_Files" adbs;
-       pp_package "Builder"
-         [
-           pp_for_single "Global_Configuration_Pragmas"
-             (asprintf "%a" pp_project_configuration_name basename);
-         ];
-       pp_package "Prove"
-         [
-           pp_for "Switches"
-             [
-               "--mode=prove";
-               "--report=statistics";
-               "--proof=per_check";
-               "--warnings=continue";
-             ];
-           pp_for_single "Proof_Dir" (asprintf "proof");
-         ];
-     ])
+            pp_for "Switches"
+              [
+                "--mode=prove";
+                "--report=statistics";
+                "--proof=per_check";
+                "--warnings=continue";
+              ];
+            pp_for_single "Proof_Dir" (asprintf "proof");
+          ];
+      ])
     project_name

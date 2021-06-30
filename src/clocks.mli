@@ -15,11 +15,7 @@ and carrier_expr = {
   carrier_id : int;
 }
 
-type t = {
-  mutable cdesc : clock_desc;
-  mutable cscoped : bool;
-  cid : int;
-}
+type t = { mutable cdesc : clock_desc; mutable cscoped : bool; cid : int }
 
 (* pck stands for periodic clock. Easier not to separate pck from other clocks *)
 and clock_desc =
@@ -47,57 +43,66 @@ type error =
 
 (* Nice pretty-printing. Simplifies expressions before printing them. Non-linear
    complexity. *)
-val pp: Format.formatter -> t -> unit
+val pp : Format.formatter -> t -> unit
 
-val pp_suffix: Format.formatter -> t -> unit
+val pp_suffix : Format.formatter -> t -> unit
 
-val new_var: bool -> t
+val new_var : bool -> t
 
-val new_univar: unit -> t
+val new_univar : unit -> t
 
-val new_ck: clock_desc -> bool -> t
+val new_ck : clock_desc -> bool -> t
 
-val new_carrier: carrier_desc -> bool -> carrier_expr
+val new_carrier : carrier_desc -> bool -> carrier_expr
 
-val bottom: t
+val bottom : t
 
-val repr: t -> t
-val carrier_repr: carrier_expr -> carrier_expr
+val repr : t -> t
 
-val simplify: t -> t
+val carrier_repr : carrier_expr -> carrier_expr
 
-val clock_on: t -> carrier_expr -> ident -> t
+val simplify : t -> t
 
-val clock_of_clock_list: t list -> t
-val clock_list_of_clock: t -> t list
+val clock_on : t -> carrier_expr -> ident -> t
 
-val root: t -> t
+val clock_of_clock_list : t list -> t
 
-val branch: t -> (carrier_expr * ident) list
+val clock_list_of_clock : t -> t list
 
-val common_prefix: (carrier_expr * ident) list -> (carrier_expr * ident) list -> (carrier_expr * ident) list
+val root : t -> t
 
-val clock_of_root_branch: t -> (carrier_expr * ident) list -> t
+val branch : t -> (carrier_expr * ident) list
 
-val split_arrow: t -> t * t
+val common_prefix :
+  (carrier_expr * ident) list ->
+  (carrier_expr * ident) list ->
+  (carrier_expr * ident) list
 
-val clock_current: t -> t
+val clock_of_root_branch : t -> (carrier_expr * ident) list -> t
 
-val uneval: ident -> carrier_expr -> unit
+val split_arrow : t -> t * t
 
-val get_carrier_name: t -> carrier_expr option
+val clock_current : t -> t
 
-val equal: t -> t -> bool
+val uneval : ident -> carrier_expr -> unit
+
+val get_carrier_name : t -> carrier_expr option
+
+val equal : t -> t -> bool
 
 (* Disjunction relation between variables based upon their static clocks. *)
-val disjoint: t -> t -> bool
+val disjoint : t -> t -> bool
 
-val const_of_carrier: carrier_expr -> ident
+val const_of_carrier : carrier_expr -> ident
 
-val pp_error: Format.formatter -> error -> unit
+val pp_error : Format.formatter -> error -> unit
 
 exception Unify of t * t
+
 exception Scope_carrier of carrier_expr
+
 exception Scope_clock of t
+
 exception Error of Location.t * error
+
 exception Mismatch of carrier_expr * carrier_expr

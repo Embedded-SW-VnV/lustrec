@@ -14,7 +14,6 @@
 (*open LustreSpec*)
 open Type_predef
 open Clock_predef
-open Delay_predef
 open Dimension
 module TE = Env
 
@@ -86,49 +85,50 @@ let clock_env =
   in
   env'
 
-module DE = Env
-
-let delay_env =
-  let init_env = DE.initial in
-  let env' =
-    List.fold_right
-      (fun op env -> DE.add_value env op delay_nullary_poly_op)
-      [ "true"; "false" ] init_env
-  in
-  let env' =
-    List.fold_right
-      (fun op env -> DE.add_value env op delay_unary_poly_op)
-      [ "uminus"; "not" ] env'
-  in
-  let env' =
-    List.fold_right
-      (fun op env -> DE.add_value env op delay_binary_poly_op)
-      [
-        "+";
-        "-";
-        "*";
-        "/";
-        "mod";
-        "&&";
-        "||";
-        "xor";
-        "equi";
-        "impl";
-        "<";
-        "<=";
-        ">";
-        ">=";
-        "!=";
-        "=";
-      ]
-      env'
-  in
-  let env' =
-    List.fold_right
-      (fun op env -> DE.add_value env op delay_ternary_poly_op)
-      [] env'
-  in
-  env'
+(* XXX: UNUSED *)
+(* module DE = Env
+ *
+ * let delay_env =
+ *   let init_env = DE.initial in
+ *   let env' =
+ *     List.fold_right
+ *       (fun op env -> DE.add_value env op delay_nullary_poly_op)
+ *       [ "true"; "false" ] init_env
+ *   in
+ *   let env' =
+ *     List.fold_right
+ *       (fun op env -> DE.add_value env op delay_unary_poly_op)
+ *       [ "uminus"; "not" ] env'
+ *   in
+ *   let env' =
+ *     List.fold_right
+ *       (fun op env -> DE.add_value env op delay_binary_poly_op)
+ *       [
+ *         "+";
+ *         "-";
+ *         "*";
+ *         "/";
+ *         "mod";
+ *         "&&";
+ *         "||";
+ *         "xor";
+ *         "equi";
+ *         "impl";
+ *         "<";
+ *         "<=";
+ *         ">";
+ *         ">=";
+ *         "!=";
+ *         "=";
+ *       ]
+ *       env'
+ *   in
+ *   let env' =
+ *     List.fold_right
+ *       (fun op env -> DE.add_value env op delay_ternary_poly_op)
+ *       [] env'
+ *   in
+ *   env' *)
 
 module VE = Env
 

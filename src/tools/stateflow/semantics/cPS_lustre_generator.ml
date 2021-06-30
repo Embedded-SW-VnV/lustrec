@@ -2,8 +2,6 @@ open Utils
 open Basetypes
 open CPS_transformer
 
-let ff = Format.fprintf
-
 module LustrePrinter (Vars : sig
   val state_vars : ActiveStates.Vars.t
 
@@ -35,8 +33,11 @@ end) : TransformerType = struct
       fun () -> cpt := 0 )
 
   let pp_path prefix fmt path =
-    Format.(fprintf fmt "%s%t" prefix (fun fmt ->
-        pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "_") pp_print_string fmt path))
+    Format.(
+      fprintf fmt "%s%t" prefix (fun fmt ->
+          pp_print_list
+            ~pp_sep:(fun fmt () -> pp_print_string fmt "_")
+            pp_print_string fmt path))
 
   (* let pp_typed_path sin fmt path =
    *   Format.fprintf fmt "%a : bool" (pp_path sin) path *)

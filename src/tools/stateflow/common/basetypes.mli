@@ -1,4 +1,4 @@
-val sf_level: int
+val sf_level : int
 
 type state_name_t = string
 
@@ -34,11 +34,15 @@ type _ call_t =
   | Dcall : path_t call_t
   | Xcall : (path_t * frontier_t) call_t
 
-val pp_state_name: Format.formatter -> state_name_t -> unit
-val pp_junction_name: Format.formatter -> junction_name_t -> unit
-val pp_path: Format.formatter -> path_t -> unit
-val pp_frontier: Format.formatter -> frontier_t -> unit
-val pp_call: Format.formatter -> 'a call_t -> unit
+val pp_state_name : Format.formatter -> state_name_t -> unit
+
+val pp_junction_name : Format.formatter -> junction_name_t -> unit
+
+val pp_path : Format.formatter -> path_t -> unit
+
+val pp_frontier : Format.formatter -> frontier_t -> unit
+
+val pp_call : Format.formatter -> 'a call_t -> unit
 
 (* Conditions are either (1) simple strings, (2) the active status of a state or
    (3) occurence of an event. They can be combined (conjunction, negation) *)
@@ -68,7 +72,7 @@ type condition_t =
   | Neg of condition_t
   | True
 
-module Condition: ConditionType with type t = condition_t
+module Condition : ConditionType with type t = condition_t
 
 module type ActionType = sig
   type t
@@ -93,8 +97,8 @@ type action_t =
   | Call : 'c call_t * 'c -> action_t
   | Nil : action_t
 
-module Action: ActionType with type t = action_t
+module Action : ActionType with type t = action_t
 
-module GlobalVarDef: sig
+module GlobalVarDef : sig
   type t = { variable : Lustre_types.var_decl; init_val : Lustre_types.expr }
 end

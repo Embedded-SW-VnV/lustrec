@@ -12,14 +12,9 @@
 (** Access checking module. Done after typing. Generates dimension constraints
     stored in nodes *)
 
-let debug _fmt _args = ()
-
-(* Format.eprintf "%a" *)
 (* Though it shares similarities with the clock calculus module, no code is
    shared. Simple environments, very limited identifier scoping, no identifier
    redefinition allowed. *)
-
-open Utils
 
 (* Yes, opening both modules is dirty as some type names will be overwritten,
    yet this makes notations far lighter.*)
@@ -34,8 +29,6 @@ module ConstraintModule = struct
 
   let compare d1 d2 =
     if equal d1 d2 then 0 else compare d1.Dimension.dim_id d2.Dimension.dim_id
-
-  let hash n = Hashtbl.hash n
 end
 
 module CSet = Set.Make (ConstraintModule)

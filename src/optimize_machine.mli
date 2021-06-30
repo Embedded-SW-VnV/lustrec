@@ -12,5 +12,9 @@ open Machine_code_types
    machines.
 
    The function returns both the (possibly updated) prog as well as the machines *)
-val optimize: Normalization.param_t -> program_t -> Scheduling_type.schedule_report IMap.t ->
-  machine_t list -> program_t * machine_t list
+val optimize :
+  Normalization.param_t ->
+  program_t ->
+  Scheduling_type.schedule_report IMap.t ->
+  machine_t list ->
+  program_t * machine_t list

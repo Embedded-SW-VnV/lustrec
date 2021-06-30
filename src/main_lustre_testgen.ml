@@ -23,12 +23,13 @@ let extensions = [ ".lus" ]
 let pp_trace trace_filename mutation_list =
   let trace_file = open_out trace_filename in
   let trace_fmt = formatter_of_out_channel trace_file in
-  Format.(fprintf trace_fmt "@[<v 2>{@ %a@ }@]@.@?"
-            (pp_comma_list (fun fmt (mutation, mutation_loc, mutant_name) ->
-                 fprintf fmt "\"%s\": { @[<v 0>%a,@ %a@ }@]" mutant_name
-                   Mutation.pp_directive_json mutation Mutation.pp_loc_json
-                   mutation_loc))
-            mutation_list)
+  Format.(
+    fprintf trace_fmt "@[<v 2>{@ %a@ }@]@.@?"
+      (pp_comma_list (fun fmt (mutation, mutation_loc, mutant_name) ->
+           fprintf fmt "\"%s\": { @[<v 0>%a,@ %a@ }@]" mutant_name
+             Mutation.pp_directive_json mutation Mutation.pp_loc_json
+             mutation_loc))
+      mutation_list)
 
 let testgen_source dirname basename extension =
   let source_name = dirname ^ "/" ^ basename ^ extension in

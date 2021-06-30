@@ -18,7 +18,8 @@ open Utils
 open Lustre_types
 open Corelang
 
-type identified_call = eq * tag
+(* XXX: UNUSED *)
+(* type identified_call = eq * tag *)
 
 type error =
   | DataCycle of ident list list
@@ -68,19 +69,20 @@ let add_vertices vtc g =
 
 let new_graph () = IdentDepGraph.create ()
 
+(* XXX: UNUSED *)
 (* keep subgraph of [gr] consisting of nodes accessible from node [v] *)
-let slice_graph gr v =
-  let gr' = new_graph () in
-  IdentDepGraph.add_vertex gr' v;
-  Bfs.iter_component
-    (fun v ->
-      IdentDepGraph.iter_succ
-        (fun s ->
-          IdentDepGraph.add_vertex gr' s;
-          IdentDepGraph.add_edge gr' v s)
-        gr v)
-    gr v;
-  gr'
+(* let slice_graph gr v =
+ *   let gr' = new_graph () in
+ *   IdentDepGraph.add_vertex gr' v;
+ *   Bfs.iter_component
+ *     (fun v ->
+ *       IdentDepGraph.iter_succ
+ *         (fun s ->
+ *           IdentDepGraph.add_vertex gr' s;
+ *           IdentDepGraph.add_edge gr' v s)
+ *         gr v)
+ *     gr v;
+ *   gr' *)
 
 module ExprDep = struct
   let get_node_eqs nd =
@@ -157,8 +159,9 @@ module ExprDep = struct
         if v.var_dec_const then ISet.add v.var_id locals else locals)
       ISet.empty nd.node_locals
 
-  let node_auxiliary_variables nd =
-    ISet.diff (node_local_variables nd) (node_memory_variables nd)
+  (* XXX: UNUSED *)
+  (* let node_auxiliary_variables nd =
+   *   ISet.diff (node_local_variables nd) (node_memory_variables nd) *)
 
   let node_variables nd =
     let inputs = node_input_variables nd in
@@ -320,10 +323,6 @@ module NodeDep = struct
     type t = expr
 
     let compare = compare
-
-    let hash n = Hashtbl.hash n
-
-    let equal n1 n2 = n1 = n2
   end
 
   module ESet = Set.Make (ExprModule)
@@ -542,14 +541,15 @@ module CycleDetection = struct
      which is defined by a call, we return the name of the node call and its
      specific id *)
 
+  (* XXX: UNUSED *)
   (* Creates the sub-graph of [g] restricted to vertices and edges in partition *)
-  let copy_partition g partition =
-    let copy_g = IdentDepGraph.create () in
-    IdentDepGraph.iter_edges
-      (fun src tgt ->
-        if List.mem src partition && List.mem tgt partition then
-          IdentDepGraph.add_edge copy_g src tgt)
-      g
+  (* let copy_partition g partition =
+   *   let copy_g = IdentDepGraph.create () in
+   *   IdentDepGraph.iter_edges
+   *     (fun src tgt ->
+   *       if List.mem src partition && List.mem tgt partition then
+   *         IdentDepGraph.add_edge copy_g src tgt)
+   *     g *)
 
   (* Breaks dependency cycles in a graph [g] by inserting aux variables. [head]
      is a head of a non-trivial scc of [g]. In Lustre, this is legal only for
@@ -638,39 +638,42 @@ module Disjunction = struct
       vdecls;
     (map : disjoint_map)
 
+  (* XXX: UNUSED *)
   (* merge variables [v] and [v'] in disjunction [map]. Then: - the mapping v'
      becomes v' |-> (map v) inter (map v') - the mapping v |-> ... then
      disappears - other mappings become x |-> (map x) \ (if v in x then v else
      v') *)
-  let merge_in_disjoint_map map v v' =
-    Hashtbl.replace map v'.var_id
-      (CISet.inter (Hashtbl.find map v.var_id) (Hashtbl.find map v'.var_id));
-    Hashtbl.remove map v.var_id;
-    Hashtbl.iter
-      (fun x map_x ->
-        Hashtbl.replace map x
-          (CISet.remove (if CISet.mem v map_x then v else v') map_x))
-      map
+  (* let merge_in_disjoint_map map v v' =
+   *   Hashtbl.replace map v'.var_id
+   *     (CISet.inter (Hashtbl.find map v.var_id) (Hashtbl.find map v'.var_id));
+   *   Hashtbl.remove map v.var_id;
+   *   Hashtbl.iter
+   *     (fun x map_x ->
+   *       Hashtbl.replace map x
+   *         (CISet.remove (if CISet.mem v map_x then v else v') map_x))
+   *     map *)
 
+  (* XXX: UNUSED *)
   (* replace variable [v] by [v'] in disjunction [map]. [v'] is a dead variable.
      Then: - the mapping v' becomes v' |-> (map v) - the mapping v |-> ... then
      disappears - all mappings become x |-> ((map x) \ { v}) union ({v'} if v in
      map x) *)
-  let replace_in_disjoint_map map v v' =
-    Hashtbl.replace map v'.var_id (Hashtbl.find map v.var_id);
-    Hashtbl.remove map v.var_id;
-    Hashtbl.iter
-      (fun x mapx ->
-        Hashtbl.replace map x
-          (if CISet.mem v mapx then CISet.add v' (CISet.remove v mapx)
-          else CISet.remove v' mapx))
-      map
+  (* let replace_in_disjoint_map map v v' =
+   *   Hashtbl.replace map v'.var_id (Hashtbl.find map v.var_id);
+   *   Hashtbl.remove map v.var_id;
+   *   Hashtbl.iter
+   *     (fun x mapx ->
+   *       Hashtbl.replace map x
+   *         (if CISet.mem v mapx then CISet.add v' (CISet.remove v mapx)
+   *         else CISet.remove v' mapx))
+   *     map *)
 
+  (* XXX: UNUSED *)
   (* remove variable [v] in disjunction [map]. Then: - the mapping v |-> ...
      then disappears - all mappings become x |-> (map x) \ { v} *)
-  let remove_in_disjoint_map map v =
-    Hashtbl.remove map v.var_id;
-    Hashtbl.iter (fun x mapx -> Hashtbl.replace map x (CISet.remove v mapx)) map
+  (* let remove_in_disjoint_map map v =
+   *   Hashtbl.remove map v.var_id;
+   *   Hashtbl.iter (fun x mapx -> Hashtbl.replace map x (CISet.remove v mapx)) map *)
 
   let pp_disjoint_map fmt map =
     Format.(
@@ -692,15 +695,18 @@ let pp_dep_graph fmt g =
 let pp_error fmt err =
   match err with
   | NodeCycle trace ->
-    Format.(fprintf fmt "Causality error, cyclic node calls:@   @[<v 0>%a@]@ "
-              (pp_comma_list Format.pp_print_string) trace)
+    Format.(
+      fprintf fmt "Causality error, cyclic node calls:@   @[<v 0>%a@]@ "
+        (pp_comma_list Format.pp_print_string)
+        trace)
   | DataCycle traces ->
-    Format.(fprintf fmt
-              "Causality error, cyclic data dependencies:@   @[<v 0>%a@]@ "
-              (pp_print_list ~pp_sep:pp_print_semicolon (fun fmt trace ->
-                   fprintf fmt "@[<v 0>{%a}@]"
-                     (pp_comma_list Format.pp_print_string) trace))
-              traces)
+    Format.(
+      fprintf fmt "Causality error, cyclic data dependencies:@   @[<v 0>%a@]@ "
+        (pp_print_list ~pp_sep:pp_print_semicolon (fun fmt trace ->
+             fprintf fmt "@[<v 0>{%a}@]"
+               (pp_comma_list Format.pp_print_string)
+               trace))
+        traces)
 
 (* Merges elements of graph [g2] into graph [g1] *)
 let merge_with g1 g2 =

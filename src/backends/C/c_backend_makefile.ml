@@ -13,12 +13,13 @@ open Utils
 open Format
 open Lustre_types
 
-let pp_dep fmt dep =
-  fprintf fmt "%b, %s, {%a}, %b" dep.local dep.name Printers.pp_prog
-    dep.content dep.is_stateful
-
-let pp_deps fmt deps =
-  fprintf fmt "@[<v 0>%a@ @]" (pp_comma_list pp_dep) deps
+(* XXX: UNUSED *)
+(* let pp_dep fmt dep =
+ *   fprintf fmt "%b, %s, {%a}, %b" dep.local dep.name Printers.pp_prog
+ *     dep.content dep.is_stateful
+ *
+ * let pp_deps fmt deps =
+ *   fprintf fmt "@[<v 0>%a@ @]" (pp_comma_list pp_dep) deps *)
 
 let header_has_code header =
   List.exists

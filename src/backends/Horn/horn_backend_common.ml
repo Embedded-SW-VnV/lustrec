@@ -17,11 +17,14 @@ open Corelang
 
 let get_machine = Machine_code_common.get_machine
 
-let machine_reset_name id = id ^ "_reset"
+(* XXX: UNUSED *)
+(* let machine_reset_name id = id ^ "_reset" *)
 
-let machine_step_name id = id ^ "_step"
+(* XXX: UNUSED *)
+(* let machine_step_name id = id ^ "_step" *)
 
-let machine_stateless_name id = id ^ "_fun"
+(* XXX: UNUSED *)
+(* let machine_stateless_name id = id ^ "_fun" *)
 
 let pp_machine_reset_name fmt id = fprintf fmt "%s_reset" id
 
@@ -161,11 +164,12 @@ let reset_vars machines m =
   rename_current_list (full_memory_vars machines m)
   @ rename_mid_list (full_memory_vars machines m)
 
-let step_vars_c_m_x machines m =
-  inout_vars m
-  @ rename_current_list (full_memory_vars machines m)
-  @ rename_mid_list (full_memory_vars machines m)
-  @ rename_next_list (full_memory_vars machines m)
+(* XXX: UNUSED *)
+(* let step_vars_c_m_x machines m =
+ *   inout_vars m
+ *   @ rename_current_list (full_memory_vars machines m)
+ *   @ rename_mid_list (full_memory_vars machines m)
+ *   @ rename_next_list (full_memory_vars machines m) *)
 
 (* Local Variables: *)
 (* compile-command:"make -C ../.." *)

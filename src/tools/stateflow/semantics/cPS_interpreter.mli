@@ -3,8 +3,7 @@ open Datatype
 open CPS_transformer
 open Theta
 
-module Interpreter (Transformer : TransformerType): sig
-
+module Interpreter (Transformer : TransformerType) : sig
   (* module KT = KenvTheta (Transformer) *)
 
   module type ProgType = sig
@@ -23,6 +22,5 @@ module Interpreter (Transformer : TransformerType): sig
 
   module Evaluation
       (Thetaify : KenvTheta(Transformer).ThetaifyType)
-      (Prog : ProgType) :
-    EvaluationType
+      (Prog : ProgType) : EvaluationType
 end

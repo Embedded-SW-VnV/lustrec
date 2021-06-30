@@ -4,7 +4,8 @@ open Basetypes
 (* open Transformer2 *)
 open SF
 
-let verbose = false
+(* TODO *)
+(* let verbose = false *)
 
 let actionv _ = no_action
 (*TODO if verbose then action x else no_action*)

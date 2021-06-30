@@ -13,8 +13,9 @@ module Vars = struct
     let compare = compare
   end)
 
-  let pp_set fmt rho =
-    Format.(fprintf fmt "@[<v 0>%a@ @]" (pp_print_list pp_path) (elements rho))
+  (* XXX: UNUSED *)
+  (* let pp_set fmt rho =
+   *   Format.(fprintf fmt "@[<v 0>%a@ @]" (pp_print_list pp_path) (elements rho)) *)
 end
 
 module Env = struct
@@ -32,10 +33,12 @@ module Env = struct
       Format.printf "Looking for %a@." pp_path a;
       raise Not_found
 
-  let keys a = fold (fun key _ -> Vars.add key) a Vars.empty
+  (* XXX: UNUSED *)
+  (* let keys a = fold (fun key _ -> Vars.add key) a Vars.empty *)
 
-  let pp_env fmt rho =
-    Format.(fprintf fmt "@[<v 0>%a@ @]"
-              (pp_print_list (fun fmt (p, b) -> fprintf fmt "%a -> %b" pp_path p b))
-              (bindings rho))
+  (* XXX: UNUSED *)
+  (* let pp_env fmt rho =
+   *   Format.(fprintf fmt "@[<v 0>%a@ @]"
+   *             (pp_print_list (fun fmt (p, b) -> fprintf fmt "%a -> %b" pp_path p b))
+   *             (bindings rho)) *)
 end

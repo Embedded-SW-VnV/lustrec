@@ -18,18 +18,19 @@ let kind2_language_cst = [ "initial" ]
 let kind2_protect id =
   if List.mem id kind2_language_cst then "_KIND2_PROTECT_" ^ id else id
 
+(* XXX: UNUSED *)
 (* Prints [v] as [pp_fun] would do, but adds a backslash at each end of line,
    following the C convention for multiple lines macro *)
-let pp_as_c_macro pp_fun fmt v =
-  let formatter_out_funs = pp_get_formatter_out_functions fmt () in
-  let macro_newline () =
-    formatter_out_funs.out_string "\\" 0 1;
-    formatter_out_funs.out_newline ()
-  in
-  pp_set_formatter_out_functions fmt
-    { formatter_out_funs with out_newline = macro_newline };
-  pp_fun fmt v;
-  pp_set_formatter_out_functions fmt formatter_out_funs
+(* let pp_as_c_macro pp_fun fmt v =
+ *   let formatter_out_funs = pp_get_formatter_out_functions fmt () in
+ *   let macro_newline () =
+ *     formatter_out_funs.out_string "\\" 0 1;
+ *     formatter_out_funs.out_newline ()
+ *   in
+ *   pp_set_formatter_out_functions fmt
+ *     { formatter_out_funs with out_newline = macro_newline };
+ *   pp_fun fmt v;
+ *   pp_set_formatter_out_functions fmt formatter_out_funs *)
 
 let rec pp_var_struct_type_field fmt (label, tdesc) =
   fprintf fmt "%a : %a;" pp_print_string label pp_var_type_dec_desc tdesc
@@ -52,9 +53,7 @@ and pp_var_type_dec_desc fmt tdesc =
   | Tydec_enum id_list ->
     fprintf fmt "enum {%a }" (pp_comma_list pp_print_string) id_list
   | Tydec_struct f_list ->
-    fprintf fmt "struct {%a }"
-      (pp_print_list pp_var_struct_type_field)
-      f_list
+    fprintf fmt "struct {%a }" (pp_print_list pp_var_struct_type_field) f_list
   | Tydec_array (s, t) ->
     fprintf fmt "%a^%a" pp_var_type_dec_desc t Dimension.pp s
 
@@ -102,8 +101,9 @@ and pp_const fmt c =
   | Const_tag t ->
     pp_print_string fmt t
   | Const_array ca ->
-    fprintf fmt "[%a]" (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ",")
-                          pp_const) ca
+    fprintf fmt "[%a]"
+      (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ",") pp_const)
+      ca
   | Const_struct fl ->
     fprintf fmt "{%a }" (pp_print_list pp_struct_const_field) fl
   (* used only for annotations *)
@@ -119,8 +119,11 @@ let pp_annot_key fmt kwds =
   | [ x ] ->
     pp_print_string fmt x
   | _ ->
-    fprintf fmt "/%a/" (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "/")
-                          pp_print_string) kwds
+    fprintf fmt "/%a/"
+      (pp_print_list
+         ~pp_sep:(fun fmt () -> pp_print_string fmt "/")
+         pp_print_string)
+      kwds
 
 let pp_kind2_when fmt (id, l) =
   if l = "true" then fprintf fmt "%s" id
@@ -171,8 +174,8 @@ let rec pp_expr fmt expr =
         Format.fprintf fmt "%t: %a" pp Types.print_ty expr.expr_type
       else pp fmt)
 
-and pp_tuple fmt el = pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ",")
-    pp_expr fmt el
+and pp_tuple fmt el =
+  pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ",") pp_expr fmt el
 
 and pp_handler fmt (t, h) = fprintf fmt "(%s -> %a)" t pp_expr h
 
@@ -300,8 +303,11 @@ and pp_s_function fmt expr_ann =
         | [ x ] ->
           pp_print_string fmt x
         | _ ->
-          fprintf fmt "%a" (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt "/")
-                              pp_print_string) kwds)
+          fprintf fmt "%a"
+            (pp_print_list
+               ~pp_sep:(fun fmt () -> pp_print_string fmt "/")
+               pp_print_string)
+            kwds)
       pp_sf_value ee
   in
   pp_print_list pp_annot fmt expr_ann.annots
@@ -354,9 +360,7 @@ let pp_until fmt (_, expr, restart, st) =
 
 let rec pp_handler fmt handler =
   fprintf fmt "state %s:@ @[<v 2>  %a%t%alet@,@[<v 2>  %a@ %a@ %a@]@,tel@ %a@]"
-    handler.hand_state
-    (pp_print_list pp_unless)
-    handler.hand_unless
+    handler.hand_state (pp_print_list pp_unless) handler.hand_unless
     (fun fmt -> if not ([] = handler.hand_unless) then fprintf fmt "@ ")
     (fun fmt locals ->
       match locals with
@@ -369,9 +373,7 @@ let rec pp_handler fmt handler =
     handler.hand_locals
     (pp_print_list pp_expr_annot)
     handler.hand_annots pp_node_stmts handler.hand_stmts pp_asserts
-    handler.hand_asserts
-    (pp_print_list pp_until)
-    handler.hand_until
+    handler.hand_asserts (pp_print_list pp_until) handler.hand_until
 
 and pp_node_stmt fmt stmt =
   match stmt with Eq eq -> pp_node_eq fmt eq | Aut aut -> pp_node_aut fmt aut
@@ -381,8 +383,7 @@ and pp_node_stmts fmt stmts =
     stmts
 
 and pp_node_aut fmt aut =
-  fprintf fmt "@[<v 0>automaton %s@,%a@]" aut.aut_id
-    (pp_print_list pp_handler)
+  fprintf fmt "@[<v 0>automaton %s@,%a@]" aut.aut_id (pp_print_list pp_handler)
     aut.aut_handlers
 
 and pp_node_eqs fmt eqs = pp_print_list pp_node_eq fmt eqs
@@ -390,7 +391,8 @@ and pp_node_eqs fmt eqs = pp_print_list pp_node_eq fmt eqs
 let pp_typedef fmt ty =
   fprintf fmt "type %s = %a;" ty.tydef_id pp_var_type_dec_desc ty.tydef_desc
 
-let pp_typedec fmt ty = fprintf fmt "type %s;" ty.tydec_id
+(* XXX: UNUSED *)
+(* let pp_typedec fmt ty = fprintf fmt "type %s;" ty.tydec_id *)
 
 (* let rec pp_var_type fmt ty =  *)
 (*   fprintf fmt "%a" (match ty.tdesc with  *)
@@ -433,9 +435,7 @@ let pp_spec fmt spec =
             pp_expr fmt e))
     fmt spec.consts;
 
-  pp_print_list
-    (fun fmt s -> pp_spec_stmt fmt s)
-    fmt spec.stmts;
+  pp_print_list (fun fmt s -> pp_spec_stmt fmt s) fmt spec.stmts;
   pp_print_list
     (fun fmt r -> fprintf fmt "assume %a;" pp_eexpr r)
     fmt spec.assume;
@@ -445,11 +445,9 @@ let pp_spec fmt spec =
   pp_print_list
     (fun fmt mode ->
       fprintf fmt "mode %s (@[<v 0>%a@ %a@]);" mode.mode_id
-        (pp_print_list (fun fmt r ->
-             fprintf fmt "require %a;" pp_eexpr r))
+        (pp_print_list (fun fmt r -> fprintf fmt "require %a;" pp_eexpr r))
         mode.require
-        (pp_print_list (fun fmt r ->
-             fprintf fmt "ensure %a;" pp_eexpr r))
+        (pp_print_list (fun fmt r -> fprintf fmt "ensure %a;" pp_eexpr r))
         mode.ensure)
     fmt spec.modes;
   pp_print_list
@@ -540,8 +538,7 @@ let pp_node fmt nd =
         ()
       | _ ->
         fprintf fmt "@[<v 4>check@ %a@]@ "
-          (pp_print_list (fun fmt d ->
-               fprintf fmt "%a" Dimension.pp d))
+          (pp_print_list (fun fmt d -> fprintf fmt "%a" Dimension.pp d))
           checks)
     nd.node_checks;
   (* Body *)
@@ -591,8 +588,9 @@ let pp_imported_node fmt ind =
 let pp_const_decl fmt cdecl =
   fprintf fmt "%s = %a;" cdecl.const_id pp_const cdecl.const_value
 
-let pp_const_decl_list fmt clist =
-  pp_print_list pp_const_decl fmt clist
+(* XXX: UNUSED *)
+(* let pp_const_decl_list fmt clist =
+ *   pp_print_list pp_const_decl fmt clist *)
 
 let pp_decl fmt decl =
   match decl.top_decl_desc with
@@ -676,12 +674,13 @@ let pp_lusi_header fmt basename prog =
   List.iter (fprintf fmt "%a@ " pp_lusi) prog;
   fprintf fmt "@]@."
 
-let pp_offset fmt offset =
-  match offset with
-  | Index i ->
-    fprintf fmt "[%a]" Dimension.pp i
-  | Field f ->
-    fprintf fmt ".%s" f
+(* XXX: UNUSED *)
+(* let pp_offset fmt offset =
+ *   match offset with
+ *   | Index i ->
+ *     fprintf fmt "[%a]" Dimension.pp i
+ *   | Field f ->
+ *     fprintf fmt ".%s" f *)
 
 let pp_node_list fmt prog =
   Format.fprintf fmt "@[<h 2>%a@]"

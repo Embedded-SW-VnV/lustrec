@@ -11,17 +11,15 @@ let setup () =
 
 let is_functional () =
   let open Options in
-  match !output with
-  | OutHorn | OutLustre | OutEMF ->
-    true
-  | _ ->
-    false
+  match !output with OutHorn | OutLustre | OutEMF -> true | _ -> false
 
 (* Special treatment of arrows in lustre backend. We want to keep them *)
-let unfold_arrow () = match !Options.output with Options.OutLustre -> false | _ -> true
+let unfold_arrow () =
+  match !Options.output with Options.OutLustre -> false | _ -> true
 
 (* Forcing ite normalization *)
-let alias_ite () = match !Options.output with Options.OutEMF -> true | _ -> false
+let alias_ite () =
+  match !Options.output with Options.OutEMF -> true | _ -> false
 
 (* Forcing basic functions normalization *)
 let alias_internal_fun () =

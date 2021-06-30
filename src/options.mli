@@ -1,83 +1,86 @@
-val kind2_print: bool ref
-val mpfr: bool ref
-val print_dec_types: bool ref
-val verbose_level: int ref
-val main_node: string ref
-val global_inline: bool ref
-val mpfr_prec: int ref
+val kind2_print : bool ref
 
-type option_spec =
-  | SpecNo
-  | SpecACSL
-  | SpecC
+val mpfr : bool ref
 
-val spec: option_spec ref
+val print_dec_types : bool ref
 
-type option_output =
-  | OutC
-  | OutAda
-  | OutJava
-  | OutEMF
-  | OutHorn
-  | OutLustre
-  (* | OutACSL *)
+val verbose_level : int ref
 
-val output: option_output ref
+val main_node : string ref
 
-val pp_output: Format.formatter -> unit
+val global_inline : bool ref
 
-val ansi: bool ref
+val mpfr_prec : int ref
 
-val int_type: string ref
-val real_type: string ref
+type option_spec = SpecNo | SpecACSL | SpecC
 
-val optimization: int ref
+val spec : option_spec ref
 
-val include_dirs: string list ref
+type option_output = OutC | OutAda | OutJava | OutEMF | OutHorn | OutLustre
+(* | OutACSL *)
 
-val dest_dir: string ref
+val output : option_output ref
 
-val print_types: bool ref
-val print_clocks: bool ref
-val print_nodes: bool ref
-val print_prec_double: int ref
+val pp_output : Format.formatter -> unit
 
-val solve_al: bool ref
-val al_nb_max: int ref
+val ansi : bool ref
 
-val delay_calculus: bool ref
+val int_type : string ref
 
-val static_mem: bool ref
+val real_type : string ref
 
-val check: bool ref
+val optimization : int ref
 
-val lusi: bool ref
+val include_dirs : string list ref
 
-val traces: bool ref
+val dest_dir : string ref
 
-val horn_cex: bool ref
-val horn_query: bool ref
+val print_types : bool ref
 
-val sfunction: string ref
+val print_clocks : bool ref
 
-val print_reuse: bool ref
+val print_nodes : bool ref
 
-val const_unfold: bool ref
+val print_prec_double : int ref
 
-val witnesses: bool ref
+val solve_al : bool ref
 
-val cpp: bool ref
+val al_nb_max : int ref
 
-val integer_div_euclidean: bool ref
+val delay_calculus : bool ref
 
-val mauve: string ref
+val static_mem : bool ref
 
-val nb_mutants: int ref
+val check : bool ref
 
-val gen_mcdc: bool ref
+val lusi : bool ref
 
-val no_mutation_suffix: bool ref
+val traces : bool ref
 
-val compile_header: bool ref
+val horn_cex : bool ref
 
-val track_exceptions: bool ref
+val horn_query : bool ref
+
+val sfunction : string ref
+
+val print_reuse : bool ref
+
+val const_unfold : bool ref
+
+val witnesses : bool ref
+
+val cpp : bool ref
+
+val integer_div_euclidean : bool ref
+
+val mauve : string ref
+
+val nb_mutants : int ref
+
+val gen_mcdc : bool ref
+
+val no_mutation_suffix : bool ref
+
+val compile_header : bool ref
+
+val track_exceptions : bool ref
