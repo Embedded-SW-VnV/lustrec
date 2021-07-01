@@ -87,9 +87,8 @@ let option_map f o = match o with None -> None | Some e -> Some (f e)
 
 let add_cons x l = if List.mem x l then l else x :: l
 
-(* XXX: UNUSED *)
-(* let rec remove_duplicates l =
- *   match l with [] -> [] | t :: q -> add_cons t (remove_duplicates q) *)
+let rec remove_duplicates l =
+  match l with [] -> [] | t :: q -> add_cons t (remove_duplicates q)
 
 (* XXX: UNUSED *)
 (* let position pred l =
@@ -343,8 +342,8 @@ module Format = struct
       ?(pp_epilogue = pp_print_nothing) ?(pp_op = pp_print_nothing)
       ?(pp_cl = pp_print_nothing)
       ?(pp_open_box = fun fmt () -> pp_open_box fmt 0)
-      ?(pp_eol = pp_print_nothing) ?(pp_nil = pp_print_nothing) ?pp_sep pp_v fmt
-      l =
+      ?(pp_eol = pp_print_nothing) ?(pp_nil = pp_print_nothing)
+      ?(pp_sep = pp_print_space) pp_v fmt l =
     fprintf
       fmt
       "%a%a%a%a%a@]%a%a"
@@ -355,7 +354,7 @@ module Format = struct
       pp_open_box
       ()
       (fun fmt () ->
-        if l = [] then pp_nil fmt () else pp_print_list ?pp_sep pp_v fmt l)
+        if l = [] then pp_nil fmt () else pp_print_list ~pp_sep pp_v fmt l)
       ()
       (fun fmt l -> if l <> [] then pp_eol fmt ())
       l

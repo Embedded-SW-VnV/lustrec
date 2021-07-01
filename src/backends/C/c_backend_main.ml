@@ -22,7 +22,10 @@ module type MODIFIERS_MAINSRC = sig
 
   val pp_ghost_state_parameter : formatter -> unit -> unit
 
-  val pp_main_spec : formatter -> machine_t -> unit
+  val pp_main_spec : formatter -> unit
+
+  val pp_main_loop_invariants :
+    ident -> machine_t list -> formatter -> machine_t -> unit
 end
 
 module EmptyMod = struct
@@ -30,7 +33,9 @@ module EmptyMod = struct
 
   let pp_ghost_state_parameter _ _ = ()
 
-  let pp_main_spec _ _ = ()
+  let pp_main_spec _ = ()
+
+  let pp_main_loop_invariants _ _ _ _ = ()
 end
 
 module Main (Mod : MODIFIERS_MAINSRC) = struct
@@ -101,7 +106,7 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
           if !Options.static_mem && !Options.main_node <> "" then
             fprintf
               fmt
-              "%a(static,main_mem);"
+              "%a(,main_mem);"
               (fun x -> pp_machine_static_alloc_name x)
               mname
           else
@@ -294,7 +299,7 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
         Mod.pp_ghost_state_parameter
         ()
 
-  let pp_main_loop mname main_mem fmt m =
+  let pp_main_loop mname main_mem machines fmt m =
     let opt = !Options.c_main_options in
     let input_values =
       List.map (fun v -> mk_val (Var v) v.var_type) m.mstep.step_inputs
@@ -304,10 +309,12 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
       "ISATTY = isatty(0);@,\
        @,\
        /* Infinite loop */@,\
-       @[<v 2>while(1){@,\
+       %a@[<v 2>while(1){@,\
        fflush(stdout);@,\
        %a%a%a%a@]@,\
        }"
+      (Mod.pp_main_loop_invariants main_mem machines)
+      m
       (if opt then fun fmt () ->
        fprintf
          fmt
@@ -379,7 +386,7 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
        @,"
       name
 
-  let pp_main_code fmt (basename, m) =
+  let pp_main_code machines fmt (basename, m) =
     let opt = !Options.c_main_options in
     let mname = m.mname.node_id in
     (* TODO: find a proper way to shorthen long names. This causes segfault in
@@ -395,7 +402,7 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
 
     fprintf
       fmt
-      "@[<v>%a%a@[<v 2>int main (%a) {@,\
+      "@[<v>%a%t@[<v 2>int main (%a) {@,\
        %a%a@,\
        %a@,\
        %a@,\
@@ -407,7 +414,6 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
       (if opt then pp_usage else pp_print_nothing)
       ()
       Mod.pp_main_spec
-      m
       (if opt then pp_print_string else pp_print_nothing)
       "int argc, char *argv[]"
       (if opt then pp_options else pp_print_nothing)
@@ -428,7 +434,7 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
             (pp_main_initialize mname main_mem)
             m)
       ()
-      (pp_main_loop mname main_mem)
+      (pp_main_loop mname main_mem machines)
       m
       Plugins.c_backend_main_loop_body_suffix
       ()
@@ -455,7 +461,7 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
           (Options_management.core_dependency "io_frontend"))
       ()
 
-  let pp_main_c main_fmt main_machine basename _prog _machines _dependencies =
+  let pp_main_c main_fmt main_machine basename _prog machines _dependencies =
     fprintf
       main_fmt
       "@[<v>%a@,\
@@ -478,7 +484,7 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
       (* Print the svn version number and the supported C standard (C90 or C99) *)
       pp_print_version
       ()
-      pp_main_code
+      (pp_main_code machines)
       (basename, main_machine)
 end
 

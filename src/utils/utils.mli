@@ -206,3 +206,5 @@ val enumerate : int -> int list
 val duplicate : 'a -> int -> 'a list
 
 val list_union : 'a list -> 'a list -> 'a list
+
+val remove_duplicates : 'a list -> 'a list

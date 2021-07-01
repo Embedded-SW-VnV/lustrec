@@ -59,9 +59,11 @@ let pp_assigns pp =
     ~pp_epilogue:pp_print_semicolon'
     pp
 
-let pp_ghost pp_gho fmt = fprintf fmt "ghost %a" pp_gho
+let pp_ghost pp fmt = fprintf fmt "ghost %a" pp
 
-let pp_assert pp_ast fmt = fprintf fmt "assert %a;" pp_ast
+let pp_assert pp fmt = fprintf fmt "assert %a;" pp
+
+let pp_loop_invariant pp fmt = fprintf fmt "loop invariant %a;" pp
 
 let pp_mem_valid pp_var fmt (name, var) =
   fprintf fmt "%s_valid(%a)" name pp_var var
@@ -69,6 +71,8 @@ let pp_mem_valid pp_var fmt (name, var) =
 let pp_mem_valid' = pp_mem_valid pp_print_string
 
 let pp_ref pp fmt = fprintf fmt "&%a" pp
+
+let pp_ref' = pp_ref pp_print_string
 
 let pp_indirect pp_ptr pp_field fmt (ptr, field) =
   fprintf fmt "%a->%a" pp_ptr ptr pp_field field
@@ -88,6 +92,8 @@ let pp_reg self fmt field =
 let pp_true fmt () = pp_print_string fmt "\\true"
 
 let pp_false fmt () = pp_print_string fmt "\\false"
+
+let pp_nothing fmt () = pp_print_string fmt "\\nothing"
 
 let pp_at pp_v fmt (v, l) = fprintf fmt "\\at(%a, %s)" pp_v v l
 
@@ -121,16 +127,16 @@ let memories insts =
       insts
     |> flatten)
 
-let pp_instance ?(indirect = true) ptr =
+let pp_instance ?(indirect = true) pp ptr =
   pp_print_list
-    ~pp_prologue:(fun fmt () -> fprintf fmt "%s->" ptr)
+    ~pp_prologue:(fun fmt () -> fprintf fmt "%a->" pp ptr)
     ~pp_sep:(fun fmt () -> pp_print_string fmt (if indirect then "->" else "."))
     (fun fmt (i, _) -> pp_print_string fmt i)
 
 let pp_memory ?(indirect = true) ptr fmt (path, mem) =
   pp_access
     ((if indirect then pp_indirect else pp_access)
-       (pp_instance ~indirect ptr)
+       (pp_instance ~indirect pp_print_string ptr)
        pp_print_string)
     pp_var_decl
     fmt
@@ -145,20 +151,31 @@ let prefixes l =
   in
   pref [] (List.rev l)
 
-let powerset_instances paths = List.map prefixes paths |> List.flatten
+let powerset_instances paths =
+  List.map prefixes paths |> List.flatten |> remove_duplicates
 
-let pp_separated self mem fmt (paths, ptrs) =
+let pp_separated pp_self pp_mem pp_ptr fmt (self, mem, paths, ptrs) =
   fprintf
     fmt
-    "\\separated(@[<v>%s, %s@;%a@;%a@])"
+    "\\separated(@[<v>%a, %a@;%a@;%a@])"
+    pp_self
     self
+    pp_mem
     mem
-    (pp_comma_list ~pp_prologue:pp_print_comma' (pp_instance self))
+    (pp_comma_list ~pp_prologue:pp_print_comma' (pp_instance pp_self self))
     paths
-    (pp_comma_list ~pp_prologue:pp_print_comma' pp_var_decl)
+    (pp_comma_list ~pp_prologue:pp_print_comma' pp_ptr)
     ptrs
 
-let pp_separated' =
+let pp_separated' self mem fmt (paths, ptrs) =
+  pp_separated
+    pp_print_string
+    pp_print_string
+    pp_var_decl
+    fmt
+    (self, mem, paths, ptrs)
+
+let pp_separated'' =
   pp_comma_list
     ~pp_prologue:(fun fmt () -> pp_print_string fmt "\\separated(")
     ~pp_epilogue:pp_print_cpar
@@ -775,7 +792,21 @@ module HdrMod = struct
       (Arrow.arrow_top_decl ()).top_decl_owner
       (if !Options.cpp then "pp" else "")
 
-  let pp_machine_ghost_struct = pp_machine_ghost_struct
+  let pp_predicates fmt machines =
+    let pp_preds comment pp =
+      pp_print_list
+        ~pp_open_box:pp_open_vbox0
+        ~pp_prologue:(pp_print_endcut comment)
+        pp
+        ~pp_epilogue:pp_print_cutcut
+    in
+    fprintf
+      fmt
+      "%a%a"
+      (pp_preds "/* ACSL `valid` predicates */" pp_mem_valid_def)
+      machines
+      (pp_preds "/* ACSL `memory pack` simulations */" pp_memory_pack_defs)
+      machines
 
   let pp_machine_alloc_decl fmt m =
     pp_machine_decl_prefix fmt m;
@@ -860,7 +891,7 @@ module SrcMod = struct
            disjoint behaviors;"
           (pp_requires pp_mem_valid')
           (name, self)
-          (pp_requires (pp_separated self mem))
+          (pp_requires (pp_separated' self mem))
           (mk_insts m.minstances, [])
           (pp_requires (pp_memory_pack_aux pp_ptr pp_print_string))
           (name, mem, self)
@@ -929,7 +960,7 @@ module SrcMod = struct
             "%a@,%a@,%a@,%a"
             (pp_requires (pp_valid pp_var_decl))
             outputs
-            (pp_requires pp_separated')
+            (pp_requires pp_separated'')
             outputs
             (pp_assigns pp_ptr_decl)
             outputs
@@ -943,7 +974,7 @@ module SrcMod = struct
             outputs
             (pp_requires pp_mem_valid')
             (name, self)
-            (pp_requires (pp_separated self mem))
+            (pp_requires (pp_separated' self mem))
             (insts', outputs)
             (pp_requires (pp_memory_pack_aux pp_ptr pp_print_string))
             (name, mem, self)
@@ -1043,19 +1074,44 @@ module MainMod = struct
       fmt
       [ main_mem_ghost, pp_ref pp_print_string ]
 
-  let pp_main_spec fmt m =
-    (* let name = m.mname.node_id in *)
+  let pp_main_loop_invariants main_mem machines fmt m =
+    let name = m.mname.node_id in
+    let insts = powerset_instances (instances machines m) in
     pp_acsl_cut
       (fun fmt () ->
         fprintf
           fmt
-          "%a@,%a@,%a"
+          "%a@,%a@,%a@,%a"
+          (pp_loop_invariant pp_mem_valid')
+          (name, main_mem)
+          (pp_loop_invariant
+             (pp_memory_pack_aux pp_print_string pp_print_string))
+          (name, main_mem_ghost, main_mem)
+          (pp_loop_invariant
+             (pp_separated
+                (pp_paren pp_print_string)
+                pp_ref'
+                (pp_ref pp_var_decl)))
+          (main_mem, main_mem_ghost, insts, m.mstep.step_outputs)
+          (pp_loop_invariant (pp_valid pp_print_string))
+          [ "stdout" ])
+      fmt
+      ()
+
+  let pp_main_spec fmt =
+    pp_acsl_cut
+      (fun fmt () ->
+        fprintf
+          fmt
+          "%a@,%a@,%a@,%a"
+          (pp_requires (pp_valid pp_print_string))
+          [ "stdout" ]
+          (pp_terminates pp_false)
+          ()
           (pp_ensures pp_false)
           ()
-          (pp_assigns pp_print_string)
-          []
-          (pp_terminates pp_false)
-          ())
+          (pp_assigns pp_nothing)
+          [ () ])
       fmt
       ()
 end

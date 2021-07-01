@@ -26,7 +26,7 @@ module type MODIFIERS_HDR = sig
 
   val pp_machine_decl_prefix : formatter -> machine_t -> unit
 
-  val pp_machine_ghost_struct : formatter -> machine_t -> unit
+  val pp_predicates : formatter -> machine_t list -> unit
 
   val pp_import_arrow : formatter -> unit -> unit
 
@@ -38,7 +38,7 @@ module EmptyMod = struct
 
   let pp_machine_decl_prefix _ _ = ()
 
-  let pp_machine_ghost_struct _ _ = ()
+  let pp_predicates _ _ = ()
 
   let pp_import_arrow fmt () =
     fprintf
@@ -283,13 +283,8 @@ functor
            pp_machine_struct
            ~pp_epilogue:pp_print_cutcut)
         machines
-        (* Print the ghost struct definitions of all machines. *)
-        (pp_print_list
-           ~pp_open_box:pp_open_vbox0
-           ~pp_prologue:(pp_print_endcut "/* Ghost struct definitions */")
-           ~pp_sep:pp_print_cutcut
-           Mod.pp_machine_ghost_struct
-           ~pp_epilogue:pp_print_cutcut)
+        (* Copy the spec (valid and memory packs predicates). *)
+        Mod.pp_predicates
         machines
         (* Print the prototypes of all machines *)
         (pp_print_list

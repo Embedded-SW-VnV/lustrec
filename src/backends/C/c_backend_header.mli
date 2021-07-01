@@ -8,7 +8,7 @@ module type MODIFIERS_HDR = sig
 
   val pp_machine_decl_prefix : formatter -> machine_t -> unit
 
-  val pp_machine_ghost_struct : formatter -> machine_t -> unit
+  val pp_predicates : formatter -> machine_t list -> unit
 
   val pp_import_arrow : formatter -> unit -> unit
 

@@ -8,7 +8,10 @@ module type MODIFIERS_MAINSRC = sig
 
   val pp_ghost_state_parameter : formatter -> unit -> unit
 
-  val pp_main_spec : formatter -> machine_t -> unit
+  val pp_main_spec : formatter -> unit
+
+  val pp_main_loop_invariants :
+    ident -> machine_t list -> formatter -> machine_t -> unit
 end
 
 module EmptyMod : MODIFIERS_MAINSRC
