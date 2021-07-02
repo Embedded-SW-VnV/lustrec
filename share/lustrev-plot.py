@@ -30,6 +30,8 @@ init_typesel_options=[{'label': t, 'value': t} for t in init_types]
 init_signals = init_df['varid'].unique()
 init_signals_option = [{'label': i, 'value': i} for i in init_signals]
 
+# TODO: retravailler le cas bool3 pour voir si on a des infos partitionnees
+# TODO: generer une vrai figure par signal
 # TODO: extraire les suffixes de contexte booleens pour construire, pour chaque signal, la liste des signaux de partitionnement
 
 
@@ -100,10 +102,10 @@ app.layout = html.Div([
 # #     return fig
 
 
-def onesigfig(fig, signal_df, name,row,col):
+def onesigfig(fig,signal_df,name,row,col):
     color='rgba(0,250,0,0.4)'
     x, y_min, y_max = 'timestep', 'min', 'max'
-    
+    type=signal_df['type'].unique()
     fig.add_traces(
         go.Scatter(
             x = signal_df[x],
@@ -136,7 +138,8 @@ def onesigfig(fig, signal_df, name,row,col):
             name=name+'_min'),
         rows=row,
         cols=col)
-#    fig.update_yaxes(type='linear')
+    if type != 'bool':
+        fig.update_yaxes(type='linear')
     return fig
     # fig.add_traces(go.Scatter(x = signal_df[x], y = signal_df[y_min],
     #                       line = dict(color='rgba(0,0,0,0)')))
@@ -167,6 +170,7 @@ def extract_selection(df):
 # Changing dropdown menu or same/split view updates the figure
 @app.callback(
     Output("graph", "figure"),
+    Output('selected-data', 'children'),
     [Input("signal_sel", "value"),
      Input("sameplotcheck", "value"),
      Input("global_df", 'children')
@@ -179,7 +183,7 @@ def display_graph_signal(selection,checkval,jsonified):
     color='rgba(0,250,0,0.4)'
     x, y_min, y_max = 'timestep', 'min', 'max'
     if selection is None or selection == [] or jsonified == None:
-        return {}
+        return {}, None
         #selection=signals
     else:
         df=pd.read_json(jsonified, orient='split')
@@ -201,12 +205,13 @@ def display_graph_signal(selection,checkval,jsonified):
                 row_id=idx+1
             onesigfig(fig,signal_df,sig,row_id,1)
         fig.update_layout(height=300 * nb_rows)
-        return fig
+        signals_data=df.query("varid in " + str(selection))
+        data=extract_selection(signals_data)
+        return fig, data
 
 # Changing global_df or choice of types updates dropdown menu
 @app.callback(Output("signal_sel", "options"),
               Output("signal_sel", "value"),
-              Output('selected-data', 'children'),
               Input("global_df", 'children'),
               Input('typesel', 'value')
               )
@@ -218,8 +223,7 @@ def update_available_signals(jsonified, typesel):
         signals_data=df.query('type in ' +str(typesel))
         signals=signals_data['varid'].unique()
         signals_options=[{'label': i, 'value': i} for i in signals]
-        data=extract_selection(signals_data)
-        return signals_options, signals, data
+        return signals_options, signals
 
 
 def parse_contents(contents, filename, date):
