@@ -26,8 +26,11 @@ let cst_bool loc b =
     expr_type = Ast.BoolT }
 
 let cst_num loc t q =
+  let s = Q.to_string q in
+  let s =  if t = Tiny.Ast.RealT && Z.equal (Q.den q) Z.one then s ^ "."
+             else s in
 { Ast.expr_desc =
-    Ast.Cst(q, Q.to_string q);
+    Ast.Cst(q, s);
   expr_loc = loc;
   expr_type = t }
   
@@ -91,13 +94,19 @@ let rec lval_to_texpr m loc _val =
          | ">=", [v1;v2] ->
             Ast.Cond (build (Ast.Binop (Ast.Minus, v1, v2)) t_arg, Ast.Loose)
          | "uminus", [v1] -> Ast.Binop (Ast.Minus, cst_num loc t_arg Q.zero, v1)
-         | "=", [v1;v2] -> Ast.Binop (Ast.Eq, v1, v2)
+         (* | "=", [v1;v2] when v1.xxxtype != BoolT (\* if arguments are numerical then basic comparison *\)  
+          *    Ast.Cond (build (Ast.Binop (Ast.Minus, v1, v2)) t_arg, Ast.Loose)
+          *    Ast.Binop (Ast.Eq, v1, v2) *)
+         | "=", [v1;v2] 
          | "equi", [v1;v2] -> Ast.Binop (Ast.Eq, v1, v2)
                             
          | "!=", [v1;v2] -> Ast.Unop (Ast.Not, build (Ast.Binop (Ast.Eq, v1, v2)) Ast.BoolT)
          | "not", [v1] -> Ast.Unop (Ast.Not, v1)
          | "&&", [v1;v2] -> Ast.Binop (Ast.And, v1, v2)
          | "||", [v1;v2] -> Ast.Binop (Ast.Or, v1, v2)
+         | "impl", [v1;v2] ->
+            let neg_v1 = Ast.neg_guard v1 in
+            Ast.Binop (Ast.Or, neg_v1, v2)
                           
          | _ -> Format.eprintf "No tiny translation for operator %s@.@?" op; assert false    
        )
@@ -210,11 +219,11 @@ let machine_body_to_ast init m =
          )
          | name, _ -> 
             (
-              Format.eprintf "No tiny translation for node call  %s@.@?" name;
+              Format.eprintf "No tiny translation for stateful node call  %s@.@?" name;
               assert false
             )
        else (
-         Format.eprintf "No tiny translation for node call  %s@.@?" id;
+         Format.eprintf "No tiny translation for function call  %s@.@?" id;
          assert false
        )
     | MReset id
@@ -228,7 +237,14 @@ let read_var bounds_opt v =
   let min, max =
     match bounds_opt with
       Some (min,max) -> min, max
-    | None -> (Q.of_int (-1), "-1"), (Q.of_int 1, "1")
+    | None ->
+       let one, minus_one =
+         match Types.is_real_type v.Lustre_types.var_type with
+         | true -> "1.", "-1."
+         | false -> "1", "-1"
+                      
+       in
+       (Q.of_int (-1), minus_one), (Q.of_int 1, one)
   in
   let range = {
       Ast.expr_desc = Ast.Rand (min,max);
