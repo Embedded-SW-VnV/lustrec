@@ -5,7 +5,7 @@
 (install
  (section
   (site
-   (lustrec include_)))
+   (lustrec include)))
  (files
   include/conv.c
   include/conv.lusi

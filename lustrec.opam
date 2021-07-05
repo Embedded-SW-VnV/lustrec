@@ -13,7 +13,7 @@ license: "LGPL"
 homepage: "https://cavale.enseeiht.fr/redmine/projects/lustrec/"
 bug-reports: "https://cavale.enseeiht.fr/redmine/projects/lustrec/issues"
 depends: [
-  "dune" {>= "2.8"}
+  "dune" {>= "2.9"}
   "conf-gmp"
   "ocamlgraph"
   "menhir"

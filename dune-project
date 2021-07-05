@@ -20,7 +20,7 @@
  (sites
   (lib plugins)
   (lib verifiers)
-  (lib include_)
+  (lib include)
   (share testgen))
  (synopsis "A Lustre compiler toolset")
  (description
