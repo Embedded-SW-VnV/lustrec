@@ -95,6 +95,10 @@ let pp_false fmt () = pp_print_string fmt "\\false"
 
 let pp_nothing fmt () = pp_print_string fmt "\\nothing"
 
+let pp_null fmt () = pp_print_string fmt "\\null"
+
+let pp_stdout fmt () = pp_print_string fmt "stdout"
+
 let pp_at pp_v fmt (v, l) = fprintf fmt "\\at(%a, %s)" pp_v v l
 
 let instances machines m =
@@ -201,6 +205,8 @@ let pp_and_l pp_v fmt =
     pp_v
     fmt
 
+let pp_or pp_l pp_r fmt (l, r) = fprintf fmt "@[<v>%a @ || %a@]" pp_l l pp_r r
+
 let pp_or_l pp_v fmt =
   pp_print_list
     ~pp_open_box:pp_open_vbox0
@@ -211,6 +217,8 @@ let pp_or_l pp_v fmt =
 let pp_not pp fmt = fprintf fmt "!%a" pp
 
 let pp_valid pp = pp_and_l (fun fmt x -> fprintf fmt "\\valid(%a)" pp x)
+
+let pp_valid_read pp fmt = fprintf fmt "\\valid_read(%a)" pp
 
 let pp_old pp fmt = fprintf fmt "\\old(%a)" pp
 
@@ -1093,8 +1101,11 @@ module MainMod = struct
                 pp_ref'
                 (pp_ref pp_var_decl)))
           (main_mem, main_mem_ghost, insts, m.mstep.step_outputs)
-          (pp_loop_invariant (pp_valid pp_print_string))
-          [ "stdout" ])
+          (pp_loop_invariant
+             (pp_or
+                (pp_valid_read pp_stdout)
+                (pp_equal pp_stdout pp_null)))
+          ((), ((), ())))
       fmt
       ()
 
@@ -1104,8 +1115,11 @@ module MainMod = struct
         fprintf
           fmt
           "%a@,%a@,%a@,%a"
-          (pp_requires (pp_valid pp_print_string))
-          [ "stdout" ]
+          (pp_requires
+             (pp_or
+                (pp_valid_read pp_stdout)
+                (pp_equal pp_stdout pp_null)))
+          ((), ((), ()))
           (pp_terminates pp_false)
           ()
           (pp_ensures pp_false)
