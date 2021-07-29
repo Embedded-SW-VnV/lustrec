@@ -438,10 +438,13 @@ let pp_emf_spec fmt spec =
    *   pp_emf_vars_decl spec.locals;
    * fprintf fmt "\"stmts\": [%a],@ "
    *   pp_emf_stmts spec.stmts; *)
-  fprintf fmt "\"assume\": [%a],@ " pp_emf_eexprs spec.assume;
-  fprintf fmt "\"guarantees\": [%a],@ " pp_emf_eexprs spec.guarantees;
-  fprintf fmt "\"modes\": [%a]@ " pp_emf_spec_modes spec.modes;
-  (* fprintf fmt "\"imports\": [%a]@ "
+
+  (* TODO *)
+  (* fprintf fmt "\"assume\": [%a],@ " pp_emf_eexprs spec.assume;
+   * fprintf fmt "\"guarantees\": [%a],@ " pp_emf_eexprs spec.guarantees;
+   * fprintf fmt "\"modes\": [%a]@ " pp_emf_spec_modes spec.modes; *)
+
+   (* fprintf fmt "\"imports\": [%a]@ "
    *   pp_emf_spec_imports spec.imports; *)
   fprintf fmt "@] }"
 
@@ -483,7 +486,8 @@ let pp_machine fmt m =
   (match m.mspec.mnode_spec with
    | None -> ()
    | Some (Contract c) ->
-     assert (c.locals = [] && c.consts = [] && c.stmts = [] && c.imports = []);
+     (* TODO *)
+     (* assert (c.locals = [] && c.consts = [] && c.stmts = [] && c.imports = []); *)
      fprintf fmt "\"spec\": %a,@ " pp_emf_spec c
    | Some (NodeSpec id) -> fprintf fmt "\"contract\": \"%s\",@ " id);
   fprintf fmt "\"annots\": {@[<v 0> %a@]@ }"

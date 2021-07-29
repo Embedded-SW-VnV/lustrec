@@ -77,6 +77,7 @@ val pp_assign :
   unit
 
 val pp_c_type :
+  ?var_is_contract:bool ->
   ?pp_c_basic_type_desc:(Types.t -> string) ->
   ?var_opt:var_decl ->
   ident ->

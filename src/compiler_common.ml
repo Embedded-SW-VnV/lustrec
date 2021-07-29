@@ -289,7 +289,7 @@ let resolve_contracts prog =
     in
 
     (* Format.eprintf "Process contract new node for node %s@." id; *)
-    let stmts, locals, c =
+    let node_stmts, node_locals, c =
       match spec with
       | None | Some (NodeSpec _) ->
         assert false
@@ -308,32 +308,33 @@ let resolve_contracts prog =
             false)
         (accu_contracts @ prog)
     in
-    let new_nd_id = mk_new_name used (id ^ "_coco") in
-    let new_nd =
-      mktop_decl
-        c.spec_loc
-        top.top_decl_owner
-        top.top_decl_itf
-        (Node
-           {
-             node_id = new_nd_id;
-             node_type = Types.new_var ();
-             node_clock = Clocks.new_var true;
-             node_inputs = inputs;
-             node_outputs = outputs;
-             node_locals = locals;
-             node_gencalls = [];
-             node_checks = [];
-             node_asserts = [];
-             node_stmts = stmts;
-             node_dec_stateless = false;
-             node_stateless = None;
-             node_spec = Some (Contract c);
-             node_annot = [];
-             node_iscontract = true;
-           })
-    in
-    new_nd
+    let nd = {
+      node_id = mk_new_name used (id ^ "_contract");
+      node_type = Types.new_var ();
+      node_clock = Clocks.new_var true;
+      node_inputs = inputs @ outputs;
+      node_outputs = [];
+      node_locals;
+      node_gencalls = [];
+      node_checks = [];
+      node_asserts = [];
+      node_stmts;
+      node_dec_stateless = false;
+      node_stateless = None;
+      node_spec = Some (Contract c);
+      node_annot = [];
+      node_iscontract = true;
+    } in
+    (* let stateless = Stateless.compute_node nd in *)
+    mktop_decl
+      c.spec_loc
+      top.top_decl_owner
+      top.top_decl_itf
+      (Node nd)
+         (* { nd with
+          *   node_dec_stateless = stateless;
+          *   node_stateless = Some stateless;
+          * }) *)
   in
   (* Processing nodes in order. Should have been sorted by now
 

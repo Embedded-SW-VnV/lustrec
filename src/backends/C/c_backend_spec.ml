@@ -35,13 +35,19 @@ let pp_acsl_basic_type_desc t_desc =
   else assert false
 (* Not a basic C type. Do not handle arrays or pointers *)
 
-let pp_acsl pp fmt = fprintf fmt "@[<v>/*%@ @[<v>%a@]@,*/@]" pp
+let pp_acsl ?(ghost=false) pp fmt x =
+  let op = if ghost then "" else "*" in
+  let cl = if ghost then "@" else "*" in
+  fprintf fmt "@[<v>/%s%@ @[<v>%a@]@,%s/@]" op pp x cl
 
-let pp_acsl_cut pp fmt = fprintf fmt "%a@," (pp_acsl pp)
+let pp_acsl_cut ?ghost pp fmt = fprintf fmt "%a@," (pp_acsl ?ghost pp)
 
 let pp_acsl_line pp fmt = fprintf fmt "//%@ @[<h>%a@]" pp
 
-let pp_acsl_line' pp fmt = fprintf fmt "/*%@ @[<h>%a@] */" pp
+let pp_acsl_line' ?(ghost=false) pp fmt x =
+  let op = if ghost then "" else "*" in
+  let cl = if ghost then "@" else "*" in
+  fprintf fmt "/%s%@ @[<h>%a@] %s/" op pp x cl
 
 let pp_acsl_line'_cut pp fmt = fprintf fmt "%a@," (pp_acsl_line' pp)
 
@@ -101,6 +107,9 @@ let pp_stdout fmt () = pp_print_string fmt "stdout"
 
 let pp_at pp_v fmt (v, l) = fprintf fmt "\\at(%a, %s)" pp_v v l
 
+let find_machine f =
+  List.find (fun m -> m.mname.node_id = f)
+
 let instances machines m =
   let open List in
   let grow paths i td mems =
@@ -114,7 +123,7 @@ let instances machines m =
     map
       (fun (i, (td, _)) ->
         try
-          let m = find (fun m -> m.mname.node_id = node_name td) machines in
+          let m = find_machine (node_name td) machines in
           aux (grow paths i td m.mmemory) m
         with Not_found -> grow paths i td [])
       m.minstances
@@ -161,14 +170,14 @@ let powerset_instances paths =
 let pp_separated pp_self pp_mem pp_ptr fmt (self, mem, paths, ptrs) =
   fprintf
     fmt
-    "\\separated(@[<v>%a, %a@;%a@;%a@])"
+    "\\separated(@[<v>%a, %a%a%a@])"
     pp_self
     self
     pp_mem
     mem
-    (pp_comma_list ~pp_prologue:pp_print_comma' (pp_instance pp_self self))
+    (pp_comma_list ~pp_prologue:pp_print_comma (pp_instance pp_self self))
     paths
-    (pp_comma_list ~pp_prologue:pp_print_comma' pp_ptr)
+    (pp_comma_list ~pp_prologue:pp_print_comma pp_ptr)
     ptrs
 
 let pp_separated' self mem fmt (paths, ptrs) =
@@ -575,6 +584,9 @@ module PrintSpec = struct
           (pp_and (pp_spec ResetOut) (pp_spec ResetIn))
           fmt
           ((f, mk_mem_reset m), (rc, tr))
+      | Value v ->
+        pp_c_val m mem_in (pp_c_var_read ~test_output:false m) fmt v
+
     in
     pp_spec mode
 end
@@ -948,6 +960,12 @@ module SrcMod = struct
       fmt
       ()
 
+  let pp_node_spec m fmt = function
+    | Contract c ->
+      PrintSpec.pp_spec PrintSpec.TransitionMode m fmt c
+    | NodeSpec f ->
+      pp_print_string fmt f
+
   let pp_step_spec fmt machines self mem m =
     let name = m.mname.node_id in
     let insts = instances machines m in
@@ -960,25 +978,37 @@ module SrcMod = struct
     in
     let inputs = m.mstep.step_inputs in
     let outputs = m.mstep.step_outputs in
+    let pp_if_outputs pp =
+      if outputs = [] then pp_print_nothing else pp
+    in
+    (* prevent printing an ensures clause with contract name *)
+    let spec =
+      match m.mspec.mnode_spec with
+      | Some (NodeSpec _) -> None
+      | s -> s
+    in
     pp_acsl_cut
+      ~ghost:m.mis_contract
       (fun fmt () ->
         if fst (get_stateless_status m) then
           fprintf
             fmt
-            "%a@,%a@,%a@,%a"
-            (pp_requires (pp_valid pp_var_decl))
+            "%a@,%a@,%a@,%a@,%a"
+            (pp_if_outputs (pp_requires (pp_valid pp_var_decl)))
             outputs
-            (pp_requires pp_separated'')
+            (pp_if_outputs (pp_requires pp_separated''))
             outputs
             (pp_assigns pp_ptr_decl)
             outputs
             (pp_ensures (pp_transition_aux' m))
             (name, inputs @ outputs, "", "")
+            (pp_print_option (pp_ensures (pp_node_spec m)))
+            spec
         else
           fprintf
             fmt
-            "%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a"
-            (pp_requires (pp_valid pp_var_decl))
+            "%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a"
+            (pp_if_outputs (pp_requires (pp_valid pp_var_decl)))
             outputs
             (pp_requires pp_mem_valid')
             (name, self)
@@ -992,6 +1022,8 @@ module SrcMod = struct
                (pp_transition_aux m (pp_old pp_ptr) pp_ptr (fun fmt v ->
                     (if is_output m v then pp_ptr_decl else pp_var_decl) fmt v)))
             (name, inputs @ outputs, mem, mem)
+            (pp_print_option (pp_ensures (pp_node_spec m)))
+            spec
             (pp_assigns pp_ptr_decl)
             outputs
             (pp_assigns (pp_reg self))
@@ -1039,6 +1071,7 @@ module SrcMod = struct
       ()
 
   let pp_step_instr_spec m self mem fmt instr =
+    let ghost = m.mis_contract in
     fprintf
       fmt
       "%a%a"
@@ -1047,7 +1080,7 @@ module SrcMod = struct
       (pp_print_list
          ~pp_open_box:pp_open_vbox0
          ~pp_prologue:pp_print_cut
-         (pp_acsl_line' (pp_assert (PrintSpec.pp_spec (InstrMode self) m))))
+         (pp_acsl_line' ~ghost (pp_assert (PrintSpec.pp_spec (InstrMode self) m))))
       instr.instr_spec
 
   let pp_ghost_parameter mem fmt inst =
@@ -1059,6 +1092,28 @@ module SrcMod = struct
         [ (inst, fun fmt inst -> pp_ref pp_indirect' fmt (mem, inst)) ]
       | None ->
         [ mem, pp_print_string ])
+
+  let pp_contract fmt machines _self m =
+    match m.mspec.mnode_spec with
+    | Some (NodeSpec f) ->
+      let m_f = find_machine f machines in
+      pp_acsl_cut
+        (pp_ghost
+           (fun fmt () ->
+              fprintf
+                fmt
+                "@;<0 2>@[<v>%a%a(%a%a);@]"
+                (pp_print_list ~pp_open_box:pp_open_vbox0 ~pp_sep:pp_print_semicolon ~pp_eol:pp_print_semicolon (pp_c_decl_local_var m))
+                m_f.mstep.step_outputs
+                pp_machine_step_name
+                m_f.mname.node_id
+                (pp_comma_list ~pp_eol:pp_print_comma (pp_c_var_read m))
+                m_f.mstep.step_inputs
+                (pp_comma_list (pp_c_var_write m))
+                m_f.mstep.step_outputs))
+        fmt ()
+    | _ -> ()
+
 end
 
 module MainMod = struct

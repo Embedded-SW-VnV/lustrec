@@ -204,8 +204,9 @@ let split_arrow ck =
     failwith "Internal error: not an arrow clock"
 
 (** Returns the clock corresponding to a clock list. *)
-let clock_of_clock_list ckl =
-  if List.length ckl > 1 then new_ck (Ctuple ckl) true else List.hd ckl
+let clock_of_clock_list = function
+  | [ck] -> ck
+  | ckl -> new_ck (Ctuple ckl) true
 
 let clock_list_of_clock ck =
   match (repr ck).cdesc with Ctuple cl -> cl | _ -> [ ck ]

@@ -119,40 +119,41 @@ functor
       let inode = imported_node_of_top tdecl in
       (*Mod.print_machine_decl_prefix fmt m;*)
       let prototype = inode.nodei_id, inode.nodei_inputs, inode.nodei_outputs in
-      if inode.nodei_prototype = Some "C" then
-        if inode.nodei_stateless then
-          fprintf fmt "extern %a;" pp_stateless_C_prototype prototype
-        else (
-          (* TODO: raise proper error *)
-          Format.eprintf "internal error: pp_machine_decl_top_decl_from_header";
-          assert false)
-      else if inode.nodei_stateless then
-        fprintf fmt "extern %a;" Protos.pp_stateless_prototype prototype
-      else
-        let static_inputs =
-          List.filter (fun v -> v.var_dec_const) inode.nodei_inputs
-        in
-        let used name =
-          List.exists
-            (fun v -> v.var_id = name)
-            (inode.nodei_inputs @ inode.nodei_outputs)
-        in
-        let self = mk_new_name used "self" in
-        let mem = mk_new_name used "mem" in
-        let static_prototype = inode.nodei_id, static_inputs in
-        fprintf
-          fmt
-          "extern %a;@,extern %a;@,extern %a;@,extern %a;@,extern %a;"
-          (Protos.pp_set_reset_prototype self mem)
-          static_prototype
-          (Protos.pp_clear_reset_prototype self mem)
-          static_prototype
-          (Protos.pp_init_prototype self)
-          static_prototype
-          (Protos.pp_clear_prototype self)
-          static_prototype
-          (Protos.pp_step_prototype self mem)
-          prototype
+      if not inode.nodei_iscontract then
+        if inode.nodei_prototype = Some "C" then
+          if inode.nodei_stateless then
+            fprintf fmt "extern %a;" pp_stateless_C_prototype prototype
+          else (
+            (* TODO: raise proper error *)
+            Format.eprintf "internal error: pp_machine_decl_top_decl_from_header";
+            assert false)
+        else if inode.nodei_stateless then
+          fprintf fmt "extern %a;" Protos.pp_stateless_prototype prototype
+        else
+          let static_inputs =
+            List.filter (fun v -> v.var_dec_const) inode.nodei_inputs
+          in
+          let used name =
+            List.exists
+              (fun v -> v.var_id = name)
+              (inode.nodei_inputs @ inode.nodei_outputs)
+          in
+          let self = mk_new_name used "self" in
+          let mem = mk_new_name used "mem" in
+          let static_prototype = inode.nodei_id, static_inputs in
+          fprintf
+            fmt
+            "extern %a;@,extern %a;@,extern %a;@,extern %a;@,extern %a;"
+            (Protos.pp_set_reset_prototype self mem)
+            static_prototype
+            (Protos.pp_clear_reset_prototype self mem)
+            static_prototype
+            (Protos.pp_init_prototype self)
+            static_prototype
+            (Protos.pp_clear_prototype self)
+            static_prototype
+            (Protos.pp_step_prototype self mem)
+            prototype
 
     let pp_const_top_decl fmt tdecl =
       let cdecl = const_of_top tdecl in

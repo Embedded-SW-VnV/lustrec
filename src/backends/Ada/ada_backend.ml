@@ -91,11 +91,13 @@ let extract_contract machines m =
     let guarantees =
       match machine_spec.mspec.mnode_spec with
       | Some (Contract contract) ->
-        assert (contract.consts = []);
-        assert (contract.locals = []);
-        assert (contract.stmts = []);
-        assert (contract.assume = []);
-        List.map extract_ident contract.guarantees
+        (* assert (contract.consts = []);
+         * assert (contract.locals = []);
+         * assert (contract.stmts = []);
+         * assert (contract.assume = []);
+         * List.map extract_ident contract.guarantees *)
+        (* TODO *)
+        assert false
       | _ ->
         assert false
     in

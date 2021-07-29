@@ -495,49 +495,47 @@ let pp_spec_stmt fmt stmt =
 let pp_spec fmt spec =
   (* const are prefixed with const in pp_var and with nothing for regular
      variables. We adapt the call to produce the appropriate output. *)
-  pp_print_list
-    (fun fmt v ->
-      fprintf fmt "%a = %t;" pp_var v (fun fmt ->
-          match v.var_dec_value with
-          | None ->
-            assert false
-          | Some e ->
-            pp_expr fmt e))
-    fmt
-    spec.consts;
+  fprintf fmt "@[<v>%a%a%a%a%a%a@]"
+    (pp_print_list
+       (fun fmt v ->
+          fprintf fmt "%a = %t;" pp_var v (fun fmt ->
+              match v.var_dec_value with
+              | None ->
+                assert false
+              | Some e ->
+                pp_expr fmt e)))
+    spec.consts
 
-  pp_print_list (fun fmt s -> pp_spec_stmt fmt s) fmt spec.stmts;
-  pp_print_list
-    (fun fmt r -> fprintf fmt "assume %a;" pp_eexpr r)
-    fmt
-    spec.assume;
-  pp_print_list
-    (fun fmt r -> fprintf fmt "guarantee %a;" pp_eexpr r)
-    fmt
-    spec.guarantees;
-  pp_print_list
-    (fun fmt mode ->
-      fprintf
-        fmt
-        "mode %s (@[<v 0>%a@ %a@]);"
-        mode.mode_id
-        (pp_print_list (fun fmt r -> fprintf fmt "require %a;" pp_eexpr r))
-        mode.require
-        (pp_print_list (fun fmt r -> fprintf fmt "ensure %a;" pp_eexpr r))
-        mode.ensure)
-    fmt
-    spec.modes;
-  pp_print_list
-    (fun fmt import ->
-      fprintf
-        fmt
-        "import %s (%a) returns (%a);"
-        import.import_nodeid
-        pp_expr
-        import.inputs
-        pp_expr
-        import.outputs)
-    fmt
+    (pp_print_list ~pp_prologue:pp_print_cut pp_spec_stmt) spec.stmts
+
+    (pp_print_list ~pp_prologue:pp_print_cut (fun fmt -> fprintf fmt "assume %a;" pp_eexpr))
+    spec.assume
+
+    (pp_print_list ~pp_prologue:pp_print_cut (fun fmt -> fprintf fmt "guarantee %a;" pp_eexpr))
+    spec.guarantees
+
+    (pp_print_list ~pp_prologue:pp_print_cut
+       (fun fmt mode ->
+          fprintf
+            fmt
+            "mode %s (@[<v 0>%a@ %a@]);"
+            mode.mode_id
+            (pp_print_list (fun fmt r -> fprintf fmt "require %a;" pp_eexpr r))
+            mode.require
+            (pp_print_list (fun fmt r -> fprintf fmt "ensure %a;" pp_eexpr r))
+            mode.ensure))
+    spec.modes
+
+    (pp_print_list ~pp_prologue:pp_print_cut
+       (fun fmt import ->
+          fprintf
+            fmt
+            "import %s (%a) returns (%a);"
+            import.import_nodeid
+            pp_expr
+            import.inputs
+            pp_expr
+            import.outputs))
     spec.imports
 
 (* Project the contract node as a pure contract: local memories are pushed back
@@ -754,18 +752,18 @@ let pp_prog pp_decl fmt prog =
 let pp_short_decl fmt decl =
   match decl.top_decl_desc with
   | Node nd ->
-    fprintf fmt "%a %s@ " pp_node_vs_function nd nd.node_id
+    fprintf fmt "%a %s" pp_node_vs_function nd nd.node_id
   | ImportedNode ind ->
     fprintf fmt "imported node %s" ind.nodei_id
   | Const c ->
-    fprintf fmt "const %a@ " pp_const_decl c
+    fprintf fmt "const %a" pp_const_decl c
   | Include s ->
     fprintf fmt "include \"%s\"" s
   | Open (local, s) ->
-    if local then fprintf fmt "#open \"%s\"@ " s
-    else fprintf fmt "#open <%s>@ " s
+    if local then fprintf fmt "#open \"%s\"" s
+    else fprintf fmt "#open <%s>" s
   | TypeDef tdef ->
-    fprintf fmt "type %s;@ " tdef.tydef_id
+    fprintf fmt "type %s" tdef.tydef_id
 
 let pp_prog_short = pp_prog pp_short_decl
 

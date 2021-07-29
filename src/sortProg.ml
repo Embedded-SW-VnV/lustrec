@@ -53,7 +53,7 @@ let sort prog =
       Format.fprintf
         fmt
         "@ @[<v 2>.. ordered list of declarations:@ %a@]@ "
-        (Format.pp_print_list Printers.pp_short_decl)
+        Format.(pp_print_list ~pp_open_box:pp_open_vbox0 Printers.pp_short_decl)
         sorted);
   not_nodes @ sorted
 

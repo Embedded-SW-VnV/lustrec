@@ -507,6 +507,23 @@ let transition_toplevel nd i =
     tinst_footprint = IMap.empty;
   }
 
+let translate_eexpr env e =
+  List.fold_right (fun (qt, xs) f -> match qt with
+      | Lustre_types.Exists -> Exists (xs, f)
+      | Lustre_types.Forall -> Forall (xs, f))
+    e.eexpr_quantifiers
+    (Value (translate_expr env e.eexpr_qfexpr))
+
+let translate_contract env c =
+  Imply (And (List.map (translate_eexpr env) c.Lustre_types.assume),
+         And (List.map (translate_eexpr env) c.Lustre_types.guarantees))
+
+let translate_spec env = function
+  | Contract c ->
+    Contract (translate_contract env c)
+  | NodeSpec s ->
+    NodeSpec s
+
 let translate_decl nd sch =
   (* Format.eprintf "Translating node %s@." nd.node_id; *)
   (* Extracting eqs, variables ..  *)
@@ -591,6 +608,7 @@ let translate_decl nd sch =
         @ [ mk_transition ~i:0 nd.node_id (vdecls_to_vals nd.node_inputs) ])
       MClearReset
   in
+  let mnode_spec = Utils.option_map (translate_spec env) nd.node_spec in
   {
     mname = nd;
     mmemory = VSet.elements mems;
@@ -624,9 +642,10 @@ let translate_decl nd sch =
        been processed already. Either one of the other machine is a cocospec
        node, or the current one is a cocospec node. Contract do not contain any
        statement or import. *)
-    mspec = { mnode_spec = nd.node_spec; mtransitions; mmemory_packs };
+    mspec = { mnode_spec; mtransitions; mmemory_packs };
     mannot = nd.node_annot;
     msch = Some sch;
+    mis_contract = nd.node_iscontract
   }
 
 (** takes the global declarations and the scheduling associated to each node *)

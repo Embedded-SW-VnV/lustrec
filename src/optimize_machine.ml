@@ -952,7 +952,7 @@ let optimize params prog node_schs machine_code =
         else
           let prog = elim_prog_variables prog removed_table in
           (* Mini stage1 *)
-          let prog = Normalization.normalize_prog params prog in
+          let prog = Normalization.normalize_prog ~first:false params prog in
           let prog = SortProg.sort_nodes_locals prog in
           (* Mini stage2: note that we do not protect against alg. loop since
              this should have been handled before *)

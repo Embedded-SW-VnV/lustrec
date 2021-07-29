@@ -158,6 +158,9 @@ module PrintSpec = struct
         fprintf fmt "StateVarPack<%a>" pp_reg r
       | ExistsMem (_f, a, b) ->
         fprintf fmt "@[<hv 2>∃ MEM,@ %a@]" pp_spec (And [ a; b ])
+      | Value v ->
+        pp_val m fmt v
+
     in
     pp_spec
 end
@@ -310,6 +313,10 @@ let pp_transitions m fmt =
   | _ ->
     fprintf fmt "@[<v 2>transitions:@ %a@]" (pp_print_list (pp_transition m))
 
+let pp_mspec m fmt spec =
+  fprintf fmt "@[<v>contract %a;]"
+    (PrintSpec.pp_spec m) spec
+
 let pp_machine fmt m =
   fprintf
     fmt
@@ -334,7 +341,7 @@ let pp_machine fmt m =
       | Some (NodeSpec id) ->
         fprintf fmt "cocospec: %s" id
       | Some (Contract spec) ->
-        Printers.pp_spec fmt spec)
+        pp_mspec m fmt spec)
     (pp_memory_packs m)
     m.mspec.mmemory_packs
     (pp_transitions m)
@@ -444,6 +451,7 @@ let arrow_machine =
     mspec = { mnode_spec = None; mtransitions = []; mmemory_packs = [] };
     mannot = [];
     msch = None;
+    mis_contract = false
   }
 
 let empty_desc =
@@ -486,6 +494,7 @@ let empty_machine =
     mspec = { mnode_spec = None; mtransitions = []; mmemory_packs = [] };
     mannot = [];
     msch = None;
+    mis_contract = false
   }
 
 let new_instance =

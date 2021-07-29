@@ -589,8 +589,9 @@ module Make (BasicT : BASIC_TYPES) = struct
       assert false
 
   (** Returns the type corresponding to a type list. *)
-  let type_of_type_list tyl =
-    if List.length tyl > 1 then new_ty (Ttuple tyl) else List.hd tyl
+  let type_of_type_list = function
+    | [t] -> t
+    | tyl -> new_ty (Ttuple tyl)
 
   let rec type_list_of_type ty =
     match (repr ty).tdesc with

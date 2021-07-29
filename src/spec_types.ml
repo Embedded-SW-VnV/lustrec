@@ -56,6 +56,7 @@ type 'a formula_t =
   | Predicate : 'a predicate_t -> 'a formula_t
   | StateVarPack of register_t
   | ExistsMem of ident * 'a formula_t * 'a formula_t
+  | Value of 'a
 
 (* type 'a simulation_t = {
  *   sname: node_desc;

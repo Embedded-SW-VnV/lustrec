@@ -48,6 +48,7 @@ type var_decl = {
   mutable var_type : Types.t;
   mutable var_clock : Clocks.t;
   var_loc : Location.t;
+  var_is_contract: bool;
 }
 (* The tag of an expression is a unique identifier used to distinguish different
    instances of the same node *)
@@ -150,7 +151,7 @@ type contract_desc = {
   spec_loc : Location.t;
 }
 
-type node_spec_t = Contract of contract_desc | NodeSpec of ident
+type 'a node_spec_t = Contract of 'a | NodeSpec of ident
 
 type node_desc = {
   node_id : ident;
@@ -165,7 +166,7 @@ type node_desc = {
   node_stmts : statement list;
   mutable node_dec_stateless : bool;
   mutable node_stateless : bool option;
-  node_spec : node_spec_t option;
+  node_spec : contract_desc node_spec_t option;
   node_annot : expr_annot list;
   node_iscontract : bool;
 }
@@ -177,10 +178,11 @@ type imported_node_desc = {
   nodei_inputs : var_decl list;
   nodei_outputs : var_decl list;
   nodei_stateless : bool;
-  nodei_spec : node_spec_t option;
+  nodei_spec : contract_desc node_spec_t option;
   (* nodei_annot: expr_annot list; *)
   nodei_prototype : string option;
   nodei_in_lib : string list;
+  nodei_iscontract : bool;
 }
 
 type const_desc = {

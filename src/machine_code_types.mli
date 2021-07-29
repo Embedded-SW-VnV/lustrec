@@ -58,7 +58,7 @@ type mc_transition_t = value_t transition_t
 type mc_memory_pack_t = value_t memory_pack_t
 
 type machine_spec = {
-  mnode_spec : node_spec_t option;
+  mnode_spec : mc_formula_t node_spec_t option;
   mtransitions : mc_transition_t list;
   mmemory_packs : mc_memory_pack_t list;
 }
@@ -79,4 +79,5 @@ type machine_t = {
   mspec : machine_spec;
   mannot : expr_annot list;
   msch : Scheduling_type.schedule_report option; (* Equations scheduling *)
+  mis_contract: bool
 }

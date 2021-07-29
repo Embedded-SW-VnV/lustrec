@@ -37,6 +37,7 @@ val mkclock : Location.t -> clock_dec_desc -> clock_dec
 
 val mkvar_decl :
   Location.t ->
+  ?var_is_contract:bool ->
   ?orig:bool ->
   ident
   * type_dec

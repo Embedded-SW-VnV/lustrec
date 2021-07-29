@@ -34,6 +34,8 @@ module type MODIFIERS_SRC = sig
     machine_t -> ident -> ident -> formatter -> instr_t -> unit
 
   val pp_ghost_parameter : ident -> formatter -> ident option -> unit
+
+  val pp_contract : formatter -> machine_t list -> ident -> machine_t -> unit
 end
 
 module EmptyMod = struct
@@ -50,6 +52,8 @@ module EmptyMod = struct
   let pp_step_instr_spec _ _ _ _ _ = ()
 
   let pp_ghost_parameter _ _ _ = ()
+
+  let pp_contract _ _ _ _ = ()
 end
 
 module Main (Mod : MODIFIERS_SRC) = struct
@@ -537,7 +541,8 @@ module Main (Mod : MODIFIERS_SRC) = struct
       (pp_c_val m self (pp_c_var_read m))
       check
 
-  let pp_print_function ~pp_prototype ~prototype ?(pp_spec = pp_print_nothing)
+  let pp_print_function ~pp_prototype ~prototype ?(is_contract = false)
+      ?(pp_spec = pp_print_nothing)
       ?(pp_local = pp_print_nothing) ?(base_locals = [])
       ?(pp_array_mem = pp_print_nothing) ?(array_mems = [])
       ?(pp_init_mpfr_local = pp_print_nothing)
@@ -547,7 +552,8 @@ module Main (Mod : MODIFIERS_SRC) = struct
       ?(pp_instr = fun fmt _ -> pp_print_nothing fmt ()) ?(instrs = []) fmt =
     fprintf
       fmt
-      "%a@[<v 2>%a {@,%a%a%a%a%a%a%areturn;@]@,}"
+      "%t%a@[<v 2>%a {@,%a%a%a%a%a%a%areturn;@]@,}%t"
+      (fun fmt -> if is_contract then fprintf fmt "@[<v 2>/*%@ ghost@;")
       pp_spec
       ()
       pp_prototype
@@ -583,6 +589,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
       (mpfr_vars mpfr_locals) (* extra *)
       pp_extra
       ()
+      (fun fmt -> if is_contract then fprintf fmt "@]@;*/")
 
   let node_of_machine m =
     {
@@ -594,9 +601,11 @@ module Main (Mod : MODIFIERS_SRC) = struct
 
   let pp_stateless_code machines dependencies fmt m =
     let self = "__ERROR__" in
+    let is_contract = m.mis_contract in
     if not (!Options.ansi && is_generic_node (node_of_machine m)) then
       (* C99 code *)
       pp_print_function
+        ~is_contract
         ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt machines self self m)
         ~pp_prototype:Protos.pp_stateless_prototype
         ~prototype:(m.mname.node_id, m.mstep.step_inputs, m.mstep.step_outputs)
@@ -609,6 +618,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
         ~checks:m.mstep.step_checks
         ~pp_instr:(pp_machine_instr dependencies m self self)
         ~instrs:m.mstep.step_instrs
+        ~pp_extra:(fun fmt () -> Mod.pp_contract fmt machines self m)
         fmt
     else
       (* C90 code *)
@@ -625,6 +635,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
           m.mname.node_gencalls
       in
       pp_print_function
+        ~is_contract
         ~pp_prototype:Protos.pp_stateless_prototype
         ~prototype:
           ( m.mname.node_id,
@@ -639,6 +650,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
         ~checks:m.mstep.step_checks
         ~pp_instr:(pp_machine_instr dependencies m self self)
         ~instrs:m.mstep.step_instrs
+        ~pp_extra:(fun fmt () -> Mod.pp_contract fmt machines self m)
         fmt
 
   let pp_clear_reset_code dependencies self mem fmt m =
@@ -730,6 +742,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
         ~checks:m.mstep.step_checks
         ~pp_instr:(pp_machine_instr dependencies m self mem)
         ~instrs:m.mstep.step_instrs
+        ~pp_extra:(fun fmt () -> Mod.pp_contract fmt machines self m)
         fmt
     else
       (* C90 code *)
@@ -761,6 +774,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
         ~checks:m.mstep.step_checks
         ~pp_instr:(pp_machine_instr dependencies m self mem)
         ~instrs:m.mstep.step_instrs
+        ~pp_extra:(fun fmt () -> Mod.pp_contract fmt machines self m)
         fmt
 
   (********************************************************************************************)

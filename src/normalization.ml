@@ -507,18 +507,18 @@ let normalize_eq_split norm_ctx defvars eq =
 let normalize_pred_eexpr norm_ctx (def, vars) ee =
   assert (ee.eexpr_quantifiers = []);
   (* We do not normalize quantifiers yet. This is for very far future. *)
-  (* don't do anything is eexpr is just a variable *)
-  let skip =
-    match ee.eexpr_qfexpr.expr_desc with
-    | Expr_ident _ | Expr_const _ -> true
-    | _ -> false
-  in
-  if skip then ee, (def, vars)
-  else
+  (* (\* don't do anything if eexpr is just a variable *\)
+   * let skip =
+   *   match ee.eexpr_qfexpr.expr_desc with
+   *   | Expr_ident _ | Expr_const _ -> true
+   *   | _ -> false
+   * in
+   * if skip then None, ee, (def, vars)
+   * else *)
     (* New output variable *)
     let output_id = "spec" ^ string_of_int ee.eexpr_tag in
     let output_var =
-      mkvar_decl ee.eexpr_loc
+      mkvar_decl ~var_is_contract:true ee.eexpr_loc
         ( output_id,
           mktyp ee.eexpr_loc Tydec_bool,
           (* It is a predicate, hence a bool *)
@@ -527,6 +527,8 @@ let normalize_pred_eexpr norm_ctx (def, vars) ee =
           None,
           None )
     in
+    (* It is a predicate, hence a bool *)
+    output_var.var_type <- Type_predef.type_bool;
     let output_expr = expr_of_vdecl output_var in
     (* Rebuilding an eexpr with a silly expression, just a variable *)
     let ee' = { ee with eexpr_qfexpr = output_expr } in
@@ -550,7 +552,7 @@ let normalize_pred_eexpr norm_ctx (def, vars) ee =
     let defs, vars =
       List.fold_left (normalize_eq_split norm_ctx) (def, vars) [ eq ]
     in
-    let vars = output_var :: vars in
+    (* let vars = output_var :: vars in *)
 
     (* let todefine =
        List.fold_left
@@ -575,7 +577,7 @@ let normalize_pred_eexpr norm_ctx (def, vars) ee =
     (*Format.eprintf "normalized eqs %a@.@?" 
       (Utils.fprintf_list ~sep:", " Printers.pp_node_eq) defs;  *)
          *)
-      ee', (defs, vars)
+      output_var, ee', (defs, vars)
     with Types.Error (loc, err) as exc ->
       eprintf "Typing error for eexpr %a: %a%a%a@." Printers.pp_eexpr ee
         Types.pp_error err
@@ -666,30 +668,33 @@ let normalize_spec parentid (in_vars, out_vars, l_vars) s =
     (* Format.eprintf "ProcPred: vars: %a@." Printers.pp_vars (snd defvars); *)
     let res =
       List.fold_right
-        (fun ee (accu, defvars) ->
-          let ee', defvars = normalize_pred_eexpr norm_ctx defvars ee in
-          ee' :: accu, defvars)
-        l ([], defvars)
+        (fun ee (outputs, accu, defvars) ->
+          let x, ee', defvars = normalize_pred_eexpr norm_ctx defvars ee in
+          x :: outputs, ee' :: accu, defvars)
+        l ([], [], defvars)
     in
     (* Format.eprintf "ProcStmt: %a@." Printers.pp_node_eqs (fst (snd res));
      * Format.eprintf "ProcPred: vars: %a@." Printers.pp_vars (snd (snd res)); *)
     res
   in
 
-  let assume', defsvars = process_predicates s.assume defsvars in
-  let guarantees', defsvars = process_predicates s.guarantees defsvars in
-  let modes', (defs, vars) =
+  let outs_asm, assume', defsvars = process_predicates s.assume defsvars in
+  let outs_grt, guarantees', defsvars = process_predicates s.guarantees defsvars in
+  let outs, modes', (defs, vars) =
     List.fold_right
-      (fun m (accu_m, defsvars) ->
-        let require', defsvars = process_predicates m.require defsvars in
-        let ensure', defsvars = process_predicates m.ensure defsvars in
-        { m with require = require'; ensure = ensure' } :: accu_m, defsvars)
-      s.modes ([], defsvars)
+      (fun m (outs, accu_m, defsvars) ->
+        let outs_req, require', defsvars = process_predicates m.require defsvars in
+        let outs_ens, ensure', defsvars = process_predicates m.ensure defsvars in
+        outs_req @ outs_ens @ outs,
+        { m with require = require'; ensure = ensure' } :: accu_m,
+        defsvars)
+      s.modes (outs_asm @ outs_grt, [], defsvars)
   in
 
   let new_locals = List.filter not_is_orig_var vars in
   (* removing inouts and initial locals ones *)
   ( new_locals,
+    outs,
     defs,
     {
       s with
@@ -725,7 +730,7 @@ let normalize_spec parentid (in_vars, out_vars, l_vars) s =
     - new equations
     -
 *)
-let normalize_node node =
+let normalize_node ?(first=true) node =
   reset_cpt_fresh ();
   let orig_vars = node.node_inputs @ node.node_outputs @ node.node_locals in
   let not_is_orig_var v = List.for_all (( != ) v) orig_vars in
@@ -741,29 +746,29 @@ let normalize_node node =
   let eqs, auts = get_node_eqs node in
   if auts != [] then assert false;
   (* Automata should be expanded by now. *)
-  let spec, new_vars, eqs =
+  let node_spec, new_vars, new_outs, eqs =
     (* Update mutable fields of eexpr to perform normalization of
        specification.
 
        Careful: we do not normalize annotations, since they can have the form
        x = (a, b, c) *)
     match node.node_spec with
-    | None | Some (NodeSpec _) -> node.node_spec, [], eqs
+    | None | Some (NodeSpec _) -> node.node_spec, [], [], eqs
     | Some (Contract s) ->
-        let new_locals, new_stmts, s' =
+        let new_locals, new_outs, new_stmts, s' =
           normalize_spec node.node_id
             (node.node_inputs, node.node_outputs, node.node_locals)
             s
         in
         (* Format.eprintf "Normalization bounded new locals: %a@." Printers.pp_vars new_locals;
          * Format.eprintf "Normalization bounded stmts: %a@." Printers.pp_node_eqs new_stmts; *)
-        Some (Contract s'), new_locals, new_stmts @ eqs
+        Some (Contract s'), new_locals, new_outs, new_stmts @ eqs
   in
   let defs, vars =
     List.fold_left (normalize_eq norm_ctx) ([], new_vars @ orig_vars) eqs
   in
   (* Normalize the asserts *)
-  let vars, assert_defs, asserts =
+  let vars, assert_defs, node_asserts =
     List.fold_left
       (fun (vars, def_accu, assert_accu) assert_ ->
         let assert_expr = assert_.assert_expr in
@@ -786,7 +791,7 @@ let normalize_node node =
 
   (* we filter out inout
      vars and initial locals ones *)
-  let all_locals = node.node_locals @ new_locals in
+  let node_locals = node.node_locals @ new_locals in
 
   (* we add again, at the
      beginning of the list the
@@ -802,7 +807,7 @@ let normalize_node node =
   let new_annots =
     if !Options.traces then
       let diff_vars =
-        List.filter (fun v -> not (List.mem v node.node_locals)) all_locals
+        List.filter (fun v -> not (List.mem v node.node_locals)) node_locals
       in
       let norm_traceability =
         {
@@ -841,7 +846,7 @@ let normalize_node node =
     else node.node_annot
   in
 
-  let new_annots =
+  let node_annot =
     List.fold_left
       (fun annots v ->
         if Machine_types.is_active && Machine_types.is_exportable v then (
@@ -862,14 +867,23 @@ let normalize_node node =
       new_annots new_locals
   in
 
+  let node_inputs, node_outputs =
+    if node.node_iscontract && first then
+      node.node_inputs @ node.node_outputs, new_outs
+    else
+      node.node_inputs, node.node_outputs
+  in
+
   let node =
     {
       node with
-      node_locals = all_locals;
+      node_inputs;
+      node_outputs;
+      node_locals;
       node_stmts = List.map (fun eq -> Eq eq) (defs @ assert_defs);
-      node_asserts = asserts;
-      node_annot = new_annots;
-      node_spec = spec;
+      node_asserts;
+      node_annot;
+      node_spec
     }
   in
   (*Printers.pp_node Format.err_formatter node;*)
@@ -881,10 +895,10 @@ let normalize_inode nd =
   | None | Some (NodeSpec _) -> nd
   | Some (Contract _) -> assert false
 
-let normalize_decl (decl : top_decl) : top_decl =
+let normalize_decl ?first (decl : top_decl) : top_decl =
   match decl.top_decl_desc with
   | Node nd ->
-      let decl' = { decl with top_decl_desc = Node (normalize_node nd) } in
+      let decl' = { decl with top_decl_desc = Node (normalize_node ?first nd) } in
       update_node nd.node_id decl';
       decl'
   | ImportedNode nd ->
@@ -895,12 +909,12 @@ let normalize_decl (decl : top_decl) : top_decl =
       decl'
   | Include _ | Open _ | Const _ | TypeDef _ -> decl
 
-let normalize_prog p decls =
+let normalize_prog ?first p decls =
   (* Backend specific configurations for normalization *)
   params := p;
 
   (* Main algorithm: iterates over nodes *)
-  List.map normalize_decl decls
+  List.map (normalize_decl ?first) decls
 
 (* Fake interface for outside uses *)
 let mk_expr_alias_opt opt (parentid, ctx_vars) (defs, vars) expr =

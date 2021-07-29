@@ -98,6 +98,7 @@ let mk_call_var_decl loc id =
     var_type = Type_predef.type_arrow (Types.new_var ()) (Types.new_var ());
     var_clock = Clocks.new_var true;
     var_loc = loc;
+    var_is_contract = false;
   }
 
 (* counter for loop variable creation *)
@@ -269,14 +270,15 @@ let pp_basic_c_type ?(pp_c_basic_type_desc = pp_c_basic_type_desc) ?var_opt fmt
   | _ ->
     fprintf fmt "%s" (pp_c_basic_type_desc t)
 
-let pp_c_type ?pp_c_basic_type_desc ?var_opt var_id fmt t =
+let pp_c_type ?(var_is_contract=false) ?pp_c_basic_type_desc ?var_opt var_id fmt t =
   let rec aux t pp_suffix =
     if is_basic_c_type t then
       fprintf
         fmt
-        "%a %s%a"
+        "%a %s%s%a"
         (pp_basic_c_type ?pp_c_basic_type_desc ?var_opt)
         t
+        (if var_is_contract then "\\ghost " else "")
         var_id
         pp_suffix
         ()
@@ -431,9 +433,10 @@ let pp_c_decl_input_var fmt id =
    the case for generics *)
 let pp_c_decl_output_var fmt id =
   if (not !Options.ansi) && Types.is_address_type id.var_type then
-    pp_c_type ~var_opt:id id.var_id fmt id.var_type
+    pp_c_type ~var_is_contract:id.var_is_contract ~var_opt:id id.var_id fmt id.var_type
   else
     pp_c_type
+      ~var_is_contract:id.var_is_contract
       ~var_opt:id
       (sprintf "(*%s)" id.var_id)
       fmt
@@ -882,12 +885,10 @@ module Protos (Mod : MODIFIERS_GHOST_PROTO) = struct
       "@[<v>void %a (@[<v>%a%a%a *%s@])%a@]"
       pp_machine_step_name
       name
-      (pp_comma_list
-         ~pp_eol:pp_print_comma
-         ~pp_epilogue:pp_print_cut
-         pp_c_decl_input_var)
+      (pp_comma_list pp_c_decl_input_var)
       inputs
       (pp_comma_list
+         ~pp_prologue:pp_print_comma
          ~pp_eol:pp_print_comma
          ~pp_epilogue:pp_print_cut
          pp_c_decl_output_var)
@@ -928,12 +929,11 @@ module Protos (Mod : MODIFIERS_GHOST_PROTO) = struct
       "void %a (@[<v>%a%a@])"
       pp_machine_step_name
       name
-      (pp_comma_list
-         ~pp_eol:pp_print_comma
-         ~pp_epilogue:pp_print_cut
-         pp_c_decl_input_var)
+      (pp_comma_list pp_c_decl_input_var)
       inputs
-      (pp_comma_list pp_c_decl_output_var)
+      (pp_comma_list
+         ~pp_prologue:pp_print_comma
+         pp_c_decl_output_var)
       outputs
 end
 

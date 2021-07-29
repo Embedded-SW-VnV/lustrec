@@ -53,7 +53,7 @@ let mktyp loc d = { ty_dec_desc = d; ty_dec_loc = loc }
 
 let mkclock loc d = { ck_dec_desc = d; ck_dec_loc = loc }
 
-let mkvar_decl loc ?(orig = false)
+let mkvar_decl loc ?(var_is_contract=false) ?(orig = false)
     (id, ty_dec, ck_dec, is_const, value, parentid) =
   assert (value = None || is_const);
   {
@@ -67,6 +67,7 @@ let mkvar_decl loc ?(orig = false)
     var_type = Types.new_var ();
     var_clock = Clocks.new_var true;
     var_loc = loc;
+    var_is_contract
   }
 
 let dummy_var_decl name typ =
@@ -81,6 +82,7 @@ let dummy_var_decl name typ =
     var_type = typ;
     var_clock = Clocks.new_ck Clocks.Cvar true;
     var_loc = Location.dummy;
+    var_is_contract = false;
   }
 
 let mkexpr loc d =
@@ -106,6 +108,7 @@ let var_decl_of_const ?(parentid = None) c =
     var_type = c.const_type;
     var_clock = Clocks.new_var false;
     var_loc = c.const_loc;
+    var_is_contract = false;
   }
 
 let mk_new_name used id =
@@ -845,6 +848,7 @@ let get_node_interface nd =
     (* nodei_annot = nd.node_annot; *)
     nodei_prototype = None;
     nodei_in_lib = [];
+    nodei_iscontract = nd.node_iscontract;
   }
 
 (************************************************************************)
@@ -1267,6 +1271,7 @@ let mk_internal_node id =
          (* nodei_annot = []; *)
          nodei_prototype = None;
          nodei_in_lib = [];
+         nodei_iscontract = false;
        })
 
 let add_internal_funs () =
@@ -1540,6 +1545,7 @@ let mk_fresh_var (parentid, ctx_env) loc ty ck =
         var_type = ty;
         var_clock = ck;
         var_loc = loc;
+        var_is_contract = false;
       }
   in
   aux ()

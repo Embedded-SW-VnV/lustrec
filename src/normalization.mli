@@ -14,4 +14,4 @@ val mk_expr_alias_opt :
   expr ->
   (eq list * var_decl list) * expr
 
-val normalize_prog : param_t -> program_t -> program_t
+val normalize_prog : ?first:bool -> param_t -> program_t -> program_t

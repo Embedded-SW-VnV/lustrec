@@ -191,7 +191,8 @@ top_decl_header:
                                 nodei_stateless;
                                 nodei_spec;
                                 nodei_prototype;
-                                nodei_in_lib
+                                nodei_in_lib;
+                                nodei_iscontract = false;
                            })
     in
     pop_node ();
