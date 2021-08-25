@@ -585,7 +585,7 @@ module PrintSpec = struct
           fmt
           ((f, mk_mem_reset m), (rc, tr))
       | Value v ->
-        pp_c_val m mem_in (pp_c_var_read ~test_output:false m) fmt v
+        pp_c_val m mem_in (pp_c_var_read ~test_output:true m) fmt v
 
     in
     pp_spec mode
@@ -961,9 +961,10 @@ module SrcMod = struct
       ()
 
   let pp_node_spec m fmt = function
-    | Contract c ->
-      PrintSpec.pp_spec PrintSpec.TransitionMode m fmt c
-    | NodeSpec f ->
+    | Contract c
+    | NodeSpec (_, Some c) ->
+      PrintSpec.pp_spec PrintSpec.TransitionMode m fmt (Imply (c.mc_pre, c.mc_post))
+    | NodeSpec (f, None) ->
       pp_print_string fmt f
 
   let pp_step_spec fmt machines self mem m =
@@ -981,12 +982,15 @@ module SrcMod = struct
     let pp_if_outputs pp =
       if outputs = [] then pp_print_nothing else pp
     in
-    (* prevent printing an ensures clause with contract name *)
-    let spec =
-      match m.mspec.mnode_spec with
-      | Some (NodeSpec _) -> None
-      | s -> s
-    in
+    let spec = m.mspec.mnode_spec in
+    (* (\* prevent printing an ensures clause with contract name *\)
+     * let spec =
+     *   match m.mspec.mnode_spec with
+     *   | Some (NodeSpec _) -> None
+     *   | s -> s
+     * in *)
+    let pp_spec = pp_print_option
+        (if m.mis_contract then pp_print_nothing else pp_ensures (pp_node_spec m)) in
     pp_acsl_cut
       ~ghost:m.mis_contract
       (fun fmt () ->
@@ -1002,7 +1006,7 @@ module SrcMod = struct
             outputs
             (pp_ensures (pp_transition_aux' m))
             (name, inputs @ outputs, "", "")
-            (pp_print_option (pp_ensures (pp_node_spec m)))
+            pp_spec
             spec
         else
           fprintf
@@ -1022,7 +1026,7 @@ module SrcMod = struct
                (pp_transition_aux m (pp_old pp_ptr) pp_ptr (fun fmt v ->
                     (if is_output m v then pp_ptr_decl else pp_var_decl) fmt v)))
             (name, inputs @ outputs, mem, mem)
-            (pp_print_option (pp_ensures (pp_node_spec m)))
+            pp_spec
             spec
             (pp_assigns pp_ptr_decl)
             outputs
@@ -1095,7 +1099,7 @@ module SrcMod = struct
 
   let pp_contract fmt machines _self m =
     match m.mspec.mnode_spec with
-    | Some (NodeSpec f) ->
+    | Some (NodeSpec (f, _)) ->
       let m_f = find_machine f machines in
       pp_acsl_cut
         (pp_ghost

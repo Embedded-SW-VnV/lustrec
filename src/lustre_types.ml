@@ -162,7 +162,7 @@ type contract_desc = {
   spec_loc : Location.t;
 }
 
-type 'a node_spec_t = Contract of 'a | NodeSpec of ident
+type 'a node_spec_t = Contract of 'a | NodeSpec of ident * 'a option
 
 type node_desc = {
   node_id : ident;

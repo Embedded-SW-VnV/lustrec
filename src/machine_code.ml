@@ -514,15 +514,16 @@ let translate_eexpr env e =
     e.eexpr_quantifiers
     (Value (translate_expr env e.eexpr_qfexpr))
 
-let translate_contract env c =
-  Imply (And (List.map (translate_eexpr env) c.Lustre_types.assume),
-         And (List.map (translate_eexpr env) c.Lustre_types.guarantees))
+let translate_contract env c = {
+  mc_pre = And (List.map (translate_eexpr env) c.Lustre_types.assume);
+  mc_post = And (List.map (translate_eexpr env) c.Lustre_types.guarantees)
+}
 
 let translate_spec env = function
   | Contract c ->
     Contract (translate_contract env c)
-  | NodeSpec s ->
-    NodeSpec s
+  | NodeSpec (s, c) ->
+    NodeSpec (s, option_map (translate_contract env) c)
 
 let translate_decl nd sch =
   (* Format.eprintf "Translating node %s@." nd.node_id; *)

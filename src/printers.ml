@@ -581,7 +581,7 @@ let pp_spec_as_comment fmt (inl, outl, spec) =
     fprintf fmt "@[<hov 2>(*@contract@ ";
     pp_spec fmt c;
     fprintf fmt "@]*)@ "
-  | NodeSpec name ->
+  | NodeSpec (name, _) ->
     (* Pushing stmts in contract. We update the original information with the
        computed one in nd. *)
     let pp_l = pp_comma_list pp_var_name in

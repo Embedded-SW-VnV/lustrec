@@ -313,9 +313,10 @@ let pp_transitions m fmt =
   | _ ->
     fprintf fmt "@[<v 2>transitions:@ %a@]" (pp_print_list (pp_transition m))
 
-let pp_mspec m fmt spec =
-  fprintf fmt "@[<v>contract %a;]"
-    (PrintSpec.pp_spec m) spec
+let pp_mspec m fmt c =
+  fprintf fmt "@[<v>contract: G (H (%a) => %a);]"
+    (PrintSpec.pp_spec m) c.mc_pre
+    (PrintSpec.pp_spec m) c.mc_post
 
 let pp_machine fmt m =
   fprintf
@@ -338,8 +339,9 @@ let pp_machine fmt m =
       match m.mspec.mnode_spec with
       | None ->
         ()
-      | Some (NodeSpec id) ->
-        fprintf fmt "cocospec: %s" id
+      | Some (NodeSpec (id, c)) ->
+        fprintf fmt "cocospec: %s@;%a" id
+          (pp_print_option (pp_mspec m)) c
       | Some (Contract spec) ->
         pp_mspec m fmt spec)
     (pp_memory_packs m)

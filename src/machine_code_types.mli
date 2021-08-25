@@ -57,8 +57,13 @@ type mc_transition_t = value_t transition_t
 
 type mc_memory_pack_t = value_t memory_pack_t
 
+type mc_contract_t = {
+  mc_pre: mc_formula_t;
+  mc_post: mc_formula_t;
+}
+
 type machine_spec = {
-  mnode_spec : mc_formula_t node_spec_t option;
+  mnode_spec : mc_contract_t node_spec_t option;
   mtransitions : mc_transition_t list;
   mmemory_packs : mc_memory_pack_t list;
 }

@@ -121,12 +121,12 @@ let mkeq loc (lhs, rhs) = { eq_lhs = lhs; eq_rhs = rhs; eq_loc = loc }
 
 let mkassert loc expr = { assert_loc = loc; assert_expr = expr }
 
-let mktop_decl loc own itf d =
+let mktop_decl top_decl_loc top_decl_owner top_decl_itf top_decl_desc =
   {
-    top_decl_desc = d;
-    top_decl_loc = loc;
-    top_decl_owner = own;
-    top_decl_itf = itf;
+    top_decl_desc;
+    top_decl_loc;
+    top_decl_owner;
+    top_decl_itf;
   }
 
 let mkpredef_call loc funname args =
@@ -1057,6 +1057,22 @@ let rename_import f_node f_var imp =
     outputs = rename_expr imp.outputs;
   }
 
+let rename_contract f_var f_node c =
+  let rename_var = rename_var f_var in
+  let rename_vars = List.map rename_var in
+  let rename_eexpr = rename_eexpr f_node f_var in
+  let rename_stmts = rename_stmts f_node f_var in
+  {
+    c with
+    consts = rename_vars c.consts;
+    locals = rename_vars c.locals;
+    stmts = rename_stmts c.stmts;
+    assume = List.map rename_eexpr c.assume;
+    guarantees = List.map rename_eexpr c.guarantees;
+    modes = List.map (rename_mode f_node f_var) c.modes;
+    imports = List.map (rename_import f_node f_var) c.imports;
+  }
+
 let rename_node f_node f_var nd =
   let f_var x =
     (* checking that this is actually a local variable *)
@@ -1066,7 +1082,6 @@ let rename_node f_node f_var nd =
   let rename_var = rename_var f_var in
   let rename_vars = List.map rename_var in
   let rename_expr = rename_expr f_node f_var in
-  let rename_eexpr = rename_eexpr f_node f_var in
   let rename_stmts = rename_stmts f_node f_var in
   let inputs = rename_vars nd.node_inputs in
   let outputs = rename_vars nd.node_outputs in
@@ -1087,23 +1102,13 @@ let rename_node f_node f_var nd =
   let node_stmts = rename_stmts nd.node_stmts in
 
   let spec =
-    Utils.option_map
+    option_map
       (fun s ->
         match s with
-        | NodeSpec id ->
-          NodeSpec (f_node id)
+        | NodeSpec (id, oc) ->
+          NodeSpec (f_node id, option_map (rename_contract f_var f_node) oc)
         | Contract c ->
-          Contract
-            {
-              c with
-              consts = rename_vars c.consts;
-              locals = rename_vars c.locals;
-              stmts = rename_stmts c.stmts;
-              assume = List.map rename_eexpr c.assume;
-              guarantees = List.map rename_eexpr c.guarantees;
-              modes = List.map (rename_mode f_node f_var) c.modes;
-              imports = List.map (rename_import f_node f_var) c.imports;
-            })
+          Contract (rename_contract f_var f_node c))
       nd.node_spec
   in
   let annot = rename_annots f_node f_var nd.node_annot in
