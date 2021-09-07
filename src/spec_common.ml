@@ -58,7 +58,7 @@ let rec red : type a. a formula_t -> a formula_t = function
     let a' = red a in
     let b' = red b in
     if a' = b' || is_false a' || is_true b' then True
-    else if is_true a' && is_false b' then False
+    else if is_true a' then b'
     else Imply (a', b')
   | Exists (x, p) -> (
     let p' = red p in

@@ -211,6 +211,7 @@ let pp_and_l pp_v fmt =
   pp_print_list
     ~pp_open_box:pp_open_vbox0
     ~pp_sep:(fun fmt () -> fprintf fmt "@,&& ")
+    ~pp_nil:pp_true
     pp_v
     fmt
 
@@ -492,6 +493,24 @@ module PrintSpec = struct
       eprintf "Internal error: arrow not found";
       raise Not_found
 
+  let rec has_memory_val m v =
+    let has_mem = has_memory_val m in
+    match v.value_desc with
+    | Var v ->
+      is_memory m v
+    | Array vl
+    | Fun (_, vl) ->
+      List.exists has_mem vl
+    | Access (t, i)
+    | Power (t, i) ->
+      has_mem t || has_mem i
+    | _ ->
+      false
+
+  let has_memory : type a. machine_t -> (value_t, a) expression_t -> bool = fun m -> function
+    | Val v -> has_memory_val m v
+    | _ -> false
+
   let pp_spec mode m =
     let rec pp_spec mode fmt f =
       let mem_in, mem_in', indirect_r, mem_out, mem_out', indirect_l =
@@ -526,16 +545,28 @@ module PrintSpec = struct
       | False ->
         pp_false fmt ()
       | Equal (a, b) ->
-        pp_assign_spec
-          m
-          mem_out
-          (pp_c_var_read ~test_output:false m)
-          indirect_l
-          mem_in
-          (pp_c_var_read ~test_output:false m)
-          indirect_r
-          fmt
-          (type_of_l_value a, val_of_expr a, val_of_expr b)
+        let pp_eq fmt () =
+          pp_assign_spec
+            m
+            mem_out
+            (pp_c_var_read ~test_output:false m)
+            indirect_l
+            mem_in
+            (pp_c_var_read ~test_output:false m)
+            indirect_r
+            fmt
+            (type_of_l_value a, val_of_expr a, val_of_expr b)
+        in
+        if has_memory m b then
+          let inst = find_arrow m in
+          pp_paren
+            (pp_implies
+               (pp_not (pp_initialization pp_access'))
+               pp_eq)
+            fmt
+            ((Arrow.arrow_id, (mem_in, inst)), ())
+        else
+          pp_eq fmt ()
       | And fs ->
         pp_and_l pp_spec' fmt fs
       | Or fs ->
@@ -963,7 +994,8 @@ module SrcMod = struct
   let pp_node_spec m fmt = function
     | Contract c
     | NodeSpec (_, Some c) ->
-      PrintSpec.pp_spec PrintSpec.TransitionMode m fmt (Imply (c.mc_pre, c.mc_post))
+      PrintSpec.pp_spec PrintSpec.TransitionMode m fmt
+        (Spec_common.red (Imply (c.mc_pre, c.mc_post)))
     | NodeSpec (f, None) ->
       pp_print_string fmt f
 
