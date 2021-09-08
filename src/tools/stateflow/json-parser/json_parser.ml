@@ -1,7 +1,8 @@
 open Basetypes
 open Corelang
 open Datatype
-open LustreSpec
+(*open LustreSpec*)
+open Lustre_types
 open Str
 open Yojson
 open Basic
@@ -116,14 +117,14 @@ struct
       let l = matched_group 1 s in
       let r = matched_group 2 s in
       let e = matched_group 4 s in
-      Const_real (Num.num_of_string (l ^ r),
-                  String.length r + (-1 * int_of_string e),
-                  s)
+      Const_real (Real.create (l ^ r) 
+                    (String.length r + (-1 * int_of_string e))
+                    s)
     else
     if string_match real_regexp_simp s 0 then
       let l = matched_group 1 s in
       let r = matched_group 2 s in
-      Const_real (Num.num_of_string (l ^ r), String.length r, s)
+      Const_real (Real.create (l ^ r)  (String.length r) s)
     else
       raise (JSON_parse_error ("Invalid real constant " ^ s))
   and lustre_datatype_of_json json location =
@@ -150,12 +151,16 @@ struct
     Logs.debug (fun m -> m "parse_variable %s" (json |> member "name" |> to_string));
     let location                  = Location.dummy_loc in
     let (datatype, initial_value) = lustre_datatype_of_json json location in
-    mkvar_decl location ~orig:true
-      ( json |> member "name" |> to_string,
-        {ty_dec_desc = datatype;  ty_dec_loc = location},
-        {ck_dec_desc = Ckdec_any; ck_dec_loc = location},
-        true,
-        Some initial_value
-      )
+    let vdecl = 
+      mkvar_decl location ~orig:true
+        ( json |> member "name" |> to_string,
+          {ty_dec_desc = datatype;  ty_dec_loc = location},
+          {ck_dec_desc = Ckdec_any; ck_dec_loc = location},
+          true,
+          Some initial_value,
+          None (* no parentid *)
+        )
+    in
+    { variable = vdecl; init_val = initial_value }
 end
 

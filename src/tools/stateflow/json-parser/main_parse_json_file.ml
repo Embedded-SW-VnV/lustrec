@@ -104,9 +104,10 @@ let modular = ref 0
 let json_parse _ file pp =
   try
     let prog = JParse.parse_prog (Yojson.Basic.from_file file) in
-    if pp then
+    if pp then (
       SF.pp_prog Format.std_formatter prog;
-
+      exit 0
+    );    
     let module Model =
 	struct
 	  let model = prog
@@ -130,9 +131,9 @@ let json_parse _ file pp =
     let module Sem = CPS.Semantics (T) (Model) in
     let prog = Sem.code_gen modularmode in
     let header = List.map Corelang.mktop [
-      (LustreSpec.Open (false,"lustrec_math"));
-      (LustreSpec.Open (false,"conv"));
-      (LustreSpec.Open (true,"locallib"));
+      (Lustre_types.Open (false,"lustrec_math"));
+      (Lustre_types.Open (false,"conv"));
+      (Lustre_types.Open (true,"locallib"));
     ]
     in
     let prog =header@prog in
@@ -144,8 +145,9 @@ let json_parse _ file pp =
     let auto_fmt = Format.formatter_of_out_channel auto_out in
     Format.fprintf auto_fmt "%a@." Printers.pp_prog prog;
     Format.eprintf "Print initial lustre model with automaton in sf_gen_test_auto.lus@.";
-    
-    let prog, deps = Compiler_stages.stage1 prog "" "" in
+
+    let params = Backends.get_normalization_params () in
+    let prog, deps = Compiler_stages.stage1 params prog "" "" "lus" in
 
     (* Format.printf "%a@." Printers.pp_prog prog; *)
     let noauto_file = "sf_gen_test_noauto.lus" in (* Could be changed *)

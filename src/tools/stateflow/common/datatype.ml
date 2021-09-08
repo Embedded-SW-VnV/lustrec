@@ -39,7 +39,7 @@ type 'prog_t src_components_t =
   | Junction of junction_name_t * transitions_t
   | SFFunction of 'prog_t
 
-type prog_t = Program of state_name_t * prog_t src_components_t list * (Lustre_types.var_decl * Lustre_types.expr) list
+type prog_t = Program of state_name_t * prog_t src_components_t list * GlobalVarDef.t list
 
 type scope_t = Constant | Input | Local | Output | Parameter
 
@@ -152,14 +152,14 @@ struct
 
   let pp_vars fmt src =
     Format.fprintf fmt "@[<v>%a@ @]"
-      (Utils.fprintf_list ~sep:"@ " Printers.pp_var)
+      (Utils.fprintf_list ~sep:"@ " (fun fmt globvar -> Printers.pp_var fmt globvar.GlobalVarDef.variable))
     src
 
   let pp_prog fmt (Program (name, component_list, vars)) =
     Format.fprintf fmt "Main node name: %s@ %a@ %a@"
       name
       (pp_src pp_sffunction) component_list
-      pp_vars (List.map fst vars)
+      pp_vars vars
 
   let pp_scope fmt src =
     Format.fprintf fmt (match src with
