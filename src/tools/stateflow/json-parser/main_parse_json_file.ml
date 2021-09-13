@@ -36,13 +36,17 @@ struct
       
   (* Protecting the generation of condition/action in case of an empty string
      instead of a subtree *)
-  let protect default parse_fun embed_fun json =
+  let protect funname default parse_fun embed_fun json =
+    (* Logs.debug (fun m -> m "protect %s" (Y.to_string json)); *)
     try
-      let vars = get_vars json in
-	let actions = json |> Util.member "actions" |> to_string in
+      (* TODO: project the declared env onto the variables used in the actions or conditions 
+         let vars = get_vars json in *)
+      let vars = [], [], [] in
+      let actions = json |> (*Util.member "actions" |> *) to_string in
+      let actions = remove_quotes actions in
 	if actions = "[]" || actions = "" then default (* should not happen *) else (
 	  Format.eprintf "Parsing string: %s@." actions;
-	  let lexbuf = Lexing.from_string (remove_quotes actions) in
+	  let lexbuf = Lexing.from_string actions in
 	  try
 	    let content = parse_fun Lexer_lustre.token lexbuf in
 	    Parsing.clear_parser ();
@@ -53,12 +57,12 @@ struct
 	)
     with Util.Type_error _ -> (
       Format.eprintf
-	"Unable to explore json subtree: empty string %s@." (to_string json);
+	"Unable to explore json subtree in %s: empty string %s@." funname (Yojson.Basic.to_string json);
       default
     )
       
   let parse_condition =
-    protect
+    protect "condition"
       Condition.tru
       Parser_lustre.expr
       (fun e (in_,out_,locals_) ->
@@ -72,7 +76,7 @@ struct
       })
     
   let parse_action =
-    protect Action.nil Parser_lustre.stmt_list
+    protect "action" Action.nil Parser_lustre.stmt_list
       (fun (stmts, asserts, annots) (in_, out_, locals_) ->
 	if asserts != [] || annots != [] then
 	  assert false (* Stateflow equations should not use asserts nor define
