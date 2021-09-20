@@ -140,6 +140,8 @@ and handler_desc = {
   hand_loc : Location.t;
 }
 
+type proof_annotation = Kinduction of int
+
 type contract_desc = {
   consts : var_decl list;
   locals : var_decl list;
@@ -149,9 +151,10 @@ type contract_desc = {
   modes : contract_mode list;
   imports : contract_import list;
   spec_loc : Location.t;
+  proof : proof_annotation option
 }
 
-type 'a node_spec_t = Contract of 'a | NodeSpec of ident * 'a option
+type 'a node_spec_t = Contract of 'a | NodeSpec of ident
 
 type node_desc = {
   node_id : ident;

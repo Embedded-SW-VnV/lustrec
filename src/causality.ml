@@ -475,7 +475,7 @@ module NodeDep = struct
               match nd.node_spec with
               | None ->
                 []
-              | Some (NodeSpec (id, _)) ->
+              | Some (NodeSpec id) ->
                 [ id ]
               | Some (Contract c) ->
                 get_contract_calls (fun _ -> true) c

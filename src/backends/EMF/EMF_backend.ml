@@ -489,7 +489,7 @@ let pp_machine fmt m =
      (* TODO *)
      (* assert (c.locals = [] && c.consts = [] && c.stmts = [] && c.imports = []); *)
      fprintf fmt "\"spec\": %a,@ " pp_emf_spec c
-   | Some (NodeSpec (id, _)) -> fprintf fmt "\"contract\": \"%s\",@ " id);
+   | Some (NodeSpec id) -> fprintf fmt "\"contract\": \"%s\",@ " id);
   fprintf fmt "\"annots\": {@[<v 0> %a@]@ }"
     (pp_emf_annots_list (ref 0))
     m.mannot;
@@ -519,7 +519,7 @@ let pp_emf_imported_node fmt top =
   (match ind.nodei_spec with
    | None -> fprintf fmt "@ "
    | Some (Contract _) -> assert false (* should have been processed *)
-   | Some (NodeSpec (id, _)) -> fprintf fmt ",@ \"coco_contract\": %s" id);
+   | Some (NodeSpec id) -> fprintf fmt ",@ \"coco_contract\": %s" id);
   fprintf fmt "@]@ }"
 (* XXX: UNUSED *)
 (* with Unhandled msg ->

@@ -330,8 +330,7 @@ let resolve_contracts prog =
       c.spec_loc
       top.top_decl_owner
       top.top_decl_itf
-      (Node nd),
-    c
+      (Node nd)
          (* { nd with
           *   node_dec_stateless = stateless;
           *   node_stateless = Some stateless;
@@ -373,11 +372,11 @@ let resolve_contracts prog =
           | Some (Contract _) ->
             (* A contract: processing it *)
             (* we bind a fresh node *)
-            let new_nd, new_c = process_contract_new_node accu_contracts prog top in
+            let new_nd = process_contract_new_node accu_contracts prog top in
             (* Format.eprintf "Creating new contract node %s@." (node_name
                new_nd); *)
             let nd =
-              { nd with node_spec = Some (NodeSpec (node_name new_nd, Some new_c)) }
+              { nd with node_spec = Some (NodeSpec (node_name new_nd)) }
             in
             ( new_nd :: accu_contracts,
               { top with top_decl_desc = Node nd } :: accu_nodes ))
@@ -392,9 +391,9 @@ let resolve_contracts prog =
           | Some (Contract _) ->
             (* A contract: processing it *)
             (* we bind a fresh node *)
-            let new_nd, new_c = process_contract_new_node accu_contracts prog top in
+            let new_nd = process_contract_new_node accu_contracts prog top in
             let ind =
-              { ind with nodei_spec = Some (NodeSpec (node_name new_nd, Some new_c)) }
+              { ind with nodei_spec = Some (NodeSpec (node_name new_nd)) }
             in
             ( new_nd :: accu_contracts,
               { top with top_decl_desc = ImportedNode ind } :: accu_nodes ))

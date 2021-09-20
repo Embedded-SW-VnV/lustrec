@@ -339,9 +339,8 @@ let pp_machine fmt m =
       match m.mspec.mnode_spec with
       | None ->
         ()
-      | Some (NodeSpec (id, c)) ->
-        fprintf fmt "cocospec: %s@;%a" id
-          (pp_print_option (pp_mspec m)) c
+      | Some (NodeSpec id) ->
+        fprintf fmt "cocospec: %s" id
       | Some (Contract spec) ->
         pp_mspec m fmt spec)
     (pp_memory_packs m)

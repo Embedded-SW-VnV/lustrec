@@ -93,6 +93,7 @@ let keyword_table =
   "forall", FORALL;
   "c_code", CCODE;
   "matlab", MATLAB;
+  "by", BY
   ]
 
 }
@@ -113,6 +114,8 @@ rule token = parse
     {REAL (Real.create (l^r) (String.length r + -1 * int_of_string exp) s)}
   | '-'? ['0'-'9']+ 
     {INT (int_of_string (Lexing.lexeme lexbuf)) }
+  | (['0'-'9']+) as i '-' "induction"
+    {KINDUCTION (int_of_string i)}
   (* | '/' (['_' 'A'-'Z' 'a'-'z'] ['A'-'Z' 'a'-'z' '_' '0'-'9']* '/')+ as s
        {IDENT s}
   *)

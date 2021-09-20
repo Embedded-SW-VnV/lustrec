@@ -43,8 +43,8 @@ let build_env inputs locals outputs =
     is_local = (fun id -> List.exists (fun v -> v.var_id = id) locals);
     get_var =
       (fun id ->
-        try List.find (fun v -> v.var_id = id) all
-        with Not_found ->
+         try List.find (fun v -> v.var_id = id) all
+         with Not_found ->
           (* Format.eprintf "Impossible to find variable %s in set %a@.@?" * id
              * VSet.pp all; *)
           raise Not_found);
@@ -373,9 +373,14 @@ let translate_eq env ctx nd inputs locals outputs i eq =
         else mkinstr (MSetReset inst) :: ctx.si);
     }
   | [ x ], _ ->
+    begin try
     let var_x = env.get_var x in
     let instr, spec = translate_act (var_x, eq.eq_rhs) in
     control_on_clock eq.eq_rhs.expr_clock instr True spec ctx
+      with Not_found ->
+        Format.eprintf "ERROR: node %s, eq %a@." id Printers.pp_node_eq eq  ;
+        raise Not_found
+        end
   | _ ->
     Format.eprintf
       "internal error: Machine_code.translate_eq %a@?"
@@ -484,7 +489,7 @@ let transition_0 nd =
     tname = nd;
     tindex = Some 0;
     tvars = nd.node_inputs;
-    tformula = True;
+    tformula = if fst (get_stateless_status_node nd) then True else StateVarPack ResetFlag;
     tmem_footprint = ISet.empty;
     tinst_footprint = IMap.empty;
   }
@@ -508,22 +513,32 @@ let transition_toplevel nd i =
   }
 
 let translate_eexpr env e =
+  try
   List.fold_right (fun (qt, xs) f -> match qt with
       | Lustre_types.Exists -> Exists (xs, f)
       | Lustre_types.Forall -> Forall (xs, f))
     e.eexpr_quantifiers
     (Value (translate_expr env e.eexpr_qfexpr))
+  with
+  NormalizationError ->
+  Format.eprintf
+    "Normalization error: %a@."
+    Printers.pp_eexpr
+    e;
+  raise NormalizationError
+
 
 let translate_contract env c = {
   mc_pre = And (List.map (translate_eexpr env) c.Lustre_types.assume);
-  mc_post = And (List.map (translate_eexpr env) c.Lustre_types.guarantees)
+  mc_post = And (List.map (translate_eexpr env) c.Lustre_types.guarantees);
+  mc_proof = c.proof
 }
 
 let translate_spec env = function
   | Contract c ->
     Contract (translate_contract env c)
-  | NodeSpec (s, c) ->
-    NodeSpec (s, option_map (translate_contract env) c)
+  | NodeSpec s ->
+    NodeSpec s
 
 let translate_decl nd sch =
   (* Format.eprintf "Translating node %s@." nd.node_id; *)

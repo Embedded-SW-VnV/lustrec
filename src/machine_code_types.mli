@@ -60,6 +60,7 @@ type mc_memory_pack_t = value_t memory_pack_t
 type mc_contract_t = {
   mc_pre: mc_formula_t;
   mc_post: mc_formula_t;
+  mc_proof: proof_annotation option
 }
 
 type machine_spec = {

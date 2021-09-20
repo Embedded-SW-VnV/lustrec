@@ -81,6 +81,8 @@ let rec fby loc expr n init =
 %token INVARIANT MODE CCODE MATLAB
 %token EXISTS FORALL
 %token PROTOTYPE LIB
+%token BY
+%token <int> KINDUCTION
 %token EOF
 
 %nonassoc p_string
@@ -370,6 +372,9 @@ top_contract:
     nd
   }
 
+proof_annotation:
+| BY k=KINDUCTION { Kinduction k }
+
 contract_content:
 | { empty_contract }
 /* | CONTRACT cc=contract_content */
@@ -380,8 +385,8 @@ contract_content:
   { merge_contracts (mk_contract_var x false (Some (mktyp $sloc t)) e $sloc) cc }
 | ASSUME x=ioption(STRING) e=qexpr SCOL cc=contract_content
   { merge_contracts (mk_contract_assume x e) cc }
-| GUARANTEES x=ioption(STRING) e=qexpr SCOL cc=contract_content
-  { merge_contracts (mk_contract_guarantees x e) cc }
+| GUARANTEES x=ioption(STRING) e=qexpr p=proof_annotation? SCOL cc=contract_content
+  { merge_contracts (mk_contract_guarantees x e p) cc }
 | MODE x=IDENT LPAR mc=mode_content RPAR SCOL cc=contract_content
   { merge_contracts (
         let r, e = mc in

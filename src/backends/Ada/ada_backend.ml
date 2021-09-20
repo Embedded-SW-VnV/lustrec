@@ -86,7 +86,7 @@ let extract_contract machines m =
        l) -> assert false | Expr_appl call -> assert false *)
   in
   match m.mspec.mnode_spec with
-  | Some (NodeSpec (ident, _)) ->
+  | Some (NodeSpec ident) ->
     let machine_spec = find_submachine_from_ident ident machines in
     let guarantees =
       match machine_spec.mspec.mnode_spec with

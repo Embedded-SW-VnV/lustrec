@@ -753,16 +753,17 @@ let normalize_node ?(first=true) node =
        Careful: we do not normalize annotations, since they can have the form
        x = (a, b, c) *)
     match node.node_spec with
-    | None | Some (NodeSpec _) -> node.node_spec, [], [], eqs
+    | None | Some (NodeSpec _) ->
+      node.node_spec, [], [], eqs
     | Some (Contract s) ->
-        let new_locals, new_outs, new_stmts, s' =
-          normalize_spec node.node_id
-            (node.node_inputs, node.node_outputs, node.node_locals)
-            s
-        in
-        (* Format.eprintf "Normalization bounded new locals: %a@." Printers.pp_vars new_locals;
-         * Format.eprintf "Normalization bounded stmts: %a@." Printers.pp_node_eqs new_stmts; *)
-        Some (Contract s'), new_locals, new_outs, new_stmts @ eqs
+      let new_locals, new_outs, new_stmts, s' =
+        normalize_spec node.node_id
+          (node.node_inputs, node.node_outputs, node.node_locals)
+          s
+      in
+      (* Format.eprintf "Normalization bounded new locals: %a@." Printers.pp_vars new_locals;
+       * Format.eprintf "Normalization bounded stmts: %a@." Printers.pp_node_eqs new_stmts; *)
+      Some (Contract s'), new_locals, new_outs, new_stmts @ eqs
   in
   let defs, vars =
     List.fold_left (normalize_eq norm_ctx) ([], new_vars @ orig_vars) eqs

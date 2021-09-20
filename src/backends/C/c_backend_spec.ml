@@ -195,7 +195,7 @@ let pp_separated'' =
     pp_var_decl
 
 let pp_forall pp_l pp_r fmt (l, r) =
-  fprintf fmt "@[<v 2>\\forall %a;@,%a@]" pp_l l pp_r r
+  fprintf fmt "@[<v 2>\\forall @[<hov>%a@];@,%a@]" pp_l l pp_r r
 
 let pp_exists pp_l pp_r fmt (l, r) =
   fprintf fmt "@[<v 2>\\exists %a;@,%a@]" pp_l l pp_r r
@@ -239,6 +239,9 @@ let pp_paren pp fmt v = fprintf fmt "(%a)" pp v
 
 let pp_initialization pp_mem fmt (name, mem) =
   fprintf fmt "%s_initialization(%a)" name pp_mem mem
+
+let pp_init pp_mem fmt (name, mem) =
+  fprintf fmt "%s_init(%a)" name pp_mem mem
 
 let pp_initialization' = pp_initialization pp_print_string
 
@@ -628,6 +631,12 @@ let pp_predicate pp_l pp_r fmt (l, r) =
 let pp_lemma pp_l pp_r fmt (l, r) =
   fprintf fmt "@[<v 2>lemma %a:@,%a;@]" pp_l l pp_r r
 
+let pp_axiomatic pp_l pp_r fmt (l, r) =
+  fprintf fmt "@[<v 2>axiomatic %a {@,%a@]@;}" pp_l l pp_r r
+
+let pp_axiom pp_l pp_r fmt (l, r) =
+  fprintf fmt "@[<v 2>axiom %a:@,%a;@]" pp_l l pp_r r
+
 let pp_mem_valid_def fmt m =
   if not (fst (get_stateless_status m)) then
     let name = m.mname.node_id in
@@ -991,13 +1000,315 @@ module SrcMod = struct
       fmt
       ()
 
-  let pp_node_spec m fmt = function
-    | Contract c
-    | NodeSpec (_, Some c) ->
-      PrintSpec.pp_spec PrintSpec.TransitionMode m fmt
-        (Spec_common.red (Imply (c.mc_pre, c.mc_post)))
-    | NodeSpec (f, None) ->
-      pp_print_string fmt f
+  let spec_from_contract c =
+    Spec_common.red (Imply (c.mc_pre, c.mc_post))
+
+  let pp_contract m fmt c =
+    PrintSpec.pp_spec PrintSpec.TransitionMode m fmt (spec_from_contract c)
+
+  let contract_of machines m =
+    match m.mspec.mnode_spec with
+    | Some spec ->
+      begin match spec with
+        | Contract c ->
+          Some c, None
+        | NodeSpec f ->
+          let m_f = find_machine f machines in
+          begin match m_f.mspec.mnode_spec with
+            | Some (Contract c) ->
+              Some c, Some m_f
+            | _ ->
+              None, None
+          end
+      end
+    | None ->
+      None, None
+
+  let pp_init_def fmt m =
+    let name = m.mname.node_id in
+    let mem = mk_mem m in
+    pp_predicate
+      (pp_init (pp_machine_decl' ~ghost:true))
+      (pp_and pp_initialization' (pp_reset_flag' ~indirect:false))
+      fmt
+      ((name, (name, mem)), ((name, mem), mem))
+
+  let rename n x = sprintf "%s_%d" x n
+
+  let rename_var_decl n vd = { vd with var_id = rename n vd.var_id }
+
+  let rec rename_value n v =
+    { v with value_desc =
+                match v.value_desc with
+                  | Machine_code_types.Var v -> Machine_code_types.Var (rename_var_decl n v)
+                  | Fun (f, vs) -> Fun (f, List.map (rename_value n) vs)
+                  | Array vs -> Array (List.map (rename_value n) vs)
+                  | Access (v1, v2) -> Access (rename_value n v1, rename_value n v2)
+                  | Power (v1, v2) -> Power (rename_value n v1, rename_value n v2)
+                  | v -> v
+    }
+
+  let rename_expression: type a. int -> (value_t, a) expression_t -> (value_t, a) expression_t =
+    fun n -> function
+    | Val v -> Val (rename_value n v)
+    | Var v -> Var (rename_var_decl n v)
+    | e -> e
+
+  let rename_predicate n = function
+    | Transition (f, inst, i, es, r, mf, mif) ->
+      Transition (f, inst, i, List.map (rename_expression n) es, r, mf, mif)
+    | p -> p
+
+  let rec rename_formula n = function
+    | Equal (e1, e2) -> Equal (rename_expression n e1, rename_expression n e2)
+    | And fs -> And (List.map (rename_formula n) fs)
+    | Or fs -> Or (List.map (rename_formula n) fs)
+    | Imply (f1, f2) -> Imply (rename_formula n f1, rename_formula n f2)
+    | Exists (xs, f) -> Exists (List.map (rename_var_decl n) xs, rename_formula n f)
+    | Forall (xs, f) -> Forall (List.map (rename_var_decl n) xs, rename_formula n f)
+    | Ternary (e, t, f) -> Ternary (rename_expression n e, rename_formula n t, rename_formula n f)
+    | Predicate p -> Predicate (rename_predicate n p)
+    | ExistsMem (x, f1, f2) -> ExistsMem (rename n x, rename_formula n f1, rename_formula n f2)
+    | Value v -> Value (rename_value n v)
+    | f -> f
+
+    
+  let rename_contract n c =
+    { c with
+      mc_pre = rename_formula n c.mc_pre;
+      mc_post = rename_formula n c.mc_post; }
+
+  let but_last l =
+    List.(rev (tl (rev l)))
+
+  let pp_k_induction_case case m pp_mem_in pp_mem_out pp_vars fmt (n, mem_in, mem_out) =
+    let name = m.mname.node_id in
+    let inputs = m.mstep.step_inputs in
+    let outputs = m.mstep.step_outputs in
+    fprintf fmt "%s_%s_%d(@[<hov>%a,@;%a,@;%a@])"
+      name
+      case
+      n
+      pp_mem_in
+      mem_in
+      pp_vars
+      (inputs @ outputs)
+      pp_mem_out
+      mem_out
+
+  let pp_k_induction_base_case m =
+    pp_k_induction_case "base" m
+
+  let pp_k_induction_inductive_case m =
+    pp_k_induction_case "inductive" m
+
+  let pp_base_cases m fmt (c, m_c, k) =
+    let name = m.mname.node_id in
+    let mem = mk_mem m in
+    let inputs = m.mstep.step_inputs in
+    let outputs = m.mstep.step_outputs in
+    let l = List.init (k - 1) (fun n -> n + 1) in
+    pp_print_list ~pp_open_box:pp_open_vbox0 ~pp_sep:pp_print_cutcut
+      (fun fmt n ->
+         let l = List.init (n + 1) (fun n -> n) in
+         let l' = List.init n (fun n -> n) in
+         let pp =
+           pp_implies
+             (pp_and
+                (pp_and_l (fun fmt -> function
+                     | 0 ->
+                       pp_init pp_print_string fmt (name, rename 0 mem)
+                     | n ->
+                       pp_transition_aux m pp_print_string pp_print_string pp_var_decl
+                         fmt
+                         (name,
+                          List.map (rename_var_decl n) (inputs @ outputs),
+                          rename (n - 1) mem,
+                          rename n mem)))
+                (pp_transition_aux m_c pp_print_string pp_print_string pp_var_decl))
+             (pp_contract m)
+         in
+         pp_predicate
+           (pp_k_induction_base_case
+              m
+              (pp_machine_decl' ~ghost:true)
+              (pp_machine_decl' ~ghost:true)
+              (fun fmt xs -> pp_locals m fmt (List.map (rename_var_decl n) xs)))
+           (pp_forall (pp_locals m)
+              (if n > 1 then
+                 pp_forall
+                   (fun fmt l -> fprintf fmt "%a@,%a"
+                       (pp_machine_decl ~ghost:true
+                          (pp_comma_list ~pp_eol:pp_print_comma
+                             (fun fmt n -> pp_print_string fmt (rename n mem))))
+                       (name, but_last l)
+                       (pp_locals m)
+                       (List.flatten
+                          (List.map (fun n ->
+                               List.map (rename_var_decl n) (inputs @ outputs))
+                              (List.tl l))))
+                   pp
+               else
+                 fun fmt (_, x) -> pp fmt x))
+           fmt
+           ((n, (name, rename (n - 1) mem), (name, rename n mem)),
+            (List.map (rename_var_decl n) m_c.mstep.step_outputs,
+             (l', ((l,
+                    (m_c.mname.node_id,
+                     List.map (rename_var_decl n) (m_c.mstep.step_inputs @ m_c.mstep.step_outputs),
+                     "", "")),
+                   rename_contract n c)))))
+           fmt
+           l
+
+  let pp_inductive_case m fmt (c, m_c, k) =
+    let name = m.mname.node_id in
+    let mem = mk_mem m in
+    let inputs = m.mstep.step_inputs in
+    let outputs = m.mstep.step_outputs in
+    let l = List.init k (fun n -> n + 1) in
+    let pp =
+      pp_implies
+        (pp_and_l (fun fmt n ->
+             pp_and
+               (pp_and
+                  (pp_transition_aux m pp_print_string pp_print_string pp_var_decl)
+                  (pp_transition_aux m_c pp_print_string pp_print_string pp_var_decl))
+               (pp_contract m)
+               fmt
+               (((name,
+                  List.map (rename_var_decl n) (inputs @ outputs),
+                  rename (n - 1) mem,
+                  rename n mem),
+                 (m_c.mname.node_id,
+                  List.map (rename_var_decl n) (m_c.mstep.step_inputs @ m_c.mstep.step_outputs),
+                  "", "")),
+                rename_contract n c)))
+        (pp_contract m)
+    in
+    pp_predicate
+      (pp_k_induction_inductive_case
+         m
+         (pp_machine_decl' ~ghost:true)
+         (pp_machine_decl' ~ghost:true)
+         (fun fmt xs -> pp_locals m fmt (List.map (rename_var_decl k) xs)))
+      (pp_forall (pp_locals m)
+         (if k > 1 then
+            pp_forall
+              (fun fmt l -> fprintf fmt "%a@,%a"
+                  (pp_machine_decl ~ghost:true
+                     (pp_comma_list ~pp_eol:pp_print_comma
+                        (fun fmt n -> pp_print_string fmt (rename (n - 1) mem))))
+                  (name, but_last l)
+                  (pp_locals m)
+                  (List.flatten
+                     (List.map (fun n ->
+                          List.map (rename_var_decl (n - 1)) (inputs @ outputs))
+                         (List.tl l))))
+              pp
+          else
+            fun fmt (_, x) -> pp fmt x))
+      fmt
+      ((k, (name, rename (k - 1) mem), (name, rename k mem)),
+       (List.(flatten (List.map (fun n -> List.map (rename_var_decl n) m_c.mstep.step_outputs) l)),
+        (l, (l, rename_contract k c))))
+
+  let pp_k_induction_lemmas m fmt k =
+    let name = m.mname.node_id in
+    let mem_in = mk_mem_in m in
+    let mem_out = mk_mem_out m in
+    let inputs = m.mstep.step_inputs in
+    let outputs = m.mstep.step_outputs in
+    let l = List.init k (fun n -> n + 1) in
+    pp_print_list ~pp_open_box:pp_open_vbox0 ~pp_sep:pp_print_cutcut
+      (fun fmt n ->
+         pp_lemma
+           (fun fmt n -> fprintf fmt "%s_k_induction_%d" name n)
+           (pp_forall
+              (fun fmt () -> fprintf fmt "%a,@;%a"
+                  (pp_machine_decl ~ghost:true (pp_comma_list pp_print_string))
+                  (name, [mem_in; mem_out])
+                  (pp_locals m)
+                  (inputs @ outputs))
+              ((if n = k then
+                  pp_k_induction_inductive_case
+                else
+                  pp_k_induction_base_case)
+                 m
+                 pp_print_string
+                 pp_print_string
+                 (pp_comma_list pp_var_decl)))
+           fmt
+           (n, ((), (n, mem_in, mem_out))))
+      fmt
+      l
+
+  let pp_k_induction_axiom m fmt (c, m_c, k) =
+    let name = m.mname.node_id in
+    let mem_in = mk_mem_in m in
+    let mem_out = mk_mem_out m in
+    let inputs = m.mstep.step_inputs in
+    let outputs = m.mstep.step_outputs in
+    let l = List.init k (fun n -> n + 1) in
+    pp_axiomatic
+      (fun fmt () -> fprintf fmt "%s_k_Induction" name)
+      (pp_axiom
+         (fun fmt () -> fprintf fmt "%s_k_induction" name)
+         (pp_forall
+           (pp_locals m)
+           (pp_forall
+              (fun fmt () -> fprintf fmt "%a,@;%a"
+                  (pp_machine_decl ~ghost:true (pp_comma_list pp_print_string))
+                  (name, [mem_in; mem_out])
+                  (pp_locals m)
+                  (inputs @ outputs))
+              (pp_implies
+                 (pp_and
+                    (pp_and_l
+                       (fun fmt n ->
+                          (if n = k then
+                             pp_k_induction_inductive_case
+                           else
+                             pp_k_induction_base_case)
+                            m
+                            pp_print_string
+                            pp_print_string
+                            (pp_comma_list pp_var_decl)
+                            fmt
+                            (n, mem_in, mem_out)))
+                    (pp_transition_aux m_c pp_print_string pp_print_string pp_var_decl))
+                 (pp_contract m)))))
+      fmt
+      ((),
+       ((),
+        (m_c.mstep.step_outputs,
+         ((),
+          (((l,
+             (m_c.mname.node_id,
+              m_c.mstep.step_inputs @ m_c.mstep.step_outputs,
+              "", "")), c))))))
+
+
+  let pp_k_induction m fmt (_, _, k as c_m_k) =
+    pp_acsl_cut
+      (fun fmt () -> fprintf fmt "%a@,@,%a@,@,%a@,@,%a@,@,%a"
+          pp_init_def m
+          (pp_base_cases m) c_m_k
+          (pp_inductive_case m) c_m_k
+          (pp_k_induction_lemmas m) k
+          (pp_k_induction_axiom m) c_m_k)
+      fmt
+      ()
+
+  let pp_proof_annotation m m_c fmt c =
+    let pp m_c fmt = function
+      | Kinduction k ->
+        pp_k_induction m fmt (c, m_c, k)
+    in
+    match m_c with
+    | Some m_c ->
+      pp_print_option (pp m_c) fmt c.mc_proof
+    | None -> ()
 
   let pp_step_spec fmt machines self mem m =
     let name = m.mname.node_id in
@@ -1014,7 +1325,7 @@ module SrcMod = struct
     let pp_if_outputs pp =
       if outputs = [] then pp_print_nothing else pp
     in
-    let spec = m.mspec.mnode_spec in
+    let c, m_c = contract_of machines m in
     (* (\* prevent printing an ensures clause with contract name *\)
      * let spec =
      *   match m.mspec.mnode_spec with
@@ -1022,28 +1333,47 @@ module SrcMod = struct
      *   | s -> s
      * in *)
     let pp_spec = pp_print_option
-        (if m.mis_contract then pp_print_nothing else pp_ensures (pp_node_spec m)) in
+        (if m.mis_contract then pp_print_nothing else pp_ensures (pp_contract m)) in
+    let pp_spec_vars, pp_assigns_spec_vars =
+      match m.mspec.mnode_spec with
+      | Some (NodeSpec f) ->
+        let m_f = find_machine f machines in
+        pp_acsl_cut
+          (pp_ghost
+             (fun fmt () ->
+                fprintf
+                  fmt
+                  "@;<0 2>@[<v>%a@]"
+                  (pp_print_list ~pp_open_box:pp_open_vbox0 ~pp_sep:pp_print_semicolon
+                     ~pp_eol:pp_print_semicolon (pp_c_decl_local_var m))
+                  m_f.mstep.step_outputs)),
+        fun fmt () -> pp_assigns pp_var_decl fmt m_f.mstep.step_outputs
+      | _ -> pp_print_nothing, pp_print_nothing
+    in
+    pp_print_option (pp_proof_annotation m m_c) fmt c;
+    pp_spec_vars fmt ();
     pp_acsl_cut
       ~ghost:m.mis_contract
       (fun fmt () ->
         if fst (get_stateless_status m) then
           fprintf
             fmt
-            "%a@,%a@,%a@,%a@,%a"
+            "%a@,%a@,%a@,%a@,%a@,%a"
             (pp_if_outputs (pp_requires (pp_valid pp_var_decl)))
             outputs
             (pp_if_outputs (pp_requires pp_separated''))
             outputs
+            pp_assigns_spec_vars ()
             (pp_assigns pp_ptr_decl)
             outputs
             (pp_ensures (pp_transition_aux' m))
             (name, inputs @ outputs, "", "")
             pp_spec
-            spec
+            c
         else
           fprintf
             fmt
-            "%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a"
+            "%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a"
             (pp_if_outputs (pp_requires (pp_valid pp_var_decl)))
             outputs
             (pp_requires pp_mem_valid')
@@ -1059,7 +1389,8 @@ module SrcMod = struct
                     (if is_output m v then pp_ptr_decl else pp_var_decl) fmt v)))
             (name, inputs @ outputs, mem, mem)
             pp_spec
-            spec
+            c
+            pp_assigns_spec_vars ()
             (pp_assigns pp_ptr_decl)
             outputs
             (pp_assigns (pp_reg self))
@@ -1131,16 +1462,14 @@ module SrcMod = struct
 
   let pp_contract fmt machines _self m =
     match m.mspec.mnode_spec with
-    | Some (NodeSpec (f, _)) ->
+    | Some (NodeSpec f) ->
       let m_f = find_machine f machines in
-      pp_acsl_cut
+      pp_acsl_line'_cut
         (pp_ghost
            (fun fmt () ->
               fprintf
                 fmt
-                "@;<0 2>@[<v>%a%a(%a%a);@]"
-                (pp_print_list ~pp_open_box:pp_open_vbox0 ~pp_sep:pp_print_semicolon ~pp_eol:pp_print_semicolon (pp_c_decl_local_var m))
-                m_f.mstep.step_outputs
+                "%a(%a%a);"
                 pp_machine_step_name
                 m_f.mname.node_id
                 (pp_comma_list ~pp_eol:pp_print_comma (pp_c_var_read m))

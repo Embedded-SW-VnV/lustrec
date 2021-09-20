@@ -193,6 +193,7 @@ let empty_contract =
     modes = [];
     imports = [];
     spec_loc = Location.dummy;
+    proof = None
   }
 
 (* For const declaration we do as for regular lustre node. But for local flows
@@ -213,11 +214,12 @@ let mk_contract_var id is_const type_opt expr loc =
 
 let eexpr_add_name eexpr eexpr_name = { eexpr with eexpr_name }
 
-let mk_contract_guarantees name eexpr =
+let mk_contract_guarantees name eexpr proof =
   {
     empty_contract with
     guarantees = [ eexpr_add_name eexpr name ];
     spec_loc = eexpr.eexpr_loc;
+    proof
   }
 
 let mk_contract_assume name eexpr =
@@ -242,6 +244,16 @@ let mk_contract_import id ins outs loc =
     spec_loc = loc;
   }
 
+let merge_proofs p1 p2 =
+  let merge_proofs p1 p2 = match p1, p2 with
+    | Kinduction k1, Kinduction k2 ->
+      Kinduction (max k1 k2)
+  in
+  match p1, p2 with
+  | Some p1, Some p2 -> Some (merge_proofs p1 p2)
+  | Some p, None | None, Some p -> Some p
+  | None, None -> None
+
 let merge_contracts ann1 ann2 =
   (* keeping the first item loc *)
   {
@@ -253,6 +265,7 @@ let merge_contracts ann1 ann2 =
     modes = ann1.modes @ ann2.modes;
     imports = ann1.imports @ ann2.imports;
     spec_loc = ann1.spec_loc;
+    proof = merge_proofs ann1.proof ann2.proof
   }
 
 let mkeexpr loc expr =
@@ -1105,8 +1118,8 @@ let rename_node f_node f_var nd =
     option_map
       (fun s ->
         match s with
-        | NodeSpec (id, oc) ->
-          NodeSpec (f_node id, option_map (rename_contract f_var f_node) oc)
+        | NodeSpec id ->
+          NodeSpec (f_node id)
         | Contract c ->
           Contract (rename_contract f_var f_node c))
       nd.node_spec
