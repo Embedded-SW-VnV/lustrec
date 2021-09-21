@@ -107,6 +107,8 @@ let pp_stdout fmt () = pp_print_string fmt "stdout"
 
 let pp_at pp_v fmt (v, l) = fprintf fmt "\\at(%a, %s)" pp_v v l
 
+let pp_at_pre pp_v fmt v = pp_at pp_v fmt (v, "Pre")
+
 let find_machine f =
   List.find (fun m -> m.mname.node_id = f)
 
@@ -1460,24 +1462,51 @@ module SrcMod = struct
       | None ->
         [ mem, pp_print_string ])
 
-  let pp_contract fmt machines _self m =
-    match m.mspec.mnode_spec with
-    | Some (NodeSpec f) ->
-      let m_f = find_machine f machines in
-      pp_acsl_line'_cut
-        (pp_ghost
-           (fun fmt () ->
-              fprintf
-                fmt
-                "%a(%a%a);"
-                pp_machine_step_name
-                m_f.mname.node_id
-                (pp_comma_list ~pp_eol:pp_print_comma (pp_c_var_read m))
-                m_f.mstep.step_inputs
-                (pp_comma_list (pp_c_var_write m))
-                m_f.mstep.step_outputs))
-        fmt ()
-    | _ -> ()
+  let pp_contract fmt machines _self mem m =
+    let pp_vars ?pp_eol = pp_comma_list ?pp_eol (pp_c_var_read m) in
+    match contract_of machines m with
+    | Some c, Some m_c ->
+      fprintf fmt "%a%a"
+        (pp_acsl_line'_cut
+           (pp_ghost
+              (fun fmt () ->
+                 fprintf
+                   fmt
+                   "%a(%a%a);"
+                   pp_machine_step_name
+                   m_c.mname.node_id
+                   (pp_vars ~pp_eol:pp_print_comma)
+                   m_c.mstep.step_inputs
+                   (pp_comma_list (pp_c_var_write m))
+                   m_c.mstep.step_outputs)))
+        ()
+        (pp_acsl_cut
+           (pp_print_option
+              (fun fmt -> function
+                 | Kinduction k ->
+                   let l = List.init k (fun n -> n + 1) in
+                   let pp_mem_in = pp_at_pre pp_ptr in
+                   let pp_mem_out = pp_ptr in
+                   pp_assert
+                     (pp_and
+                        (pp_and_l
+                           (fun fmt n ->
+                              (if n = k then
+                                 pp_k_induction_inductive_case
+                               else
+                                 pp_k_induction_base_case)
+                                m
+                                pp_mem_in
+                                pp_mem_out
+                                pp_vars
+                                fmt
+                                (n, mem, mem)))
+                        (pp_transition_aux m_c pp_print_string pp_print_string (pp_c_var_read m)))
+                     fmt
+                     (l, (m_c.mname.node_id,
+                          m_c.mstep.step_inputs @ m_c.mstep.step_outputs,
+                          "", ""))))) c.mc_proof
+        | _, _ -> ()
 
 end
 

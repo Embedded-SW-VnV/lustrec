@@ -35,7 +35,7 @@ module type MODIFIERS_SRC = sig
 
   val pp_ghost_parameter : ident -> formatter -> ident option -> unit
 
-  val pp_contract : formatter -> machine_t list -> ident -> machine_t -> unit
+  val pp_contract : formatter -> machine_t list -> ident -> ident -> machine_t -> unit
 end
 
 module EmptyMod = struct
@@ -53,7 +53,7 @@ module EmptyMod = struct
 
   let pp_ghost_parameter _ _ _ = ()
 
-  let pp_contract _ _ _ _ = ()
+  let pp_contract _ _ _ _ _ = ()
 end
 
 module Main (Mod : MODIFIERS_SRC) = struct
@@ -618,7 +618,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
         ~checks:m.mstep.step_checks
         ~pp_instr:(pp_machine_instr dependencies m self self)
         ~instrs:m.mstep.step_instrs
-        ~pp_extra:(fun fmt () -> Mod.pp_contract fmt machines self m)
+        ~pp_extra:(fun fmt () -> Mod.pp_contract fmt machines self self m)
         fmt
     else
       (* C90 code *)
@@ -650,7 +650,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
         ~checks:m.mstep.step_checks
         ~pp_instr:(pp_machine_instr dependencies m self self)
         ~instrs:m.mstep.step_instrs
-        ~pp_extra:(fun fmt () -> Mod.pp_contract fmt machines self m)
+        ~pp_extra:(fun fmt () -> Mod.pp_contract fmt machines self self m)
         fmt
 
   let pp_clear_reset_code dependencies self mem fmt m =
@@ -742,7 +742,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
         ~checks:m.mstep.step_checks
         ~pp_instr:(pp_machine_instr dependencies m self mem)
         ~instrs:m.mstep.step_instrs
-        ~pp_extra:(fun fmt () -> Mod.pp_contract fmt machines self m)
+        ~pp_extra:(fun fmt () -> Mod.pp_contract fmt machines self mem m)
         fmt
     else
       (* C90 code *)
@@ -774,7 +774,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
         ~checks:m.mstep.step_checks
         ~pp_instr:(pp_machine_instr dependencies m self mem)
         ~instrs:m.mstep.step_instrs
-        ~pp_extra:(fun fmt () -> Mod.pp_contract fmt machines self m)
+        ~pp_extra:(fun fmt () -> Mod.pp_contract fmt machines self mem m)
         fmt
 
   (********************************************************************************************)
