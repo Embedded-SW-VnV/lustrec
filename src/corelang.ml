@@ -1331,7 +1331,7 @@ let rec substitute_expr vars_to_replace defs e =
        | Expr_merge (i, hl) ->
          Expr_merge (i, List.map (fun (t, h) -> t, se h) hl)
        | Expr_appl (i, e', i') ->
-         Expr_appl (i, se e', i')
+         Expr_appl (i, se e', option_map se i')
        | Expr_ident i ->
          if List.exists (fun v -> v.var_id = i) vars_to_replace then
            let eq_i eq = eq.eq_lhs = [ i ] in
