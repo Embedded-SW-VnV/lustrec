@@ -1084,7 +1084,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
          ~pp_sep:pp_print_cutcut
          pp_machine_struct
          ~pp_epilogue:pp_print_cutcut)
-      machines
+      (List.filter (fun m -> not m.mis_contract) machines)
       (* Print the spec predicates *) Mod.pp_predicates
       machines
       (* Print nodes one by one (in the previous order) *)

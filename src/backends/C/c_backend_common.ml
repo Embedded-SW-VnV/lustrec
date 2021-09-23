@@ -62,9 +62,15 @@ let mk_self = mk_local "self"
 
 let mk_mem = mk_local "mem"
 
+let mk_mem_c = mk_local "mem_c"
+
 let mk_mem_in = mk_local "mem_in"
 
 let mk_mem_out = mk_local "mem_out"
+
+let mk_mem_in_c = mk_local "mem_in_c"
+
+let mk_mem_out_c = mk_local "mem_out_c"
 
 let mk_mem_reset = mk_local "mem_reset"
 
@@ -777,7 +783,7 @@ let pp_machine_struct ?(ghost = false) fmt m =
       "@[<v 2>%a {@,_Bool _reset;%a%a@]@,};"
       (pp_machine_memtype_name ~ghost)
       m.mname.node_id
-      (if ghost then
+      (if ghost && not m.mis_contract then
        fun fmt -> function
          | [] ->
            pp_print_nothing fmt ()

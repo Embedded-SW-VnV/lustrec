@@ -640,7 +640,7 @@ let pp_axiom pp_l pp_r fmt (l, r) =
   fprintf fmt "@[<v 2>axiom %a:@,%a;@]" pp_l l pp_r r
 
 let pp_mem_valid_def fmt m =
-  if not (fst (get_stateless_status m)) then
+  if not (fst (get_stateless_status m) || m.mis_contract) then
     let name = m.mname.node_id in
     let self = mk_self m in
     pp_acsl
@@ -656,15 +656,16 @@ let pp_mem_valid_def fmt m =
       ((name, (name, self)), (m.minstances, [ self ]))
 
 let pp_memory_pack_def m fmt mp =
-  let name = mp.mpname.node_id in
-  let self = mk_self m in
-  let mem = mk_mem m in
-  pp_acsl
-    (pp_predicate
-       (pp_memory_pack (pp_machine_decl' ~ghost:true) (pp_machine_decl pp_ptr))
-       (PrintSpec.pp_spec MemoryPackMode m))
-    fmt
-    ((mp, (name, mem), (name, self)), mp.mpformula)
+  if not (fst (get_stateless_status m) || m.mis_contract) then
+    let name = mp.mpname.node_id in
+    let self = mk_self m in
+    let mem = mk_mem m in
+    pp_acsl_cut
+      (pp_predicate
+         (pp_memory_pack (pp_machine_decl' ~ghost:true) (pp_machine_decl pp_ptr))
+         (PrintSpec.pp_spec MemoryPackMode m))
+      fmt
+      ((mp, (name, mem), (name, self)), mp.mpformula)
 
 let pp_machine_ghost_struct fmt m =
   pp_acsl (pp_ghost (pp_machine_struct ~ghost:true)) fmt m
@@ -677,6 +678,7 @@ let pp_memory_pack_defs fmt m =
       pp_machine_ghost_struct
       m
       (pp_print_list
+         ~pp_sep:pp_print_nothing
          ~pp_epilogue:pp_print_cut
          ~pp_open_box:pp_open_vbox0
          (pp_memory_pack_def m))
@@ -746,8 +748,8 @@ let pp_transition_footprint_lemma m fmt t =
       name
       (vdecls_to_vals t.tvars)
   in
-  if not (mems_empty && insts_empty) then
-    pp_acsl
+  if not ((mems_empty && insts_empty) || m.mis_contract) then
+    pp_acsl_cut
       (pp_lemma
          pp_transition_footprint
          (pp_forall
@@ -768,6 +770,7 @@ let pp_transition_footprint_lemmas fmt m =
   pp_print_list
     ~pp_epilogue:pp_print_cut
     ~pp_open_box:pp_open_vbox0
+    ~pp_sep:pp_print_nothing
     (pp_transition_footprint_lemma m)
     fmt
     (List.filter
@@ -1110,6 +1113,8 @@ module SrcMod = struct
   let pp_base_cases m fmt (c, m_c, k) =
     let name = m.mname.node_id in
     let mem = mk_mem m in
+    let mem_in_c = mk_mem_in m_c in
+    let mem_out_c = mk_mem_out m_c in
     let inputs = m.mstep.step_inputs in
     let outputs = m.mstep.step_outputs in
     let stateless = fst (get_stateless_status m) in
@@ -1119,21 +1124,29 @@ module SrcMod = struct
       (fun fmt n ->
          let l = List.init (n + 1) (fun n -> n) in
          let l' = List.init n (fun n -> n) in
-         let pp =
-           pp_implies
-             (pp_and
-                (pp_and_l (fun fmt -> function
-                     | 0 ->
-                       pp_init pp_print_string fmt (name, rename 0 mem)
-                     | n ->
-                       pp_transition_aux stateless pp_print_string pp_print_string pp_var_decl
-                         fmt
-                         (name,
-                          List.map (rename_var_decl n) (inputs @ outputs),
-                          rename (n - 1) mem,
-                          rename n mem)))
-                (pp_transition_aux stateless_c pp_print_string pp_print_string pp_var_decl))
-             (pp_contract m)
+         let mem_in_c = rename n mem_in_c in
+         let mem_out_c = rename n mem_out_c in
+         let pp fmt =
+           let pp =
+             pp_implies
+               (pp_and
+                  (pp_and_l (fun fmt -> function
+                       | 0 ->
+                         pp_init pp_print_string fmt (name, rename 0 mem)
+                       | n ->
+                         pp_transition_aux stateless pp_print_string pp_print_string pp_var_decl
+                           fmt
+                           (name,
+                            List.map (rename_var_decl n) (inputs @ outputs),
+                            rename (n - 1) mem,
+                            rename n mem)))
+                  (pp_transition_aux stateless_c pp_print_string pp_print_string pp_var_decl))
+               (pp_contract m)
+           in
+           if stateless_c then pp fmt
+           else fun x ->
+             pp_forall (pp_machine_decl ~ghost:true (pp_comma_list pp_print_string))
+               pp fmt ((m_c.mname.node_id, [mem_in_c; mem_out_c]), x)
          in
          pp_predicate
            (pp_k_induction_base_case
@@ -1163,7 +1176,7 @@ module SrcMod = struct
              (l', ((l,
                     (m_c.mname.node_id,
                      List.map (rename_var_decl n) (m_c.mstep.step_inputs @ m_c.mstep.step_outputs),
-                     "", "")),
+                     mem_in_c, mem_out_c)),
                    rename_contract n c)))))
            fmt
            l
@@ -1171,31 +1184,44 @@ module SrcMod = struct
   let pp_inductive_case m fmt (c, m_c, k) =
     let name = m.mname.node_id in
     let mem = mk_mem m in
+    let mem_c = mk_mem_c m_c in
     let inputs = m.mstep.step_inputs in
     let outputs = m.mstep.step_outputs in
     let stateless = fst (get_stateless_status m) in
     let stateless_c = fst (get_stateless_status m_c) in
     let l = List.init k (fun n -> n + 1) in
-    let pp =
-      pp_implies
-        (pp_and_l (fun fmt n ->
-             let pp fmt (out, vd) =
-               if out && n < k then pp_true_c_bool fmt () else pp_var_decl fmt vd
-             in
-             let c_inputs = List.map (fun v -> false, rename_var_decl n v) m_c.mstep.step_inputs in
-             let c_outputs = List.map (fun v -> true, rename_var_decl n v) m_c.mstep.step_outputs in
-             pp_and
-               (pp_transition_aux stateless pp_print_string pp_print_string pp_var_decl)
-               (pp_transition_aux stateless_c pp_print_string pp_print_string pp)
-               fmt
-               ((name,
-                  List.map (rename_var_decl n) (inputs @ outputs),
-                  rename (n - 1) mem,
-                  rename n mem),
-                 (m_c.mname.node_id,
-                  c_inputs @ c_outputs,
-                  "", ""))))
-        (pp_contract m)
+    let l' = 0 :: l in
+    let pp fmt =
+      let pp =
+        pp_implies
+          (pp_and_l (fun fmt n ->
+               let pp fmt (out, vd) =
+                 if out && n < k then pp_true_c_bool fmt () else pp_var_decl fmt vd
+               in
+               let c_inputs = List.map (fun v -> false, rename_var_decl n v) m_c.mstep.step_inputs in
+               let c_outputs = List.map (fun v -> true, rename_var_decl n v) m_c.mstep.step_outputs in
+               pp_and
+                 (pp_transition_aux stateless pp_print_string pp_print_string pp_var_decl)
+                 (pp_transition_aux stateless_c pp_print_string pp_print_string pp)
+                 fmt
+                 ((name,
+                   List.map (rename_var_decl n) (inputs @ outputs),
+                   rename (n - 1) mem,
+                   rename n mem),
+                  (m_c.mname.node_id,
+                   c_inputs @ c_outputs,
+                   rename (n - 1) mem_c,
+                   rename n mem_c))))
+          (pp_contract m)
+      in
+      if stateless_c then pp fmt
+      else fun x ->
+        pp_forall
+          (pp_machine_decl ~ghost:true
+             (pp_comma_list (fun fmt n -> pp_print_string fmt (rename n mem_c))))
+          pp
+          fmt
+          ((m_c.mname.node_id, l'), x)
     in
     pp_predicate
       (pp_k_induction_inductive_case
@@ -1258,10 +1284,30 @@ module SrcMod = struct
     let name = m.mname.node_id in
     let mem_in = mk_mem_in m in
     let mem_out = mk_mem_out m in
+    let mem_in_c = mk_mem_in_c m_c in
+    let mem_out_c = mk_mem_out_c m_c in
     let inputs = m.mstep.step_inputs in
     let outputs = m.mstep.step_outputs in
     let stateless_c = fst (get_stateless_status m_c) in
     let l = List.init k (fun n -> n + 1) in
+    let pp =
+      pp_implies
+        (pp_and
+           (pp_and_l
+              (fun fmt n ->
+                 (if n = k then
+                    pp_k_induction_inductive_case
+                  else
+                    pp_k_induction_base_case)
+                   m
+                   pp_print_string
+                   pp_print_string
+                   (pp_comma_list pp_var_decl)
+                   fmt
+                   (n, mem_in, mem_out)))
+           (pp_transition_aux stateless_c pp_print_string pp_print_string pp_var_decl))
+        (pp_contract m)
+    in
     pp_axiomatic
       (fun fmt () -> fprintf fmt "%s_k_Induction" name)
       (pp_axiom
@@ -1274,22 +1320,10 @@ module SrcMod = struct
                   (name, [mem_in; mem_out])
                   (pp_locals m)
                   (inputs @ outputs))
-              (pp_implies
-                 (pp_and
-                    (pp_and_l
-                       (fun fmt n ->
-                          (if n = k then
-                             pp_k_induction_inductive_case
-                           else
-                             pp_k_induction_base_case)
-                            m
-                            pp_print_string
-                            pp_print_string
-                            (pp_comma_list pp_var_decl)
-                            fmt
-                            (n, mem_in, mem_out)))
-                    (pp_transition_aux stateless_c pp_print_string pp_print_string pp_var_decl))
-                 (pp_contract m)))))
+              (if stateless_c then pp else
+                 fun fmt x ->
+                   pp_forall (pp_machine_decl ~ghost:true (pp_comma_list pp_print_string))
+                     pp fmt ((m_c.mname.node_id, [mem_in_c; mem_out_c]), x)))))
       fmt
       ((),
        ((),
@@ -1298,7 +1332,7 @@ module SrcMod = struct
           (((l,
              (m_c.mname.node_id,
               m_c.mstep.step_inputs @ m_c.mstep.step_outputs,
-              "", "")), c))))))
+              mem_in_c, mem_out_c)), c))))))
 
 
   let pp_k_induction m fmt (_, _, k as c_m_k) =

@@ -100,7 +100,7 @@ functor
 
     let pp_machine_struct_top_decl_from_header fmt tdecl =
       let inode = imported_node_of_top tdecl in
-      if not inode.nodei_stateless then
+      if not (inode.nodei_stateless || inode.nodei_iscontract) then
         (* Declare struct *)
         fprintf fmt "%a;" (pp_machine_memtype_name ~ghost:false) inode.nodei_id
 
@@ -244,6 +244,7 @@ functor
 
     let pp_alloc_header header_fmt basename machines dependencies =
       (* Include once: start *)
+      let machines' = List.filter (fun m -> not m.mis_contract) machines in
       let baseNAME = file_to_module_name basename in
       fprintf
         header_fmt
@@ -283,7 +284,7 @@ functor
            ~pp_sep:pp_print_cutcut
            pp_machine_struct
            ~pp_epilogue:pp_print_cutcut)
-        machines
+        machines'
         (* Copy the spec (valid and memory packs predicates). *)
         Mod.pp_predicates
         machines
@@ -295,7 +296,7 @@ functor
            ~pp_sep:pp_print_cutcut
            pp_machine_alloc_decl
            ~pp_epilogue:pp_print_cutcut)
-        machines
+        machines'
         (* Print the spec prototypes of all machines *)
         (pp_print_list
            ~pp_open_box:pp_open_vbox0
@@ -305,7 +306,7 @@ functor
            ~pp_sep:pp_print_cutcut
            Mod.pp_machine_alloc_decl
            ~pp_epilogue:pp_print_cutcut)
-        machines
+        machines'
     (* Include once: end *)
 
     (* Function called when compiling a lusi file and generating the associated

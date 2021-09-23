@@ -213,9 +213,15 @@ val mk_self : machine_t -> ident
 
 val mk_mem : machine_t -> ident
 
+val mk_mem_c : machine_t -> ident
+
 val mk_mem_in : machine_t -> ident
 
 val mk_mem_out : machine_t -> ident
+
+val mk_mem_in_c : machine_t -> ident
+
+val mk_mem_out_c : machine_t -> ident
 
 val mk_mem_reset : machine_t -> ident
 
