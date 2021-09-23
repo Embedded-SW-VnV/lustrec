@@ -24,7 +24,8 @@ let type_of_l_value : type a. (a, left_v) expression_t -> Types.t = function
 
 type 'a predicate_t =
   | Transition :
-      ident (* node name *)
+      bool                      (* stateless *)
+      * ident (* node name *)
       * ident option
       (* instance *)
       * int option

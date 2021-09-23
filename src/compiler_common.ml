@@ -72,8 +72,9 @@ let expand_automata decls =
 
 let check_stateless_decls decls =
   Log.report ~level:1 (fun fmt ->
-      fprintf fmt "@ .. checking stateless/stateful status@ ");
-  try Stateless.check_prog decls
+      fprintf fmt "@ @[<v 2>.. checking stateless/stateful status@ ");
+  try (Stateless.check_prog decls;
+       Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ "))
   with Stateless.Error (loc, err) as exc ->
     eprintf
       "Stateless status error: %a%a@."
@@ -426,3 +427,4 @@ let update_vdecl_parents_prog prog =
       | _ ->
         ())
     prog
+

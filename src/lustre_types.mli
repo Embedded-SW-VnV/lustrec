@@ -233,3 +233,5 @@ type spec_types =
 val tag_true : label
 
 val tag_false : label
+
+val node_as_contract: node_desc -> contract_desc

@@ -765,18 +765,18 @@ let get_node_var id node =
        node.node_id; *)
     raise Not_found
 
+let get_eqs stmts =
+  List.fold_right
+    (fun stmt (res_eq, res_aut) ->
+       match stmt with
+       | Eq eq ->
+         eq :: res_eq, res_aut
+       | Aut aut ->
+         res_eq, aut :: res_aut)
+    stmts
+    ([], [])
+
 let get_node_eqs =
-  let get_eqs stmts =
-    List.fold_right
-      (fun stmt (res_eq, res_aut) ->
-        match stmt with
-        | Eq eq ->
-          eq :: res_eq, res_aut
-        | Aut aut ->
-          res_eq, aut :: res_aut)
-      stmts
-      ([], [])
-  in
   let table_eqs = Hashtbl.create 23 in
   fun nd ->
     try
@@ -786,6 +786,9 @@ let get_node_eqs =
       let res = get_eqs nd.node_stmts in
       Hashtbl.replace table_eqs nd.node_id (nd.node_stmts, res);
       res
+
+let get_contract_eqs c =
+  get_eqs c.stmts
 
 let get_node_eq id node =
   let eqs, _ = get_node_eqs node in

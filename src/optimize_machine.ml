@@ -644,9 +644,9 @@ let expr_spec_replace :
     e
 
 let predicate_spec_replace fvar = function
-  | Transition (f, inst, i, vars, r, mems, insts) ->
+  | Transition (s, f, inst, i, vars, r, mems, insts) ->
     Transition
-      (f, inst, i, List.map (expr_spec_replace fvar) vars, r, mems, insts)
+      (s, f, inst, i, List.map (expr_spec_replace fvar) vars, r, mems, insts)
   | p ->
     p
 

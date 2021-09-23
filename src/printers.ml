@@ -538,26 +538,6 @@ let pp_spec fmt spec =
             import.outputs))
     spec.imports
 
-(* Project the contract node as a pure contract: local memories are pushed back
-   in the contract definition. Should mainly be used to print it *)
-let node_as_contract nd =
-  match nd.node_spec with
-  | None | Some (NodeSpec _) ->
-    raise (Invalid_argument "Not a contract")
-  | Some (Contract c) ->
-    (* While a processed contract shall have no locals, sttms nor consts, an
-       unprocessed one could. So we conservatively merge elements, to enable
-       printing unprocessed contracts *)
-    let consts, locals =
-      List.partition (fun v -> v.var_dec_const) nd.node_locals
-    in
-    {
-      c with
-      consts = consts @ c.consts;
-      locals = locals @ c.locals;
-      stmts = nd.node_stmts @ c.stmts;
-    }
-
 (* Printing top contract as comments in regular output and as contract in kind2 *)
 let pp_contract fmt nd =
   let c = node_as_contract nd in

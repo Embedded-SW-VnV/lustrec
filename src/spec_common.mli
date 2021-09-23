@@ -16,6 +16,7 @@ val mk_transition :
   ?r:'a ->
   ?i:int ->
   ?inst:ident ->
+  bool ->
   ident ->
   'a list ->
   'a formula_t

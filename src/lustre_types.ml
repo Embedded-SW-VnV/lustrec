@@ -246,6 +246,26 @@ let tag_true = "true"
 
 let tag_false = "false"
 
+(* Project the contract node as a pure contract: local memories are pushed back
+   in the contract definition. Should mainly be used to print it *)
+let node_as_contract nd =
+  match nd.node_spec with
+  | None | Some (NodeSpec _) ->
+    raise (Invalid_argument "Not a contract")
+  | Some (Contract c) ->
+    (* While a processed contract shall have no locals, sttms nor consts, an
+       unprocessed one could. So we conservatively merge elements, to enable
+       printing unprocessed contracts *)
+    let consts, locals =
+      List.partition (fun v -> v.var_dec_const) nd.node_locals
+    in
+    {
+      c with
+      consts = consts @ c.consts;
+      locals = locals @ c.locals;
+      stmts = nd.node_stmts @ c.stmts;
+    }
+
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

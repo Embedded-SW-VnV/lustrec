@@ -62,6 +62,9 @@ let rec check_expr expr =
             i);
     check_expr e' && reset_opt && stateless_node
 
+and check_eexpr e =
+  check_expr e.eexpr_qfexpr
+
 and compute_node nd =
   (* returns true iff the node is stateless.*)
   let eqs, aut = get_node_eqs nd in
@@ -69,21 +72,47 @@ and compute_node nd =
   && (* A node containinig an automaton will be stateful *)
   List.for_all (fun eq -> check_expr eq.eq_rhs) eqs
 
+and compute_contract nd =
+  let c = node_as_contract nd in
+  let eqs, aut = get_contract_eqs c in
+  aut = []
+  && (* A node containinig an automaton will be stateful *)
+  List.for_all (fun eq -> check_expr eq.eq_rhs) eqs
+  &&
+  List.for_all check_eexpr c.assume
+  &&
+  List.for_all check_eexpr c.guarantees
+
+and compute_node_or_contract nd =
+  match nd.node_spec, nd.node_iscontract with
+  | None, false
+  | Some (NodeSpec _), false
+  | Some (Contract _), false ->
+    compute_node nd
+  | Some (Contract _), true ->
+    compute_contract nd
+  | _ ->
+    assert false
+
 and check_node td =
   match td.top_decl_desc with
-  | Node nd -> (
-    match nd.node_stateless with
-    | None ->
-      let stateless = compute_node nd in
-      nd.node_stateless <- Some stateless;
-      if nd.node_dec_stateless && not stateless then
-        raise (Error (td.top_decl_loc, Stateful_kwd nd.node_id))
-      else (
+  | Node nd ->
+    begin match nd.node_stateless with
+      | None ->
+        let stateless = compute_node_or_contract nd in
+        nd.node_stateless <- Some stateless;
+        if stateless
+        then (if not nd.node_dec_stateless
+              then Log.report ~level:2 (fun fmt ->
+                  Format.fprintf fmt "%s: node -> function@;" nd.node_id))
+        else if nd.node_dec_stateless
+        then raise (Error (td.top_decl_loc, Stateful_kwd nd.node_id));
         nd.node_dec_stateless <- stateless;
-        stateless)
-    | Some stl ->
-      stl)
-  | ImportedNode nd ->
+        stateless
+      | Some stl ->
+        stl
+    end
+| ImportedNode nd ->
     if nd.nodei_prototype = Some "C" && not nd.nodei_stateless then
       raise (Error (td.top_decl_loc, Stateful_ext_C nd.nodei_id));
     nd.nodei_stateless

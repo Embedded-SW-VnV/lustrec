@@ -59,7 +59,7 @@ module PrintSpec = struct
      fun fmt e -> pp_expr m fmt e
     in
     match p with
-    | Transition (f, inst, i, vars, _r, _mems, _insts) ->
+    | Transition (_, f, inst, i, vars, _r, _mems, _insts) ->
       fprintf
         fmt
         "Transition_%a<%a>%a%a"

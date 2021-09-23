@@ -239,6 +239,7 @@ let reset_instance env i r c =
     None, []
 
 let translate_eq env ctx nd inputs locals outputs i eq =
+  let stateless = fst (get_stateless_status_node nd) in
   let id = nd.node_id in
   let translate_expr = translate_expr env in
   let translate_act = translate_act env in
@@ -257,6 +258,7 @@ let translate_eq env ctx nd inputs locals outputs i eq =
             [
               mk_transition
                 ~i:(i - 1)
+                stateless
                 id
                 (vdecls_to_vals (inputs @ locals_pi @ outputs_pi));
               a;
@@ -276,6 +278,7 @@ let translate_eq env ctx nd inputs locals outputs i eq =
             @ [
                 mk_transition
                   ~i
+                  stateless
                   id
                   (vdecls_to_vals (inputs @ locals_i @ outputs_i));
               ];
@@ -306,7 +309,7 @@ let translate_eq env ctx nd inputs locals outputs i eq =
       ctl
         (MStep ([ var_x ], inst, [ c1; c2 ]))
         (mk_memory_pack ~inst (node_name td))
-        (mk_transition ~inst (node_name td) [ vdecl_to_val var_x ])
+        (mk_transition ~inst false (node_name td) [ vdecl_to_val var_x ])
         { ctx with j = IMap.add inst (td, []) ctx.j }
     in
     { ctx with si = mkinstr (MSetReset inst) :: ctx.si }
@@ -339,7 +342,7 @@ let translate_eq env ctx nd inputs locals outputs i eq =
     let vl = List.map translate_expr el in
     let node_f = node_from_name f in
     let call_f = node_f, NodeDep.filter_static_inputs (node_inputs node_f) el in
-    let inst = new_instance node_f eq.eq_rhs.expr_tag in
+    let i = new_instance node_f eq.eq_rhs.expr_tag in
     let env_cks =
       List.fold_right
         (fun arg cks -> arg.expr_clock :: cks)
@@ -349,17 +352,20 @@ let translate_eq env ctx nd inputs locals outputs i eq =
     let call_ck =
       Clock_calculus.compute_root_clock (Clock_predef.ck_tuple env_cks)
     in
-    let r, reset_inst = reset_instance inst r call_ck in
+    let r, reset_inst = reset_instance i r call_ck in
+    let stateless = Stateless.check_node node_f in
+    let inst = if stateless then None else Some i in
+    let mp = if stateless then True else mk_memory_pack ?inst (node_name node_f) in
     let ctx =
       ctl
         ~ck:call_ck
-        (MStep (var_p, inst, vl))
-        (mk_memory_pack ~inst (node_name node_f))
-        (mk_transition ?r ~inst (node_name node_f) (vl @ vdecls_to_vals var_p))
+        (MStep (var_p, i, vl))
+        mp
+        (mk_transition ?r ?inst stateless (node_name node_f) (vl @ vdecls_to_vals var_p))
         {
           ctx with
-          j = IMap.add inst call_f ctx.j;
-          s = (if Stateless.check_node node_f then [] else reset_inst) @ ctx.s;
+          j = IMap.add i call_f ctx.j;
+          s = (if stateless then [] else reset_inst) @ ctx.s;
         }
     in
     (*Clocks.new_var true in Clock_calculus.unify_imported_clock (Some call_ck)
@@ -369,8 +375,8 @@ let translate_eq env ctx nd inputs locals outputs i eq =
     {
       ctx with
       si =
-        (if Stateless.check_node node_f then ctx.si
-        else mkinstr (MSetReset inst) :: ctx.si);
+        (if stateless then ctx.si
+        else mkinstr (MSetReset i) :: ctx.si);
     }
   | [ x ], _ ->
     begin try
@@ -495,8 +501,10 @@ let transition_0 nd =
   }
 
 let transition_toplevel nd i =
+  let stateless = fst (get_stateless_status_node nd) in
   let tr =
     mk_transition
+      stateless
       nd.node_id
       ~i
       (vdecls_to_vals (nd.node_inputs @ nd.node_outputs))
@@ -541,6 +549,7 @@ let translate_spec env = function
     NodeSpec s
 
 let translate_decl nd sch =
+  let stateless = fst (get_stateless_status_node nd) in
   (* Format.eprintf "Translating node %s@." nd.node_id; *)
   (* Extracting eqs, variables ..  *)
   let eqs, auts = get_node_eqs nd in
@@ -621,7 +630,7 @@ let translate_decl nd sch =
       ~instr_spec:
         ((if fst (get_stateless_status_node nd) then []
          else [ mk_memory_pack ~i:0 nd.node_id ])
-        @ [ mk_transition ~i:0 nd.node_id (vdecls_to_vals nd.node_inputs) ])
+        @ [ mk_transition ~i:0 stateless nd.node_id (vdecls_to_vals nd.node_inputs) ])
       MClearReset
   in
   let mnode_spec = Utils.option_map (translate_spec env) nd.node_spec in
