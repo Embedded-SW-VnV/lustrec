@@ -324,9 +324,11 @@ module Main (Mod : MODIFIERS_SRC) = struct
           (pp_print_parenthesized (pp_c_val m self (pp_c_var_read m)))
           vl
       | MStep (il, i, vl) ->
-        let td, _ = List.assoc i m.minstances in
-        if Arrow.td_is_arrow td then pp_arrow_call m self mem fmt i il
-        else pp_basic_instance_call m self mem fmt i vl il
+        begin match List.assoc_opt i m.minstances with
+          | Some (td, _) when Arrow.td_is_arrow td ->
+            pp_arrow_call m self mem fmt i il
+          | _ -> pp_basic_instance_call m self mem fmt i vl il
+        end
       | MBranch (_, []) ->
         eprintf
           "internal error: C_backend_src.pp_machine_instr %a@."
@@ -550,46 +552,45 @@ module Main (Mod : MODIFIERS_SRC) = struct
       ?(pp_check = pp_print_nothing) ?(checks = [])
       ?(pp_extra = pp_print_nothing)
       ?(pp_instr = fun fmt _ -> pp_print_nothing fmt ()) ?(instrs = []) fmt =
-    fprintf
-      fmt
-      "%t%a@[<v 2>%a {@,%a%a%a%a%a%a%areturn;@]@,}%t"
-      (fun fmt -> if is_contract then fprintf fmt "@[<v 2>/*%@ ghost@;")
-      pp_spec
-      ()
-      pp_prototype
-      prototype
-      (* locals *)
-      (pp_print_list
-         ~pp_open_box:pp_open_vbox0
-         ~pp_sep:pp_print_semicolon
-         ~pp_eol:pp_print_semicolon
-         pp_local)
-      base_locals
-      (* array mems *)
-      (pp_print_list
-         ~pp_open_box:pp_open_vbox0
-         ~pp_sep:pp_print_semicolon
-         ~pp_eol:pp_print_semicolon
-         pp_array_mem)
-      array_mems
-      (* locals initialization *)
-      (pp_print_list ~pp_epilogue:pp_print_cut pp_init_mpfr_local)
-      (mpfr_vars mpfr_locals)
-      (* check assertions *)
-      (pp_print_list pp_check)
-      checks
-      (* instrs *)
-      (pp_print_list
-         ~pp_open_box:pp_open_vbox0
-         ~pp_epilogue:pp_print_cut
-         pp_instr)
-      instrs
-      (* locals clear *)
-      (pp_print_list ~pp_epilogue:pp_print_cut pp_clear_mpfr_local)
-      (mpfr_vars mpfr_locals) (* extra *)
-      pp_extra
-      ()
-      (fun fmt -> if is_contract then fprintf fmt "@]@;*/")
+    if not is_contract then
+      fprintf
+        fmt
+        "%a@[<v 2>%a {@,%a%a%a%a%a%a%areturn;@]@,}"
+        pp_spec
+        ()
+        pp_prototype
+        prototype
+        (* locals *)
+        (pp_print_list
+           ~pp_open_box:pp_open_vbox0
+           ~pp_sep:pp_print_semicolon
+           ~pp_eol:pp_print_semicolon
+           pp_local)
+        base_locals
+        (* array mems *)
+        (pp_print_list
+           ~pp_open_box:pp_open_vbox0
+           ~pp_sep:pp_print_semicolon
+           ~pp_eol:pp_print_semicolon
+           pp_array_mem)
+        array_mems
+        (* locals initialization *)
+        (pp_print_list ~pp_epilogue:pp_print_cut pp_init_mpfr_local)
+        (mpfr_vars mpfr_locals)
+        (* check assertions *)
+        (pp_print_list pp_check)
+        checks
+        (* instrs *)
+        (pp_print_list
+           ~pp_open_box:pp_open_vbox0
+           ~pp_epilogue:pp_print_cut
+           pp_instr)
+        instrs
+        (* locals clear *)
+        (pp_print_list ~pp_epilogue:pp_print_cut pp_clear_mpfr_local)
+        (mpfr_vars mpfr_locals) (* extra *)
+        pp_extra
+        ()
 
   let node_of_machine m =
     {
@@ -654,7 +655,9 @@ module Main (Mod : MODIFIERS_SRC) = struct
         fmt
 
   let pp_clear_reset_code dependencies self mem fmt m =
+    let is_contract = m.mis_contract in
     pp_print_function
+      ~is_contract
       ~pp_spec:(fun fmt () -> Mod.pp_clear_reset_spec fmt self mem m)
       ~pp_prototype:(Protos.pp_clear_reset_prototype self mem)
       ~prototype:(m.mname.node_id, m.mstatic)
@@ -670,7 +673,9 @@ module Main (Mod : MODIFIERS_SRC) = struct
       fmt
 
   let pp_set_reset_code dependencies self mem fmt m =
+    let is_contract = m.mis_contract in
     pp_print_function
+      ~is_contract
       ~pp_spec:(fun fmt () -> Mod.pp_set_reset_spec fmt self mem m)
       ~pp_prototype:(Protos.pp_set_reset_prototype self mem)
       ~prototype:(m.mname.node_id, m.mstatic)
@@ -725,9 +730,11 @@ module Main (Mod : MODIFIERS_SRC) = struct
       fmt
 
   let pp_step_code machines dependencies self mem fmt m =
+    let is_contract = m.mis_contract in
     if not (!Options.ansi && is_generic_node (node_of_machine m)) then
       (* C99 code *)
       pp_print_function
+        ~is_contract
         ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt machines self mem m)
         ~pp_prototype:(Protos.pp_step_prototype self mem)
         ~prototype:(m.mname.node_id, m.mstep.step_inputs, m.mstep.step_outputs)
@@ -759,6 +766,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
           m.mname.node_gencalls
       in
       pp_print_function
+        ~is_contract
         ~pp_spec:(fun fmt () -> Mod.pp_step_spec fmt machines self mem m)
         ~pp_prototype:(Protos.pp_step_prototype self mem)
         ~prototype:

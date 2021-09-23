@@ -35,12 +35,10 @@ let pp_acsl_basic_type_desc t_desc =
   else assert false
 (* Not a basic C type. Do not handle arrays or pointers *)
 
-let pp_acsl ?(ghost=false) pp fmt x =
-  let op = if ghost then "" else "*" in
-  let cl = if ghost then "@" else "*" in
-  fprintf fmt "@[<v>/%s%@ @[<v>%a@]@,%s/@]" op pp x cl
+let pp_acsl pp fmt =
+  fprintf fmt "@[<v>/*%@ @[<v>%a@]@,*/@]" pp
 
-let pp_acsl_cut ?ghost pp fmt = fprintf fmt "%a@," (pp_acsl ?ghost pp)
+let pp_acsl_cut pp fmt = fprintf fmt "%a@," (pp_acsl pp)
 
 let pp_acsl_line pp fmt = fprintf fmt "//%@ @[<h>%a@]" pp
 
@@ -96,6 +94,8 @@ let pp_reg self fmt field =
   pp_access pp_indirect' pp_var_decl fmt ((self, "_reg"), field)
 
 let pp_true fmt () = pp_print_string fmt "\\true"
+
+let pp_true_c_bool fmt () = pp_print_string fmt "(_Bool) 1"
 
 let pp_false fmt () = pp_print_string fmt "\\false"
 
@@ -1172,20 +1172,22 @@ module SrcMod = struct
     let pp =
       pp_implies
         (pp_and_l (fun fmt n ->
+             let pp fmt (out, vd) =
+               if out && n < k then pp_true_c_bool fmt () else pp_var_decl fmt vd
+             in
+             let c_inputs = List.map (fun v -> false, rename_var_decl n v) m_c.mstep.step_inputs in
+             let c_outputs = List.map (fun v -> true, rename_var_decl n v) m_c.mstep.step_outputs in
              pp_and
-               (pp_and
-                  (pp_transition_aux m pp_print_string pp_print_string pp_var_decl)
-                  (pp_transition_aux m_c pp_print_string pp_print_string pp_var_decl))
-               (pp_contract m)
+               (pp_transition_aux m pp_print_string pp_print_string pp_var_decl)
+               (pp_transition_aux m_c pp_print_string pp_print_string pp)
                fmt
-               (((name,
+               ((name,
                   List.map (rename_var_decl n) (inputs @ outputs),
                   rename (n - 1) mem,
                   rename n mem),
                  (m_c.mname.node_id,
-                  List.map (rename_var_decl n) (m_c.mstep.step_inputs @ m_c.mstep.step_outputs),
-                  "", "")),
-                rename_contract n c)))
+                  c_inputs @ c_outputs,
+                  "", ""))))
         (pp_contract m)
     in
     pp_predicate
@@ -1212,7 +1214,7 @@ module SrcMod = struct
             fun fmt (_, x) -> pp fmt x))
       fmt
       ((k, (name, rename (k - 1) mem), (name, rename k mem)),
-       (List.(flatten (List.map (fun n -> List.map (rename_var_decl n) m_c.mstep.step_outputs) l)),
+       (List.map (rename_var_decl k) m_c.mstep.step_outputs,
         (l, (l, rename_contract k c))))
 
   let pp_k_induction_lemmas m fmt k =
@@ -1355,7 +1357,6 @@ module SrcMod = struct
     pp_print_option (pp_proof_annotation m m_c) fmt c;
     pp_spec_vars fmt ();
     pp_acsl_cut
-      ~ghost:m.mis_contract
       (fun fmt () ->
         if fst (get_stateless_status m) then
           fprintf
@@ -1465,48 +1466,31 @@ module SrcMod = struct
   let pp_contract fmt machines _self mem m =
     let pp_vars ?pp_eol = pp_comma_list ?pp_eol (pp_c_var_read m) in
     match contract_of machines m with
-    | Some c, Some m_c ->
-      fprintf fmt "%a%a"
-        (pp_acsl_line'_cut
-           (pp_ghost
-              (fun fmt () ->
-                 fprintf
-                   fmt
-                   "%a(%a%a);"
-                   pp_machine_step_name
-                   m_c.mname.node_id
-                   (pp_vars ~pp_eol:pp_print_comma)
-                   m_c.mstep.step_inputs
-                   (pp_comma_list (pp_c_var_write m))
-                   m_c.mstep.step_outputs)))
-        ()
-        (pp_acsl_cut
-           (pp_print_option
-              (fun fmt -> function
-                 | Kinduction k ->
-                   let l = List.init k (fun n -> n + 1) in
-                   let pp_mem_in = pp_at_pre pp_ptr in
-                   let pp_mem_out = pp_ptr in
-                   pp_assert
-                     (pp_and
-                        (pp_and_l
-                           (fun fmt n ->
-                              (if n = k then
-                                 pp_k_induction_inductive_case
-                               else
-                                 pp_k_induction_base_case)
-                                m
-                                pp_mem_in
-                                pp_mem_out
-                                pp_vars
-                                fmt
-                                (n, mem, mem)))
-                        (pp_transition_aux m_c pp_print_string pp_print_string (pp_c_var_read m)))
-                     fmt
-                     (l, (m_c.mname.node_id,
-                          m_c.mstep.step_inputs @ m_c.mstep.step_outputs,
-                          "", ""))))) c.mc_proof
-        | _, _ -> ()
+    | Some c, Some _ ->
+      pp_acsl_cut
+        (pp_print_option
+           (fun fmt -> function
+              | Kinduction k ->
+                let l = List.init k (fun n -> n + 1) in
+                let pp_mem_in = pp_at_pre pp_ptr in
+                let pp_mem_out = pp_ptr in
+                pp_assert
+                  (pp_and_l
+                     (fun fmt n ->
+                        (if n = k then
+                           pp_k_induction_inductive_case
+                         else
+                           pp_k_induction_base_case)
+                          m
+                          pp_mem_in
+                          pp_mem_out
+                          pp_vars
+                          fmt
+                          (n, mem, mem)))
+                  fmt
+                  l))
+        fmt c.mc_proof
+    | _, _ -> ()
 
 end
 
