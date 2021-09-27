@@ -273,7 +273,8 @@ val empty_contract : contract_desc
 val mk_contract_var :
   ident -> bool -> type_dec option -> expr -> Location.t -> contract_desc
 
-val mk_contract_guarantees : string option -> eexpr -> proof_annotation option -> contract_desc
+val mk_contract_guarantees :
+  string option -> eexpr -> proof_annotation option -> contract_desc
 
 val mk_contract_assume : string option -> eexpr -> contract_desc
 

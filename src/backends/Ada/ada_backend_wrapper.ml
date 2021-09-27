@@ -111,10 +111,9 @@ let pp_main_adb fmt machine =
   let pp_loop fmt =
     let args =
       pp_state_name
-      ::
-      List.map
-        pp_var_name
-        (machine.mstep.step_inputs @ machine.mstep.step_outputs)
+      :: List.map
+           pp_var_name
+           (machine.mstep.step_inputs @ machine.mstep.step_outputs)
     in
     fprintf
       fmt

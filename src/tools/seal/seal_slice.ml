@@ -7,12 +7,14 @@ open Seal_utils
 (* their COI (cone of influence)                                              *)
 (******************************************************************************)
 
-(* Basic functions to search into nodes. Could be moved to corelang eventually *)
+(* Basic functions to search into nodes. Could be moved to corelang
+   eventually *)
 let is_variable nd vid = List.exists (fun v -> v.var_id = vid) nd.node_locals
 
 let find_variable nd vid = List.find (fun v -> v.var_id = vid) nd.node_locals
 
-(* Returns the vars required to compute v. Memories are specifically identified. *)
+(* Returns the vars required to compute v. Memories are specifically
+   identified. *)
 let coi_var deps nd v =
   let vname = v.var_id in
   let sliced_deps = Causality.slice_graph deps vname in

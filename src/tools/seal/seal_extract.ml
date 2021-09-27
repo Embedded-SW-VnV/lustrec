@@ -70,7 +70,8 @@ let mem_zexpr ze = Hashtbl.mem ze_hash ze
 
 let get_zexpr e =
   let _, uid = List.find (fun (e', _) -> Corelang.is_eq_expr e e') !expr_hash in
-  (* Format.eprintf "found expr=%a id=%i@." Printers.pp_expr eref eref.expr_tag; *)
+  (* Format.eprintf "found expr=%a id=%i@." Printers.pp_expr eref
+     eref.expr_tag; *)
   Hashtbl.find e_hash uid
 
 let get_expr ze =
@@ -472,7 +473,8 @@ let clean_sys sys =
    consolidated list. *)
 
 (* combine_guards ~fresh:Some(e,b) gl1 gl2 returns ok, gl with ok=true when
-   (e=b) ang gl1 and gl2 is satisfiable and gl is a consilidated version of it. *)
+   (e=b) ang gl1 and gl2 is satisfiable and gl is a consilidated version of
+   it. *)
 let combine_guards ?(fresh = None) gl1 gl2 =
   (* Filtering out trivial cases. More semantics ones would have to be addressed
      later *)
@@ -724,7 +726,8 @@ let split_mdefs elem (mdefs : elem_guarded_expr list) =
       (* select the element of guards that match the argument elem *)
       let sel, others_guards = List.partition (select_elem elem) guards in
       match sel with
-      (* we extract the element from the list and add it to the appropriate list *)
+      (* we extract the element from the list and add it to the appropriate
+         list *)
       | [ (_, sel_status) ] ->
         if sel_status then (others_guards, expr) :: selected, left_out
         else selected, (others_guards, expr) :: left_out
@@ -818,7 +821,8 @@ let rec build_switch_sys
             true (* Regular unguarded expression *)
           | [] ->
             true
-          (* A unbalanced definition of the memory. Here we have m_{k+1} -> m_k *)
+          (* A unbalanced definition of the memory. Here we have m_{k+1} ->
+             m_k *)
           | _ ->
             false)
         mem_defs
@@ -859,7 +863,8 @@ let rec build_switch_sys
         (* Format.eprintf "Selected item %a in@.%a@.POS=%a@.NEG=%a@."
            Printers.pp_expr elem pp_all_defs mem_defs pp_all_defs pos
            pp_all_defs neg ; *)
-        (* Special cases to avoid useless computations: true, false conditions *)
+        (* Special cases to avoid useless computations: true, false
+           conditions *)
         match elem.expr_desc with
         (*| Expr_ident "true" -> build_switch_sys pos prefix *)
         | Expr_const (Const_tag tag) when tag = tag_true ->

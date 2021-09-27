@@ -603,7 +603,8 @@ let rec instr_to_exprs machines reset_instances (m : machine_t) instr :
        other did. Am I clear ? *)
     (* For each branch we obtain the logical encoding, and the information
        whether a sub node has been reset or not. If a node has been reset in one
-       of the branch, then all others have to have the mem_m = mem_c statement. *)
+       of the branch, then all others have to have the mem_m = mem_c
+       statement. *)
     let self = m.mname.node_id in
     let branch_to_expr (tag, instrs) =
       let branch_def, branch_resets =
@@ -773,14 +774,11 @@ let machine_reset machines m =
             (get_fdecl (name ^ "_reset"))
             (List.map
                horn_var_to_expr
-               (idx
-                ::
-                uid
-                ::
-                (* Additional vars: counters, uid *)
-                rename_machine_list
-                  (concat m.mname.node_id id)
-                  (reset_vars machines machine_n))))
+               (idx :: uid
+               :: (* Additional vars: counters, uid *)
+                  rename_machine_list
+                    (concat m.mname.node_id id)
+                    (reset_vars machines machine_n))))
       m.minstances
   in
 
@@ -827,7 +825,7 @@ let decl_machine machines m =
       in
       (* this line seems useless *)
       let vars =
-        idx :: uid :: vars
+        (idx :: uid :: vars)
         @ rename_machine_list m.mname.node_id m.mstep.step_locals
       in
       (* Format.eprintf "useless Vars: %a@." (Utils.fprintf_list ~sep:"@ "
@@ -903,7 +901,7 @@ let decl_machine machines m =
           Z3.Boolean.mk_and
             !ctx
             (horn_step_body
-             :: List.map (horn_val_to_expr m m.mname.node_id) assertsl)
+            :: List.map (horn_val_to_expr m m.mname.node_id) assertsl)
         in
         let vars =
           step_vars_c_m_x machines m

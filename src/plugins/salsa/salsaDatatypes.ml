@@ -69,7 +69,8 @@ functor
 
     (* Compute a join per variable *)
     let merge ranges1 ranges2 =
-      (* Format.eprintf "Mergeing rangesint %a with %a@." pp ranges1 pp ranges2; *)
+      (* Format.eprintf "Mergeing rangesint %a with %a@." pp ranges1 pp
+         ranges2; *)
       let ranges = Hashtbl.copy ranges1 in
       Hashtbl.iter
         (fun k v ->

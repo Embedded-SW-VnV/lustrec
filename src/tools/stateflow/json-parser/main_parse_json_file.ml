@@ -69,7 +69,8 @@ module ParseExt = struct
       Parser_lustre.stmt_list
       (fun (stmts, asserts, annots) (in_, out_, locals_) ->
         if asserts != [] || annots != [] then assert false
-          (* Stateflow equations should not use asserts nor define annotations *)
+          (* Stateflow equations should not use asserts nor define
+             annotations *)
         else
           Action.aquote
             {

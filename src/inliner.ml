@@ -47,7 +47,8 @@ let rec add_expr_reset_cond cond expr =
     | Expr_ite (c, t, e) ->
       Expr_ite (aux c, aux t, aux e)
     | Expr_arrow (e1, e2) ->
-      (* we replace the expression e1 -> e2 by e1 -> (if cond then e1 else e2) *)
+      (* we replace the expression e1 -> e2 by e1 -> (if cond then e1 else
+         e2) *)
       let e1 = aux e1 and e2 = aux e2 in
       (* inlining is performed before typing. we can leave the fields free *)
       let new_e2 = mkexpr expr.expr_loc (Expr_ite (cond, e1, e2)) in
@@ -355,7 +356,7 @@ and inline_node ?(selection_on_annotation = false) node nodes =
             inline_expr eq.eq_rhs locals node nodes
           in
           ( locals',
-            Eq { eq with eq_rhs = eq_rhs' } :: new_stmts' @ stmts,
+            (Eq { eq with eq_rhs = eq_rhs' } :: new_stmts') @ stmts,
             asserts' @ asserts,
             annots' @ annots ))
         (node.node_locals, [], node.node_asserts, node.node_annot)

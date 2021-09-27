@@ -116,16 +116,13 @@ let check machines node =
             Z3.Expr.mk_app
               !ctx
               (get_fdecl (machine_reset_name node))
-              (idx_0
-               ::
-               uid_0 :: List.map horn_var_to_expr (reset_vars machines machine));
+              (idx_0 :: uid_0
+              :: List.map horn_var_to_expr (reset_vars machines machine));
             Z3.Expr.mk_app
               !ctx
               (get_fdecl (machine_step_name node))
-              (idx_0
-               ::
-               uid_0
-               :: List.map horn_var_to_expr (step_vars_m_x machines machine));
+              (idx_0 :: uid_0
+              :: List.map horn_var_to_expr (step_vars_m_x machines machine));
           ]
       in
 
@@ -165,7 +162,7 @@ let check machines node =
       (Z3.Arithmetic.mk_add
          !ctx
          [ k_var; Z3.Arithmetic.Integer.mk_numeral_i !ctx 1 ]
-       :: List.map horn_var_to_expr main_memory_next)
+      :: List.map horn_var_to_expr main_memory_next)
   in
   let horn_body =
     Z3.Boolean.mk_and
@@ -178,8 +175,8 @@ let check machines node =
         Z3.Expr.mk_app
           !ctx
           (get_fdecl (step_name node))
-          (k_var
-           :: uid_0 :: List.map horn_var_to_expr (step_vars machines machine));
+          (k_var :: uid_0
+          :: List.map horn_var_to_expr (step_vars machines machine));
       ]
   in
   (* Vars contains all vars: in_out, current, mid, neXt memories *)

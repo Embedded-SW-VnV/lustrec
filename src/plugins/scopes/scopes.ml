@@ -302,7 +302,8 @@ let rec is_valid_path path nodename prog machines =
       is_valid_path path' nodename prog machines
     else false
 
-(* let instok = List.exists (fun (inst', node) -> inst' = inst) m.minstances in *)
+(* let instok = List.exists (fun (inst', node) -> inst' = inst) m.minstances
+   in *)
 (* if not instok then Format.eprintf "inst = %s@." inst; *)
 (* instok &&  *)
 (* let instnode = fst (snd (List.find (fun (inst', node) -> inst' = inst)

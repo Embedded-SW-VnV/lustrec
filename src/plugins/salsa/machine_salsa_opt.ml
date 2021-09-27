@@ -290,7 +290,8 @@ let optimize_expr nodename m constEnv printed_vars vars_env ranges formalEnv e :
 
     (* if !debug then Format.eprintf "Substituted def in expr@ "; *)
     let abstractEnv = RangesInt.to_abstract_env ranges in
-    (* List.iter (fun (id, _) -> Format.eprintf "absenv: %s@." id) abstractEnv; *)
+    (* List.iter (fun (id, _) -> Format.eprintf "absenv: %s@." id)
+       abstractEnv; *)
     (* The expression is partially evaluated by the available ranges
        valEnv2ExprEnv remplce les paires id, abstractVal par id, Cst itv - on
        garde evalPartExpr remplace les variables e qui sont dans env par la cst
@@ -548,7 +549,7 @@ let assign_vars nodename m constEnv vars_env printed_vars ranges formalEnv
           then MT.MLocalAssign (v, e)
           else MT.MStateAssign (v, e)
         in
-        ( il @ Corelang.mkinstr instr_desc :: accu_instr,
+        ( il @ (Corelang.mkinstr instr_desc :: accu_instr),
           (match r with
           | None ->
             ranges
@@ -820,7 +821,8 @@ let rec rewrite_instrs nodename m constEnv vars_env m instrs ranges formalEnv
         (* Required variables to compute vt are introduced. Then each branch is
            refactored specifically *)
 
-        (* if !debug then Format.eprintf "Branching %a@ " MC.pp_instr hd_instr; *)
+        (* if !debug then Format.eprintf "Branching %a@ " MC.pp_instr
+           hd_instr; *)
         let required_vars = get_expr_real_vars vt in
         let required_vars = Vars.diff required_vars printed_vars in
         (* remove already produced variables *)
@@ -896,7 +898,8 @@ let rec rewrite_instrs nodename m constEnv vars_env m instrs ranges formalEnv
              ranges. We merge this data by computing the join per variable *)
           formalEnv,
           (* Thanks to the computation of var_to_print in each branch, no new
-             definition should have been computed without being already printed *)
+             definition should have been computed without being already
+             printed *)
           Vars.union written_vars printed_vars,
           Vars.diff vars_to_print written_vars
           (* We remove vars that have been produced within branches *),

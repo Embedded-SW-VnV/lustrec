@@ -206,7 +206,8 @@ module ExprDep = struct
   (* mem/mem in g'                                *)
   (* match (lhs_is_mem, ISet.mem x mems) with | (false, true ) -> (add_edges [x]
      lhs g, g') | (false, false) -> (add_edges lhs [x] g, g') | (true , false)
-     -> (add_edges lhs [x] g, g') | (true , true ) -> (g, add_edges [x] lhs g') *)
+     -> (add_edges lhs [x] g, g') | (true , true ) -> (g, add_edges [x] lhs
+     g') *)
   let add_eq_dependencies mems inputs node_vars eq (g, g') =
     let add_var lhs_is_mem lhs x (g, g') =
       if is_instance_var x || ISet.mem x node_vars then
@@ -590,7 +591,8 @@ module CycleDetection = struct
 
   (* Breaks cycles of the dependency graph [g] of memory variables [mems]
      belonging in node [node]. Returns: - a list of new auxiliary variable
-     declarations - a list of new equations - a modified acyclic version of [g] *)
+     declarations - a list of new equations - a modified acyclic version of
+     [g] *)
   let break_cycles node mems g =
     let eqs, auts = get_node_eqs node in
     assert (auts = []);

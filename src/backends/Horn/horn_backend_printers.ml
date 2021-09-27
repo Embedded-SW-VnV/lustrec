@@ -387,7 +387,8 @@ let rec pp_machine_instr machines reset_instances (m : machine_t) fmt instr :
        other did. Am I clear ? *)
     (* For each branch we obtain the logical encoding, and the information
        whether a sub node has been reset or not. If a node has been reset in one
-       of the branch, then all others have to have the mem_m = mem_c statement. *)
+       of the branch, then all others have to have the mem_m = mem_c
+       statement. *)
     let self = m.mname.node_id in
     let pp_branch fmt (tag, instrs) =
       fprintf

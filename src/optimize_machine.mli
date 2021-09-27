@@ -11,7 +11,8 @@ open Machine_code_types
    its normalized recomputed, as well as its scheduling, before regenerating the
    machines.
 
-   The function returns both the (possibly updated) prog as well as the machines *)
+   The function returns both the (possibly updated) prog as well as the
+   machines *)
 val optimize :
   Normalization.param_t ->
   program_t ->

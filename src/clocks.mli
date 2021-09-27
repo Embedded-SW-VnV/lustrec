@@ -17,7 +17,8 @@ and carrier_expr = {
 
 type t = { mutable cdesc : clock_desc; mutable cscoped : bool; cid : int }
 
-(* pck stands for periodic clock. Easier not to separate pck from other clocks *)
+(* pck stands for periodic clock. Easier not to separate pck from other
+   clocks *)
 and clock_desc =
   | Carrow of t * t
   | Ctuple of t list

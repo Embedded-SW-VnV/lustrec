@@ -160,8 +160,8 @@ module PrintSpec = struct
         fprintf fmt "@[<hv 2>∃ MEM,@ %a@]" pp_spec (And [ a; b ])
       | Value v ->
         pp_val m fmt v
-
     in
+
     pp_spec
 end
 
@@ -314,9 +314,13 @@ let pp_transitions m fmt =
     fprintf fmt "@[<v 2>transitions:@ %a@]" (pp_print_list (pp_transition m))
 
 let pp_mspec m fmt c =
-  fprintf fmt "@[<v>contract: G (H (%a) => %a);]"
-    (PrintSpec.pp_spec m) c.mc_pre
-    (PrintSpec.pp_spec m) c.mc_post
+  fprintf
+    fmt
+    "@[<v>contract: G (H (%a) => %a);]"
+    (PrintSpec.pp_spec m)
+    c.mc_pre
+    (PrintSpec.pp_spec m)
+    c.mc_post
 
 let pp_machine fmt m =
   fprintf
@@ -452,7 +456,7 @@ let arrow_machine =
     mspec = { mnode_spec = None; mtransitions = []; mmemory_packs = [] };
     mannot = [];
     msch = None;
-    mis_contract = false
+    mis_contract = false;
   }
 
 let empty_desc =
@@ -495,7 +499,7 @@ let empty_machine =
     mspec = { mnode_spec = None; mtransitions = []; mmemory_packs = [] };
     mannot = [];
     msch = None;
-    mis_contract = false
+    mis_contract = false;
   }
 
 let new_instance =

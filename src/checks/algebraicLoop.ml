@@ -327,7 +327,8 @@ let clean_al prog : program_t * bool * report =
         | Node nd -> (
           let error, max_inlines =
             try
-              (* without exception the node is schedulable; nothing to declare *)
+              (* without exception the node is schedulable; nothing to
+                 declare *)
               let _ = Scheduling.schedule_node nd in
               None, max_inlines
             with Causality.Error (Causality.DataCycle partitions) ->

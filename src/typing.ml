@@ -1048,8 +1048,8 @@ struct
 
   let type_prog env decls =
     (* try *)
-      List.fold_left type_top_decl env decls
-    (* with Failure _ as exc -> raise exc *)
+    List.fold_left type_top_decl env decls
+  (* with Failure _ as exc -> raise exc *)
 
   (* Once the Lustre program is fully typed, we must get back to the original
      description of dimensions, with constant parameters, instead of unifiable

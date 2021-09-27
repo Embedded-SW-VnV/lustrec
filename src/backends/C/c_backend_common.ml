@@ -276,7 +276,8 @@ let pp_basic_c_type ?(pp_c_basic_type_desc = pp_c_basic_type_desc) ?var_opt fmt
   | _ ->
     fprintf fmt "%s" (pp_c_basic_type_desc t)
 
-let pp_c_type ?(var_is_contract=false) ?pp_c_basic_type_desc ?var_opt var_id fmt t =
+let pp_c_type ?(var_is_contract = false) ?pp_c_basic_type_desc ?var_opt var_id
+    fmt t =
   let rec aux t pp_suffix =
     if is_basic_c_type t then
       fprintf
@@ -439,7 +440,12 @@ let pp_c_decl_input_var fmt id =
    the case for generics *)
 let pp_c_decl_output_var fmt id =
   if (not !Options.ansi) && Types.is_address_type id.var_type then
-    pp_c_type ~var_is_contract:id.var_is_contract ~var_opt:id id.var_id fmt id.var_type
+    pp_c_type
+      ~var_is_contract:id.var_is_contract
+      ~var_opt:id
+      id.var_id
+      fmt
+      id.var_type
   else
     pp_c_type
       ~var_is_contract:id.var_is_contract
@@ -937,9 +943,7 @@ module Protos (Mod : MODIFIERS_GHOST_PROTO) = struct
       name
       (pp_comma_list pp_c_decl_input_var)
       inputs
-      (pp_comma_list
-         ~pp_prologue:pp_print_comma
-         pp_c_decl_output_var)
+      (pp_comma_list ~pp_prologue:pp_print_comma pp_c_decl_output_var)
       outputs
 end
 

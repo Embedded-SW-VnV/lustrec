@@ -58,9 +58,9 @@ type mc_transition_t = value_t transition_t
 type mc_memory_pack_t = value_t memory_pack_t
 
 type mc_contract_t = {
-  mc_pre: mc_formula_t;
-  mc_post: mc_formula_t;
-  mc_proof: proof_annotation option
+  mc_pre : mc_formula_t;
+  mc_post : mc_formula_t;
+  mc_proof : proof_annotation option;
 }
 
 type machine_spec = {
@@ -84,6 +84,7 @@ type machine_t = {
   mstep : step_t;
   mspec : machine_spec;
   mannot : expr_annot list;
-  msch : Scheduling_type.schedule_report option; (* Equations scheduling *)
-  mis_contract: bool
+  msch : Scheduling_type.schedule_report option;
+  (* Equations scheduling *)
+  mis_contract : bool;
 }

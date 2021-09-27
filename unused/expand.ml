@@ -248,7 +248,7 @@ and expand_expr ck_substs var_substs expr =
     new_eqs, new_locals, new_expr_instance ck_substs var_substs expr edesc
   | Expr_pre _ | Expr_arrow _ ->
     assert false
-  (* Not used in the Prelude part of the code *)
+(* Not used in the Prelude part of the code *)
 
 (* Expands an equation *)
 and expand_eq ck_substs var_substs eq =

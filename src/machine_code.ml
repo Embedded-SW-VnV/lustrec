@@ -43,8 +43,8 @@ let build_env inputs locals outputs =
     is_local = (fun id -> List.exists (fun v -> v.var_id = id) locals);
     get_var =
       (fun id ->
-         try List.find (fun v -> v.var_id = id) all
-         with Not_found ->
+        try List.find (fun v -> v.var_id = id) all
+        with Not_found ->
           (* Format.eprintf "Impossible to find variable %s in set %a@.@?" * id
              * VSet.pp all; *)
           raise Not_found);
@@ -355,13 +355,20 @@ let translate_eq env ctx nd inputs locals outputs i eq =
     let r, reset_inst = reset_instance i r call_ck in
     let stateless = Stateless.check_node node_f in
     let inst = if stateless then None else Some i in
-    let mp = if stateless then True else mk_memory_pack ?inst (node_name node_f) in
+    let mp =
+      if stateless then True else mk_memory_pack ?inst (node_name node_f)
+    in
     let ctx =
       ctl
         ~ck:call_ck
         (MStep (var_p, i, vl))
         mp
-        (mk_transition ?r ?inst stateless (node_name node_f) (vl @ vdecls_to_vals var_p))
+        (mk_transition
+           ?r
+           ?inst
+           stateless
+           (node_name node_f)
+           (vl @ vdecls_to_vals var_p))
         {
           ctx with
           j = IMap.add i call_f ctx.j;
@@ -374,19 +381,16 @@ let translate_eq env ctx nd inputs locals outputs i eq =
       env_cks) Clocks.print_ck call_ck;*)
     {
       ctx with
-      si =
-        (if stateless then ctx.si
-        else mkinstr (MSetReset i) :: ctx.si);
+      si = (if stateless then ctx.si else mkinstr (MSetReset i) :: ctx.si);
     }
-  | [ x ], _ ->
-    begin try
-    let var_x = env.get_var x in
-    let instr, spec = translate_act (var_x, eq.eq_rhs) in
-    control_on_clock eq.eq_rhs.expr_clock instr True spec ctx
-      with Not_found ->
-        Format.eprintf "ERROR: node %s, eq %a@." id Printers.pp_node_eq eq  ;
-        raise Not_found
-        end
+  | [ x ], _ -> (
+    try
+      let var_x = env.get_var x in
+      let instr, spec = translate_act (var_x, eq.eq_rhs) in
+      control_on_clock eq.eq_rhs.expr_clock instr True spec ctx
+    with Not_found ->
+      Format.eprintf "ERROR: node %s, eq %a@." id Printers.pp_node_eq eq;
+      raise Not_found)
   | _ ->
     Format.eprintf
       "internal error: Machine_code.translate_eq %a@?"
@@ -495,7 +499,9 @@ let transition_0 nd =
     tname = nd;
     tindex = Some 0;
     tvars = nd.node_inputs;
-    tformula = if fst (get_stateless_status_node nd) then True else StateVarPack ResetFlag;
+    tformula =
+      (if fst (get_stateless_status_node nd) then True
+      else StateVarPack ResetFlag);
     tmem_footprint = ISet.empty;
     tinst_footprint = IMap.empty;
   }
@@ -522,25 +528,25 @@ let transition_toplevel nd i =
 
 let translate_eexpr env e =
   try
-  List.fold_right (fun (qt, xs) f -> match qt with
-      | Lustre_types.Exists -> Exists (xs, f)
-      | Lustre_types.Forall -> Forall (xs, f))
-    e.eexpr_quantifiers
-    (Value (translate_expr env e.eexpr_qfexpr))
-  with
-  NormalizationError ->
-  Format.eprintf
-    "Normalization error: %a@."
-    Printers.pp_eexpr
-    e;
-  raise NormalizationError
+    List.fold_right
+      (fun (qt, xs) f ->
+        match qt with
+        | Lustre_types.Exists ->
+          Exists (xs, f)
+        | Lustre_types.Forall ->
+          Forall (xs, f))
+      e.eexpr_quantifiers
+      (Value (translate_expr env e.eexpr_qfexpr))
+  with NormalizationError ->
+    Format.eprintf "Normalization error: %a@." Printers.pp_eexpr e;
+    raise NormalizationError
 
-
-let translate_contract env c = {
-  mc_pre = And (List.map (translate_eexpr env) c.Lustre_types.assume);
-  mc_post = And (List.map (translate_eexpr env) c.Lustre_types.guarantees);
-  mc_proof = c.proof
-}
+let translate_contract env c =
+  {
+    mc_pre = And (List.map (translate_eexpr env) c.Lustre_types.assume);
+    mc_post = And (List.map (translate_eexpr env) c.Lustre_types.guarantees);
+    mc_proof = c.proof;
+  }
 
 let translate_spec env = function
   | Contract c ->
@@ -583,7 +589,8 @@ let translate_decl nd sch =
    * ; *)
   let equations = assert_instrs @ sorted_eqs in
   let mems = get_memories env equations in
-  (* Removing computed memories from locals. We also removed unused variables. *)
+  (* Removing computed memories from locals. We also removed unused
+     variables. *)
   let locals =
     List.filter
       (fun v -> (not (VSet.mem v mems)) && not (List.mem v.var_id unused))
@@ -603,26 +610,24 @@ let translate_decl nd sch =
   let mmap = IMap.bindings ctx.j in
   let mmemory_packs =
     memory_pack_0 nd
-    ::
-    List.mapi
-      (fun i f -> { mpname = nd; mpindex = Some (i + 1); mpformula = red f })
-      (List.rev ctx.mp)
+    :: List.mapi
+         (fun i f -> { mpname = nd; mpindex = Some (i + 1); mpformula = red f })
+         (List.rev ctx.mp)
     @ [ memory_pack_toplevel nd (List.length ctx.mp) ]
   in
   let mtransitions =
     transition_0 nd
-    ::
-    List.mapi
-      (fun i (tvars, tmem_footprint, tinst_footprint, f) ->
-        {
-          tname = nd;
-          tindex = Some (i + 1);
-          tvars;
-          tformula = red f;
-          tmem_footprint;
-          tinst_footprint;
-        })
-      (List.rev ctx.t)
+    :: List.mapi
+         (fun i (tvars, tmem_footprint, tinst_footprint, f) ->
+           {
+             tname = nd;
+             tindex = Some (i + 1);
+             tvars;
+             tformula = red f;
+             tmem_footprint;
+             tinst_footprint;
+           })
+         (List.rev ctx.t)
     @ [ transition_toplevel nd (List.length ctx.t) ]
   in
   let clear_reset =
@@ -630,7 +635,13 @@ let translate_decl nd sch =
       ~instr_spec:
         ((if fst (get_stateless_status_node nd) then []
          else [ mk_memory_pack ~i:0 nd.node_id ])
-        @ [ mk_transition ~i:0 stateless nd.node_id (vdecls_to_vals nd.node_inputs) ])
+        @ [
+            mk_transition
+              ~i:0
+              stateless
+              nd.node_id
+              (vdecls_to_vals nd.node_inputs);
+          ])
       MClearReset
   in
   let mnode_spec = Utils.option_map (translate_spec env) nd.node_spec in
@@ -670,7 +681,7 @@ let translate_decl nd sch =
     mspec = { mnode_spec; mtransitions; mmemory_packs };
     mannot = nd.node_annot;
     msch = Some sch;
-    mis_contract = nd.node_iscontract
+    mis_contract = nd.node_iscontract;
   }
 
 (** takes the global declarations and the scheduling associated to each node *)

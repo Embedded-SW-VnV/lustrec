@@ -481,7 +481,8 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
         content = [];
         is_stateful = true (* assuming it is stateful*);
       }
-      (* Print the svn version number and the supported C standard (C90 or C99) *)
+      (* Print the svn version number and the supported C standard (C90 or
+         C99) *)
       pp_print_version
       ()
       (pp_main_code machines)

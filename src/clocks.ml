@@ -38,7 +38,8 @@ and carrier_expr = {
 
 type t = { mutable cdesc : clock_desc; mutable cscoped : bool; cid : int }
 
-(* pck stands for periodic clock. Easier not to separate pck from other clocks *)
+(* pck stands for periodic clock. Easier not to separate pck from other
+   clocks *)
 and clock_desc =
   | Carrow of t * t
   | Ctuple of t list
@@ -205,8 +206,10 @@ let split_arrow ck =
 
 (** Returns the clock corresponding to a clock list. *)
 let clock_of_clock_list = function
-  | [ck] -> ck
-  | ckl -> new_ck (Ctuple ckl) true
+  | [ ck ] ->
+    ck
+  | ckl ->
+    new_ck (Ctuple ckl) true
 
 let clock_list_of_clock ck =
   match (repr ck).cdesc with Ctuple cl -> cl | _ -> [ ck ]

@@ -33,7 +33,8 @@ type vhdl_type_t =
 (* let std_logic_cst = [ "U"; "X"; "0"; "1"; "Z"; "W"; "L"; "H"; "-" ] *)
 
 (* XXX: UNUSED *)
-(* let literal_base = [ "B"; "O"; "X"; "UB"; "UO"; "UX"; "SB"; "SO"; "SX"; "D" ] *)
+(* let literal_base = [ "B"; "O"; "X"; "UB"; "UO"; "UX"; "SB"; "SO"; "SX"; "D"
+   ] *)
 (* Prefix of CstLiteral *)
 
 (* TODO: do we need more constructors ? *)

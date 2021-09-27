@@ -501,7 +501,8 @@ let subst_instr m subst instrs instr =
             (* Last case, v', the lhs of the previous similar definition is,
                itself, a memory *)
 
-            (* TODO regarder avec X. Il me semble qu'on peut faire plus simple: *)
+            (* TODO regarder avec X. Il me semble qu'on peut faire plus
+               simple: *)
             (* Filtering out the list of instructions: - we copy in the same
                order the list of instr in instrs (fold_right) - if the current
                instr is this instr' then apply the elimination with v' -> v on
@@ -898,7 +899,8 @@ let elim_prog_variables prog removed_table =
    its normalized recomputed, as well as its scheduling, before regenerating the
    machines.
 
-   The function returns both the (possibly updated) prog as well as the machines *)
+   The function returns both the (possibly updated) prog as well as the
+   machines *)
 let optimize params prog node_schs machine_code =
   let machine_code =
     if !Options.optimization >= 4 (* && !Options.output <> "horn" *) then (

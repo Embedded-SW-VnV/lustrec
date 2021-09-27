@@ -5,7 +5,8 @@ let setup () =
   if !Options.output = Options.OutEMF then (
     (* Not merging branches *)
     join_guards := false;
-    (* In case of a default "int" type, substitute it with the legal int32 value *)
+    (* In case of a default "int" type, substitute it with the legal int32
+       value *)
     if !Options.int_type = "int" then Options.int_type := "int32");
   if !Options.optimization < 0 then join_guards := false
 

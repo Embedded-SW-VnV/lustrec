@@ -48,7 +48,7 @@ type var_decl = {
   mutable var_type : Types.t;
   mutable var_clock : Clocks.t;
   var_loc : Location.t;
-  var_is_contract: bool;
+  var_is_contract : bool;
 }
 (* The tag of an expression is a unique identifier used to distinguish different
    instances of the same node *)
@@ -151,7 +151,7 @@ type contract_desc = {
   modes : contract_mode list;
   imports : contract_import list;
   spec_loc : Location.t;
-  proof : proof_annotation option
+  proof : proof_annotation option;
 }
 
 type 'a node_spec_t = Contract of 'a | NodeSpec of ident
@@ -234,4 +234,4 @@ val tag_true : label
 
 val tag_false : label
 
-val node_as_contract: node_desc -> contract_desc
+val node_as_contract : node_desc -> contract_desc

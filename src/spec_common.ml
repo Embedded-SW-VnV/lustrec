@@ -79,8 +79,8 @@ let vals vs = List.map (fun v -> Val v) vs
 
 let mk_pred_call pred = Predicate pred
 
-let mk_transition ?(mems = ISet.empty) ?(insts = IMap.empty) ?r ?i ?inst stateless id vars
-    =
+let mk_transition ?(mems = ISet.empty) ?(insts = IMap.empty) ?r ?i ?inst
+    stateless id vars =
   let tr =
     mk_pred_call
       (Transition

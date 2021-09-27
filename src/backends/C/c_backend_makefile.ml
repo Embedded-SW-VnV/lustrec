@@ -63,13 +63,13 @@ let fprintf_dependencies fmt (deps : dep_t list) =
       Log.report ~level:1 (fun fmt -> fprintf fmt "Adding dependency: %s@." s);
       fprintf fmt "\t${GCC} -I${INC} -c %s@." s)
     ("${INC}/io_frontend.c"
-     ::
-     (* IO functions when a main function is computed *)
-     List.map
-       (fun dep ->
-         (if dep.local then dep.name else Version.include_path ^ "/" ^ dep.name)
-         ^ ".c")
-       compiled_deps)
+    :: (* IO functions when a main function is computed *)
+       List.map
+         (fun dep ->
+           (if dep.local then dep.name
+           else Version.include_path ^ "/" ^ dep.name)
+           ^ ".c")
+         compiled_deps)
 
 module type MODIFIERS_MKF = sig
   (* dep was (bool * ident * top_decl list) *)

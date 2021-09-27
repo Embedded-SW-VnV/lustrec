@@ -21,7 +21,8 @@ module type MODIFIERS_SRC = sig
 
   val pp_ghost_parameter : ident -> formatter -> ident option -> unit
 
-  val pp_contract : formatter -> machine_t list -> ident -> ident -> machine_t -> unit
+  val pp_contract :
+    formatter -> machine_t list -> ident -> ident -> machine_t -> unit
 end
 
 module EmptyMod : MODIFIERS_SRC

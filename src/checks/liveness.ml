@@ -48,7 +48,8 @@ let pp_fanin fmt fanin =
   Hashtbl.iter (fun s t -> Format.fprintf fmt "@ %s -> %d" s t) fanin;
   Format.fprintf fmt "@]@ }@]"
 
-(* computes the cone of influence of a given [var] wrt a dependency graph [g]. *)
+(* computes the cone of influence of a given [var] wrt a dependency graph
+   [g]. *)
 let cone_of_influence g var =
   (*Format.printf "DEBUG coi: %s@." var;*)
   let frontier = ref (ISet.add var ISet.empty) in

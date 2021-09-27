@@ -88,7 +88,8 @@ let unless_read reads handler =
   (* Format.eprintf "unless_reads %s = %a@." handler.hand_state (fprintf_list
      ~sep:" , " (fun fmt v -> Format.fprintf fmt "%s" v)) (ISet.elements reads);
      Format.eprintf "unless_reads' %s = %a@." handler.hand_state (fprintf_list
-     ~sep:" , " (fun fmt v -> Format.fprintf fmt "%s" v)) (ISet.elements res); *)
+     ~sep:" , " (fun fmt v -> Format.fprintf fmt "%s" v)) (ISet.elements
+     res); *)
   res
 
 let until_read reads handler =
@@ -381,7 +382,7 @@ let node_of_assign_until nused used node aut_id aut_state handler =
       node_gencalls = [];
       node_checks = [];
       node_asserts = handler.hand_asserts;
-      node_stmts = until_eq :: new_output_eqs @ handler.hand_stmts;
+      node_stmts = (until_eq :: new_output_eqs) @ handler.hand_stmts;
       node_dec_stateless = false;
       node_stateless = None;
       node_spec = None;
@@ -544,7 +545,7 @@ let rec expand_decls_rec nused top_decls =
           top_decl.top_decl_owner
           nd
       in
-      top_types' @ top_decl' :: expand_decls_rec nused (top_nodes' @ q)
+      top_types' @ (top_decl' :: expand_decls_rec nused (top_nodes' @ q))
     | _ ->
       top_decl :: expand_decls_rec nused q)
 

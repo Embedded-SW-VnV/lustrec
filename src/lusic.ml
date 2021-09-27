@@ -17,7 +17,8 @@ open Lustre_types
 
 type t = { obsolete : bool; from_lusi : bool; contents : program_t }
 
-(* extracts a header from a program representing module owner = dirname/basename *)
+(* extracts a header from a program representing module owner =
+   dirname/basename *)
 let extract_header dirname basename prog =
   let owner = dirname ^ "/" ^ basename in
   List.fold_right

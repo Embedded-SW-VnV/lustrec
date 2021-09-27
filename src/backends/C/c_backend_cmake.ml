@@ -53,12 +53,11 @@ let fprintf_dependencies fmt (dep : dep_t list) =
       (* Format.eprintf "Adding dependency: %s@." s; *)
       fprintf fmt "\t${GCC} -I${INC} -c %s@." s)
     ("${INC}/io_frontend.c"
-     ::
-     (* IO functions when a main function is computed *)
-     List.map
-       (fun (Dep (local, s, _, _)) ->
-         (if local then s else Version.include_path ^ "/" ^ s) ^ ".c")
-       compiled_dep)
+    :: (* IO functions when a main function is computed *)
+       List.map
+         (fun (Dep (local, s, _, _)) ->
+           (if local then s else Version.include_path ^ "/" ^ s) ^ ".c")
+         compiled_dep)
 
 module type MODIFIERS_MKF = sig
   (* dep was (bool * ident * top_decl list) *)

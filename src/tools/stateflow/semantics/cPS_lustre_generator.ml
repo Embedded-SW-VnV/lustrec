@@ -471,7 +471,7 @@ end) : TransformerType = struct
     node_principal
 
   let mkprincipal tr =
-    event_type_decl :: mkcomponent Dcall [ "principal" ] tr
+    (event_type_decl :: mkcomponent Dcall [ "principal" ] tr)
     @ [ mk_main_loop () ]
 end
 

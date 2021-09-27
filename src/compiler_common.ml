@@ -73,8 +73,9 @@ let expand_automata decls =
 let check_stateless_decls decls =
   Log.report ~level:1 (fun fmt ->
       fprintf fmt "@ @[<v 2>.. checking stateless/stateful status@ ");
-  try (Stateless.check_prog decls;
-       Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ "))
+  try
+    Stateless.check_prog decls;
+    Log.report ~level:1 (fun fmt -> fprintf fmt "@]@ ")
   with Stateless.Error (loc, err) as exc ->
     eprintf
       "Stateless status error: %a%a@."
@@ -250,7 +251,7 @@ let resolve_contracts prog =
             let in_assigns = mk_def imp_in import.inputs in
             let out_assigns = mk_def imp_out import.outputs in
             let stmts =
-              in_assigns :: out_assigns :: imp_nd.node_stmts @ stmts
+              (in_assigns :: out_assigns :: imp_nd.node_stmts) @ stmts
             in
             let c = merge_contracts c imp_c in
             stmts, locals, c
@@ -309,33 +310,31 @@ let resolve_contracts prog =
             false)
         (accu_contracts @ prog)
     in
-    let nd = {
-      node_id = mk_new_name used (id ^ "_contract");
-      node_type = Types.new_var ();
-      node_clock = Clocks.new_var true;
-      node_inputs = inputs @ outputs;
-      node_outputs = [];
-      node_locals;
-      node_gencalls = [];
-      node_checks = [];
-      node_asserts = [];
-      node_stmts;
-      node_dec_stateless = false;
-      node_stateless = None;
-      node_spec = Some (Contract c);
-      node_annot = [];
-      node_iscontract = true;
-    } in
+    let nd =
+      {
+        node_id = mk_new_name used (id ^ "_contract");
+        node_type = Types.new_var ();
+        node_clock = Clocks.new_var true;
+        node_inputs = inputs @ outputs;
+        node_outputs = [];
+        node_locals;
+        node_gencalls = [];
+        node_checks = [];
+        node_asserts = [];
+        node_stmts;
+        node_dec_stateless = false;
+        node_stateless = None;
+        node_spec = Some (Contract c);
+        node_annot = [];
+        node_iscontract = true;
+      }
+    in
     (* let stateless = Stateless.compute_node nd in *)
-    mktop_decl
-      c.spec_loc
-      top.top_decl_owner
-      top.top_decl_itf
-      (Node nd)
-         (* { nd with
-          *   node_dec_stateless = stateless;
-          *   node_stateless = Some stateless;
-          * }) *)
+    mktop_decl c.spec_loc top.top_decl_owner top.top_decl_itf (Node nd)
+    (* { nd with
+     *   node_dec_stateless = stateless;
+     *   node_stateless = Some stateless;
+     * }) *)
   in
   (* Processing nodes in order. Should have been sorted by now
 
@@ -427,4 +426,3 @@ let update_vdecl_parents_prog prog =
       | _ ->
         ())
     prog
-

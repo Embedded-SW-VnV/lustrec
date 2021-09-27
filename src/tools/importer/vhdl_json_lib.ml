@@ -180,7 +180,7 @@ let rec to_list_content_str str json =
     if pairlist_contains_str str l then
       `Assoc
         ((str, to_list_content_str str (`List (assoc_elem_filter_snd l str)))
-         :: assoc_elem_filternot (map_snd (to_list_content_str str) l) str)
+        :: assoc_elem_filternot (map_snd (to_list_content_str str) l) str)
     else `Assoc (map_snd (to_list_content_str str) l)
   | `List (hd :: tl) ->
     `List (to_list_content_str str hd :: List.map (to_list_content_str str) tl)

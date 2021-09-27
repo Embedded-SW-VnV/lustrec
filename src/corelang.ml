@@ -53,7 +53,7 @@ let mktyp loc d = { ty_dec_desc = d; ty_dec_loc = loc }
 
 let mkclock loc d = { ck_dec_desc = d; ck_dec_loc = loc }
 
-let mkvar_decl loc ?(var_is_contract=false) ?(orig = false)
+let mkvar_decl loc ?(var_is_contract = false) ?(orig = false)
     (id, ty_dec, ck_dec, is_const, value, parentid) =
   assert (value = None || is_const);
   {
@@ -67,7 +67,7 @@ let mkvar_decl loc ?(var_is_contract=false) ?(orig = false)
     var_type = Types.new_var ();
     var_clock = Clocks.new_var true;
     var_loc = loc;
-    var_is_contract
+    var_is_contract;
   }
 
 let dummy_var_decl name typ =
@@ -122,12 +122,7 @@ let mkeq loc (lhs, rhs) = { eq_lhs = lhs; eq_rhs = rhs; eq_loc = loc }
 let mkassert loc expr = { assert_loc = loc; assert_expr = expr }
 
 let mktop_decl top_decl_loc top_decl_owner top_decl_itf top_decl_desc =
-  {
-    top_decl_desc;
-    top_decl_loc;
-    top_decl_owner;
-    top_decl_itf;
-  }
+  { top_decl_desc; top_decl_loc; top_decl_owner; top_decl_itf }
 
 let mkpredef_call loc funname args =
   mkexpr loc (Expr_appl (funname, mkexpr loc (Expr_tuple args), None))
@@ -193,7 +188,7 @@ let empty_contract =
     modes = [];
     imports = [];
     spec_loc = Location.dummy;
-    proof = None
+    proof = None;
   }
 
 (* For const declaration we do as for regular lustre node. But for local flows
@@ -219,7 +214,7 @@ let mk_contract_guarantees name eexpr proof =
     empty_contract with
     guarantees = [ eexpr_add_name eexpr name ];
     spec_loc = eexpr.eexpr_loc;
-    proof
+    proof;
   }
 
 let mk_contract_assume name eexpr =
@@ -245,14 +240,16 @@ let mk_contract_import id ins outs loc =
   }
 
 let merge_proofs p1 p2 =
-  let merge_proofs p1 p2 = match p1, p2 with
-    | Kinduction k1, Kinduction k2 ->
-      Kinduction (max k1 k2)
+  let merge_proofs p1 p2 =
+    match p1, p2 with Kinduction k1, Kinduction k2 -> Kinduction (max k1 k2)
   in
   match p1, p2 with
-  | Some p1, Some p2 -> Some (merge_proofs p1 p2)
-  | Some p, None | None, Some p -> Some p
-  | None, None -> None
+  | Some p1, Some p2 ->
+    Some (merge_proofs p1 p2)
+  | Some p, None | None, Some p ->
+    Some p
+  | None, None ->
+    None
 
 let merge_contracts ann1 ann2 =
   (* keeping the first item loc *)
@@ -265,7 +262,7 @@ let merge_contracts ann1 ann2 =
     modes = ann1.modes @ ann2.modes;
     imports = ann1.imports @ ann2.imports;
     spec_loc = ann1.spec_loc;
-    proof = merge_proofs ann1.proof ann2.proof
+    proof = merge_proofs ann1.proof ann2.proof;
   }
 
 let mkeexpr loc expr =
@@ -541,7 +538,8 @@ let tag_table =
 let field_table = Utils.create_hashtable 20 []
 
 let get_enum_type_tags cty =
-  (*Format.eprintf "get_enum_type_tags %a@." Printers.pp_var_type_dec_desc cty;*)
+  (*Format.eprintf "get_enum_type_tags %a@." Printers.pp_var_type_dec_desc
+    cty;*)
   match cty with
   | Tydec_bool ->
     [ tag_true; tag_false ]
@@ -768,11 +766,11 @@ let get_node_var id node =
 let get_eqs stmts =
   List.fold_right
     (fun stmt (res_eq, res_aut) ->
-       match stmt with
-       | Eq eq ->
-         eq :: res_eq, res_aut
-       | Aut aut ->
-         res_eq, aut :: res_aut)
+      match stmt with
+      | Eq eq ->
+        eq :: res_eq, res_aut
+      | Aut aut ->
+        res_eq, aut :: res_aut)
     stmts
     ([], [])
 
@@ -787,8 +785,7 @@ let get_node_eqs =
       Hashtbl.replace table_eqs nd.node_id (nd.node_stmts, res);
       res
 
-let get_contract_eqs c =
-  get_eqs c.stmts
+let get_contract_eqs c = get_eqs c.stmts
 
 let get_node_eq id node =
   let eqs, _ = get_node_eqs node in
@@ -1277,7 +1274,8 @@ let mk_internal_node id =
   let ck = Env.lookup_value Basic_library.clock_env id in
   let tin, tout = Types.split_arrow ty in
   (*eprintf "internal fun %s: %d -> %d@." id (List.length
-    (Types.type_list_of_type tin)) (List.length (Types.type_list_of_type tout));*)
+    (Types.type_list_of_type tin)) (List.length (Types.type_list_of_type
+    tout));*)
   let cpt = ref (-1) in
   mktop
     (ImportedNode

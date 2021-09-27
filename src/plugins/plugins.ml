@@ -49,7 +49,8 @@ let c_backend_main_loop_body_suffix fmt () =
       M.c_backend_main_loop_body_suffix fmt ())
     (plugins ())
 
-(* Specific treatment of annotations when inlining, specific of declared plugins *)
+(* Specific treatment of annotations when inlining, specific of declared
+   plugins *)
 
 let inline_annots rename_var_fun annot_list =
   List.map

@@ -156,7 +156,8 @@ let schedule_prog prog =
 
 let compute_prog_reuse_table report = IMap.map compute_node_reuse_table report
 
-(* removes inlined local variables from schedule report, which are now useless *)
+(* removes inlined local variables from schedule report, which are now
+   useless *)
 let remove_node_inlined_locals locals report =
   let is_inlined v = IMap.exists (fun l _ -> v = l) locals in
   let schedule' =

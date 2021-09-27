@@ -72,7 +72,8 @@ functor
        a predicate: function step and reset are associated to ACSL predicate -
        the node is associated to a refinement contract, wrt its ACSL sem - if
        the node is a regular node associated to a contract, print the contract
-       as function contract. - do not print anything if this is a contract node *)
+       as function contract. - do not print anything if this is a contract
+       node *)
     let pp_machine_alloc_decl fmt m =
       Mod.pp_machine_decl_prefix fmt m;
       if not (fst (get_stateless_status m)) then
@@ -125,7 +126,8 @@ functor
             fprintf fmt "extern %a;" pp_stateless_C_prototype prototype
           else (
             (* TODO: raise proper error *)
-            Format.eprintf "internal error: pp_machine_decl_top_decl_from_header";
+            Format.eprintf
+              "internal error: pp_machine_decl_top_decl_from_header";
             assert false)
         else if inode.nodei_stateless then
           fprintf fmt "extern %a;" Protos.pp_stateless_prototype prototype

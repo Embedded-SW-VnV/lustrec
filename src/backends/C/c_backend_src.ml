@@ -35,7 +35,8 @@ module type MODIFIERS_SRC = sig
 
   val pp_ghost_parameter : ident -> formatter -> ident option -> unit
 
-  val pp_contract : formatter -> machine_t list -> ident -> ident -> machine_t -> unit
+  val pp_contract :
+    formatter -> machine_t list -> ident -> ident -> machine_t -> unit
 end
 
 module EmptyMod = struct
@@ -323,12 +324,12 @@ module Main (Mod : MODIFIERS_SRC) = struct
           i
           (pp_print_parenthesized (pp_c_val m self (pp_c_var_read m)))
           vl
-      | MStep (il, i, vl) ->
-        begin match List.assoc_opt i m.minstances with
-          | Some (td, _) when Arrow.td_is_arrow td ->
-            pp_arrow_call m self mem fmt i il
-          | _ -> pp_basic_instance_call m self mem fmt i vl il
-        end
+      | MStep (il, i, vl) -> (
+        match List.assoc_opt i m.minstances with
+        | Some (td, _) when Arrow.td_is_arrow td ->
+          pp_arrow_call m self mem fmt i il
+        | _ ->
+          pp_basic_instance_call m self mem fmt i vl il)
       | MBranch (_, []) ->
         eprintf
           "internal error: C_backend_src.pp_machine_instr %a@."
@@ -544,9 +545,8 @@ module Main (Mod : MODIFIERS_SRC) = struct
       check
 
   let pp_print_function ~pp_prototype ~prototype ?(is_contract = false)
-      ?(pp_spec = pp_print_nothing)
-      ?(pp_local = pp_print_nothing) ?(base_locals = [])
-      ?(pp_array_mem = pp_print_nothing) ?(array_mems = [])
+      ?(pp_spec = pp_print_nothing) ?(pp_local = pp_print_nothing)
+      ?(base_locals = []) ?(pp_array_mem = pp_print_nothing) ?(array_mems = [])
       ?(pp_init_mpfr_local = pp_print_nothing)
       ?(pp_clear_mpfr_local = pp_print_nothing) ?(mpfr_locals = [])
       ?(pp_check = pp_print_nothing) ?(checks = [])
@@ -1004,7 +1004,8 @@ module Main (Mod : MODIFIERS_SRC) = struct
         content = [];
         is_stateful = true (* assuming it is stateful *);
       }
-      (* Print the svn version number and the supported C standard (C90 or C99) *)
+      (* Print the svn version number and the supported C standard (C90 or
+         C99) *)
       pp_print_version
       ()
       (* Print dependencies *)

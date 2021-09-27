@@ -17,7 +17,7 @@ val type_of_l_value : ('a, left_v) expression_t -> Types.t
 
 type 'a predicate_t =
   | Transition :
-      bool                      (* stateless *)
+      bool (* stateless *)
       * ident (* node name *)
       * ident option
       (* instance *)

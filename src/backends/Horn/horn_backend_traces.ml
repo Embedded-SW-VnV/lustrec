@@ -53,7 +53,8 @@ let machines_traces machines =
         let filtered =
           List.filter (fun (kwds, _) -> kwds = [ "traceability" ]) all_annots
         in
-        (* List.iter (eprintf "Annots: %a@." Printers.pp_expr_annot) (m.mannot); *)
+        (* List.iter (eprintf "Annots: %a@." Printers.pp_expr_annot)
+           (m.mannot); *)
         let content = List.map snd filtered in
         (* Elements are supposed to be a pair (tuple): variable, expression *)
         List.map
