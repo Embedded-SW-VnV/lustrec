@@ -46,6 +46,7 @@ type 'a formula_t =
   | True
   | False
   | Equal : ('a, left_v) expression_t * ('a, 'b) expression_t -> 'a formula_t
+  | GEqual : ('a, left_v) expression_t * ('a, 'b) expression_t -> 'a formula_t
   | And of 'a formula_t list
   | Or of 'a formula_t list
   | Imply of 'a formula_t * 'a formula_t

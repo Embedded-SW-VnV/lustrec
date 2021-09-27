@@ -115,6 +115,9 @@ let mk_branch_tr x =
   | [ (h1, spec1); (h2, spec2) ] when h1 = tag_false && h2 = tag_true ->
     Ternary (Var x, spec2, spec1)
   | hl ->
-    And (List.map (fun (t, spec) -> Imply (Equal (Var x, Tag t), spec)) hl)
+    let n = List.length hl in
+    And (List.mapi (fun k (t, spec) ->
+        let c = if k = n - 1 then GEqual (Var x, Tag t) else Equal (Var x, Tag t) in
+        Imply (c, spec)) hl)
 
 let mk_assign_tr x v = Equal (Var x, Val v)

@@ -112,6 +112,8 @@ module PrintSpec = struct
         pp_print_string fmt "false"
       | Equal (a, b) ->
         fprintf fmt "%a == %a" pp_expr a pp_expr b
+      | GEqual (a, b) ->
+        fprintf fmt "%a >= %a" pp_expr a pp_expr b
       | And fs ->
         pp_print_list
           ~pp_sep:(fun fmt () -> fprintf fmt "@ ∧ ")

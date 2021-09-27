@@ -202,6 +202,8 @@ let pp_exists pp_l pp_r fmt (l, r) =
 
 let pp_equal pp_l pp_r fmt (l, r) = fprintf fmt "%a == %a" pp_l l pp_r r
 
+let pp_gequal pp_l pp_r fmt (l, r) = fprintf fmt "%a >= %a" pp_l l pp_r r
+
 let pp_implies pp_l pp_r fmt (l, r) =
   fprintf fmt "@[<v>%a ==>@ %a@]" pp_l l pp_r r
 
@@ -252,12 +254,12 @@ let pp_locals m =
 
 let pp_ptr_decl fmt v = pp_ptr fmt v.var_id
 
-let pp_basic_assign_spec pp_l pp_r fmt typ var_name value =
+let pp_basic_assign_spec ?(pp_op=pp_equal) pp_l pp_r fmt typ var_name value =
   if Types.is_real_type typ && !Options.mpfr then assert false
     (* Mpfr.pp_inject_assign pp_var fmt (var_name, value) *)
-  else pp_equal pp_l pp_r fmt (var_name, value)
+  else pp_op pp_l pp_r fmt (var_name, value)
 
-let pp_assign_spec m self_l pp_var_l indirect_l self_r pp_var_r indirect_r fmt
+let pp_assign_spec ?pp_op m self_l pp_var_l indirect_l self_r pp_var_r indirect_r fmt
     (var_type, var_name, value) =
   let depth = expansion_depth value in
   let loop_vars = mk_loop_variables m var_type depth in
@@ -265,7 +267,7 @@ let pp_assign_spec m self_l pp_var_l indirect_l self_r pp_var_r indirect_r fmt
   let aux typ fmt vars =
     match vars with
     | [] ->
-      pp_basic_assign_spec
+      pp_basic_assign_spec ?pp_op
         (pp_value_suffix
            ~indirect:indirect_l
            m
@@ -564,6 +566,17 @@ module PrintSpec = struct
             fmt
             ((Arrow.arrow_id, (mem_in, inst)), ())
         else pp_eq fmt ()
+      | GEqual (a, b) ->
+        pp_assign_spec ~pp_op:pp_gequal
+          m
+          mem_out
+          (pp_c_var_read ~test_output:false m)
+          indirect_l
+          mem_in
+          (pp_c_var_read ~test_output:false m)
+          indirect_r
+          fmt
+          (type_of_l_value a, val_of_expr a, val_of_expr b)
       | And fs ->
         pp_and_l pp_spec' fmt fs
       | Or fs ->

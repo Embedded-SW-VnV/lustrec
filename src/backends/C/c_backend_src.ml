@@ -369,9 +369,9 @@ module Main (Mod : MODIFIERS_SRC) = struct
             "@[<v 2>switch(%a) {@,%a@,}@]"
             (pp_c_val m self (pp_c_var_read m))
             g
-            (pp_print_list
+            (pp_print_list_i
                ~pp_open_box:pp_open_vbox0
-               (pp_machine_branch dependencies m self mem))
+               (pp_machine_branch dependencies m self mem (List.length hl)))
             hl
       | MSpec s ->
         fprintf fmt "@[/*@@ %s */@]@ " s
@@ -380,10 +380,12 @@ module Main (Mod : MODIFIERS_SRC) = struct
     in
     fprintf fmt "%a%a" pp_instr instr (Mod.pp_step_instr_spec m self mem) instr
 
-  and pp_machine_branch dependencies m self mem fmt (t, h) =
+  and pp_machine_branch dependencies m self mem n fmt i (t, h) =
     fprintf
       fmt
-      "@[<v 2>case %a:@,%a@,break;@]"
+      (if i = n - 1
+       then "@[<v 2>default: // %a@,%a@]"
+       else "@[<v 2>case %a:@,%a@,break;@]")
       pp_c_tag
       t
       (pp_print_list
