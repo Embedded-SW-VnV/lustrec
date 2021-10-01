@@ -51,6 +51,7 @@
      cmake
      "-DSUBPROJ=\"unstable\""
      "-DLUSTRE_INCLUDE_DIR=%{project_root}/include"
+     "-DLUSTRE_COMPILER=%{bin:lustrec}"
      .)
     (run
      ctest
@@ -59,5 +60,5 @@
      -R
      "COMPIL_LUS|MAKE|BIN|DIFF"
      -E
-     LUSTRET
-     --progress)))))
+     LUSTRET)
+))))

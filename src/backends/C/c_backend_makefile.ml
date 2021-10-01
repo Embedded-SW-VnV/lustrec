@@ -53,7 +53,7 @@ let lib_dependencies deps =
     []
     deps
 
-let fprintf_dependencies fmt (deps : dep_t list) =
+let fprintf_dependencies arrow_suffix fmt deps =
   (* eprintf "Deps: %a@." pp_deps dep; *)
   let compiled_deps = compiled_dependencies deps in
 
@@ -63,6 +63,7 @@ let fprintf_dependencies fmt (deps : dep_t list) =
       Log.report ~level:1 (fun fmt -> fprintf fmt "Adding dependency: %s@." s);
       fprintf fmt "\t${GCC} -I${INC} -c %s@." s)
     ("${INC}/io_frontend.c"
+    :: sprintf "${INC}/arrow%s.c" arrow_suffix
     :: (* IO functions when a main function is computed *)
        List.map
          (fun dep ->
@@ -74,10 +75,14 @@ let fprintf_dependencies fmt (deps : dep_t list) =
 module type MODIFIERS_MKF = sig
   (* dep was (bool * ident * top_decl list) *)
   val other_targets : formatter -> string -> string -> dep_t list -> unit
+  val pp_print_dependencies: formatter -> dep_t list -> unit
+  val pp_arrow_o: formatter -> unit -> unit
 end
 
 module EmptyMod : MODIFIERS_MKF = struct
   let other_targets _ _ _ _ = ()
+  let pp_print_dependencies = fprintf_dependencies ""
+  let pp_arrow_o fmt () = pp_print_string fmt "arrow.o"
 end
 
 module Main =
@@ -127,10 +132,11 @@ functor
         basename;
       fprintf fmt "\t${GCC} -I${INC} -I. -c %s.c@." basename;
       fprintf fmt "\t${GCC} -I${INC} -I. -c %s_main.c@." basename;
-      fprintf_dependencies fmt dependencies;
+      Mod.pp_print_dependencies fmt dependencies;
       fprintf
         fmt
-        "\t${GCC} -o ${BINNAME} io_frontend.o %a %s.o %s_main.o %a@."
+        "\t${GCC} -o ${BINNAME} io_frontend.o %a %a %s.o %s_main.o %a@."
+        Mod.pp_arrow_o ()
         (pp_print_list (fun fmt dep -> fprintf fmt "%s.o" dep.name))
         (compiled_dependencies dependencies)
         basename

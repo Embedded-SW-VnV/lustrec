@@ -1768,6 +1768,10 @@ end
 (**************************************************************************)
 
 module MakefileMod = struct
+  let pp_print_dependencies = C_backend_makefile.fprintf_dependencies "_spec"
+
+  let pp_arrow_o fmt () = pp_print_string fmt "arrow_spec.o"
+
   let other_targets fmt basename _nodename dependencies =
     fprintf fmt "FRAMACEACSL=`frama-c -print-share-path`/e-acsl@.";
     (* EACSL version of library file . c *)
@@ -1812,7 +1816,7 @@ module MakefileMod = struct
       "\t${GCC} -Wno-attributes -I${INC} -I. -c %s_main_eacsl.c@."
       basename;
     (* compiling instrumented lib + main *)
-    C_backend_makefile.fprintf_dependencies fmt dependencies;
+    pp_print_dependencies fmt dependencies;
     fprintf
       fmt
       "\t${GCC} -Wno-attributes -o %s_main_eacsl io_frontend.o %a %s \

@@ -1210,19 +1210,21 @@ let rec pp_static_val pp_var fmt v =
     eprintf "Internal error: C_backend_common.pp_static_val";
     assert false
 
+let concat x y =
+ x ^ "##" ^ y
+
 let pp_constant_decl (m, attr, inst) pp_var fmt v =
   fprintf
     fmt
     "%s %a = %a"
     attr
-    (pp_c_type (sprintf "%s ## %s" inst v.var_id))
+    (pp_c_type (concat inst v.var_id))
     v.var_type
     (pp_static_val pp_var)
     (get_const_assign m v)
 
 let pp_var inst const_locals fmt v =
-  if List.mem v const_locals then fprintf fmt "%s ## %s" inst v.var_id
-  else fprintf fmt "%s" v.var_id
+  pp_print_string fmt (if List.mem v const_locals then concat inst v.var_id else v.var_id)
 
 let pp_static_constant_decl ((_, _, inst) as macro) fmt const_locals =
   pp_print_list
@@ -1238,7 +1240,7 @@ let pp_static_declare_instance ?(ghost = false) (m, attr, inst) const_locals fmt
   let values = List.map (value_of_dimension m) static in
   fprintf
     fmt
-    "%a(%s, %a%s)"
+    "@[<h>%a(%s, %a%s)@]"
     (pp_machine_static_declare_name ~ghost)
     (node_name n)
     attr
@@ -1259,11 +1261,14 @@ let pp_static_declare_macro ?(ghost = false) fmt ((m, attr, inst) as macro) =
   in
   fprintf
     fmt
-    "@[<v 2>#define %a(%s, %a%s)\\@,%a%s %a %s;\\@,%a%a;@]"
+    "@[<v 2>@[<h>#define %a(%s, %a%s)\\@]@,\
+     @[<h>%a%s %a %s;\\@]@,\
+     %a%a;@]"
     (pp_machine_static_declare_name ~ghost)
     m.mname.node_id
     attr
     (pp_print_list
+       ~pp_open_box:pp_open_hbox
        ~pp_sep:pp_print_comma
        ~pp_eol:pp_print_comma
        (pp_c_var_read m))
@@ -1286,12 +1291,8 @@ let pp_static_declare_macro ?(ghost = false) fmt ((m, attr, inst) as macro) =
        ~pp_open_box:pp_open_vbox0
        ~pp_sep:(pp_print_endcut ";\\")
        (fun fmt (i', m') ->
-         let path = sprintf "%s ## _%s" inst i' in
-         fprintf
-           fmt
-           "%a"
-           (pp_static_declare_instance ~ghost macro const_locals)
-           (path, m')))
+         let path = concat inst ("_" ^ i') in
+         pp_static_declare_instance ~ghost macro const_locals fmt (path, m')))
     m.minstances
 
 let pp_static_link_instance ?(ghost = false) fmt (i, (m, _)) =
@@ -1305,7 +1306,8 @@ let pp_static_link_macro ?(ghost = false) fmt (m, _, inst) =
   in
   fprintf
     fmt
-    "@[<v>@[<v 2>#define %a(%s) do {\\@,%a%a;\\@]@,} while (0)@]"
+    "@[<v>@[<v 2>#define %a(%s) do {\\@,\
+     @[<h>%a%a;\\@]@]@,} while (0)@]"
     (pp_machine_static_link_name ~ghost)
     m.mname.node_id
     inst
@@ -1327,7 +1329,7 @@ let pp_static_link_macro ?(ghost = false) fmt (m, _, inst) =
        ~pp_open_box:pp_open_vbox0
        ~pp_sep:(pp_print_endcut ";\\")
        (fun fmt (i', m') ->
-         let path = sprintf "%s ## _%s" inst i' in
+         let path = concat inst ("_" ^ i') in
          fprintf
            fmt
            "%a;\\@,%s.%s = %s%s"
@@ -1342,11 +1344,14 @@ let pp_static_link_macro ?(ghost = false) fmt (m, _, inst) =
 let pp_static_alloc_macro ?(ghost = false) fmt (m, attr, inst) =
   fprintf
     fmt
-    "@[<v>@[<v 2>#define %a(%s, %a%s)\\@,%a(%s, %a%s);\\@,%a(%s);@]@]"
+    "@[<v>@[<v 2>@[<h>#define %a(%s, %a%s)\\@]@,\
+     @[<h>%a(%s, %a%s);\\@]@,\
+     @[<h>%a(%s);@]@]@]"
     (pp_machine_static_alloc_name ~ghost)
     m.mname.node_id
     attr
     (pp_print_list
+       ~pp_open_box:pp_open_hbox
        ~pp_sep:pp_print_comma
        ~pp_eol:pp_print_comma
        (pp_c_var_read m))
@@ -1356,6 +1361,7 @@ let pp_static_alloc_macro ?(ghost = false) fmt (m, attr, inst) =
     m.mname.node_id
     attr
     (pp_print_list
+       ~pp_open_box:pp_open_hbox
        ~pp_sep:pp_print_comma
        ~pp_eol:pp_print_comma
        (pp_c_var_read m))
