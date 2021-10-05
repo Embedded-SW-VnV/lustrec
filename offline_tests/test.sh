@@ -9,8 +9,8 @@ LUSTREC=$1
 LUS_FILES=$2
 
 PROVERS=alt-ergo,z3,cvc4
-TIMEOUT=30
-JOBS=16
+TIMEOUT="${TIMEOUT:-30}"
+JOBS="${JOBS:-16}"
 FRAMA_C_ARGS="-wp -wp-model ref,real -wp-prover $PROVERS -wp-run-all-provers\
     -wp-timeout $TIMEOUT -wp-par $JOBS"
 FRAMA_C=frama-c
@@ -33,7 +33,7 @@ compile() {
     do
         printf "${normal}%-${S}s" "$f"
         N=$(( N + 1 ))
-        if $LUSTREC -acsl-spec $f >/dev/null 2>/tmp/err; then
+        if $LUSTREC -acsl-spec "$f" >/dev/null 2>/tmp/err; then
             OK=$(( OK + 1 ))
             CHECK="${green}OK${normal}"
         else
@@ -43,7 +43,7 @@ compile() {
         fi
         printf " %b\n" "${CHECK}"
     done
-    printf -- "\n${normal}OK: ${green}%d${normal} (${red}%d${normal}) / %d\n\n"\
+    printf "\n${normal}OK: ${green}%d${normal} (${red}%d${normal}) / %d\n\n"\
         "${OK}" "${KO}" "${N}"
 }
 
@@ -55,9 +55,10 @@ verif() {
     for f in *.c
     do
         printf "${normal}%-${S}s" "$f"
-        if $FRAMA_C $FRAMA_C_ARGS $f > /tmp/log; then
+        if $FRAMA_C $FRAMA_C_ARGS "$f" > /tmp/log; then
+            sed -n '/Proved goals/{N;N;N;N;p;q}' /tmp/log > "$f".log
             OK=$(( OK + 1 ))
-            LOG=$(sed -n '/Proved goals/{N;N;N;N;p;q}' /tmp/log)
+            LOG=$(<"$f".log)
             CHECK="${green}OK\n  $LOG\n${normal}"
         else
             KO=$(( KO + 1 ))
@@ -65,10 +66,8 @@ verif() {
             CHECK="${red}KO\n  $ERR\n${normal}"
         fi
         printf " %b\n" "${CHECK}"
-
-        #| sed -n '/Proved goals/{N;N;N;N;p;q}'
     done
-    printf -- "\n${normal}OK: ${green}%d${normal} (${red}%d${normal}) / %d\n\n"\
+    printf "\n${normal}OK: ${green}%d${normal} (${red}%d${normal}) / %d\n\n"\
         "${OK}" "${KO}" "${N}"
 }
 

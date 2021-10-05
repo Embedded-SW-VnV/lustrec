@@ -71,7 +71,7 @@ let pp fmt = function
     fprintf fmt "Load error: %s.@." l
 
 let pp_warning loc pp_msg =
-  Format.eprintf "%a@.Warning: %t@." Location.pp loc pp_msg
+  Format.eprintf "@?%aWarning: %t@." Location.pp loc pp_msg
 
 let pp_error loc pp_msg =
-  Format.eprintf "@.%a@.Error: @[<v 0>%t@]@.@?" Location.pp loc pp_msg
+  Format.eprintf "@?%aError: @[<v 0>%t@]@." Location.pp loc pp_msg

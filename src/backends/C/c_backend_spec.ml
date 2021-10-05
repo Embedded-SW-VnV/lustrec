@@ -490,11 +490,13 @@ module PrintSpec = struct
     | Memory ResetFlag ->
       vdecl_to_val reset_flag
 
-  let find_arrow m =
-    try List.find (fun (_, (td, _)) -> Arrow.td_is_arrow td) m.minstances |> fst
-    with Not_found ->
-      eprintf "Internal error: arrow not found";
-      raise Not_found
+  let find_arrow loc m =
+    match List.find_opt (fun (_, (td, _)) -> Arrow.td_is_arrow td) m.minstances with
+    | Some (f, _) -> Some f
+    | None ->
+      Error.pp_warning loc
+        (fun fmt -> pp_print_string fmt "Generating stateful spec for uninitialized state variables.");
+      None
 
   let rec has_memory_val m v =
     let has_mem = has_memory_val m in
@@ -555,11 +557,15 @@ module PrintSpec = struct
             (Spec_common.type_of_l_value a, val_of_expr a, val_of_expr b)
         in
         if has_memory m b then
-          let inst = find_arrow m in
-          pp_paren
-            (pp_implies (pp_not (pp_initialization pp_access')) pp_eq)
-            fmt
-            ((Arrow.arrow_id, (mem_in, inst)), ())
+          let inst = find_arrow Location.dummy m in
+          pp_print_option
+            ~none:pp_eq
+            (fun fmt inst ->
+               pp_paren
+                 (pp_implies (pp_not (pp_initialization pp_access')) pp_eq)
+                 fmt
+                 ((Arrow.arrow_id, (mem_in, inst)), ()))
+            fmt inst
         else pp_eq fmt ()
       | GEqual (a, b) ->
         pp_assign_spec ~pp_op:pp_gequal
@@ -600,20 +606,29 @@ module PrintSpec = struct
           (Type_predef.type_bool, r, r)
       | StateVarPack (StateVar v) ->
         let v' = vdecl_to_val v in
-        let inst = find_arrow m in
-        pp_paren
-          (pp_implies
-             (pp_not (pp_initialization pp_access'))
-             (pp_assign_spec
-                m
-                mem_out
-                (pp_c_var_read ~test_output:false m)
-                indirect_l
-                mem_in
-                (pp_c_var_read ~test_output:false m)
-                indirect_r))
-          fmt
-          ((Arrow.arrow_id, (mem_out, inst)), (v.var_type, v', v'))
+        let pp_eq fmt () =
+          pp_assign_spec
+            m
+            mem_out
+            (pp_c_var_read ~test_output:false m)
+            indirect_l
+            mem_in
+            (pp_c_var_read ~test_output:false m)
+            indirect_r
+            fmt
+            (v.var_type, v', v')
+        in
+        let inst = find_arrow Location.dummy m in
+        pp_print_option
+          ~none:pp_eq
+          (fun fmt inst ->
+             pp_paren
+               (pp_implies
+                  (pp_not (pp_initialization pp_access'))
+                  pp_eq)
+               fmt
+               ((Arrow.arrow_id, (mem_out, inst)), ()))
+          fmt inst
       | ExistsMem (f, rc, tr) ->
         pp_exists
           (pp_machine_decl' ~ghost:true)

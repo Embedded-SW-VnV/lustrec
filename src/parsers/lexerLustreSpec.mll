@@ -89,6 +89,8 @@ let keyword_table =
   "assume", ASSUME;
   "contract", CONTRACT;
   "guarantee", GUARANTEES;
+  "requires", ASSUME;
+  "ensures", GUARANTEES;
   "exists", EXISTS;
   "forall", FORALL;
   "c_code", CCODE;

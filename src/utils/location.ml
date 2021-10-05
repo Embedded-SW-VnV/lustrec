@@ -49,7 +49,7 @@ let shift_pos pos1 pos2 =
 let line_of (s, _e) = s.pos_lnum
 
 let pp fmt loc =
-  if loc = dummy then () else Format.fprintf fmt "%s" (Lex.range loc)
+  Format.fprintf fmt "%s" (Lex.range loc)
 
 let pp_c fmt (s, _e) =
   let filename = s.pos_fname in
