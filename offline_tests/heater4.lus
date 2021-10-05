@@ -1,0 +1,15 @@
+node top(millisecond : bool) returns (open_light : bool)
+(*@ contract guarantee open_light; *)
+let
+  automaton command_control
+    state Open :
+          let
+            open_light = true;
+          tel
+          
+    state Silent :
+          let
+            open_light = false;
+          tel
+          
+tel

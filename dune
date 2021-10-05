@@ -39,26 +39,26 @@
    (lustrec testgen)))
  (files share/FindLustre.cmake share/helpful_functions.cmake))
 
-(rule
- (alias runtest)
- (deps
-  (source_tree tests/regression_tests))
- (action
-  (chdir
-   tests/regression_tests
-   (progn
-    (run
-     cmake
-     "-DSUBPROJ=\"unstable\""
-     "-DLUSTRE_INCLUDE_DIR=%{project_root}/include"
-     "-DLUSTRE_COMPILER=%{bin:lustrec}"
-     .)
-    (run
-     ctest
-     -D
-     Experimental
-     -R
-     "COMPIL_LUS|MAKE|BIN|DIFF"
-     -E
-     LUSTRET)
-))))
+; (rule
+;  (alias runtest)
+;  (deps
+;   (source_tree tests/regression_tests))
+;  (action
+;   (chdir
+;    tests/regression_tests
+;    (progn
+;     (run
+;      cmake
+;      "-DSUBPROJ=\"unstable\""
+;      "-DLUSTRE_INCLUDE_DIR=%{project_root}/include"
+;      "-DLUSTRE_COMPILER=%{bin:lustrec}"
+;      .)
+;     (run
+;      ctest
+;      -D
+;      Experimental
+;      -R
+;      "COMPIL_LUS|MAKE|BIN|DIFF"
+;      -E
+;      LUSTRET)
+; ))))

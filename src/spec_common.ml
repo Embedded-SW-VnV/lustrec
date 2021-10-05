@@ -6,9 +6,16 @@ let is_true = function True -> true | _ -> false
 
 let is_false = function False -> true | _ -> false
 
-let expr_eq : type a b. (a, left_v) expression_t -> (a, b) expression_t -> bool
-    =
- fun a b ->
+let type_of_l_value = function
+  | Var v ->
+    v.var_type
+  | Memory ResetFlag ->
+    Type_predef.type_bool
+  | Memory (StateVar v) ->
+    v.var_type
+  | _ -> assert false
+
+let expr_eq a b =
   match a, b with
   | Var x, Var y ->
     x = y
@@ -17,7 +24,7 @@ let expr_eq : type a b. (a, left_v) expression_t -> (a, b) expression_t -> bool
   | _ ->
     false
 
-let rec red : type a. a formula_t -> a formula_t = function
+let rec red = function
   | Equal (a, b) when expr_eq a b ->
     True
   | And l -> (

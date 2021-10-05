@@ -42,9 +42,7 @@ module PrintSpec = struct
     | StateVar v ->
       fprintf fmt "{OUT:%a}" pp_vdecl v
 
-  let pp_expr :
-      type a. machine_t -> formatter -> (value_t, a) expression_t -> unit =
-   fun m fmt -> function
+  let pp_expr m fmt = function
     | Val v ->
       pp_val m fmt v
     | Tag t ->
@@ -55,9 +53,7 @@ module PrintSpec = struct
       pp_reg fmt r
 
   let pp_predicate m fmt p =
-    let pp_expr : type a. formatter -> (value_t, a) expression_t -> unit =
-     fun fmt e -> pp_expr m fmt e
-    in
+    let pp_expr fmt e = pp_expr m fmt e in
     match p with
     | Transition (_, f, inst, i, vars, _r, _mems, _insts) ->
       fprintf
@@ -101,9 +97,7 @@ module PrintSpec = struct
       ()
 
   let pp_spec m =
-    let pp_expr : type a. formatter -> (value_t, a) expression_t -> unit =
-     fun fmt e -> pp_expr m fmt e
-    in
+    let pp_expr fmt e = pp_expr m fmt e in
     let rec pp_spec fmt f =
       match f with
       | True ->

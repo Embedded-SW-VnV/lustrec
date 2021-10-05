@@ -2,6 +2,8 @@ open Utils
 open Lustre_types
 open Spec_types
 
+val type_of_l_value : 'a expression_t -> Types.t
+
 val mk_conditional_tr : 'a -> 'a formula_t -> 'a formula_t -> 'a formula_t
 
 val mk_branch_tr : var_decl -> (ident * 'a formula_t) list -> 'a formula_t

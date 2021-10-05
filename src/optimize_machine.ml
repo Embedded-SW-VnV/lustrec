@@ -20,17 +20,80 @@ module Mpfr = Lustrec_mpfr
 
 let pp_elim m fmt elim =
   IMap.pp ~comment:"/* elim table: */" (pp_val m) fmt elim
-(* Format.fprintf fmt "@[<hv 0>@[<hv 2>{ /* elim table: */";
- * IMap.iter (fun v expr -> Format.fprintf fmt "@ %s |-> %a," v (pp_val m) expr) elim;
- * Format.fprintf fmt "@]@ }@]" *)
+
+let rec eliminate_val m elim expr =
+  let eliminate_val = eliminate_val m in
+  match expr.value_desc with
+  | Var v -> (
+    if is_memory m v then expr
+    else try IMap.find v.var_id elim with Not_found -> expr)
+  | Fun (id, vl) ->
+    { expr with value_desc = Fun (id, List.map (eliminate_val elim) vl) }
+  | Array vl ->
+    { expr with value_desc = Array (List.map (eliminate_val elim) vl) }
+  | Access (v1, v2) ->
+    {
+      expr with
+      value_desc = Access (eliminate_val elim v1, eliminate_val elim v2);
+    }
+  | Power (v1, v2) ->
+    {
+      expr with
+      value_desc = Power (eliminate_val elim v1, eliminate_val elim v2);
+    }
+  | Cst _ | ResetFlag ->
+    expr
+
+let eliminate_expr m elim e =
+  let e_val = eliminate_val m elim in
+  match e with
+  | Val v -> Val (e_val v)
+  | Var v -> begin try Val (IMap.find v.var_id elim) with Not_found -> e end
+  | _ -> e
+
+let eliminate_pred m elim = function
+  | Transition (s, f, inst, i, vars, r, mems, insts) ->
+    Transition
+      (s, f, inst, i, List.map (eliminate_expr m elim) vars, r, mems, insts)
+  | p ->
+    p
+
+let rec eliminate_instr_spec m elim =
+  let e_expr = eliminate_expr m elim in
+  let e_instr i = eliminate_instr_spec m elim i in
+  let e_pred = eliminate_pred m elim in
+  function
+  | Equal (e1, e2) ->
+    Equal (e_expr e1, e_expr e2)
+  | And f ->
+    And (List.map e_instr f)
+  | Or f ->
+    Or (List.map e_instr f)
+  | Imply (a, b) ->
+    Imply (e_instr a, e_instr b)
+  | Exists (xs, a) ->
+    let elim = IMap.filter (fun v _ -> not (List.exists (fun v' -> v = v'.var_id) xs)) elim in
+    Exists (xs, eliminate_instr_spec m elim a)
+  | Forall (xs, a) ->
+    let elim = IMap.filter (fun v _ -> not (List.exists (fun v' -> v = v'.var_id) xs)) elim in
+    Forall (xs, eliminate_instr_spec m elim a)
+  | Ternary (e, a, b) ->
+    Ternary (e_expr e, e_instr a, e_instr b)
+  | Predicate p ->
+    Predicate (e_pred p)
+  | ExistsMem (f, a, b) ->
+    ExistsMem (f, e_instr a, e_instr b)
+  | f ->
+    f
 
 let rec eliminate m elim instr =
-  let e_expr = eliminate_expr m elim in
+  let e_val = eliminate_val m elim in
+  let instr = { instr with instr_spec = List.map (eliminate_instr_spec m elim) instr.instr_spec } in
   match get_instr_desc instr with
   | MLocalAssign (i, v) ->
-    update_instr_desc instr (MLocalAssign (i, e_expr v))
+    update_instr_desc instr (MLocalAssign (i, e_val v))
   | MStateAssign (i, v) ->
-    update_instr_desc instr (MStateAssign (i, e_expr v))
+    update_instr_desc instr (MStateAssign (i, e_val v))
   | MSetReset _
   | MNoReset _
   | MClearReset
@@ -39,36 +102,14 @@ let rec eliminate m elim instr =
   | MComment _ ->
     instr
   | MStep (il, i, vl) ->
-    update_instr_desc instr (MStep (il, i, List.map e_expr vl))
+    update_instr_desc instr (MStep (il, i, List.map e_val vl))
   | MBranch (g, hl) ->
     update_instr_desc
       instr
       (MBranch
-         ( e_expr g,
+         ( e_val g,
            List.map (fun (l, il) -> l, List.map (eliminate m elim) il) hl ))
 
-and eliminate_expr m elim expr =
-  let eliminate_expr = eliminate_expr m in
-  match expr.value_desc with
-  | Var v -> (
-    if is_memory m v then expr
-    else try IMap.find v.var_id elim with Not_found -> expr)
-  | Fun (id, vl) ->
-    { expr with value_desc = Fun (id, List.map (eliminate_expr elim) vl) }
-  | Array vl ->
-    { expr with value_desc = Array (List.map (eliminate_expr elim) vl) }
-  | Access (v1, v2) ->
-    {
-      expr with
-      value_desc = Access (eliminate_expr elim v1, eliminate_expr elim v2);
-    }
-  | Power (v1, v2) ->
-    {
-      expr with
-      value_desc = Power (eliminate_expr elim v1, eliminate_expr elim v2);
-    }
-  | Cst _ | ResetFlag ->
-    expr
 
 (* XXX: UNUSED *)
 (* let eliminate_dim elim dim =
@@ -338,7 +379,7 @@ let machine_unfold fanin elim machine =
   let checks =
     List.map
       (fun (loc, check) ->
-        loc, eliminate_expr machine (IMap.map fst elim_vars) check)
+        loc, eliminate_val machine (IMap.map fst elim_vars) check)
       machine.mstep.step_checks
   in
   let locals =
@@ -631,12 +672,7 @@ let rec value_replace_var fvar value =
   | Power (v, n) ->
     { value with value_desc = Power (value_replace_var fvar v, n) }
 
-let expr_spec_replace :
-    type a.
-    (var_decl -> var_decl) ->
-    (value_t, a) expression_t ->
-    (value_t, a) expression_t =
- fun fvar -> function
+let expr_spec_replace fvar = function
   | Val v ->
     Val (value_replace_var fvar v)
   | Var v ->
@@ -848,7 +884,6 @@ let elim_prog_variables prog removed_table =
               nd_elim_map
               ([], [])
           in
-
           let node_locals, node_stmts =
             List.fold_right
               (fun stmt (locals, res_stmts) ->
@@ -859,24 +894,16 @@ let elim_prog_variables prog removed_table =
                   match eq.eq_lhs with
                   | [] ->
                     assert false (* shall not happen *)
-                  | _ :: _ :: _ ->
+                  | [lhs] when List.exists (fun v -> v.var_id = lhs) vars_to_replace ->
+                    (* We remove the def *)
+                    List.filter (fun v -> v.var_id <> lhs) locals, res_stmts
+                  | _ ->
                     (* When more than one lhs we just keep the equation and do
                        not delete it *)
-                    let eq_rhs' =
+                    let eq_rhs =
                       substitute_expr vars_to_replace defs eq.eq_rhs
                     in
-                    locals, Eq { eq with eq_rhs = eq_rhs' } :: res_stmts
-                  | [ lhs ] ->
-                    if List.exists (fun v -> v.var_id = lhs) vars_to_replace
-                    then
-                      (* We remove the def *)
-                      List.filter (fun v -> v.var_id <> lhs) locals, res_stmts
-                    else
-                      (* We keep it but modify any use of an eliminatend var *)
-                      let eq_rhs' =
-                        substitute_expr vars_to_replace defs eq.eq_rhs
-                      in
-                      locals, Eq { eq with eq_rhs = eq_rhs' } :: res_stmts))
+                    locals, Eq { eq with eq_rhs } :: res_stmts))
               nd.node_stmts
               (nd.node_locals, [])
           in
@@ -939,12 +966,6 @@ let optimize params prog node_schs machine_code =
             "@ Eliminated flows: %a@ "
             (IMap.pp (fun fmt m -> pp_elim empty_machine fmt (IMap.map fst m)))
             removed_table);
-      Log.report ~level:3 (fun fmt ->
-          Format.fprintf
-            fmt
-            "@ @[<v 2>.. generated machines (const inlining):@ %a@]@ "
-            pp_machines
-            machine_code);
       (* If variables were eliminated, relaunch the normalization/machine
          generation *)
       let prog, machine_code, removed_table =
@@ -966,6 +987,12 @@ let optimize params prog node_schs machine_code =
           in
           prog, machine_code, removed_table
       in
+      Log.report ~level:3 (fun fmt ->
+          Format.fprintf
+            fmt
+            "@ @[<v 2>.. generated machines (const inlining):@ %a@]@ "
+            pp_machines
+            machine_code);
       Log.report ~level:1 (fun fmt -> Format.fprintf fmt "@]");
       prog, machine_code, removed_table)
     else prog, machine_code, IMap.empty

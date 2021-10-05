@@ -1,0 +1,9 @@
+node top (init:int) returns (OK:bool);
+--@ contract guarantee OK;
+var time:int;
+let
+  time = 0 -> if pre time = 5 then 0 
+              else pre time + 1;
+  OK = time <0;
+  --%PROPERTY OK;
+tel

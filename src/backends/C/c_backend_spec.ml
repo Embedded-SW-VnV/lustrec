@@ -94,7 +94,11 @@ let pp_reg self fmt field =
 
 let pp_true fmt () = pp_print_string fmt "\\true"
 
-let pp_true_c_bool fmt () = pp_print_string fmt "(_Bool) 1"
+let pp_cast pp_ty pp fmt (ty, x) = fprintf fmt "(%a) %a" pp_ty ty pp x
+
+let pp_bool_cast pp fmt x = pp_cast pp_print_string pp fmt ("_Bool", x)
+
+let pp_true_c_bool fmt () = pp_bool_cast pp_print_string fmt "1"
 
 let pp_false fmt () = pp_print_string fmt "\\false"
 
@@ -401,17 +405,14 @@ module PrintSpec = struct
     | StateVar x ->
       fprintf fmt "%s.%a" mem pp_var_decl x
 
-  let pp_expr :
-      type a.
-      ?test_output:bool ->
-      machine_t ->
-      ident ->
-      formatter ->
-      (value_t, a) expression_t ->
-      unit =
-   fun ?(test_output = false) m mem fmt -> function
+  let not_var v = match v.value_desc with
+    | Var _ -> false
+    | _ -> true
+
+  let pp_expr ?(test_output = false) m mem fmt = function
     | Val v ->
-      pp_c_val m mem (pp_c_var_read ~test_output m) fmt v
+      let pp = pp_c_val m mem (pp_c_var_read ~test_output m) in
+      (if not_var v && Types.is_bool_type v.value_type then pp_bool_cast pp else pp) fmt v
     | Tag t ->
       pp_print_string fmt t
     | Var v ->
@@ -429,10 +430,7 @@ module PrintSpec = struct
       | _ ->
         false, false
     in
-    let pp_expr : type a. bool -> formatter -> (value_t, a) expression_t -> unit
-        =
-     fun test_output fmt e -> pp_expr ~test_output m mem_out fmt e
-    in
+    let pp_expr test_output fmt e = pp_expr ~test_output m mem_out fmt e in
     match p with
     | Transition (stateless, f, inst, i, vars, r, mems, insts) ->
       let pp_mem_in, pp_mem_out =
@@ -480,7 +478,7 @@ module PrintSpec = struct
 
   let reset_flag = dummy_var_decl "_reset" Type_predef.type_bool
 
-  let val_of_expr : type a. (value_t, a) expression_t -> value_t = function
+  let val_of_expr = function
     | Val v ->
       v
     | Tag t ->
@@ -510,8 +508,7 @@ module PrintSpec = struct
     | _ ->
       false
 
-  let has_memory : type a. machine_t -> (value_t, a) expression_t -> bool =
-   fun m -> function Val v -> has_memory_val m v | _ -> false
+  let has_memory m = function Val v -> has_memory_val m v | _ -> false
 
   let pp_spec mode m =
     let rec pp_spec mode fmt f =
@@ -537,9 +534,7 @@ module PrintSpec = struct
           fprintf str_formatter "%a" (pp_at pp_print_string) (mem, reset_label);
           self, flush_str_formatter (), false, mem, mem, false
       in
-      let pp_expr : type a. formatter -> (value_t, a) expression_t -> unit =
-       fun fmt e -> pp_expr m mem_out fmt e
-      in
+      let pp_expr fmt e = pp_expr m mem_out fmt e in
       let pp_spec' = pp_spec mode in
       match f with
       | True ->
@@ -557,7 +552,7 @@ module PrintSpec = struct
             (pp_c_var_read ~test_output:false m)
             indirect_r
             fmt
-            (type_of_l_value a, val_of_expr a, val_of_expr b)
+            (Spec_common.type_of_l_value a, val_of_expr a, val_of_expr b)
         in
         if has_memory m b then
           let inst = find_arrow m in
@@ -576,7 +571,7 @@ module PrintSpec = struct
           (pp_c_var_read ~test_output:false m)
           indirect_r
           fmt
-          (type_of_l_value a, val_of_expr a, val_of_expr b)
+          (Spec_common.type_of_l_value a, val_of_expr a, val_of_expr b)
       | And fs ->
         pp_and_l pp_spec' fmt fs
       | Or fs ->
@@ -1068,9 +1063,7 @@ module SrcMod = struct
           v);
     }
 
-  let rename_expression :
-      type a. int -> (value_t, a) expression_t -> (value_t, a) expression_t =
-   fun n -> function
+  let rename_expression n = function
     | Val v ->
       Val (rename_value n v)
     | Var v ->
