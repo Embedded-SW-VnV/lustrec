@@ -121,6 +121,7 @@ val pp_c_decl_input_var : formatter -> var_decl -> unit
    a printer for variables (typically [pp_c_var_read]), but an offset suffix may
    be added for array variables *)
 val pp_c_val :
+  ?indirect:bool ->
   machine_t ->
   ident ->
   (formatter -> var_decl -> unit) ->

@@ -367,7 +367,7 @@ let pp_reset_assign self fmt b =
 (* Prints a value expression [v], with internal function calls only. [pp_var] is
    a printer for variables (typically [pp_c_var_read]), but an offset suffix may
    be added for array variables *)
-let rec pp_c_val m self pp_var fmt v =
+let rec pp_c_val ?(indirect=true) m self pp_var fmt v =
   let pp_c_val = pp_c_val m self pp_var in
   match v.value_desc with
   | Cst c ->
@@ -391,7 +391,7 @@ let rec pp_c_val m self pp_var fmt v =
         Types.is_array_type v.var_type
         && not (Types.is_real_type v.var_type && !Options.mpfr)
       then fprintf fmt "%a" pp_var v
-      else fprintf fmt "%s->_reg.%a" self pp_var v
+      else fprintf fmt "%s%s_reg.%a" self (if indirect then "->" else ".") pp_var v
     else pp_var fmt v
   | Fun (n, vl) ->
     pp_basic_lib_fun (Types.is_int_type v.value_type) n pp_c_val fmt vl

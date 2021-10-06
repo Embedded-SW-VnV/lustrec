@@ -413,7 +413,7 @@ module PrintSpec = struct
 
   let pp_expr ?(test_output = false) m mem fmt = function
     | Val v ->
-      let pp = pp_c_val m mem (pp_c_var_read ~test_output m) in
+      let pp = pp_c_val ~indirect:false m mem (pp_c_var_read ~test_output m) in
       (if not_var v
        then if Types.is_bool_type v.value_type
          then pp_bool_cast pp
