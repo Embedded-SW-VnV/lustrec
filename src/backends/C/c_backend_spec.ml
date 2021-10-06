@@ -1849,6 +1849,109 @@ module MakefileMod = struct
     fprintf fmt "@."
 end
 
+(* TODO: complete this list *)
+let acsl_keywords = ISet.of_list ["set"]
+
+let sanitize x = if ISet.mem x acsl_keywords then "__" ^ x else x
+
+let sanitize_var_decl vd = { vd with var_id = sanitize vd.var_id }
+
+let sanitize_var_decls = List.map sanitize_var_decl
+
+let rec sanitize_value v =
+  let value_desc = match v.value_desc with
+    | Machine_code_types.Var vd -> Machine_code_types.Var (sanitize_var_decl vd)
+    | Fun (f, vs) -> Fun (f, sanitize_values vs)
+    | Array vs -> Array (sanitize_values vs)
+    | Access (v1, v2) -> Access (sanitize_value v1, sanitize_value v2)
+    | Power (v1, v2) -> Power (sanitize_value v1, sanitize_value v2)
+    | v -> v
+  in
+  { v with value_desc }
+
+and sanitize_values vs = List.map sanitize_value vs
+
+let sanitize_expr = function
+  | Val v -> Val (sanitize_value v)
+  | Var v -> Var (sanitize_var_decl v)
+  | e -> e
+
+let sanitize_predicate = function
+  | Transition (st, f, inst, i, vs, r, mf, mfinsts) ->
+    Transition (st, f, inst, i, List.map sanitize_expr vs, r, mf, mfinsts)
+  | p -> p
+
+let rec sanitize_formula = function
+  | Equal (e1, e2) -> Equal (sanitize_expr e1, sanitize_expr e2)
+  | GEqual (e1, e2) -> GEqual (sanitize_expr e1, sanitize_expr e2)
+  | And fs -> And (sanitize_formulae fs)
+  | Or fs -> Or (sanitize_formulae fs)
+  | Imply (f1, f2) -> Imply (sanitize_formula f1, sanitize_formula f2)
+  | Exists (vs, f) -> Exists (sanitize_var_decls vs, sanitize_formula f)
+  | Forall (vs, f) -> Forall (sanitize_var_decls vs, sanitize_formula f)
+  | Ternary (e, t, f) -> Ternary (sanitize_expr e, sanitize_formula t, sanitize_formula f)
+  | Predicate p -> Predicate (sanitize_predicate p)
+  | ExistsMem (m, f1, f2) -> ExistsMem (m, sanitize_formula f1, sanitize_formula f2)
+  | Value v -> Value (sanitize_value v)
+  | f -> f
+
+and sanitize_formulae fs = List.map sanitize_formula fs
+
+let rec sanitize_instr i =
+  let sanitize_instr_desc = function
+    | MLocalAssign (x, v) ->
+      MLocalAssign (sanitize_var_decl x, sanitize_value v)
+    | MStateAssign (x, v) ->
+      MStateAssign (x, sanitize_value v)
+    | MStep (xs, f, vs) ->
+      MStep (sanitize_var_decls xs, f, sanitize_values vs)
+    | MBranch (v, brs) ->
+      MBranch (sanitize_value v, List.map (fun (t, instrs) -> t, sanitize_instrs instrs) brs)
+    | i -> i
+  in
+  { i with
+    instr_desc = sanitize_instr_desc i.instr_desc;
+    instr_spec = sanitize_formulae i.instr_spec
+  }
+
+and sanitize_instrs instrs = List.map sanitize_instr instrs
+
+let sanitize_step s =
+  { s with
+    step_inputs = sanitize_var_decls s.step_inputs;
+    step_outputs = sanitize_var_decls s.step_outputs;
+    step_locals = sanitize_var_decls s.step_locals;
+    step_instrs = sanitize_instrs s.step_instrs
+  }
+
+let sanitize_transition t =
+  { t with
+    tvars = sanitize_var_decls t.tvars;
+    tformula = sanitize_formula t.tformula
+  }
+
+let sanitize_transitions = List.map sanitize_transition
+
+let sanitize_memory_pack mp =
+  { mp with
+    mpformula = sanitize_formula mp.mpformula
+  }
+
+let sanitize_memory_packs = List.map sanitize_memory_pack
+
+let sanitize_spec s =
+  { s with
+    mtransitions = sanitize_transitions s.mtransitions;
+    mmemory_packs = sanitize_memory_packs s.mmemory_packs
+  }
+let sanitize_machine m =
+  { m with
+    mstep = sanitize_step m.mstep;
+    mspec = sanitize_spec m.mspec
+  }
+
+let sanitize_machines = List.map sanitize_machine
+
 (* Local Variables: *)
 (* compile-command:"make -C ../../.." *)
 (* End: *)

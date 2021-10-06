@@ -121,20 +121,22 @@ let print_c_header basename =
       Header.pp_header_from_header header_fmt basename lusic.contents)
 
 let translate_to_c generate_c_header basename prog machines dependencies =
-  let header_m, source_m, source_main_m, makefile_m =
+  let header_m, source_m, source_main_m, makefile_m, machines =
     let open Options in
     match !spec with
     | SpecNo ->
       ( C_backend_header.((module EmptyMod : MODIFIERS_HDR)),
         C_backend_src.((module EmptyMod : MODIFIERS_SRC)),
         C_backend_main.((module EmptyMod : MODIFIERS_MAINSRC)),
-        C_backend_makefile.((module EmptyMod : MODIFIERS_MKF)) )
+        C_backend_makefile.((module EmptyMod : MODIFIERS_MKF)),
+        machines )
     | SpecACSL ->
       let open C_backend_spec in
       ( C_backend_header.((module HdrMod : MODIFIERS_HDR)),
         C_backend_src.((module SrcMod : MODIFIERS_SRC)),
         C_backend_main.((module MainMod : MODIFIERS_MAINSRC)),
-        C_backend_makefile.((module MakefileMod : MODIFIERS_MKF)) )
+        C_backend_makefile.((module MakefileMod : MODIFIERS_MKF)),
+        sanitize_machines machines)
     | SpecC ->
       assert false
     (* not implemented yet *)
