@@ -540,7 +540,7 @@ module PrintSpec = struct
         | ResetOut ->
           mem_in, mem_in, false, mem_reset, mem_reset, false
         | InstrMode self ->
-          let mem = "*" ^ mem in
+          let mem = "(*" ^ mem ^ ")" in
           fprintf str_formatter "%a" (pp_at pp_print_string) (mem, reset_label);
           self, flush_str_formatter (), false, mem, mem, false
       in
