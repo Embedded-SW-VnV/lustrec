@@ -368,7 +368,7 @@ let pp_reset_assign self fmt b =
    a printer for variables (typically [pp_c_var_read]), but an offset suffix may
    be added for array variables *)
 let rec pp_c_val ?(indirect=true) m self pp_var fmt v =
-  let pp_c_val = pp_c_val m self pp_var in
+  let pp_c_val = pp_c_val ~indirect m self pp_var in
   match v.value_desc with
   | Cst c ->
     pp_c_const fmt c
