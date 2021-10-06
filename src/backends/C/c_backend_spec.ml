@@ -98,6 +98,8 @@ let pp_cast pp_ty pp fmt (ty, x) = fprintf fmt "(%a) %a" pp_ty ty pp x
 
 let pp_bool_cast pp fmt x = pp_cast pp_print_string pp fmt ("_Bool", x)
 
+let pp_double_cast pp fmt x = pp_cast pp_print_string pp fmt ("double", x)
+
 let pp_true_c_bool fmt () = pp_bool_cast pp_print_string fmt "1"
 
 let pp_false fmt () = pp_print_string fmt "\\false"
@@ -412,7 +414,13 @@ module PrintSpec = struct
   let pp_expr ?(test_output = false) m mem fmt = function
     | Val v ->
       let pp = pp_c_val m mem (pp_c_var_read ~test_output m) in
-      (if not_var v && Types.is_bool_type v.value_type then pp_bool_cast pp else pp) fmt v
+      (if not_var v
+       then if Types.is_bool_type v.value_type
+         then pp_bool_cast pp
+         else if Types.is_real_type v.value_type
+         then pp_double_cast pp
+         else pp
+       else pp) fmt v
     | Tag t ->
       pp_print_string fmt t
     | Var v ->

@@ -129,6 +129,8 @@ module type S = sig
 
   val get_static_value : t -> Dimension.t option
 
+  val types_of_tuple_type : t -> t list
+
   val is_tuple_type : t -> bool
 
   val type_of_type_list : t list -> t

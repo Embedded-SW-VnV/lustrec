@@ -143,6 +143,8 @@ module type S = sig
 
   val get_static_value : t -> Dimension.t option
 
+  val types_of_tuple_type : t -> t list
+
   val is_tuple_type : t -> bool
 
   val type_of_type_list : t list -> t
@@ -496,6 +498,9 @@ module Make (BasicT : BASIC_TYPES) = struct
   let dynamic_type ty =
     let ty = repr ty in
     match ty.tdesc with Tstatic (_, ty') -> ty' | _ -> ty
+
+  let types_of_tuple_type ty =
+    match (repr ty).tdesc with Ttuple ts -> ts | _ -> []
 
   let is_tuple_type ty =
     match (repr ty).tdesc with Ttuple _ -> true | _ -> false
