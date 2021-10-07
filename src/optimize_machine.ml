@@ -57,7 +57,8 @@ let eliminate_expr m elim e =
   | _ -> e
 
 let eliminate_pred m elim = function
-  | Transition (s, f, inst, i, vars, r, mems, insts) ->
+  (* the transition is local to the machine *)
+  | Transition (s, f, inst, Some i, vars, r, mems, insts) ->
     let vars = List.filter_map (function
         | Spec_types.Val v ->
           begin match v.value_desc with
@@ -67,7 +68,13 @@ let eliminate_pred m elim = function
         | Spec_types.Var vd when IMap.mem vd.var_id elim -> None
         | e -> Some (eliminate_expr m elim e)) vars
     in
-    Transition (s, f, inst, i, vars, r, mems, insts)
+    Transition (s, f, inst, Some i, vars, r, mems, insts)
+
+  (* the transition is not local to the machine *)
+  | Transition (s, f, inst, None, vars, r, mems, insts) ->
+    let vars = List.map (eliminate_expr m elim) vars in
+    Transition (s, f, inst, None, vars, r, mems, insts)
+
   | p ->
     p
 
@@ -78,6 +85,8 @@ let rec eliminate_formula m elim =
   function
   | Equal (e1, e2) ->
     Equal (e_expr e1, e_expr e2)
+  | GEqual (e1, e2) ->
+    GEqual (e_expr e1, e_expr e2)
   | And f ->
     And (List.map e_instr f)
   | Or f ->
@@ -96,6 +105,8 @@ let rec eliminate_formula m elim =
     Predicate (e_pred p)
   | ExistsMem (f, a, b) ->
     ExistsMem (f, e_instr a, e_instr b)
+  | Value v ->
+    Value (eliminate_val m elim v)
   | f ->
     f
 
@@ -123,10 +134,58 @@ let rec eliminate m elim instr =
          ( e_val g,
            List.map (fun (l, il) -> l, List.map (eliminate m elim) il) hl ))
 
+let rec fv_value s v =
+  match v.value_desc with
+  | Var v ->
+    VSet.add v s
+  | Fun (_, vl)
+  | Array vl ->
+    List.fold_left fv_value s vl
+  | Access (v1, v2)
+  | Power (v1, v2) ->
+    fv_value (fv_value s v1) v2
+  | _ -> s
+
+let fv_expr s = function
+  | Val v -> fv_value s v
+  | Var v -> VSet.add v s
+  | _ -> s
+
+let fv_predicate s = function
+  | Transition (_, _, _, _, vars, _, _, _) ->
+    List.fold_left fv_expr s vars
+  | _ -> s
+
+let rec fv_formula s = function
+  | Equal (e1, e2)
+  | GEqual (e1, e2) ->
+    fv_expr (fv_expr s e1) e2
+  | And f
+  | Or f ->
+    List.fold_left fv_formula s f
+  | Imply (a, b)
+  | ExistsMem (_, a, b) ->
+    fv_formula (fv_formula s a) b
+  | Exists (xs, a)
+  | Forall (xs, a) ->
+    VSet.filter (fun v -> not (List.mem v xs)) (fv_formula s a)
+  | Ternary (e, a, b) ->
+    fv_expr (fv_formula (fv_formula s a) b) e
+  | Predicate p ->
+    fv_predicate s p
+  | Value v ->
+    fv_value s v
+  | _ -> s
+
 let eliminate_transition m elim t =
+  let tvars = List.filter (fun vd -> not (IMap.mem vd.var_id elim)) t.tvars in
+  let tformula = eliminate_formula m elim t.tformula in
+  let fv = VSet.(elements (diff (fv_formula empty tformula) (of_list tvars))) in
+  let tformula = Exists (fv, tformula) in
   { t with
-    tvars = List.filter (fun vd -> not (IMap.mem vd.var_id elim)) t.tvars;
-    tformula = eliminate_formula m elim t.tformula }
+    tvars;
+    tformula
+  }
 
 (* XXX: UNUSED *)
 (* let eliminate_dim elim dim =
@@ -715,6 +774,8 @@ let rec instr_spec_replace fvar =
   function
   | Equal (e1, e2) ->
     Equal (expr_spec_replace fvar e1, expr_spec_replace fvar e2)
+  | GEqual (e1, e2) ->
+    GEqual (expr_spec_replace fvar e1, expr_spec_replace fvar e2)
   | And f ->
     And (List.map aux f)
   | Or f ->
