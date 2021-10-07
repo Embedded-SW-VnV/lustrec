@@ -421,7 +421,7 @@ module PrintSpec = struct
          then pp_double_cast pp
          else pp
        else pp) fmt v
-    | Tag t ->
+    | Tag (t, _) ->
       pp_print_string fmt t
     | Var v ->
       pp_var_decl fmt v
@@ -489,7 +489,7 @@ module PrintSpec = struct
   let val_of_expr = function
     | Val v ->
       v
-    | Tag t ->
+    | Tag (t, _) ->
       id_to_tag t
     | Var v ->
       vdecl_to_val v
@@ -520,7 +520,7 @@ module PrintSpec = struct
 
   let has_memory m = function Val v -> has_memory_val m v | _ -> false
 
-  let pp_spec mode m =
+  let pp_spec mode m fmt f =
     let rec pp_spec mode fmt f =
       let mem_in, mem_in', indirect_r, mem_out, mem_out', indirect_l =
         let self = mk_self m in
@@ -562,7 +562,7 @@ module PrintSpec = struct
             (pp_c_var_read ~test_output:false m)
             indirect_r
             fmt
-            (Spec_common.type_of_l_value a, val_of_expr a, val_of_expr b)
+            (Spec_common.type_of_value a, val_of_expr a, val_of_expr b)
         in
         if has_memory m b then
           let inst = find_arrow Location.dummy m in
@@ -585,7 +585,7 @@ module PrintSpec = struct
           (pp_c_var_read ~test_output:false m)
           indirect_r
           fmt
-          (Spec_common.type_of_l_value a, val_of_expr a, val_of_expr b)
+          (Spec_common.type_of_value a, val_of_expr a, val_of_expr b)
       | And fs ->
         pp_and_l pp_spec' fmt fs
       | Or fs ->
@@ -647,7 +647,7 @@ module PrintSpec = struct
         pp_c_val m mem_in (pp_c_var_read ~test_output:true m) fmt v
     in
 
-    pp_spec mode
+    pp_spec mode fmt (Spec_common.red f)
 end
 
 let pp_predicate pp_l pp_r fmt (l, r) =

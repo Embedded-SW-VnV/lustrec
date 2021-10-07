@@ -6,23 +6,24 @@ let is_true = function True -> true | _ -> false
 
 let is_false = function False -> true | _ -> false
 
-let type_of_l_value = function
+let type_of_value = function
+  | Val v -> v.Machine_code_types.value_type
+  | Tag (_, t) -> t
   | Var v ->
     v.var_type
   | Memory ResetFlag ->
     Type_predef.type_bool
   | Memory (StateVar v) ->
     v.var_type
-  | _ -> assert false
 
-let expr_eq a b =
-  match a, b with
-  | Var x, Var y ->
-    x = y
-  | Memory r1, Memory r2 ->
-    r1 = r2
-  | _ ->
-    false
+let expr_eq a b = a = b
+  (* match a, b with *)
+  (* | Var x, Var y -> *)
+  (*   x = y *)
+  (* | Memory r1, Memory r2 -> *)
+  (*   r1 = r2 *)
+  (* | _ -> *)
+  (*   false *)
 
 let rec red = function
   | Equal (a, b) when expr_eq a b ->
@@ -124,7 +125,9 @@ let mk_branch_tr x =
   | hl ->
     let n = List.length hl in
     And (List.mapi (fun k (t, spec) ->
-        let c = if k = n - 1 then GEqual (Var x, Tag t) else Equal (Var x, Tag t) in
+        let tag = Tag (t, x.var_type) in
+        let x = Var x in
+        let c = if k = n - 1 then GEqual (x, tag) else Equal (x, tag) in
         Imply (c, spec)) hl)
 
 let mk_assign_tr x v = Equal (Var x, Val v)

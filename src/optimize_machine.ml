@@ -21,12 +21,17 @@ module Mpfr = Lustrec_mpfr
 let pp_elim m fmt elim =
   IMap.pp ~comment:"/* elim table: */" (pp_val m) fmt elim
 
+let eliminate_var_decl elim m v f a =
+  if is_memory m v then a
+  else try
+      f (IMap.find v.var_id elim)
+    with Not_found -> a
+
 let rec eliminate_val m elim expr =
   let eliminate_val = eliminate_val m in
   match expr.value_desc with
-  | Var v -> (
-    if is_memory m v then expr
-    else try IMap.find v.var_id elim with Not_found -> expr)
+  | Var v ->
+    eliminate_var_decl elim m v (fun x -> x) expr
   | Fun (id, vl) ->
     { expr with value_desc = Fun (id, List.map (eliminate_val elim) vl) }
   | Array vl ->
@@ -48,19 +53,27 @@ let eliminate_expr m elim e =
   let e_val = eliminate_val m elim in
   match e with
   | Val v -> Val (e_val v)
-  | Var v -> begin try Val (IMap.find v.var_id elim) with Not_found -> e end
+  | Var v -> eliminate_var_decl elim m v (fun x -> Val x) e
   | _ -> e
 
 let eliminate_pred m elim = function
   | Transition (s, f, inst, i, vars, r, mems, insts) ->
-    Transition
-      (s, f, inst, i, List.map (eliminate_expr m elim) vars, r, mems, insts)
+    let vars = List.filter_map (function
+        | Spec_types.Val v ->
+          begin match v.value_desc with
+            | Var vd when IMap.mem vd.var_id elim -> None
+            | _ -> Some (Val v)
+          end
+        | Spec_types.Var vd when IMap.mem vd.var_id elim -> None
+        | e -> Some (eliminate_expr m elim e)) vars
+    in
+    Transition (s, f, inst, i, vars, r, mems, insts)
   | p ->
     p
 
-let rec eliminate_instr_spec m elim =
+let rec eliminate_formula m elim =
   let e_expr = eliminate_expr m elim in
-  let e_instr i = eliminate_instr_spec m elim i in
+  let e_instr i = eliminate_formula m elim i in
   let e_pred = eliminate_pred m elim in
   function
   | Equal (e1, e2) ->
@@ -72,11 +85,11 @@ let rec eliminate_instr_spec m elim =
   | Imply (a, b) ->
     Imply (e_instr a, e_instr b)
   | Exists (xs, a) ->
-    let elim = IMap.filter (fun v _ -> not (List.exists (fun v' -> v = v'.var_id) xs)) elim in
-    Exists (xs, eliminate_instr_spec m elim a)
+    let xs = List.filter (fun vd -> not (IMap.mem vd.var_id elim)) xs in
+    Exists (xs, eliminate_formula m elim a)
   | Forall (xs, a) ->
-    let elim = IMap.filter (fun v _ -> not (List.exists (fun v' -> v = v'.var_id) xs)) elim in
-    Forall (xs, eliminate_instr_spec m elim a)
+    let xs = List.filter (fun vd -> not (IMap.mem vd.var_id elim)) xs in
+    Forall (xs, eliminate_formula m elim a)
   | Ternary (e, a, b) ->
     Ternary (e_expr e, e_instr a, e_instr b)
   | Predicate p ->
@@ -88,7 +101,7 @@ let rec eliminate_instr_spec m elim =
 
 let rec eliminate m elim instr =
   let e_val = eliminate_val m elim in
-  let instr = { instr with instr_spec = List.map (eliminate_instr_spec m elim) instr.instr_spec } in
+  let instr = { instr with instr_spec = List.map (eliminate_formula m elim) instr.instr_spec } in
   match get_instr_desc instr with
   | MLocalAssign (i, v) ->
     update_instr_desc instr (MLocalAssign (i, e_val v))
@@ -110,6 +123,10 @@ let rec eliminate m elim instr =
          ( e_val g,
            List.map (fun (l, il) -> l, List.map (eliminate m elim) il) hl ))
 
+let eliminate_transition m elim t =
+  { t with
+    tvars = List.filter (fun vd -> not (IMap.mem vd.var_id elim)) t.tvars;
+    tformula = eliminate_formula m elim t.tformula }
 
 (* XXX: UNUSED *)
 (* let eliminate_dim elim dim =
@@ -375,18 +392,19 @@ let machine_unfold fanin elim machine =
   let elim_vars, instrs =
     instrs_unfold machine fanin elim_consts machine.mstep.step_instrs
   in
-  let instrs = simplify_instrs_offset machine instrs in
-  let checks =
+  let step_instrs = simplify_instrs_offset machine instrs in
+  let step_checks =
     List.map
       (fun (loc, check) ->
         loc, eliminate_val machine (IMap.map fst elim_vars) check)
       machine.mstep.step_checks
   in
-  let locals =
+  let step_locals =
     List.filter
       (fun v -> not (IMap.mem v.var_id elim_vars))
       machine.mstep.step_locals
   in
+  let mtransitions = List.map (eliminate_transition machine (IMap.map fst elim_vars)) machine.mspec.mtransitions in
   let elim_consts = IMap.map fst elim_consts in
   let minstances =
     List.map (static_call_unfold elim_consts) machine.minstances
@@ -397,9 +415,14 @@ let machine_unfold fanin elim machine =
       mstep =
         {
           machine.mstep with
-          step_locals = locals;
-          step_instrs = instrs;
-          step_checks = checks;
+          step_locals;
+          step_instrs;
+          step_checks;
+        };
+      mspec =
+        {
+          machine.mspec with
+          mtransitions
         };
       mconst;
       minstances;

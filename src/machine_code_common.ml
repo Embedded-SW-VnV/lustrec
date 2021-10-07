@@ -45,7 +45,7 @@ module PrintSpec = struct
   let pp_expr m fmt = function
     | Val v ->
       pp_val m fmt v
-    | Tag t ->
+    | Tag (t, _) ->
       pp_print_string fmt t
     | Var v ->
       pp_vdecl fmt v

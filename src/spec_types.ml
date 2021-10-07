@@ -5,7 +5,7 @@ type register_t = ResetFlag | StateVar of var_decl
 
 type 'a expression_t =
   | Val of 'a
-  | Tag of ident
+  | Tag of ident * Types.t
   | Var of var_decl
   | Memory of register_t
 

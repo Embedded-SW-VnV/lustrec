@@ -215,7 +215,7 @@ let control_on_clock env ck inst =
       let id = Clocks.const_of_carrier cr in
       let v = env.get_var id in
       aux
-        ( (fun spec -> Imply (Equal (Var v, Tag l), fspec spec)),
+        ( (fun spec -> Imply (Equal (Var v, Tag (l, v.var_type)), fspec spec)),
           mk_control v l inst )
         ck
     | _ ->
