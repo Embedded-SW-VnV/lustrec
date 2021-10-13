@@ -89,9 +89,6 @@ let pp_access' = pp_access pp_print_string pp_print_string
 
 let pp_var_decl fmt v = pp_print_string fmt v.var_id
 
-let pp_reg self fmt field =
-  pp_access pp_indirect' pp_var_decl fmt ((self, "_reg"), field)
-
 let pp_true fmt () = pp_print_string fmt "\\true"
 
 let pp_cast pp_ty pp fmt (ty, x) = fprintf fmt "(%a) %a" pp_ty ty pp x
@@ -117,61 +114,36 @@ let pp_at_pre pp_v fmt v = pp_at pp_v fmt (v, "Pre")
 let find_machine f = List.find (fun m -> m.mname.node_id = f)
 
 let instances machines m =
-  let open List in
-  let grow paths i td mems =
-    match paths with
-    | [] ->
-      [ [ i, (td, mems) ] ]
-    | _ ->
-      map (cons (i, (td, mems))) paths
+  let rec aux m =
+    List.(fold_left (fun insts (inst, (td, _)) ->
+        let mems, insts' =
+          try
+            let m' = find_machine (node_name td) machines in
+            m'.mmemory, aux m'
+          with Not_found ->
+            if Arrow.td_is_arrow td then arrow_machine.mmemory, [[]] else assert false
+        in
+        insts @ map (cons (inst, (td, mems))) insts') [[]] m.minstances)
   in
-  let rec aux paths m =
-    map
-      (fun (i, (td, _)) ->
-        try
-          let m = find_machine (node_name td) machines in
-          aux (grow paths i td m.mmemory) m
-        with Not_found -> grow paths i td [])
-      m.minstances
-    |> flatten
-  in
-  aux [] m |> map rev
+  match aux m with
+  | [] :: l -> l
+  | l -> l
 
-let memories insts =
-  List.(
-    map
-      (fun path ->
-        let _, (_, mems) = hd (rev path) in
-        map (fun mem -> path, mem) mems)
-      insts
-    |> flatten)
+let pp_instance ?(indirect = true) ?pp_epilogue fmt =
+    pp_print_list
+      ~pp_sep:(fun fmt () -> pp_print_string fmt (if indirect then "->" else "."))
+      ?pp_epilogue
+      (fun fmt (i, _) -> pp_print_string fmt i)
+      fmt
 
-let pp_instance ?(indirect = true) pp ptr =
-  pp_print_list
-    ~pp_prologue:(fun fmt () -> fprintf fmt "%a->" pp ptr)
-    ~pp_sep:(fun fmt () -> pp_print_string fmt (if indirect then "->" else "."))
-    (fun fmt (i, _) -> pp_print_string fmt i)
-
-let pp_memory ?(indirect = true) ptr fmt (path, mem) =
-  pp_access
-    ((if indirect then pp_indirect else pp_access)
-       (pp_instance ~indirect pp_print_string ptr)
-       pp_print_string)
-    pp_var_decl
-    fmt
-    ((path, "_reg"), mem)
-
-let prefixes l =
-  let rec pref acc = function
-    | x :: l ->
-      pref ([ x ] :: List.map (List.cons x) acc) l
-    | [] ->
-      acc
-  in
-  pref [] (List.rev l)
-
-let powerset_instances paths =
-  List.map prefixes paths |> List.flatten |> remove_duplicates
+let pp_reg ?(indirect = true) self fmt paths =
+  fprintf fmt "%s->%a%s"
+    self
+    (pp_instance
+       ~indirect
+       ~pp_epilogue:(fun fmt () -> pp_print_string fmt (if indirect then "->" else ".")))
+    paths
+    "_reg"
 
 let pp_separated pp_self pp_mem pp_ptr fmt (self, mem, paths, ptrs) =
   fprintf
@@ -181,7 +153,8 @@ let pp_separated pp_self pp_mem pp_ptr fmt (self, mem, paths, ptrs) =
     self
     pp_mem
     mem
-    (pp_comma_list ~pp_prologue:pp_print_comma (pp_instance pp_self self))
+    (pp_comma_list ~pp_prologue:pp_print_comma
+       (fun fmt path -> pp_indirect pp_print_string pp_instance fmt (self, path)))
     paths
     (pp_comma_list ~pp_prologue:pp_print_comma pp_ptr)
     ptrs
@@ -707,7 +680,7 @@ let pp_memory_pack_defs fmt m =
          ~pp_epilogue:pp_print_cut
          ~pp_open_box:pp_open_vbox0
          (pp_memory_pack_def m))
-      m.mspec.mmemory_packs
+      (snd m.mspec.mmemory_packs)
 
 let pp_transition_def m fmt t =
   let name = t.tname.node_id in
@@ -990,7 +963,7 @@ module SrcMod = struct
           (name, mem, self)
           (pp_ensures
              (pp_memory_pack_aux
-                ~i:(List.length m.mspec.mmemory_packs - 2)
+                ~i:(fst m.mspec.mmemory_packs)
                 pp_ptr
                 pp_print_string))
           (name, mem, self)
@@ -1493,12 +1466,19 @@ module SrcMod = struct
   let pp_step_spec fmt machines self mem m =
     let name = m.mname.node_id in
     let insts = instances machines m in
-    let insts' = powerset_instances insts in
-    let insts'' =
-      List.(
-        filter
-          (fun l -> l <> [])
-          (map (filter (fun (_, (td, _)) -> not (Arrow.td_is_arrow td))) insts))
+    let insts_no_arrow =
+      List.(filter
+              (fun path ->
+                 let _, (td, _) = hd (rev path) in
+                 not (Arrow.td_is_arrow td))
+              insts)
+    in
+    let stateful_insts =
+      List.(filter
+              (fun path ->
+                 let _, (_, mems) = hd (rev path) in
+                 mems <> [])
+              insts)
     in
     let inputs = m.mstep.step_inputs in
     let outputs = m.mstep.step_outputs in
@@ -1596,15 +1576,13 @@ module SrcMod = struct
              %a@,\
              %a@,\
              %a@,\
-             %a@,\
-             %a@,\
              %a"
             (pp_if_outputs (pp_requires (pp_valid pp_var_decl)))
             outputs
             (pp_requires pp_mem_valid')
             (name, self)
             (pp_requires (pp_separated' self mem))
-            (insts', outputs)
+            (insts, outputs)
             (pp_requires (pp_memory_pack_aux pp_ptr pp_print_string))
             (name, mem, self)
             (pp_ensures (pp_memory_pack_aux pp_ptr pp_print_string))
@@ -1617,26 +1595,22 @@ module SrcMod = struct
             c
             (pp_assigns pp_ptr_decl)
             outputs
-            (pp_assigns (pp_reg self))
-            m.mmemory
+            (if m.mmemory = [] then pp_print_nothing else pp_assigns (pp_reg self))
+            [[]]
             (pp_assigns pp_reset_flag')
             [ self ]
-            (pp_assigns (pp_memory self))
-            (memories insts')
-            (pp_assigns (pp_register_chain self))
-            insts
+            (pp_assigns (pp_reg self))
+            stateful_insts
             (pp_assigns (pp_reset_flag_chain self))
-            insts''
-            (pp_assigns (pp_reg mem))
-            m.mmemory
+            insts_no_arrow
+            (if m.mmemory = [] then pp_print_nothing else pp_assigns (pp_reg mem))
+            [[]]
             (pp_assigns pp_reset_flag')
             [ mem ]
-            (pp_assigns (pp_memory ~indirect:false mem))
-            (memories insts')
-            (pp_assigns (pp_register_chain ~indirect:false mem))
-            insts
+            (pp_assigns (pp_reg ~indirect:false mem))
+            stateful_insts
             (pp_assigns (pp_reset_flag_chain ~indirect:false mem))
-            insts'')
+            insts_no_arrow)
       fmt
       ()
 
@@ -1737,7 +1711,7 @@ module MainMod = struct
 
   let pp_main_loop_invariants main_mem machines fmt m =
     let name = m.mname.node_id in
-    let insts = powerset_instances (instances machines m) in
+    let insts = instances machines m in
     pp_acsl_cut
       (fun fmt () ->
         fprintf
@@ -1937,7 +1911,7 @@ let sanitize_memory_pack mp =
     mpformula = sanitize_formula mp.mpformula
   }
 
-let sanitize_memory_packs = List.map sanitize_memory_pack
+let sanitize_memory_packs (n, mps) = n, List.map sanitize_memory_pack mps
 
 let sanitize_spec s =
   { s with

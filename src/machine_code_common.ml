@@ -344,7 +344,7 @@ let pp_machine fmt m =
       | Some (Contract spec) ->
         pp_mspec m fmt spec)
     (pp_memory_packs m)
-    m.mspec.mmemory_packs
+    (snd m.mspec.mmemory_packs)
     (pp_transitions m)
     m.mspec.mtransitions
     (pp_print_list Printers.pp_expr_annot)
@@ -449,7 +449,7 @@ let arrow_machine =
           ];
         step_asserts = [];
       };
-    mspec = { mnode_spec = None; mtransitions = []; mmemory_packs = [] };
+    mspec = { mnode_spec = None; mtransitions = []; mmemory_packs = -1, [] };
     mannot = [];
     msch = None;
     mis_contract = false;
@@ -492,7 +492,7 @@ let empty_machine =
         step_instrs = [];
         step_asserts = [];
       };
-    mspec = { mnode_spec = None; mtransitions = []; mmemory_packs = [] };
+    mspec = { mnode_spec = None; mtransitions = []; mmemory_packs = -1, [] };
     mannot = [];
     msch = None;
     mis_contract = false;

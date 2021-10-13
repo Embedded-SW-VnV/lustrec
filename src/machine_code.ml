@@ -185,7 +185,7 @@ type machine_ctx = {
   (* Step instructions *)
   s : instr_t list;
   (* Memory pack spec *)
-  mp : mc_formula_t list;
+  mp : (int * mc_formula_t) list;
   (* Transition spec *)
   t :
     (var_decl list
@@ -247,7 +247,12 @@ let translate_eq env ctx nd inputs locals outputs i eq =
   let outputs_pi = Lustre_live.inter_live_i_with id (i - 1) outputs in
   let locals_i = Lustre_live.inter_live_i_with id i locals in
   let outputs_i = Lustre_live.inter_live_i_with id i outputs in
-  let pred_mp ctx a = And [ mk_memory_pack ~i:(i - 1) id; a ] :: ctx.mp in
+  let pred_mp ctx a =
+    let j = try fst (List.hd ctx.mp) with _ -> 0 in
+    match a with
+    | Some a -> (i, And [ mk_memory_pack ~i:j id; a ]) :: ctx.mp
+    | None -> ctx.mp
+  in
   let pred_t ctx a =
     ( inputs @ locals_i @ outputs_i,
       ctx.m,
@@ -273,7 +278,7 @@ let translate_eq env ctx nd inputs locals outputs i eq =
         {
           inst with
           instr_spec =
-            (if fst (get_stateless_status_node nd) then []
+            (if fst (get_stateless_status_node nd) || spec_mp = None then []
             else [ mk_memory_pack ~i id ])
             @ [
                 mk_transition
@@ -308,7 +313,7 @@ let translate_eq env ctx nd inputs locals outputs i eq =
     let ctx =
       ctl
         (MStep ([ var_x ], inst, [ c1; c2 ]))
-        (mk_memory_pack ~inst (node_name td))
+        (Some (mk_memory_pack ~inst (node_name td)))
         (mk_transition ~inst false (node_name td) [ vdecl_to_val var_x ])
         { ctx with j = IMap.add inst (td, []) ctx.j }
     in
@@ -318,7 +323,7 @@ let translate_eq env ctx nd inputs locals outputs i eq =
     let e = translate_expr e in
     ctl
       (MStateAssign (var_x, e))
-      (mk_state_variable_pack var_x)
+      (Some (mk_state_variable_pack var_x))
       (mk_state_assign_tr var_x e)
       { ctx with m = ISet.add x ctx.m }
   | [ x ], Expr_fby (e1, e2) when env.is_local x ->
@@ -327,7 +332,7 @@ let translate_eq env ctx nd inputs locals outputs i eq =
     let ctx =
       ctl
         (MStateAssign (var_x, e2))
-        (mk_state_variable_pack var_x)
+        (Some (mk_state_variable_pack var_x))
         (mk_state_assign_tr var_x e2)
         { ctx with m = ISet.add x ctx.m }
     in
@@ -356,7 +361,7 @@ let translate_eq env ctx nd inputs locals outputs i eq =
     let stateless = Stateless.check_node node_f in
     let inst = if stateless then None else Some i in
     let mp =
-      if stateless then True else mk_memory_pack ?inst (node_name node_f)
+      if stateless then None else Some (mk_memory_pack ?inst (node_name node_f))
     in
     let ctx =
       ctl
@@ -387,7 +392,7 @@ let translate_eq env ctx nd inputs locals outputs i eq =
     try
       let var_x = env.get_var x in
       let instr, spec = translate_act (var_x, eq.eq_rhs) in
-      control_on_clock eq.eq_rhs.expr_clock instr True spec ctx
+      control_on_clock eq.eq_rhs.expr_clock instr None spec ctx
     with Not_found ->
       Format.eprintf "ERROR: node %s, eq %a@." id Printers.pp_node_eq eq;
       raise Not_found)
@@ -609,11 +614,13 @@ let translate_decl nd sch =
   (* Build the machine *)
   let mmap = IMap.bindings ctx.j in
   let mmemory_packs =
+    let i = try fst (List.hd ctx.mp) with _ -> 0 in
+    i,
     memory_pack_0 nd
-    :: List.mapi
-         (fun i f -> { mpname = nd; mpindex = Some (i + 1); mpformula = red f })
+    :: List.map
+         (fun (i, f) -> { mpname = nd; mpindex = Some i; mpformula = red f })
          (List.rev ctx.mp)
-    @ [ memory_pack_toplevel nd (List.length ctx.mp) ]
+    @ [ memory_pack_toplevel nd i ]
   in
   let mtransitions =
     transition_0 nd
