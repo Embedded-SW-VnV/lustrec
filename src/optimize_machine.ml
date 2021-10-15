@@ -134,53 +134,54 @@ let rec eliminate m elim instr =
          ( e_val g,
            List.map (fun (l, il) -> l, List.map (eliminate m elim) il) hl ))
 
-let rec fv_value s v =
+let rec fv_value m s v =
   match v.value_desc with
   | Var v ->
-    VSet.add v s
+    if is_memory m v then s else VSet.add v s
   | Fun (_, vl)
   | Array vl ->
-    List.fold_left fv_value s vl
+    List.fold_left (fv_value m) s vl
   | Access (v1, v2)
   | Power (v1, v2) ->
-    fv_value (fv_value s v1) v2
+    fv_value m (fv_value m s v1) v2
   | _ -> s
 
-let fv_expr s = function
-  | Val v -> fv_value s v
-  | Var v -> VSet.add v s
+let fv_expr m s = function
+  | Val v -> fv_value m s v
+  | Var v ->
+    if is_memory m v then s else VSet.add v s
   | _ -> s
 
-let fv_predicate s = function
+let fv_predicate m s = function
   | Transition (_, _, _, _, vars, _, _, _) ->
-    List.fold_left fv_expr s vars
+    List.fold_left (fv_expr m) s vars
   | _ -> s
 
-let rec fv_formula s = function
+let rec fv_formula m s = function
   | Equal (e1, e2)
   | GEqual (e1, e2) ->
-    fv_expr (fv_expr s e1) e2
+    fv_expr m (fv_expr m s e1) e2
   | And f
   | Or f ->
-    List.fold_left fv_formula s f
+    List.fold_left (fv_formula m) s f
   | Imply (a, b)
   | ExistsMem (_, a, b) ->
-    fv_formula (fv_formula s a) b
+    fv_formula m (fv_formula m s a) b
   | Exists (xs, a)
   | Forall (xs, a) ->
-    VSet.filter (fun v -> not (List.mem v xs)) (fv_formula s a)
+    VSet.filter (fun v -> not (List.mem v xs)) (fv_formula m s a)
   | Ternary (e, a, b) ->
-    fv_expr (fv_formula (fv_formula s a) b) e
+    fv_expr m (fv_formula m (fv_formula m s a) b) e
   | Predicate p ->
-    fv_predicate s p
+    fv_predicate m s p
   | Value v ->
-    fv_value s v
+    fv_value m s v
   | _ -> s
 
 let eliminate_transition m elim t =
   let tvars = List.filter (fun vd -> not (IMap.mem vd.var_id elim)) t.tvars in
   let tformula = eliminate_formula m elim t.tformula in
-  let fv = VSet.(elements (diff (fv_formula empty tformula) (of_list tvars))) in
+  let fv = VSet.(elements (diff (fv_formula m empty tformula) (of_list tvars))) in
   let tformula = Exists (fv, tformula) in
   { t with
     tvars;
