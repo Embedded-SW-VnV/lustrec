@@ -421,7 +421,6 @@ let instrs_unfold m fanin elim instrs =
           when (not (is_clock_dec_type v.var_dec_type.ty_dec_desc))
                && unfoldable_assign fanin v expr
                && IMap.mem v.var_id elim ->
-          Format.printf "%a@." Printers.pp_var v;
           None
         | MBranch (g, hl) ->
           let instr =
