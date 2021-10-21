@@ -4,8 +4,10 @@ open Lustre_types
 
 module type MODIFIERS_MKF = sig
   val other_targets : formatter -> string -> string -> dep_t list -> unit
-  val pp_print_dependencies: formatter -> dep_t list -> unit
-  val pp_arrow_o: formatter -> unit -> unit
+
+  val pp_print_dependencies : formatter -> dep_t list -> unit
+
+  val pp_arrow_o : formatter -> unit -> unit
 end
 
 module EmptyMod : MODIFIERS_MKF

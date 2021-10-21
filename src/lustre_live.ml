@@ -32,18 +32,19 @@ let rec occur_dim_expr s d =
 
 let occur_carrier s ckr =
   let open Clocks in
-  match (carrier_repr ckr).carrier_desc with
-  | Carry_const x -> add x s
-  | _ -> s
+  match (carrier_repr ckr).carrier_desc with Carry_const x -> add x s | _ -> s
 
 let rec occur_clock s ck =
   let open Clocks in
   match (repr ck).cdesc with
-  | Carrow (c1, c2) -> occur_clock (occur_clock s c1) c2
-  | Ctuple cs -> List.fold_left occur_clock s cs
-  | Con (ck, cr, _)
-  | Ccarrying (cr, ck) -> occur_clock (occur_carrier s cr) ck
-  | _ -> s
+  | Carrow (c1, c2) ->
+    occur_clock (occur_clock s c1) c2
+  | Ctuple cs ->
+    List.fold_left occur_clock s cs
+  | Con (ck, cr, _) | Ccarrying (cr, ck) ->
+    occur_clock (occur_carrier s cr) ck
+  | _ ->
+    s
 
 let rec occur_expr s e =
   let s = occur_clock s e.expr_clock in

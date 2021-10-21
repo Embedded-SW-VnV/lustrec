@@ -23,9 +23,7 @@ let pp_elim m fmt elim =
 
 let eliminate_var_decl elim m v f a =
   if is_memory m v then a
-  else try
-      f (IMap.find v.var_id elim)
-    with Not_found -> a
+  else try f (IMap.find v.var_id elim) with Not_found -> a
 
 let rec eliminate_val m elim expr =
   let eliminate_val = eliminate_val m in
@@ -52,29 +50,36 @@ let rec eliminate_val m elim expr =
 let eliminate_expr m elim e =
   let e_val = eliminate_val m elim in
   match e with
-  | Val v -> Val (e_val v)
-  | Var v -> eliminate_var_decl elim m v (fun x -> Val x) e
-  | _ -> e
+  | Val v ->
+    Val (e_val v)
+  | Var v ->
+    eliminate_var_decl elim m v (fun x -> Val x) e
+  | _ ->
+    e
 
 let eliminate_pred m elim = function
   (* the transition is local to the machine *)
   | Transition (s, f, inst, Some i, vars, r, mems, insts) ->
-    let vars = List.filter_map (function
-        | Spec_types.Val v ->
-          begin match v.value_desc with
-            | Var vd when IMap.mem vd.var_id elim -> None
-            | _ -> Some (Val v)
-          end
-        | Spec_types.Var vd when IMap.mem vd.var_id elim -> None
-        | e -> Some (eliminate_expr m elim e)) vars
+    let vars =
+      List.filter_map
+        (function
+          | Spec_types.Val v -> (
+            match v.value_desc with
+            | Var vd when IMap.mem vd.var_id elim ->
+              None
+            | _ ->
+              Some (Val v))
+          | Spec_types.Var vd when IMap.mem vd.var_id elim ->
+            None
+          | e ->
+            Some (eliminate_expr m elim e))
+        vars
     in
     Transition (s, f, inst, Some i, vars, r, mems, insts)
-
   (* the transition is not local to the machine *)
   | Transition (s, f, inst, None, vars, r, mems, insts) ->
     let vars = List.map (eliminate_expr m elim) vars in
     Transition (s, f, inst, None, vars, r, mems, insts)
-
   | p ->
     p
 
@@ -112,7 +117,12 @@ let rec eliminate_formula m elim =
 
 let rec eliminate m elim instr =
   let e_val = eliminate_val m elim in
-  let instr = { instr with instr_spec = List.map (eliminate_formula m elim) instr.instr_spec } in
+  let instr =
+    {
+      instr with
+      instr_spec = List.map (eliminate_formula m elim) instr.instr_spec;
+    }
+  in
   match get_instr_desc instr with
   | MLocalAssign (i, v) ->
     update_instr_desc instr (MLocalAssign (i, e_val v))
@@ -138,37 +148,35 @@ let rec fv_value m s v =
   match v.value_desc with
   | Var v ->
     if is_memory m v then s else VSet.add v s
-  | Fun (_, vl)
-  | Array vl ->
+  | Fun (_, vl) | Array vl ->
     List.fold_left (fv_value m) s vl
-  | Access (v1, v2)
-  | Power (v1, v2) ->
+  | Access (v1, v2) | Power (v1, v2) ->
     fv_value m (fv_value m s v1) v2
-  | _ -> s
+  | _ ->
+    s
 
 let fv_expr m s = function
-  | Val v -> fv_value m s v
+  | Val v ->
+    fv_value m s v
   | Var v ->
     if is_memory m v then s else VSet.add v s
-  | _ -> s
+  | _ ->
+    s
 
 let fv_predicate m s = function
   | Transition (_, _, _, _, vars, _, _, _) ->
     List.fold_left (fv_expr m) s vars
-  | _ -> s
+  | _ ->
+    s
 
 let rec fv_formula m s = function
-  | Equal (e1, e2)
-  | GEqual (e1, e2) ->
+  | Equal (e1, e2) | GEqual (e1, e2) ->
     fv_expr m (fv_expr m s e1) e2
-  | And f
-  | Or f ->
+  | And f | Or f ->
     List.fold_left (fv_formula m) s f
-  | Imply (a, b)
-  | ExistsMem (_, a, b) ->
+  | Imply (a, b) | ExistsMem (_, a, b) ->
     fv_formula m (fv_formula m s a) b
-  | Exists (xs, a)
-  | Forall (xs, a) ->
+  | Exists (xs, a) | Forall (xs, a) ->
     VSet.filter (fun v -> not (List.mem v xs)) (fv_formula m s a)
   | Ternary (e, a, b) ->
     fv_expr m (fv_formula m (fv_formula m s a) b) e
@@ -176,17 +184,17 @@ let rec fv_formula m s = function
     fv_predicate m s p
   | Value v ->
     fv_value m s v
-  | _ -> s
+  | _ ->
+    s
 
 let eliminate_transition m elim t =
   let tvars = List.filter (fun vd -> not (IMap.mem vd.var_id elim)) t.tvars in
   let tformula = eliminate_formula m elim t.tformula in
-  let fv = VSet.(elements (diff (fv_formula m empty tformula) (of_list tvars))) in
+  let fv =
+    VSet.(elements (diff (fv_formula m empty tformula) (of_list tvars)))
+  in
   let tformula = Exists (fv, tformula) in
-  { t with
-    tvars;
-    tformula
-  }
+  { t with tvars; tformula }
 
 (* XXX: UNUSED *)
 (* let eliminate_dim elim dim =
@@ -370,62 +378,63 @@ let merge_elim elim1 elim2 =
 (* see if elim has to take in account the provided instr: if so, update elim and
    return the remove flag, otherwise, the expression should be kept and elim is
    left untouched *)
-let rec instrs_unfold m fanin elim instrs =
-  let elim, rev_instrs =
-    List.fold_left
-      (fun (elim, instrs) instr ->
-        (* each subexpression in instr that could be rewritten by the elim set
-           is rewritten *)
-        let instr = eliminate m (IMap.map fst elim) instr in
-        (* if instr is a simple local assign, then (a) elim is simplified with
-           it (b) it is stored as the elim set *)
-        instr_unfold m fanin instrs elim instr)
-      (elim, [])
+let instrs_unfold m fanin elim instrs =
+  let rec gather_elim ((elim, instrs) as acc) instr =
+    match get_instr_desc instr with
+    | MStep ([ v ], id, vl)
+      when Basic_library.is_value_internal_fun
+             (mk_val (Fun (id, vl)) v.var_type) ->
+      gather_elim
+        acc
+        (update_instr_desc
+           instr
+           (MLocalAssign (v, mk_val (Fun (id, vl)) v.var_type)))
+    | MLocalAssign (v, expr)
+      when (not (is_clock_dec_type v.var_dec_type.ty_dec_desc))
+           && unfoldable_assign fanin v expr ->
+      (* we don't eliminate clock definitions *)
+      let new_eq =
+        Corelang.mkeq
+          (desome instr.lustre_eq).eq_loc
+          ([ v.var_id ], (desome instr.lustre_eq).eq_rhs)
+      in
+      IMap.add v.var_id (expr, new_eq) elim, instr :: instrs
+    | MBranch (g, hl) ->
+      let elim, hl =
+        List.fold_left
+          (fun (elim', hl) (h, l) ->
+            let elim, l = List.fold_left gather_elim (elim, []) l in
+            merge_elim elim' elim, (h, List.rev l) :: hl)
+          (elim, [])
+          hl
+      in
+      elim, update_instr_desc instr (MBranch (g, List.rev hl)) :: instrs
+    | _ ->
+      elim, instr :: instrs
+  in
+  let elim, instrs = List.fold_left gather_elim (elim, []) instrs in
+  let rec filter instrs =
+    List.filter_map
+      (fun instr ->
+        match get_instr_desc instr with
+        | MLocalAssign (v, expr)
+          when (not (is_clock_dec_type v.var_dec_type.ty_dec_desc))
+               && unfoldable_assign fanin v expr
+               && IMap.mem v.var_id elim ->
+          Format.printf "%a@." Printers.pp_var v;
+          None
+        | MBranch (g, hl) ->
+          let instr =
+            update_instr_desc
+              instr
+              (MBranch (g, List.map (fun (h, l) -> h, filter l) hl))
+          in
+          Some (eliminate m (IMap.map fst elim) instr)
+        | _ ->
+          Some (eliminate m (IMap.map fst elim) instr))
       instrs
   in
-  elim, List.rev rev_instrs
-
-and instr_unfold m fanin instrs (elim : (value_t * eq) IMap.t) instr =
-  (* Format.eprintf "SHOULD WE STORE THE EXPRESSION IN INSTR %a TO ELIMINATE
-     IT@." pp_instr instr;*)
-  match get_instr_desc instr with
-  (* Simple cases*)
-  | MStep ([ v ], id, vl)
-    when Basic_library.is_value_internal_fun (mk_val (Fun (id, vl)) v.var_type)
-    ->
-    instr_unfold
-      m
-      fanin
-      instrs
-      elim
-      (update_instr_desc
-         instr
-         (MLocalAssign (v, mk_val (Fun (id, vl)) v.var_type)))
-  | MLocalAssign (v, expr)
-    when (not (is_clock_dec_type v.var_dec_type.ty_dec_desc))
-         && unfoldable_assign fanin v expr ->
-    (* we don't eliminate clock definitions *)
-    let new_eq =
-      Corelang.mkeq
-        (desome instr.lustre_eq).eq_loc
-        ([ v.var_id ], (desome instr.lustre_eq).eq_rhs)
-    in
-    IMap.add v.var_id (expr, new_eq) elim, instrs
-  | MBranch (g, hl) when false ->
-    let elim_branches =
-      List.map (fun (h, l) -> h, instrs_unfold m fanin elim l) hl
-    in
-    let elim, branches =
-      List.fold_right
-        (fun (h, (e, l)) (elim, branches) ->
-          merge_elim elim e, (h, l) :: branches)
-        elim_branches
-        (elim, [])
-    in
-    elim, update_instr_desc instr (MBranch (g, branches)) :: instrs
-  | _ ->
-    elim, instr :: instrs
-(* default case, we keep the instruction and do not modify elim *)
+  elim, List.rev (filter instrs)
 
 (** We iterate in the order, recording simple local assigns in an accumulator 1.
     each expression is rewritten according to the accumulator 2. local assigns
@@ -441,17 +450,19 @@ let static_call_unfold elim (inst, (n, args)) =
 (** Perform optimization on machine code: - iterate through step instructions
     and remove simple local assigns *)
 let machine_unfold fanin elim machine =
-  Log.report ~level:3 (fun fmt ->
-      Format.fprintf
-        fmt
-        "machine_unfold %s %a@ "
-        machine.mname.node_id
-        (pp_elim machine)
-        (IMap.map fst elim));
   let elim_consts, mconst = instrs_unfold machine fanin elim machine.mconst in
   let elim_vars, instrs =
     instrs_unfold machine fanin elim_consts machine.mstep.step_instrs
   in
+  Log.report ~level:3 (fun fmt ->
+      Format.fprintf
+        fmt
+        "@[<v 2>machine_unfold %s@;from %a@;to   %a@]"
+        machine.mname.node_id
+        (pp_elim machine)
+        (IMap.map fst elim)
+        (pp_elim machine)
+        (IMap.map fst elim_vars));
   let step_instrs = simplify_instrs_offset machine instrs in
   let step_checks =
     List.map
@@ -464,7 +475,11 @@ let machine_unfold fanin elim machine =
       (fun v -> not (IMap.mem v.var_id elim_vars))
       machine.mstep.step_locals
   in
-  let mtransitions = List.map (eliminate_transition machine (IMap.map fst elim_vars)) machine.mspec.mtransitions in
+  let mtransitions =
+    List.map
+      (eliminate_transition machine (IMap.map fst elim_vars))
+      machine.mspec.mtransitions
+  in
   let elim_consts = IMap.map fst elim_consts in
   let minstances =
     List.map (static_call_unfold elim_consts) machine.minstances
@@ -472,18 +487,8 @@ let machine_unfold fanin elim machine =
   let mcalls = List.map (static_call_unfold elim_consts) machine.mcalls in
   ( {
       machine with
-      mstep =
-        {
-          machine.mstep with
-          step_locals;
-          step_instrs;
-          step_checks;
-        };
-      mspec =
-        {
-          machine.mspec with
-          mtransitions
-        };
+      mstep = { machine.mstep with step_locals; step_instrs; step_checks };
+      mspec = { machine.mspec with mtransitions };
       mconst;
       minstances;
       mcalls;
@@ -979,7 +984,9 @@ let elim_prog_variables prog removed_table =
                   match eq.eq_lhs with
                   | [] ->
                     assert false (* shall not happen *)
-                  | [lhs] when List.exists (fun v -> v.var_id = lhs) vars_to_replace ->
+                  | [ lhs ]
+                    when List.exists (fun v -> v.var_id = lhs) vars_to_replace
+                    ->
                     (* We remove the def *)
                     List.filter (fun v -> v.var_id <> lhs) locals, res_stmts
                   | _ ->

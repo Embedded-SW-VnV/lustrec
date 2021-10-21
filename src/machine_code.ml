@@ -250,8 +250,10 @@ let translate_eq env ctx nd inputs locals outputs i eq =
   let pred_mp ctx a =
     let j = try fst (List.hd ctx.mp) with _ -> 0 in
     match a with
-    | Some a -> (i, And [ mk_memory_pack ~i:j id; a ]) :: ctx.mp
-    | None -> ctx.mp
+    | Some a ->
+      (i, And [ mk_memory_pack ~i:j id; a ]) :: ctx.mp
+    | None ->
+      ctx.mp
   in
   let pred_t ctx a =
     ( inputs @ locals_i @ outputs_i,
@@ -615,12 +617,12 @@ let translate_decl nd sch =
   let mmap = IMap.bindings ctx.j in
   let mmemory_packs =
     let i = try fst (List.hd ctx.mp) with _ -> 0 in
-    i,
-    memory_pack_0 nd
-    :: List.map
-         (fun (i, f) -> { mpname = nd; mpindex = Some i; mpformula = red f })
-         (List.rev ctx.mp)
-    @ [ memory_pack_toplevel nd i ]
+    ( i,
+      memory_pack_0 nd
+      :: List.map
+           (fun (i, f) -> { mpname = nd; mpindex = Some i; mpformula = red f })
+           (List.rev ctx.mp)
+      @ [ memory_pack_toplevel nd i ] )
   in
   let mtransitions =
     transition_0 nd

@@ -136,7 +136,7 @@ let translate_to_c generate_c_header basename prog machines dependencies =
         C_backend_src.((module SrcMod : MODIFIERS_SRC)),
         C_backend_main.((module MainMod : MODIFIERS_MAINSRC)),
         C_backend_makefile.((module MakefileMod : MODIFIERS_MKF)),
-        sanitize_machines machines)
+        sanitize_machines machines )
     | SpecC ->
       assert false
     (* not implemented yet *)

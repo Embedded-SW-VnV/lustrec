@@ -75,13 +75,17 @@ let fprintf_dependencies arrow_suffix fmt deps =
 module type MODIFIERS_MKF = sig
   (* dep was (bool * ident * top_decl list) *)
   val other_targets : formatter -> string -> string -> dep_t list -> unit
-  val pp_print_dependencies: formatter -> dep_t list -> unit
-  val pp_arrow_o: formatter -> unit -> unit
+
+  val pp_print_dependencies : formatter -> dep_t list -> unit
+
+  val pp_arrow_o : formatter -> unit -> unit
 end
 
 module EmptyMod : MODIFIERS_MKF = struct
   let other_targets _ _ _ _ = ()
+
   let pp_print_dependencies = fprintf_dependencies ""
+
   let pp_arrow_o fmt () = pp_print_string fmt "arrow.o"
 end
 
@@ -136,7 +140,8 @@ functor
       fprintf
         fmt
         "\t${GCC} -o ${BINNAME} io_frontend.o %a %a %s.o %s_main.o %a@."
-        Mod.pp_arrow_o ()
+        Mod.pp_arrow_o
+        ()
         (pp_print_list (fun fmt dep -> fprintf fmt "%s.o" dep.name))
         (compiled_dependencies dependencies)
         basename

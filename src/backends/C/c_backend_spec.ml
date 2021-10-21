@@ -115,33 +115,37 @@ let find_machine f = List.find (fun m -> m.mname.node_id = f)
 
 let instances machines m =
   let rec aux m =
-    List.(fold_left (fun insts (inst, (td, _)) ->
-        let mems, insts' =
-          try
-            let m' = find_machine (node_name td) machines in
-            m'.mmemory, aux m'
-          with Not_found ->
-            if Arrow.td_is_arrow td then arrow_machine.mmemory, [[]] else assert false
-        in
-        insts @ map (cons (inst, (td, mems))) insts') [[]] m.minstances)
+    List.(
+      fold_left
+        (fun insts (inst, (td, _)) ->
+          let mems, insts' =
+            try
+              let m' = find_machine (node_name td) machines in
+              m'.mmemory, aux m'
+            with Not_found ->
+              if Arrow.td_is_arrow td then arrow_machine.mmemory, [ [] ]
+              else assert false
+          in
+          insts @ map (cons (inst, (td, mems))) insts')
+        [ [] ]
+        m.minstances)
   in
-  match aux m with
-  | [] :: l -> l
-  | l -> l
+  match aux m with [] :: l -> l | l -> l
 
 let pp_instance ?(indirect = true) ?pp_epilogue fmt =
-    pp_print_list
-      ~pp_sep:(fun fmt () -> pp_print_string fmt (if indirect then "->" else "."))
-      ?pp_epilogue
-      (fun fmt (i, _) -> pp_print_string fmt i)
-      fmt
+  pp_print_list
+    ~pp_sep:(fun fmt () -> pp_print_string fmt (if indirect then "->" else "."))
+    ?pp_epilogue
+    (fun fmt (i, _) -> pp_print_string fmt i)
+    fmt
 
 let pp_reg ?(indirect = true) self fmt paths =
-  fprintf fmt "%s->%a%s"
+  fprintf
+    fmt
+    "%s->%a%s"
     self
-    (pp_instance
-       ~indirect
-       ~pp_epilogue:(fun fmt () -> pp_print_string fmt (if indirect then "->" else ".")))
+    (pp_instance ~indirect ~pp_epilogue:(fun fmt () ->
+         pp_print_string fmt (if indirect then "->" else ".")))
     paths
     "_reg"
 
@@ -153,8 +157,8 @@ let pp_separated pp_self pp_mem pp_ptr fmt (self, mem, paths, ptrs) =
     self
     pp_mem
     mem
-    (pp_comma_list ~pp_prologue:pp_print_comma
-       (fun fmt path -> pp_indirect pp_print_string pp_instance fmt (self, path)))
+    (pp_comma_list ~pp_prologue:pp_print_comma (fun fmt path ->
+         pp_indirect pp_print_string pp_instance fmt (self, path)))
     paths
     (pp_comma_list ~pp_prologue:pp_print_comma pp_ptr)
     ptrs
@@ -233,20 +237,21 @@ let pp_locals m =
 
 let pp_ptr_decl fmt v = pp_ptr fmt v.var_id
 
-let pp_basic_assign_spec ?(pp_op=pp_equal) pp_l pp_r fmt typ var_name value =
+let pp_basic_assign_spec ?(pp_op = pp_equal) pp_l pp_r fmt typ var_name value =
   if Types.is_real_type typ && !Options.mpfr then assert false
     (* Mpfr.pp_inject_assign pp_var fmt (var_name, value) *)
   else pp_op pp_l pp_r fmt (var_name, value)
 
-let pp_assign_spec ?pp_op m self_l pp_var_l indirect_l self_r pp_var_r indirect_r fmt
-    (var_type, var_name, value) =
+let pp_assign_spec ?pp_op m self_l pp_var_l indirect_l self_r pp_var_r
+    indirect_r fmt (var_type, var_name, value) =
   let depth = expansion_depth value in
   let loop_vars = mk_loop_variables m var_type depth in
   let reordered_loop_vars = reorder_loop_variables loop_vars in
   let aux typ fmt vars =
     match vars with
     | [] ->
-      pp_basic_assign_spec ?pp_op
+      pp_basic_assign_spec
+        ?pp_op
         (pp_value_suffix
            ~indirect:indirect_l
            m
@@ -380,20 +385,18 @@ module PrintSpec = struct
     | StateVar x ->
       fprintf fmt "%s.%a" mem pp_var_decl x
 
-  let not_var v = match v.value_desc with
-    | Var _ -> false
-    | _ -> true
+  let not_var v = match v.value_desc with Var _ -> false | _ -> true
 
   let pp_expr ?(test_output = false) m mem fmt = function
     | Val v ->
       let pp = pp_c_val ~indirect:false m mem (pp_c_var_read ~test_output m) in
-      (if not_var v
-       then if Types.is_bool_type v.value_type
-         then pp_bool_cast pp
-         else if Types.is_real_type v.value_type
-         then pp_double_cast pp
-         else pp
-       else pp) fmt v
+      (if not_var v then
+       if Types.is_bool_type v.value_type then pp_bool_cast pp
+       else if Types.is_real_type v.value_type then pp_double_cast pp
+       else pp
+      else pp)
+        fmt
+        v
     | Tag (t, _) ->
       pp_print_string fmt t
     | Var v ->
@@ -472,11 +475,16 @@ module PrintSpec = struct
       vdecl_to_val reset_flag
 
   let find_arrow loc m =
-    match List.find_opt (fun (_, (td, _)) -> Arrow.td_is_arrow td) m.minstances with
-    | Some (f, _) -> Some f
+    match
+      List.find_opt (fun (_, (td, _)) -> Arrow.td_is_arrow td) m.minstances
+    with
+    | Some (f, _) ->
+      Some f
     | None ->
-      Error.pp_warning loc
-        (fun fmt -> pp_print_string fmt "Generating stateful spec for uninitialized state variables.");
+      Error.pp_warning loc (fun fmt ->
+          pp_print_string
+            fmt
+            "Generating stateful spec for uninitialized state variables.");
       None
 
   let rec has_memory_val m v =
@@ -542,14 +550,16 @@ module PrintSpec = struct
           pp_print_option
             ~none:pp_eq
             (fun fmt inst ->
-               pp_paren
-                 (pp_implies (pp_not (pp_initialization pp_access')) pp_eq)
-                 fmt
-                 ((Arrow.arrow_id, (mem_in, inst)), ()))
-            fmt inst
+              pp_paren
+                (pp_implies (pp_not (pp_initialization pp_access')) pp_eq)
+                fmt
+                ((Arrow.arrow_id, (mem_in, inst)), ()))
+            fmt
+            inst
         else pp_eq fmt ()
       | GEqual (a, b) ->
-        pp_assign_spec ~pp_op:pp_gequal
+        pp_assign_spec
+          ~pp_op:pp_gequal
           m
           mem_out
           (pp_c_var_read ~test_output:false m)
@@ -603,13 +613,12 @@ module PrintSpec = struct
         pp_print_option
           ~none:pp_eq
           (fun fmt inst ->
-             pp_paren
-               (pp_implies
-                  (pp_not (pp_initialization pp_access'))
-                  pp_eq)
-               fmt
-               ((Arrow.arrow_id, (mem_out, inst)), ()))
-          fmt inst
+            pp_paren
+              (pp_implies (pp_not (pp_initialization pp_access')) pp_eq)
+              fmt
+              ((Arrow.arrow_id, (mem_out, inst)), ()))
+          fmt
+          inst
       | ExistsMem (f, rc, tr) ->
         pp_exists
           (pp_machine_decl' ~ghost:true)
@@ -1467,18 +1476,20 @@ module SrcMod = struct
     let name = m.mname.node_id in
     let insts = instances machines m in
     let insts_no_arrow =
-      List.(filter
-              (fun path ->
-                 let _, (td, _) = hd (rev path) in
-                 not (Arrow.td_is_arrow td))
-              insts)
+      List.(
+        filter
+          (fun path ->
+            let _, (td, _) = hd (rev path) in
+            not (Arrow.td_is_arrow td))
+          insts)
     in
     let stateful_insts =
-      List.(filter
-              (fun path ->
-                 let _, (_, mems) = hd (rev path) in
-                 mems <> [])
-              insts)
+      List.(
+        filter
+          (fun path ->
+            let _, (_, mems) = hd (rev path) in
+            mems <> [])
+          insts)
     in
     let inputs = m.mstep.step_inputs in
     let outputs = m.mstep.step_outputs in
@@ -1561,22 +1572,7 @@ module SrcMod = struct
         else
           fprintf
             fmt
-            "%a@,\
-             %a@,\
-             %a@,\
-             %a@,\
-             %a@,\
-             %a@,\
-             %a@,\
-             %a@,\
-             %a@,\
-             %a@,\
-             %a@,\
-             %a@,\
-             %a@,\
-             %a@,\
-             %a@,\
-             %a"
+            "%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a@,%a"
             (pp_if_outputs (pp_requires (pp_valid pp_var_decl)))
             outputs
             (pp_requires pp_mem_valid')
@@ -1595,16 +1591,18 @@ module SrcMod = struct
             c
             (pp_assigns pp_ptr_decl)
             outputs
-            (if m.mmemory = [] then pp_print_nothing else pp_assigns (pp_reg self))
-            [[]]
+            (if m.mmemory = [] then pp_print_nothing
+            else pp_assigns (pp_reg self))
+            [ [] ]
             (pp_assigns pp_reset_flag')
             [ self ]
             (pp_assigns (pp_reg self))
             stateful_insts
             (pp_assigns (pp_reset_flag_chain self))
             insts_no_arrow
-            (if m.mmemory = [] then pp_print_nothing else pp_assigns (pp_reg mem))
-            [[]]
+            (if m.mmemory = [] then pp_print_nothing
+            else pp_assigns (pp_reg mem))
+            [ [] ]
             (pp_assigns pp_reset_flag')
             [ mem ]
             (pp_assigns (pp_reg ~indirect:false mem))
@@ -1824,7 +1822,7 @@ module MakefileMod = struct
 end
 
 (* TODO: complete this list *)
-let acsl_keywords = ISet.of_list ["set"]
+let acsl_keywords = ISet.of_list [ "set" ]
 
 let sanitize x = if ISet.mem x acsl_keywords then "__" ^ x else x
 
@@ -1833,41 +1831,64 @@ let sanitize_var_decl vd = { vd with var_id = sanitize vd.var_id }
 let sanitize_var_decls = List.map sanitize_var_decl
 
 let rec sanitize_value v =
-  let value_desc = match v.value_desc with
-    | Machine_code_types.Var vd -> Machine_code_types.Var (sanitize_var_decl vd)
-    | Fun (f, vs) -> Fun (f, sanitize_values vs)
-    | Array vs -> Array (sanitize_values vs)
-    | Access (v1, v2) -> Access (sanitize_value v1, sanitize_value v2)
-    | Power (v1, v2) -> Power (sanitize_value v1, sanitize_value v2)
-    | v -> v
+  let value_desc =
+    match v.value_desc with
+    | Machine_code_types.Var vd ->
+      Machine_code_types.Var (sanitize_var_decl vd)
+    | Fun (f, vs) ->
+      Fun (f, sanitize_values vs)
+    | Array vs ->
+      Array (sanitize_values vs)
+    | Access (v1, v2) ->
+      Access (sanitize_value v1, sanitize_value v2)
+    | Power (v1, v2) ->
+      Power (sanitize_value v1, sanitize_value v2)
+    | v ->
+      v
   in
   { v with value_desc }
 
 and sanitize_values vs = List.map sanitize_value vs
 
 let sanitize_expr = function
-  | Val v -> Val (sanitize_value v)
-  | Var v -> Var (sanitize_var_decl v)
-  | e -> e
+  | Val v ->
+    Val (sanitize_value v)
+  | Var v ->
+    Var (sanitize_var_decl v)
+  | e ->
+    e
 
 let sanitize_predicate = function
   | Transition (st, f, inst, i, vs, r, mf, mfinsts) ->
     Transition (st, f, inst, i, List.map sanitize_expr vs, r, mf, mfinsts)
-  | p -> p
+  | p ->
+    p
 
 let rec sanitize_formula = function
-  | Equal (e1, e2) -> Equal (sanitize_expr e1, sanitize_expr e2)
-  | GEqual (e1, e2) -> GEqual (sanitize_expr e1, sanitize_expr e2)
-  | And fs -> And (sanitize_formulae fs)
-  | Or fs -> Or (sanitize_formulae fs)
-  | Imply (f1, f2) -> Imply (sanitize_formula f1, sanitize_formula f2)
-  | Exists (vs, f) -> Exists (sanitize_var_decls vs, sanitize_formula f)
-  | Forall (vs, f) -> Forall (sanitize_var_decls vs, sanitize_formula f)
-  | Ternary (e, t, f) -> Ternary (sanitize_expr e, sanitize_formula t, sanitize_formula f)
-  | Predicate p -> Predicate (sanitize_predicate p)
-  | ExistsMem (m, f1, f2) -> ExistsMem (m, sanitize_formula f1, sanitize_formula f2)
-  | Value v -> Value (sanitize_value v)
-  | f -> f
+  | Equal (e1, e2) ->
+    Equal (sanitize_expr e1, sanitize_expr e2)
+  | GEqual (e1, e2) ->
+    GEqual (sanitize_expr e1, sanitize_expr e2)
+  | And fs ->
+    And (sanitize_formulae fs)
+  | Or fs ->
+    Or (sanitize_formulae fs)
+  | Imply (f1, f2) ->
+    Imply (sanitize_formula f1, sanitize_formula f2)
+  | Exists (vs, f) ->
+    Exists (sanitize_var_decls vs, sanitize_formula f)
+  | Forall (vs, f) ->
+    Forall (sanitize_var_decls vs, sanitize_formula f)
+  | Ternary (e, t, f) ->
+    Ternary (sanitize_expr e, sanitize_formula t, sanitize_formula f)
+  | Predicate p ->
+    Predicate (sanitize_predicate p)
+  | ExistsMem (m, f1, f2) ->
+    ExistsMem (m, sanitize_formula f1, sanitize_formula f2)
+  | Value v ->
+    Value (sanitize_value v)
+  | f ->
+    f
 
 and sanitize_formulae fs = List.map sanitize_formula fs
 
@@ -1880,49 +1901,52 @@ let rec sanitize_instr i =
     | MStep (xs, f, vs) ->
       MStep (sanitize_var_decls xs, f, sanitize_values vs)
     | MBranch (v, brs) ->
-      MBranch (sanitize_value v, List.map (fun (t, instrs) -> t, sanitize_instrs instrs) brs)
-    | i -> i
+      MBranch
+        ( sanitize_value v,
+          List.map (fun (t, instrs) -> t, sanitize_instrs instrs) brs )
+    | i ->
+      i
   in
-  { i with
+  {
+    i with
     instr_desc = sanitize_instr_desc i.instr_desc;
-    instr_spec = sanitize_formulae i.instr_spec
+    instr_spec = sanitize_formulae i.instr_spec;
   }
 
 and sanitize_instrs instrs = List.map sanitize_instr instrs
 
 let sanitize_step s =
-  { s with
+  {
+    s with
     step_inputs = sanitize_var_decls s.step_inputs;
     step_outputs = sanitize_var_decls s.step_outputs;
     step_locals = sanitize_var_decls s.step_locals;
-    step_instrs = sanitize_instrs s.step_instrs
+    step_instrs = sanitize_instrs s.step_instrs;
   }
 
 let sanitize_transition t =
-  { t with
+  {
+    t with
     tvars = sanitize_var_decls t.tvars;
-    tformula = sanitize_formula t.tformula
+    tformula = sanitize_formula t.tformula;
   }
 
 let sanitize_transitions = List.map sanitize_transition
 
 let sanitize_memory_pack mp =
-  { mp with
-    mpformula = sanitize_formula mp.mpformula
-  }
+  { mp with mpformula = sanitize_formula mp.mpformula }
 
 let sanitize_memory_packs (n, mps) = n, List.map sanitize_memory_pack mps
 
 let sanitize_spec s =
-  { s with
+  {
+    s with
     mtransitions = sanitize_transitions s.mtransitions;
-    mmemory_packs = sanitize_memory_packs s.mmemory_packs
+    mmemory_packs = sanitize_memory_packs s.mmemory_packs;
   }
+
 let sanitize_machine m =
-  { m with
-    mstep = sanitize_step m.mstep;
-    mspec = sanitize_spec m.mspec
-  }
+  { m with mstep = sanitize_step m.mstep; mspec = sanitize_spec m.mspec }
 
 let sanitize_machines = List.map sanitize_machine
 

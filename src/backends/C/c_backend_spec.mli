@@ -6,4 +6,5 @@ module MakefileMod : C_backend_makefile.MODIFIERS_MKF
 
 module MainMod : C_backend_main.MODIFIERS_MAINSRC
 
-val sanitize_machines: Machine_code_types.machine_t list -> Machine_code_types.machine_t list
+val sanitize_machines :
+  Machine_code_types.machine_t list -> Machine_code_types.machine_t list

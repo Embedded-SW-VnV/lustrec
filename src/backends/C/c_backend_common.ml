@@ -367,7 +367,7 @@ let pp_reset_assign self fmt b =
 (* Prints a value expression [v], with internal function calls only. [pp_var] is
    a printer for variables (typically [pp_c_var_read]), but an offset suffix may
    be added for array variables *)
-let rec pp_c_val ?(indirect=true) m self pp_var fmt v =
+let rec pp_c_val ?(indirect = true) m self pp_var fmt v =
   let pp_c_val = pp_c_val ~indirect m self pp_var in
   match v.value_desc with
   | Cst c ->
@@ -391,7 +391,8 @@ let rec pp_c_val ?(indirect=true) m self pp_var fmt v =
         Types.is_array_type v.var_type
         && not (Types.is_real_type v.var_type && !Options.mpfr)
       then fprintf fmt "%a" pp_var v
-      else fprintf fmt "%s%s_reg.%a" self (if indirect then "->" else ".") pp_var v
+      else
+        fprintf fmt "%s%s_reg.%a" self (if indirect then "->" else ".") pp_var v
     else pp_var fmt v
   | Fun (n, vl) ->
     pp_basic_lib_fun (Types.is_int_type v.value_type) n pp_c_val fmt vl
@@ -1210,8 +1211,7 @@ let rec pp_static_val pp_var fmt v =
     eprintf "Internal error: C_backend_common.pp_static_val";
     assert false
 
-let concat x y =
- x ^ "##" ^ y
+let concat x y = x ^ "##" ^ y
 
 let pp_constant_decl (m, attr, inst) pp_var fmt v =
   fprintf
@@ -1224,7 +1224,9 @@ let pp_constant_decl (m, attr, inst) pp_var fmt v =
     (get_const_assign m v)
 
 let pp_var inst const_locals fmt v =
-  pp_print_string fmt (if List.mem v const_locals then concat inst v.var_id else v.var_id)
+  pp_print_string
+    fmt
+    (if List.mem v const_locals then concat inst v.var_id else v.var_id)
 
 let pp_static_constant_decl ((_, _, inst) as macro) fmt const_locals =
   pp_print_list
@@ -1261,9 +1263,7 @@ let pp_static_declare_macro ?(ghost = false) fmt ((m, attr, inst) as macro) =
   in
   fprintf
     fmt
-    "@[<v 2>@[<h>#define %a(%s, %a%s)\\@]@,\
-     @[<h>%a%s %a %s;\\@]@,\
-     %a%a;@]"
+    "@[<v 2>@[<h>#define %a(%s, %a%s)\\@]@,@[<h>%a%s %a %s;\\@]@,%a%a;@]"
     (pp_machine_static_declare_name ~ghost)
     m.mname.node_id
     attr
@@ -1306,8 +1306,7 @@ let pp_static_link_macro ?(ghost = false) fmt (m, _, inst) =
   in
   fprintf
     fmt
-    "@[<v>@[<v 2>#define %a(%s) do {\\@,\
-     @[<h>%a%a;\\@]@]@,} while (0)@]"
+    "@[<v>@[<v 2>#define %a(%s) do {\\@,@[<h>%a%a;\\@]@]@,} while (0)@]"
     (pp_machine_static_link_name ~ghost)
     m.mname.node_id
     inst

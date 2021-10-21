@@ -1,7 +1,8 @@
 (rule
  (alias runtest)
  (deps
-   (:scr test.sh)
-   (:lus (glob_files *.lus)))
+  (:scr test.sh)
+  (:lus
+   (glob_files *.lus)))
  (action
   (run %{scr} %{bin:lustrec} "%{lus}")))

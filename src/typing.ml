@@ -645,10 +645,11 @@ struct
         let targs =
           new_ty
             (match args_list with
-             | [a] -> (Expr_type_hub.import a.expr_type).tdesc
-             | _ ->
-               Ttuple
-                 (List.map (fun a -> Expr_type_hub.import a.expr_type) args_list))
+            | [ a ] ->
+              (Expr_type_hub.import a.expr_type).tdesc
+            | _ ->
+              Ttuple
+                (List.map (fun a -> Expr_type_hub.import a.expr_type) args_list))
         in
         args.expr_type <- Expr_type_hub.export targs;
         expr.expr_type <- Expr_type_hub.export touts;
