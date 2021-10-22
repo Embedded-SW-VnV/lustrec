@@ -40,6 +40,8 @@ module ExprDep : sig
      program/schedule, but used to simplify causality analysis *)
   val mk_instance_var : ident -> ident
 
+  val mk_read_var : ident -> ident
+
   val is_instance_var : ident -> bool
 
   val is_ghost_var : ident -> bool

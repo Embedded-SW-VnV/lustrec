@@ -900,8 +900,7 @@ and instrs_constant_assign var instrs =
 
 let rec instr_reduce branches instr1 cont =
   match get_instr_desc instr1 with
-  | MLocalAssign (_, { value_desc = Cst (Const_tag c); _ }) ->
-    instr1 :: (List.assoc c branches @ cont)
+  | MLocalAssign (_, { value_desc = Cst (Const_tag c); _ })
   | MStateAssign (_, { value_desc = Cst (Const_tag c); _ }) ->
     instr1 :: (List.assoc c branches @ cont)
   | MBranch (g, hl) ->
@@ -938,7 +937,23 @@ let rec instrs_fusion instrs =
 let step_fusion step =
   { step with step_instrs = instrs_fusion step.step_instrs }
 
-let machine_fusion m = { m with mstep = step_fusion m.mstep }
+let machine_fusion m =
+  let m = { m with mstep = step_fusion m.mstep } in
+  let unused = Machine_code_dep.compute_unused_variables m in
+  let is_used v = not (ISet.mem v.var_id unused) in
+  let step_locals = List.filter is_used m.mstep.step_locals in
+  let rec filter_instrs instrs =
+    List.filter_map (fun instr -> match get_instr_desc instr with
+        | MLocalAssign (v, _) ->
+          if is_used v then Some instr else None
+        | MBranch (e, hl) ->
+          Some (update_instr_desc instr
+                  (MBranch (e, List.map (fun (h, l) -> h, filter_instrs l) hl)))
+        | _ -> Some instr) instrs
+  in
+  let step_instrs = filter_instrs m.mstep.step_instrs in
+  { m with mstep = { m.mstep with step_locals; step_instrs }}
+  (* List.iter (fun (g, u) -> Format.printf "%a@;%a@." pp_dep_graph g ISet.pp u) gs; *)
 
 let machines_fusion prog = List.map machine_fusion prog
 
@@ -1100,7 +1115,8 @@ let optimize params prog node_schs machine_code =
         Scheduling.remove_prog_inlined_locals removed_table node_schs
       in
       let reuse_tables = Scheduling.compute_prog_reuse_table node_schs in
-      machines_fusion (machines_reuse_variables reuse_tables machine_code))
+      let machine_code = machines_fusion (machines_reuse_variables reuse_tables machine_code) in
+      machine_code)
     else machine_code
   in
 

@@ -1,6 +1,8 @@
 open Utils
 open Lustre_types
 
+val cone_of_influence: IdentDepGraph.t -> string -> ISet.t
+
 val compute_unused_variables : node_desc -> IdentDepGraph.t -> ISet.t
 
 type fanin = (ident, tag) Hashtbl.t

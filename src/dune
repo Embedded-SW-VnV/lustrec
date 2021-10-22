@@ -107,6 +107,7 @@
   misc_lustre_function
   misc_printer
   machine_code
+  machine_code_dep
   causality
   scheduling
   liveness
