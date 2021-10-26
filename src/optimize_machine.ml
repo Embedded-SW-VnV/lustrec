@@ -59,27 +59,27 @@ let eliminate_expr m elim e =
 
 let eliminate_pred m elim = function
   (* the transition is local to the machine *)
-  | Transition (s, f, inst, Some i, vars, r, mems, insts) ->
-    let vars =
-      List.filter_map
-        (function
-          | Spec_types.Val v -> (
-            match v.value_desc with
-            | Var vd when IMap.mem vd.var_id elim ->
-              None
-            | _ ->
-              Some (Val v))
-          | Spec_types.Var vd when IMap.mem vd.var_id elim ->
-            None
-          | e ->
-            Some (eliminate_expr m elim e))
-        vars
-    in
-    Transition (s, f, inst, Some i, vars, r, mems, insts)
+  (* | Transition (s, f, inst, Some i, vars, r, mems, insts) -> *)
+  (*   let vars = *)
+  (*     List.filter_map *)
+  (*       (function *)
+  (*         | Spec_types.Val v -> ( *)
+  (*           match v.value_desc with *)
+  (*           | Var vd when IMap.mem vd.var_id elim -> *)
+  (*             None *)
+  (*           | _ -> *)
+  (*             Some (Val v)) *)
+  (*         | Spec_types.Var vd when IMap.mem vd.var_id elim -> *)
+  (*           None *)
+  (*         | e -> *)
+  (*           Some (eliminate_expr m elim e)) *)
+  (*       vars *)
+  (*   in *)
+  (*   Transition (s, f, inst, Some i, vars, r, mems, insts) *)
   (* the transition is not local to the machine *)
-  | Transition (s, f, inst, None, vars, r, mems, insts) ->
+  | Transition (s, f, inst, i, vars, r, mems, insts) ->
     let vars = List.map (eliminate_expr m elim) vars in
-    Transition (s, f, inst, None, vars, r, mems, insts)
+    Transition (s, f, inst, i, vars, r, mems, insts)
   | p ->
     p
 
@@ -100,10 +100,10 @@ let rec eliminate_formula m elim =
     Imply (e_instr a, e_instr b)
   | Exists (xs, a) ->
     let xs = List.filter (fun vd -> not (IMap.mem vd.var_id elim)) xs in
-    Exists (xs, eliminate_formula m elim a)
+    Exists (xs, e_instr a)
   | Forall (xs, a) ->
     let xs = List.filter (fun vd -> not (IMap.mem vd.var_id elim)) xs in
-    Forall (xs, eliminate_formula m elim a)
+    Forall (xs, e_instr a)
   | Ternary (e, a, b) ->
     Ternary (e_expr e, e_instr a, e_instr b)
   | Predicate p ->
@@ -188,13 +188,14 @@ let rec fv_formula m s = function
     s
 
 let eliminate_transition m elim t =
-  let tvars = List.filter (fun vd -> not (IMap.mem vd.var_id elim)) t.tvars in
-  let tformula = eliminate_formula m elim t.tformula in
-  let fv =
-    VSet.(elements (diff (fv_formula m empty tformula) (of_list tvars)))
-  in
-  let tformula = Exists (fv, tformula) in
-  { t with tvars; tformula }
+  (* let tvars = List.filter (fun vd -> not (IMap.mem vd.var_id elim)) t.tvars in *)
+  (* let tformula = eliminate_formula m elim t.tformula in *)
+  (* let fv = *)
+  (*   VSet.(elements (diff (fv_formula m empty tformula) (of_list tvars))) *)
+  (* in *)
+  (* let tformula = Exists (fv, tformula) in *)
+  (* { t with tvars; tformula } *)
+  t
 
 (* XXX: UNUSED *)
 (* let eliminate_dim elim dim =
@@ -940,10 +941,17 @@ let step_fusion step =
 let machine_fusion m =
   let m = { m with mstep = step_fusion m.mstep } in
   let unused = Machine_code_dep.compute_unused_variables m in
+  let is_unused v = ISet.mem v.var_id unused in
   let is_used v = not (ISet.mem v.var_id unused) in
   let step_locals = List.filter is_used m.mstep.step_locals in
   let rec filter_instrs instrs =
-    List.filter_map (fun instr -> match get_instr_desc instr with
+    List.filter_map (fun instr ->
+        let instr = { instr with
+                      instr_spec = List.map (fun t ->
+                          let fv = VSet.(elements (filter is_unused (fv_formula m empty t))) in
+                          Exists (fv, t)) instr.instr_spec }
+        in
+        match get_instr_desc instr with
         | MLocalAssign (v, _) ->
           if is_used v then Some instr else None
         | MBranch (e, hl) ->
@@ -1115,8 +1123,7 @@ let optimize params prog node_schs machine_code =
         Scheduling.remove_prog_inlined_locals removed_table node_schs
       in
       let reuse_tables = Scheduling.compute_prog_reuse_table node_schs in
-      let machine_code = machines_fusion (machines_reuse_variables reuse_tables machine_code) in
-      machine_code)
+      machines_fusion (machines_reuse_variables reuse_tables machine_code))
     else machine_code
   in
 
