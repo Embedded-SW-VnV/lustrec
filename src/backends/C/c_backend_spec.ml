@@ -575,8 +575,10 @@ module PrintSpec = struct
         pp_or_l pp_spec' fmt fs
       | Imply (a, b) ->
         pp_paren (pp_implies pp_spec' pp_spec') fmt (a, b)
+      | Exists ([x], a) ->
+        pp_exists (pp_local m) pp_spec' fmt (x, a)
       | Exists (xs, a) ->
-        pp_exists (pp_locals m) pp_spec' fmt (xs, a)
+        pp_spec' fmt (List.fold_left (fun spec x -> Exists ([x], spec)) a xs)
       | Forall (xs, a) ->
         pp_forall (pp_locals m) pp_spec' fmt (xs, a)
       | Ternary (e, a, b) ->
