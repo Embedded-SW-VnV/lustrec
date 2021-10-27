@@ -782,9 +782,9 @@ let predicate_spec_replace fvar = function
   | p ->
     p
 
-let rec instr_spec_replace fvar =
-  let aux instr = instr_spec_replace fvar instr in
-  function
+let rec instr_spec_replace m fvar t =
+  let aux instr = instr_spec_replace m fvar instr in
+  let t' = match t with
   | Equal (e1, e2) ->
     Equal (expr_spec_replace fvar e1, expr_spec_replace fvar e2)
   | GEqual (e1, e2) ->
@@ -797,10 +797,10 @@ let rec instr_spec_replace fvar =
     Imply (aux a, aux b)
   | Exists (xs, a) ->
     let fvar v = if List.mem v xs then v else fvar v in
-    Exists (xs, instr_spec_replace fvar a)
+    Exists (xs, instr_spec_replace m fvar a)
   | Forall (xs, a) ->
     let fvar v = if List.mem v xs then v else fvar v in
-    Forall (xs, instr_spec_replace fvar a)
+    Forall (xs, instr_spec_replace m fvar a)
   | Ternary (e, a, b) ->
     Ternary (expr_spec_replace fvar e, aux a, aux b)
   | Predicate p ->
@@ -809,8 +809,16 @@ let rec instr_spec_replace fvar =
     ExistsMem (f, aux a, aux b)
   | f ->
     f
+  in
+  (* quantify existentially reused vars that appears freely in the formula before substitution, *)
+  (* to handle the fact that those vars can be modified in a way that the formula does not hold anymore *)
+  let fv = VSet.(elements (filter (fun v ->
+      List.exists (fun v' -> v.var_id = v'.var_id) m.mstep.step_locals
+      && List.exists (fun v' -> fvar v' = v && v <> v') m.mstep.step_locals)
+                   (fv_formula m empty t))) in
+  Exists (fv, t')
 
-let rec instr_replace_var fvar instr =
+let rec instr_replace_var m fvar instr =
   let instr_desc =
     match instr.instr_desc with
     | MLocalAssign (i, v) ->
@@ -822,7 +830,7 @@ let rec instr_replace_var fvar instr =
     | MBranch (g, hl) ->
       MBranch
         ( value_replace_var fvar g,
-          List.map (fun (h, il) -> h, instrs_replace_var fvar il []) hl )
+          List.map (fun (h, il) -> h, instrs_replace_var m fvar il []) hl )
     | MSetReset _
     | MNoReset _
     | MClearReset
@@ -831,40 +839,45 @@ let rec instr_replace_var fvar instr =
     | MComment _ ->
       instr.instr_desc
   in
-  let instr_spec = List.map (instr_spec_replace fvar) instr.instr_spec in
+  let instr_spec = List.map (instr_spec_replace m fvar) instr.instr_spec in
   instr_cons { instr with instr_desc; instr_spec }
 
-and instrs_replace_var fvar instrs cont =
-  List.fold_right (instr_replace_var fvar) instrs cont
+and instrs_replace_var m fvar instrs cont =
+  List.fold_right (instr_replace_var m fvar) instrs cont
 
-let step_replace_var fvar step =
-  (* Some outputs may have been replaced by locals. We then need to rename those
-     outputs without changing their clocks, etc *)
-  let outputs' =
-    List.map (fun o -> { o with var_id = (fvar o).var_id }) step.step_outputs
-  in
-  let locals' =
+let step_replace_var m fvar step =
+  let step_locals =
     List.fold_left
       (fun res l ->
         let l' = fvar l in
-        if List.exists (fun o -> o.var_id = l'.var_id) outputs' then res
+        if List.exists (fun o -> o.var_id = l'.var_id) step.step_outputs then res
         else Utils.add_cons l' res)
       []
       step.step_locals
   in
+  let step_checks =
+    List.map (fun (l, v) -> l, value_replace_var fvar v) step.step_checks
+  in
+  let step_instrs = instrs_replace_var m fvar step.step_instrs [] in
   {
     step with
-    step_checks =
-      List.map (fun (l, v) -> l, value_replace_var fvar v) step.step_checks;
-    step_outputs = outputs';
-    step_locals = locals';
-    step_instrs = instrs_replace_var fvar step.step_instrs [];
+    step_checks;
+    step_locals;
+    step_instrs
   }
 
 let machine_replace_variables fvar m =
-  { m with mstep = step_replace_var fvar m.mstep }
+  { m with mstep = step_replace_var m fvar m.mstep }
 
 let machine_reuse_variables reuse m =
+  (* Some outputs may have been replaced by locals. We reverse such bindings. *)
+  List.iter (fun out ->
+      try
+        let x = out.var_id in
+        let v = Hashtbl.find reuse x in
+        Hashtbl.remove reuse x;
+        Hashtbl.add reuse v.var_id out
+    with Not_found -> ()) m.mstep.step_outputs;
   let fvar v = try Hashtbl.find reuse v.var_id with Not_found -> v in
   machine_replace_variables fvar m
 
