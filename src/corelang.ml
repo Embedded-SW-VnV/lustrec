@@ -22,7 +22,14 @@ module VDeclModule = struct
   let compare v1 v2 = compare v1.var_id v2.var_id
 end
 
-module VMap = Map.Make (VDeclModule)
+(* module VMap = struct *)
+(*   include Map.Make (VDeclModule) *)
+
+(*   let pp ?(comment = "") pp_val fmt m = *)
+(*     Format.fprintf fmt "@[<hv 0>@[<hv 2>{ %s" comment; *)
+(*     iter (fun key v -> Format.fprintf fmt "@ %s -> %a" key.var_id pp_val v) m; *)
+(*     Format.fprintf fmt "@]@ }@]" *)
+(* end *)
 
 module VSet : sig
   include Set.S

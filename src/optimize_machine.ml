@@ -365,8 +365,8 @@ let unfoldable_assign fanin v expr =
 let merge_elim elim1 elim2 =
   let merge _ e1 e2 =
     match e1, e2 with
-    | Some e1, Some e2 ->
-      if e1 = e2 then Some e1 else None
+    | Some (e1, k1), Some (e2, k2) ->
+      Some (e1, e1 = e2 && k1 && k2)
     | _, Some e2 ->
       Some e2
     | Some e1, _ ->
@@ -375,6 +375,9 @@ let merge_elim elim1 elim2 =
       None
   in
   IMap.merge merge elim1 elim2
+
+
+let get_exprs elim = IMap.map (fun (_, e, _) -> e) elim
 
 (* see if elim has to take in account the provided instr: if so, update elim and
    return the remove flag, otherwise, the expression should be kept and elim is
@@ -390,16 +393,13 @@ let instrs_unfold m fanin elim instrs =
         (update_instr_desc
            instr
            (MLocalAssign (v, mk_val (Fun (id, vl)) v.var_type)))
-    | MLocalAssign (v, expr)
-      when (not (is_clock_dec_type v.var_dec_type.ty_dec_desc))
-           && unfoldable_assign fanin v expr ->
-      (* we don't eliminate clock definitions *)
+    | MLocalAssign (v, expr) ->
       let new_eq =
         Corelang.mkeq
           (desome instr.lustre_eq).eq_loc
           ([ v.var_id ], (desome instr.lustre_eq).eq_rhs)
       in
-      IMap.add v.var_id (expr, new_eq) elim, instr :: instrs
+      IMap.add v.var_id ((v, expr, new_eq), true) elim, instr :: instrs
     | MBranch (g, hl) ->
       let elim, hl =
         List.fold_left
@@ -413,15 +413,20 @@ let instrs_unfold m fanin elim instrs =
     | _ ->
       elim, instr :: instrs
   in
-  let elim, instrs = List.fold_left gather_elim (elim, []) instrs in
+  let elim, instrs = List.fold_left gather_elim (IMap.map (fun x -> x, true) elim, []) instrs in
+  (* we don't eliminate clock definitions *)
+  let elim = IMap.filter_map (fun _ ((v, e, _ as x), k) ->
+      if not (is_clock_dec_type v.var_dec_type.ty_dec_desc)
+      && unfoldable_assign fanin v e && k then Some x else None) elim
+  in
   let rec filter instrs =
     List.filter_map
       (fun instr ->
         match get_instr_desc instr with
-        | MLocalAssign (v, expr)
-          when (not (is_clock_dec_type v.var_dec_type.ty_dec_desc))
-               && unfoldable_assign fanin v expr
-               && IMap.mem v.var_id elim ->
+        | MLocalAssign (v, _)
+          when (* not (is_clock_dec_type v.var_dec_type.ty_dec_desc) *)
+               (* && unfoldable_assign fanin v expr *)
+               (* && *) IMap.mem v.var_id elim ->
           None
         | MBranch (g, hl) ->
           let instr =
@@ -429,9 +434,9 @@ let instrs_unfold m fanin elim instrs =
               instr
               (MBranch (g, List.map (fun (h, l) -> h, filter l) hl))
           in
-          Some (eliminate m (IMap.map fst elim) instr)
+          Some (eliminate m (get_exprs elim) instr)
         | _ ->
-          Some (eliminate m (IMap.map fst elim) instr))
+          Some (eliminate m (get_exprs elim) instr))
       instrs
   in
   elim, List.rev (filter instrs)
@@ -457,17 +462,17 @@ let machine_unfold fanin elim machine =
   Log.report ~level:3 (fun fmt ->
       Format.fprintf
         fmt
-        "@[<v 2>machine_unfold %s@;from %a@;to   %a@]"
+        "@[<v 2>machine_unfold %s@;from %a@;to   %a@]@;"
         machine.mname.node_id
         (pp_elim machine)
-        (IMap.map fst elim)
+        (get_exprs elim)
         (pp_elim machine)
-        (IMap.map fst elim_vars));
+        (get_exprs elim_vars));
   let step_instrs = simplify_instrs_offset machine instrs in
   let step_checks =
     List.map
       (fun (loc, check) ->
-        loc, eliminate_val machine (IMap.map fst elim_vars) check)
+        loc, eliminate_val machine (get_exprs elim_vars) check)
       machine.mstep.step_checks
   in
   let step_locals =
@@ -477,10 +482,10 @@ let machine_unfold fanin elim machine =
   in
   let mtransitions =
     List.map
-      (eliminate_transition machine (IMap.map fst elim_vars))
+      (eliminate_transition machine (get_exprs elim_vars))
       machine.mspec.mtransitions
   in
-  let elim_consts = IMap.map fst elim_consts in
+  let elim_consts = get_exprs elim_consts in
   let minstances =
     List.map (static_call_unfold elim_consts) machine.minstances
   in
@@ -525,16 +530,18 @@ let machines_unfold consts node_schs machines =
       let is_contract =
         match m.mspec.mnode_spec with Some (Contract _) -> true | _ -> false
       in
-      if is_contract then m :: machines, removed
-      else
-        let fanin =
-          (IMap.find m.mname.node_id node_schs).Scheduling_type.fanin_table
-        in
-        let elim_consts, _ =
-          instrs_unfold m fanin IMap.empty (List.map instr_of_const consts)
-        in
-        let m, removed_m = machine_unfold fanin elim_consts m in
-        m :: machines, IMap.add m.mname.node_id removed_m removed)
+      let m, removed_m =
+        if is_contract then m, IMap.empty
+        else
+          let fanin =
+            (IMap.find m.mname.node_id node_schs).Scheduling_type.fanin_table
+          in
+          let elim_consts, _ =
+            instrs_unfold m fanin IMap.empty (List.map instr_of_const consts)
+          in
+          machine_unfold fanin elim_consts m
+      in
+      m :: machines, IMap.add m.mname.node_id removed_m removed)
     machines
     ([], IMap.empty)
 
@@ -941,6 +948,7 @@ let step_fusion step =
 let machine_fusion m =
   let m = { m with mstep = step_fusion m.mstep } in
   let unused = Machine_code_dep.compute_unused_variables m in
+  (* Format.printf "unused vars : %a@." ISet.pp unused; *)
   let is_unused v = ISet.mem v.var_id unused in
   let is_used v = not (ISet.mem v.var_id unused) in
   let step_locals = List.filter is_used m.mstep.step_locals in
@@ -961,6 +969,7 @@ let machine_fusion m =
   in
   let step_instrs = filter_instrs m.mstep.step_instrs in
   { m with mstep = { m.mstep with step_locals; step_instrs }}
+
   (* List.iter (fun (g, u) -> Format.printf "%a@;%a@." pp_dep_graph g ISet.pp u) gs; *)
 
 let machines_fusion prog = List.map machine_fusion prog
@@ -1078,7 +1087,7 @@ let optimize params prog node_schs machine_code =
           Format.fprintf
             fmt
             "@ Eliminated flows: %a@ "
-            (IMap.pp (fun fmt m -> pp_elim empty_machine fmt (IMap.map fst m)))
+            (IMap.pp (fun fmt m -> pp_elim empty_machine fmt (get_exprs m)))
             removed_table);
       (* If variables were eliminated, relaunch the normalization/machine
          generation *)
