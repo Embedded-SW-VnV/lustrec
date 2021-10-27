@@ -1082,25 +1082,25 @@ let optimize params prog node_schs machine_code =
             removed_table);
       (* If variables were eliminated, relaunch the normalization/machine
          generation *)
-      let prog, machine_code, removed_table =
-        if IMap.is_empty removed_table then
-          (* stopping here, no need to reupdate the prog *)
-          prog, machine_code, removed_table
-        else
-          let prog = elim_prog_variables prog removed_table in
-          (* Mini stage1 *)
-          let prog = Normalization.normalize_prog ~first:false params prog in
-          let prog = SortProg.sort_nodes_locals prog in
-          (* Mini stage2: note that we do not protect against alg. loop since
-             this should have been handled before *)
-          let prog, node_schs = Scheduling.schedule_prog prog in
-          let machine_code = Machine_code.translate_prog prog node_schs in
-          (* Mini stage2 machine optimiation *)
-          let machine_code, removed_table =
-            machines_unfold (Corelang.get_consts prog) node_schs machine_code
-          in
-          prog, machine_code, removed_table
-      in
+      (* let prog, machine_code, removed_table = *)
+      (*   if IMap.is_empty removed_table then *)
+      (*     (\* stopping here, no need to reupdate the prog *\) *)
+      (*     prog, machine_code, removed_table *)
+      (*   else *)
+      (*     let prog = elim_prog_variables prog removed_table in *)
+      (*     (\* Mini stage1 *\) *)
+      (*     let prog = Normalization.normalize_prog ~first:false params prog in *)
+      (*     let prog = SortProg.sort_nodes_locals prog in *)
+      (*     (\* Mini stage2: note that we do not protect against alg. loop since *)
+      (*        this should have been handled before *\) *)
+      (*     let prog, node_schs = Scheduling.schedule_prog prog in *)
+      (*     let machine_code = Machine_code.translate_prog prog node_schs in *)
+      (*     (\* Mini stage2 machine optimiation *\) *)
+      (*     let machine_code, removed_table = *)
+      (*       machines_unfold (Corelang.get_consts prog) node_schs machine_code *)
+      (*     in *)
+      (*     prog, machine_code, removed_table *)
+      (* in *)
       Log.report ~level:3 (fun fmt ->
           Format.fprintf
             fmt
