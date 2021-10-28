@@ -6,9 +6,8 @@ open Utils
 let rec add_expr_dependencies g x e = match e.value_desc with
   | Var y ->
     let y' = y.var_id in
-    let x' = x.var_id in
-    if y' <> x' then
-      IdentDepGraph.add_edge g x' y'
+    if y' <> x then
+      IdentDepGraph.add_edge g x y'
   | Fun (_, es)
   | Array es ->
     List.iter (add_expr_dependencies g x) es
@@ -21,12 +20,17 @@ let rec add_expr_dependencies g x e = match e.value_desc with
 let rec add_instr_dependencies g deps instr = match get_instr_desc instr with
   | MLocalAssign (x, e)
   | MStateAssign (x, e) ->
-    add_expr_dependencies g x e;
-    List.iter (add_expr_dependencies g x) deps
-  | MStep (xs, _, es) ->
+    add_expr_dependencies g x.var_id e;
+    List.iter (add_expr_dependencies g x.var_id) deps
+  | MStep (xs, i, es) ->
     List.iter (fun x ->
-        List.iter (add_expr_dependencies g x) es;
-        List.iter (add_expr_dependencies g x) deps) xs
+        IdentDepGraph.add_edge g x.var_id i;
+        List.iter (add_expr_dependencies g x.var_id) es;
+        List.iter (add_expr_dependencies g x.var_id) deps) xs;
+    List.iter (add_expr_dependencies g i) deps
+  | MSetReset i
+  | MNoReset i ->
+    List.iter (add_expr_dependencies g i) deps
   | MBranch (e, hl) ->
     List.iter (fun (_, l) -> List.iter (add_instr_dependencies g (e :: deps)) l) hl
   | _ -> ()
@@ -58,7 +62,7 @@ let cone_of_influence g var =
 
 let compute_unused_variables m =
   let g = dep_graph m in
-  (* Format.printf "%a@." Causality.pp_dep_graph g; *)
+  (* Format.printf "graph of %s: %a@." m.mname.node_id Causality.pp_dep_graph g; *)
   List.fold_left
     (fun unused x ->
        let coi = cone_of_influence g x.var_id in
