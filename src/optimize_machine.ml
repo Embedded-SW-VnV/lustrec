@@ -782,8 +782,22 @@ let predicate_spec_replace fvar = function
   | p ->
     p
 
-let rec instr_spec_replace m fvar t =
-  let aux instr = instr_spec_replace m fvar instr in
+let is_reassigned v asg =
+  try IMap.find v asg > 1 with Not_found -> false
+
+let rec instr_spec_replace m fvar asg t =
+  let aux instr = instr_spec_replace m fvar asg instr in
+  (* quantify existentially reused vars that appears freely in the formula before substitution, *)
+  (* to handle the fact that those vars can be modified in a way that the formula does not hold anymore *)
+  let r_asg = IMap.filter (fun _ n -> n > 1) asg in
+  let fv_m = VSet.fold (fun v fv_m ->
+      if List.exists (fun v' -> v.var_id = v'.var_id) m.mstep.step_locals
+      && List.exists (fun v' -> fvar v' = v && v <> v') m.mstep.step_locals
+      && IMap.mem v.var_id r_asg
+      then IMap.add v.var_id { v with var_id = "__" ^ v.var_id} fv_m
+      else fv_m)  (fv_formula m VSet.empty t) IMap.empty
+  in
+  let fvar v = try IMap.find v.var_id fv_m with Not_found -> fvar v in
   let t' = match t with
   | Equal (e1, e2) ->
     Equal (expr_spec_replace fvar e1, expr_spec_replace fvar e2)
@@ -797,10 +811,10 @@ let rec instr_spec_replace m fvar t =
     Imply (aux a, aux b)
   | Exists (xs, a) ->
     let fvar v = if List.mem v xs then v else fvar v in
-    Exists (xs, instr_spec_replace m fvar a)
+    Exists (xs, instr_spec_replace m fvar asg a)
   | Forall (xs, a) ->
     let fvar v = if List.mem v xs then v else fvar v in
-    Forall (xs, instr_spec_replace m fvar a)
+    Forall (xs, instr_spec_replace m fvar asg a)
   | Ternary (e, a, b) ->
     Ternary (expr_spec_replace fvar e, aux a, aux b)
   | Predicate p ->
@@ -810,40 +824,57 @@ let rec instr_spec_replace m fvar t =
   | f ->
     f
   in
-  (* quantify existentially reused vars that appears freely in the formula before substitution, *)
-  (* to handle the fact that those vars can be modified in a way that the formula does not hold anymore *)
-  let fv = VSet.(elements (filter (fun v ->
-      List.exists (fun v' -> v.var_id = v'.var_id) m.mstep.step_locals
-      && List.exists (fun v' -> fvar v' = v && v <> v') m.mstep.step_locals)
-                   (fv_formula m empty t))) in
+  let fv_t = VSet.of_list (IMap.bindings fv_m |> List.split |> snd) in
+  let fv = VSet.(elements (inter fv_t (fv_formula m empty t'))) in
   Exists (fv, t')
 
-let rec instr_replace_var m fvar instr =
-  let instr_desc =
+let add_assigned v =
+  IMap.update v.var_id (function
+      | Some n -> Some (n + 1)
+      | None -> Some 1)
+
+let silly_asg i v = match v.value_desc with
+  | Var w -> w.var_id = i.var_id
+  | _ -> false
+
+let rec instr_replace_var m fvar (asg, instrs) instr =
+  let asg, instr_desc =
     match instr.instr_desc with
     | MLocalAssign (i, v) ->
-      MLocalAssign (fvar i, value_replace_var fvar v)
+      let v = value_replace_var fvar v in
+      let i = fvar i in
+      (if silly_asg i v then asg else add_assigned i asg),
+      MLocalAssign (i, v)
     | MStateAssign (i, v) ->
-      MStateAssign (i, value_replace_var fvar v)
+      asg, MStateAssign (i, value_replace_var fvar v)
     | MStep (il, i, vl) ->
-      MStep (List.map fvar il, i, List.map (value_replace_var fvar) vl)
+      let il = List.map fvar il in
+      List.fold_right add_assigned il asg,
+      MStep (il, i, List.map (value_replace_var fvar) vl)
     | MBranch (g, hl) ->
-      MBranch
-        ( value_replace_var fvar g,
-          List.map (fun (h, il) -> h, instrs_replace_var m fvar il []) hl )
+      let asg, hl =
+        List.fold_left (fun (asg', hl) (h, il) ->
+            let asg'', il = instrs_replace_var m fvar asg il in
+            (* Format.(printf "%s: before %a after %a@." h (IMap.pp pp_print_int) asg (IMap.pp pp_print_int) asg''); *)
+            IMap.union (fun _ n1 n2 -> Some (max n1 n2)) asg' asg'', (h, il) :: hl)
+          (IMap.empty, []) hl
+      in
+      (* Format.(printf "%a@." (IMap.pp pp_print_int) asg); *)
+      asg, MBranch ( value_replace_var fvar g, List.rev hl)
     | MSetReset _
     | MNoReset _
     | MClearReset
     | MResetAssign _
     | MSpec _
     | MComment _ ->
-      instr.instr_desc
+      asg, instr.instr_desc
   in
-  let instr_spec = List.map (instr_spec_replace m fvar) instr.instr_spec in
-  instr_cons { instr with instr_desc; instr_spec }
+  let instr_spec = List.map (instr_spec_replace m fvar asg) instr.instr_spec in
+  asg, instr_cons { instr with instr_desc; instr_spec } instrs
 
-and instrs_replace_var m fvar instrs cont =
-  List.fold_right (instr_replace_var m fvar) instrs cont
+and instrs_replace_var m fvar asg instrs =
+  let asg, instrs = List.fold_left (instr_replace_var m fvar) (asg, []) instrs in
+  asg, List.rev instrs
 
 let step_replace_var m fvar step =
   let step_locals =
@@ -858,7 +889,7 @@ let step_replace_var m fvar step =
   let step_checks =
     List.map (fun (l, v) -> l, value_replace_var fvar v) step.step_checks
   in
-  let step_instrs = instrs_replace_var m fvar step.step_instrs [] in
+  let _, step_instrs = instrs_replace_var m fvar IMap.empty step.step_instrs in
   {
     step with
     step_checks;
