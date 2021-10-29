@@ -281,13 +281,14 @@ let translate_eq env ctx nd inputs locals outputs i eq =
           inst with
           instr_spec =
             (if fst (get_stateless_status_node nd) || spec_mp = None then []
-            else [ mk_memory_pack ~i id ])
+            else [ mk_memory_pack ~i id, true ])
             @ [
                 mk_transition
                   ~i
                   stateless
                   id
-                  (vdecls_to_vals (inputs @ locals_i @ outputs_i));
+                  (vdecls_to_vals (inputs @ locals_i @ outputs_i)),
+                true
               ];
         }
         :: ctx.s;
@@ -643,13 +644,14 @@ let translate_decl nd sch =
     mkinstr
       ~instr_spec:
         ((if fst (get_stateless_status_node nd) then []
-         else [ mk_memory_pack ~i:0 nd.node_id ])
+         else [ mk_memory_pack ~i:0 nd.node_id, true ])
         @ [
             mk_transition
               ~i:0
               stateless
               nd.node_id
-              (vdecls_to_vals nd.node_inputs);
+              (vdecls_to_vals nd.node_inputs),
+            true
           ])
       MClearReset
   in

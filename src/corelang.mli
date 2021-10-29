@@ -85,7 +85,7 @@ val mktop : top_decl_desc -> top_decl
 val mkinstr :
   ?lustre_eq:(* ?lustre_expr:expr -> *)
              eq ->
-  ?instr_spec:Machine_code_types.value_t Spec_types.formula_t list ->
+  ?instr_spec:(Machine_code_types.mc_formula_t * bool) list ->
   Machine_code_types.instr_t_desc ->
   Machine_code_types.instr_t
 

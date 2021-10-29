@@ -37,6 +37,10 @@ module type MODIFIERS_SRC = sig
 
   val pp_contract :
     formatter -> machine_t list -> ident -> ident -> machine_t -> unit
+
+  val pp_c_decl_local_spec_var: machine_t -> formatter -> var_decl -> unit
+
+  val get_spec_locals: machine_t -> var_decl list
 end
 
 module EmptyMod = struct
@@ -55,6 +59,10 @@ module EmptyMod = struct
   let pp_ghost_parameter _ _ _ = ()
 
   let pp_contract _ _ _ _ _ = ()
+
+  let pp_c_decl_local_spec_var _ _ _ = ()
+
+  let get_spec_locals _ = []
 end
 
 module Main (Mod : MODIFIERS_SRC) = struct
@@ -546,17 +554,21 @@ module Main (Mod : MODIFIERS_SRC) = struct
       check
 
   let pp_print_function ~pp_prototype ~prototype ?(is_contract = false)
-      ?(pp_spec = pp_print_nothing) ?(pp_local = pp_print_nothing)
-      ?(base_locals = []) ?(pp_array_mem = pp_print_nothing) ?(array_mems = [])
+      ?(pp_spec = pp_print_nothing)
+      ?(pp_local = pp_print_nothing)
+      ?(base_locals = [])
+      ?(pp_array_mem = pp_print_nothing) ?(array_mems = [])
       ?(pp_init_mpfr_local = pp_print_nothing)
       ?(pp_clear_mpfr_local = pp_print_nothing) ?(mpfr_locals = [])
+      ?(pp_spec_local = pp_print_nothing)
+      ?(spec_locals = [])
       ?(pp_check = pp_print_nothing) ?(checks = [])
       ?(pp_extra = pp_print_nothing)
       ?(pp_instr = fun fmt _ -> pp_print_nothing fmt ()) ?(instrs = []) fmt =
     if not is_contract then
       fprintf
         fmt
-        "%a@[<v 2>%a {@,%a%a%a%a%a%a%areturn;@]@,}"
+        "%a@[<v 2>%a {@,%a%a%a%a%a%a%a%areturn;@]@,}"
         pp_spec
         ()
         pp_prototype
@@ -578,6 +590,13 @@ module Main (Mod : MODIFIERS_SRC) = struct
         (* locals initialization *)
         (pp_print_list ~pp_epilogue:pp_print_cut pp_init_mpfr_local)
         (mpfr_vars mpfr_locals)
+        (* spec vars *)
+        (pp_print_list
+           ~pp_open_box:pp_open_vbox0
+           ~pp_sep:pp_print_cut
+           ~pp_eol:pp_print_cut
+           pp_spec_local)
+        spec_locals
         (* check assertions *)
         (pp_print_list pp_check)
         checks
@@ -613,6 +632,8 @@ module Main (Mod : MODIFIERS_SRC) = struct
         ~prototype:(m.mname.node_id, m.mstep.step_inputs, m.mstep.step_outputs)
         ~pp_local:(pp_c_decl_local_var m)
         ~base_locals:m.mstep.step_locals
+        ~pp_spec_local:(Mod.pp_c_decl_local_spec_var m)
+        ~spec_locals:(Mod.get_spec_locals m)
         ~pp_init_mpfr_local:(pp_initialize m self (pp_c_var_read m))
         ~pp_clear_mpfr_local:(pp_clear m self (pp_c_var_read m))
         ~mpfr_locals:m.mstep.step_locals
@@ -741,6 +762,8 @@ module Main (Mod : MODIFIERS_SRC) = struct
         ~prototype:(m.mname.node_id, m.mstep.step_inputs, m.mstep.step_outputs)
         ~pp_local:(pp_c_decl_local_var m)
         ~base_locals:m.mstep.step_locals
+        ~pp_spec_local:(Mod.pp_c_decl_local_spec_var m)
+        ~spec_locals:(Mod.get_spec_locals m)
         ~pp_array_mem:(pp_c_decl_array_mem self)
         ~array_mems:(array_mems m)
         ~pp_init_mpfr_local:(pp_initialize m self (pp_c_var_read m))
@@ -776,6 +799,8 @@ module Main (Mod : MODIFIERS_SRC) = struct
             m.mstep.step_outputs )
         ~pp_local:(pp_c_decl_local_var m)
         ~base_locals
+        ~pp_spec_local:(Mod.pp_c_decl_local_spec_var m)
+        ~spec_locals:(Mod.get_spec_locals m)
         ~pp_init_mpfr_local:(pp_initialize m self (pp_c_var_read m))
         ~pp_clear_mpfr_local:(pp_clear m self (pp_c_var_read m))
         ~mpfr_locals:m.mstep.step_locals

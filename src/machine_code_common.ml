@@ -95,6 +95,8 @@ module PrintSpec = struct
       fprintf fmt "ResetCleared_%a" pp_print_string f
     | Initialization ->
       ()
+    | GhostAssign (v1, v2) ->
+      fprintf fmt "Ghost %s = %s" v1.var_id v2.var_id
 
   let pp_spec m =
     let pp_expr fmt e = pp_expr m fmt e in
@@ -169,7 +171,7 @@ let pp_spec m =
     pp_print_list
       ~pp_open_box:pp_open_vbox0
       ~pp_prologue:pp_print_cut
-      (fun fmt -> fprintf fmt "@[<h>--%@ %a@]" (PrintSpec.pp_spec m))
+      (fun fmt (spec, _) -> fprintf fmt "@[<h>--%@ %a@]" (PrintSpec.pp_spec m) spec)
 
 let rec pp_instr m fmt i =
   let pp_val = pp_val m in

@@ -237,7 +237,7 @@ let pp_locals m =
 
 let pp_ptr_decl fmt v = pp_ptr fmt v.var_id
 
-let pp_basic_assign_spec ?(pp_op = pp_equal) pp_l pp_r fmt typ var_name value =
+let pp_basic_assign_spec ?(pp_op = pp_equal) pp_l pp_r fmt (typ, var_name, value) =
   if Types.is_real_type typ && !Options.mpfr then assert false
     (* Mpfr.pp_inject_assign pp_var fmt (var_name, value) *)
   else pp_op pp_l pp_r fmt (var_name, value)
@@ -267,9 +267,7 @@ let pp_assign_spec ?pp_op m self_l pp_var_l indirect_l self_r pp_var_r
            loop_vars
            pp_var_r)
         fmt
-        typ
-        var_name
-        value
+        (typ, var_name, value)
     | (_d, LVar _i) :: _q ->
       assert false
     (* let typ' = Types.array_element_type typ in
@@ -459,6 +457,8 @@ module PrintSpec = struct
     (* fprintf fmt "ResetCleared_%a" pp_print_string f *)
     | Initialization ->
       ()
+    | GhostAssign (v1, v2) ->
+      pp_ghost (pp_assign m mem_in (pp_c_var_read m)) fmt (v1, vdecl_to_val v2)
 
   let reset_flag = dummy_var_decl "_reset" Type_predef.type_bool
 
@@ -1647,7 +1647,9 @@ module SrcMod = struct
          ~pp_prologue:pp_print_cut
          (pp_acsl_line'
             ~ghost
-            (pp_assert (PrintSpec.pp_spec (InstrMode self) m))))
+            (fun fmt (spec, asrt) ->
+               let pp = PrintSpec.pp_spec (InstrMode self) m in
+               (if asrt then pp_assert pp else pp) fmt spec)))
       instr.instr_spec
 
   let pp_ghost_parameter mem fmt inst =
@@ -1686,6 +1688,28 @@ module SrcMod = struct
         c.mc_proof
     | _, _ ->
       ()
+
+  let pp_c_decl_local_spec_var m fmt v =
+    pp_acsl_line'
+      (fun fmt v ->
+         fprintf fmt "%a;"
+           (pp_ghost (pp_c_decl_local_var m))
+           v)
+      fmt v
+
+  let get_spec_locals m =
+    let rec gather vs instr =
+      let vs = List.fold_left (fun vs (spec, _) -> match Spec_common.red spec with
+          | Predicate (GhostAssign (v, _)) -> VSet.add v vs
+          | _ -> vs) vs instr.instr_spec
+      in
+      match instr.instr_desc with
+      | MBranch (_, hl) ->
+        List.fold_left (fun vs (_, il) -> List.fold_left gather vs il) vs hl
+      | _ -> vs
+    in
+    List.fold_left gather VSet.empty m.mstep.step_instrs |> VSet.elements
+
 end
 
 module MainMod = struct
@@ -1891,8 +1915,9 @@ let rec sanitize_formula = function
     Value (sanitize_value v)
   | f ->
     f
+and sanitize_formulae fs = List.map (fun spec -> sanitize_formula spec) fs
 
-and sanitize_formulae fs = List.map sanitize_formula fs
+let sanitize_spec fs = List.map (fun (spec, asrt) -> sanitize_formula spec, asrt) fs
 
 let rec sanitize_instr i =
   let sanitize_instr_desc = function
@@ -1912,7 +1937,7 @@ let rec sanitize_instr i =
   {
     i with
     instr_desc = sanitize_instr_desc i.instr_desc;
-    instr_spec = sanitize_formulae i.instr_spec;
+    instr_spec = sanitize_spec i.instr_spec;
   }
 
 and sanitize_instrs instrs = List.map sanitize_instr instrs

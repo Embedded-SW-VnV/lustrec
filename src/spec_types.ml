@@ -28,6 +28,7 @@ type 'a predicate_t =
   | MemoryPack of ident * ident option * int option
   | Initialization
   | ResetCleared of ident
+  | GhostAssign of var_decl * var_decl
 
 type 'a formula_t =
   | True

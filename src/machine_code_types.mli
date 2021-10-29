@@ -27,7 +27,7 @@ type instr_t = {
      *) *)
   lustre_eq : eq option;
   (* possible representation as a lustre flow equation *)
-  instr_spec : mc_formula_t list;
+  instr_spec : (mc_formula_t * bool) list; (* spec, where the boolean specifies assert *)
 }
 
 and instr_t_desc =

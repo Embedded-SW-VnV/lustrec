@@ -23,6 +23,10 @@ module type MODIFIERS_SRC = sig
 
   val pp_contract :
     formatter -> machine_t list -> ident -> ident -> machine_t -> unit
+
+  val pp_c_decl_local_spec_var: machine_t -> formatter -> var_decl -> unit
+
+  val get_spec_locals: machine_t -> var_decl list
 end
 
 module EmptyMod : MODIFIERS_SRC
