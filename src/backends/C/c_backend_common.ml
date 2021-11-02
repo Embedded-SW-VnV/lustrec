@@ -40,10 +40,6 @@ let file_to_module_name basename =
 
 let pp_ptr fmt = fprintf fmt "*%s"
 
-let reset_label = "Reset"
-
-let pp_label fmt = fprintf fmt "%s:"
-
 let var_is name v = v.var_id = name
 
 let mk_local n m =

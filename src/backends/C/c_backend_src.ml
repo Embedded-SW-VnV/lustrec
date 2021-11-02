@@ -41,6 +41,8 @@ module type MODIFIERS_SRC = sig
   val pp_c_decl_local_spec_var: machine_t -> formatter -> var_decl -> unit
 
   val get_spec_locals: machine_t -> var_decl list
+
+  val pp_ghost_reset_memory: machine_t -> formatter -> ident -> unit
 end
 
 module EmptyMod = struct
@@ -63,6 +65,8 @@ module EmptyMod = struct
   let pp_c_decl_local_spec_var _ _ _ = ()
 
   let get_spec_locals _ = []
+
+  let pp_ghost_reset_memory _ _ _ = ()
 end
 
 module Main (Mod : MODIFIERS_SRC) = struct
@@ -301,8 +305,8 @@ module Main (Mod : MODIFIERS_SRC) = struct
             fmt
             "%t@,%a"
             (pp_machine_clear_reset m self mem)
-            pp_label
-            reset_label
+            (Mod.pp_ghost_reset_memory m)
+            mem
       | MResetAssign b ->
         pp_reset_assign self fmt b
       | MLocalAssign (i, v) ->

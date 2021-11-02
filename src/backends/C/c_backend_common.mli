@@ -62,8 +62,6 @@ val pp_c_var :
 
 val pp_c_dimension : formatter -> Dimension.t -> unit
 
-val pp_label : formatter -> label -> unit
-
 val pp_c_tag : formatter -> label -> unit
 
 val pp_reset_assign : ident -> formatter -> bool -> unit
@@ -176,8 +174,6 @@ val mk_call_var_decl : Location.t -> ident -> var_decl
 val pp_c_basic_type_desc : Types.t -> string
 
 val has_c_prototype : ident -> dep_t list -> bool
-
-val reset_label : label
 
 type loop_index = LVar of ident | LInt of int ref | LAcc of value_t
 

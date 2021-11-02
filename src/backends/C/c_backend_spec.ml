@@ -522,8 +522,7 @@ module PrintSpec = struct
           mem_in, mem_in, false, mem_reset, mem_reset, false
         | InstrMode self ->
           let mem = "(*" ^ mem ^ ")" in
-          fprintf str_formatter "%a" (pp_at pp_print_string) (mem, reset_label);
-          self, flush_str_formatter (), false, mem, mem, false
+          self, mem_reset, false, mem, mem, false
       in
       let pp_expr fmt e = pp_expr m mem_out fmt e in
       let pp_spec' = pp_spec mode in
@@ -1709,6 +1708,19 @@ module SrcMod = struct
       | _ -> vs
     in
     List.fold_left gather VSet.empty m.mstep.step_instrs |> VSet.elements
+
+  let pp_ghost_reset_memory m fmt mem =
+    let name = m.mname.node_id in
+    let mem_r = mk_mem_reset m in
+    pp_acsl_line'
+      (pp_ghost
+         (fun fmt () ->
+            fprintf fmt "%a = %a;"
+              (pp_machine_decl' ~ghost:true)
+              (name, mem_r)
+              pp_ptr mem))
+      fmt
+      ()
 
 end
 
