@@ -15,6 +15,9 @@ FRAMA_C_ARGS="-wp -wp-model ref,real -wp-prover $PROVERS -wp-run-all-provers\
     -wp-timeout $TIMEOUT -wp-par $JOBS"
 FRAMA_C=frama-c
 
+IGNORED=
+LUS_FILES=$(echo $LUS_FILES $IGNORED | tr ' ' '\n' | sort | uniq -u)
+
 # max length of file names
 M=0
 S=0
@@ -27,7 +30,7 @@ do
 done
 
 compile() {
-    printf "${bold}Compilation tests:${normal}\n"
+    printf "\n${bold}Compilation tests:${normal}\n"
     N=0
     OK=0
     KO=0
@@ -50,7 +53,7 @@ compile() {
 }
 
 verif() {
-    printf "${bold}Verification tests:${normal}\n"
+    printf "\n${bold}Verification tests:${normal}\n"
     N=0
     OK=0
     KO=0
@@ -73,6 +76,12 @@ verif() {
     printf "\n${normal}OK: ${green}%d${normal} (${red}%d${normal}) / %d\n\n"\
         "${OK}" "${KO}" "${M}"
 }
+
+printf "\n${bold}Ignored tests:${normal}\n"
+for f in $IGNORED
+do
+    printf "%s" $f
+done
 
 compile
 
