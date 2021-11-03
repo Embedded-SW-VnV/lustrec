@@ -359,7 +359,7 @@ and pp_expr_annot fmt expr_ann =
 let pp_asserts fmt asserts =
   match asserts with
   | _ :: _ ->
-    fprintf fmt "(* Asserts definitions *)@ ";
+    fprintf fmt "@;@;(* Asserts definitions *)@;";
     pp_print_list
       (fun fmt assert_ ->
         let expr = assert_.assert_expr in

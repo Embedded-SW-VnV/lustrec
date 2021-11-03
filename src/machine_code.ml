@@ -595,7 +595,7 @@ let translate_decl nd sch =
    *   VSet.pp locals
    *   VSet.pp inout_vars
    * ; *)
-  let equations = assert_instrs @ sorted_eqs in
+  let equations = sorted_eqs @ assert_instrs in
   let mems = get_memories env equations in
   (* Removing computed memories from locals. We also removed unused
      variables. *)
