@@ -151,8 +151,6 @@ let rec eliminate m elim instr =
   in
   match get_instr_desc instr with
   | MLocalAssign (i, v) ->
-    if i.var_id = "Out1_5" then Format.printf "%s := %a -> %a@." i.var_id (pp_val m) v (pp_val m) (e_val v);
-
     update_instr_desc instr (MLocalAssign (i, e_val v))
   | MStateAssign (i, v) ->
     update_instr_desc instr (MStateAssign (i, e_val v))
@@ -217,13 +215,14 @@ let rec fv_formula m s = function
 
 let eliminate_transition m elim t =
   (* let tvars = List.filter (fun vd -> not (IMap.mem vd.var_id elim)) t.tvars in *)
-  (* let tformula = eliminate_formula m elim t.tformula in *)
+  let elim = IMap.filter (fun x _ -> not (List.exists (fun v -> v.var_id = x) t.tvars)) elim in
+  let tformula = eliminate_formula m elim t.tformula in
   (* let fv = *)
   (*   VSet.(elements (diff (fv_formula m empty tformula) (of_list tvars))) *)
   (* in *)
   (* let tformula = Exists (fv, tformula) in *)
-  (* { t with tvars; tformula } *)
-  t
+  { t with tformula }
+
 
 (* XXX: UNUSED *)
 (* let eliminate_dim elim dim =
@@ -508,12 +507,12 @@ let machine_unfold fanin elim machine =
       (fun v -> not (IMap.mem v.var_id elim_vars))
       machine.mstep.step_locals
   in
+  let elim_consts = get_exprs elim_consts in
   let mtransitions =
     List.map
-      (eliminate_transition machine (get_exprs elim_vars))
+      (eliminate_transition machine elim_consts)
       machine.mspec.mtransitions
   in
-  let elim_consts = get_exprs elim_consts in
   let minstances =
     List.map (static_call_unfold elim_consts) machine.minstances
   in
