@@ -97,6 +97,8 @@ let pp_bool_cast pp fmt x = pp_cast pp_print_string pp fmt ("_Bool", x)
 
 let pp_double_cast pp fmt x = pp_cast pp_print_string pp fmt ("double", x)
 
+let pp_int_cast pp fmt x = pp_cast pp_print_string pp fmt ("int", x)
+
 let pp_true_c_bool fmt () = pp_bool_cast pp_print_string fmt "1"
 
 let pp_false fmt () = pp_print_string fmt "\\false"
@@ -391,6 +393,7 @@ module PrintSpec = struct
       (if not_var v then
        if Types.is_bool_type v.value_type then pp_bool_cast pp
        else if Types.is_real_type v.value_type then pp_double_cast pp
+       else if Types.is_int_type v.value_type then pp_int_cast pp
        else pp
       else pp)
         fmt
