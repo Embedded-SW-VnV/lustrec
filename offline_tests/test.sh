@@ -15,7 +15,7 @@ FRAMA_C_ARGS="-wp -wp-model ref,real -wp-prover $PROVERS -wp-run-all-provers\
     -wp-timeout $TIMEOUT -wp-par $JOBS"
 FRAMA_C=frama-c
 
-IGNORED=
+IGNORED="DRAGON*.lus"
 LUS_FILES=$(echo $LUS_FILES $IGNORED | tr ' ' '\n' | sort | uniq -u)
 
 # max length of file names
@@ -80,7 +80,7 @@ verif() {
 printf "\n${bold}Ignored tests:${normal}\n"
 for f in $IGNORED
 do
-    printf "%s" $f
+    printf "  %s\n" $f
 done
 
 compile
