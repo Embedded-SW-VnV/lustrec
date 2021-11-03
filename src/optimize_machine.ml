@@ -21,15 +21,19 @@ module Mpfr = Lustrec_mpfr
 let pp_elim m fmt elim =
   IMap.pp ~comment:"/* elim table: */" (pp_val m) fmt elim
 
-let eliminate_var_decl elim m v f a =
+let rec fixpoint f x =
+  let y, c = f x in
+  if c then fixpoint f y else y
+
+let eliminate_var_decl elim m v a =
   if is_memory m v then a
-  else try f (IMap.find v.var_id elim) with Not_found -> a
+  else try IMap.find v.var_id elim with Not_found -> a
 
 let rec eliminate_val m elim expr =
   let eliminate_val = eliminate_val m in
   match expr.value_desc with
   | Var v ->
-    eliminate_var_decl elim m v (fun x -> x) expr
+    eliminate_var_decl elim m v expr
   | Fun (id, vl) ->
     { expr with value_desc = Fun (id, List.map (eliminate_val elim) vl) }
   | Array vl ->
@@ -47,13 +51,35 @@ let rec eliminate_val m elim expr =
   | Cst _ | ResetFlag ->
     expr
 
+let rec value_eq v1 v2 =
+  let values_eq = List.for_all2 value_eq in
+  match v1.value_desc, v2.value_desc with
+  | Var v1, Var v2 ->
+    v1.var_id = v2.var_id
+  | Fun (f1, vs1), Fun (f2, vs2) ->
+    f1 = f2 && values_eq vs1 vs2
+  | Array vs1, Array vs2 ->
+    values_eq vs1 vs2
+  | Access (v1, v2), Access (w1, w2)
+  | Power (v1, v2), Power (w1, w2) ->
+    value_eq v1 w1 && value_eq v2 w2
+  | v1, v2 -> v1 = v2
+
+let eliminate_val m elim expr =
+  let f expr =
+    let v = eliminate_val m elim expr in
+    let v' = eliminate_val m elim v in
+    v, not (value_eq v v')
+  in
+  fixpoint f expr
+
 let eliminate_expr m elim e =
   let e_val = eliminate_val m elim in
   match e with
   | Val v ->
     Val (e_val v)
   | Var v ->
-    eliminate_var_decl elim m v (fun x -> Val x) e
+    Val (e_val (vdecl_to_val v))
   | _ ->
     e
 
@@ -125,6 +151,8 @@ let rec eliminate m elim instr =
   in
   match get_instr_desc instr with
   | MLocalAssign (i, v) ->
+    if i.var_id = "Out1_5" then Format.printf "%s := %a -> %a@." i.var_id (pp_val m) v (pp_val m) (e_val v);
+
     update_instr_desc instr (MLocalAssign (i, e_val v))
   | MStateAssign (i, v) ->
     update_instr_desc instr (MStateAssign (i, e_val v))
