@@ -15,7 +15,7 @@ FRAMA_C_ARGS="-wp -wp-model ref,real -wp-prover $PROVERS -wp-run-all-provers\
     -wp-timeout $TIMEOUT -wp-par $JOBS"
 FRAMA_C=frama-c
 
-IGNORED="DRAGON*.lus"
+IGNORED="DRAGON*.lus" Delay2_PP.LUSTREC.lus Delay5_PP.LUSTREC.lus
 LUS_FILES=$(echo $LUS_FILES $IGNORED | tr ' ' '\n' | sort | uniq -u)
 
 # max length of file names
