@@ -1510,53 +1510,63 @@ module SrcMod = struct
               let mem_out = mk_mem_out_c m_c in
               let stateless_c = fst (get_stateless_status m_c) in
               pp_ensures
-                (pp_implies
-                   (pp_transition_aux
-                      stateless_c
-                      pp_print_string
-                      pp_print_string
-                      (fun fmt v ->
-                        (if is_output m v then pp_ptr_decl else pp_var_decl)
-                          fmt
-                          v))
-                   (pp_contract m))
-                fmt
-                ( ( m_c.mname.node_id,
+                (pp_forall
+                   (fun fmt vs ->
+                      fprintf fmt "%a%a"
+                        (if stateless_c then pp_print_nothing
+                         else
+                           pp_machine_decl
+                             ~ghost:true
+                             (pp_comma_list ~pp_eol:pp_print_comma pp_print_string))
+                        (m_c.mname.node_id, [ mem_in; mem_out ])
+                        (pp_locals m) vs)
+                  (pp_implies
+                     (pp_transition_aux
+                        stateless_c
+                        pp_print_string
+                        pp_print_string
+                        (fun fmt v ->
+                           (if is_output m v then pp_ptr_decl else pp_var_decl)
+                             fmt
+                             v))
+                     (pp_contract m)))
+                  fmt
+                (m_c.mstep.step_outputs, ( ( m_c.mname.node_id,
                     m_c.mstep.step_inputs @ m_c.mstep.step_outputs,
                     mem_in,
                     mem_out ),
-                  c ))
+                  c )))
             fmt
             m_c)
     in
-    let pp_spec_vars =
-      match m_c with
-      | Some m_c ->
-        let mem_in = mk_mem_in_c m_c in
-        let mem_out = mk_mem_out_c m_c in
-        let stateless_c = fst (get_stateless_status m_c) in
-        pp_acsl_cut
-          (pp_ghost (fun fmt () ->
-               fprintf
-                 fmt
-                 "@;<0 2>@[<v>%a%a@]"
-                 (pp_print_list
-                    ~pp_open_box:pp_open_vbox0
-                    ~pp_sep:pp_print_semicolon
-                    ~pp_eol:pp_print_semicolon
-                    (pp_c_decl_local_var m))
-                 m_c.mstep.step_outputs
-                 (if stateless_c then pp_print_nothing
-                 else
-                   pp_machine_decl
-                     ~ghost:true
-                     (pp_comma_list ~pp_eol:pp_print_semicolon pp_print_string))
-                 (m_c.mname.node_id, [ mem_in; mem_out ])))
-      | _ ->
-        pp_print_nothing
-    in
+    (* let pp_spec_vars = *)
+    (*   match m_c with *)
+    (*   | Some m_c -> *)
+    (*     let mem_in = mk_mem_in_c m_c in *)
+    (*     let mem_out = mk_mem_out_c m_c in *)
+    (*     let stateless_c = fst (get_stateless_status m_c) in *)
+    (*     pp_acsl_cut *)
+    (*       (pp_ghost (fun fmt () -> *)
+    (*            fprintf *)
+    (*              fmt *)
+    (*              "@;<0 2>@[<v>%a%a@]" *)
+    (*              (pp_print_list *)
+    (*                 ~pp_open_box:pp_open_vbox0 *)
+    (*                 ~pp_sep:pp_print_semicolon *)
+    (*                 ~pp_eol:pp_print_semicolon *)
+    (*                 (pp_c_decl_local_var m)) *)
+    (*              m_c.mstep.step_outputs *)
+    (*              (if stateless_c then pp_print_nothing *)
+    (*              else *)
+    (*                pp_machine_decl *)
+    (*                  ~ghost:true *)
+    (*                  (pp_comma_list ~pp_eol:pp_print_semicolon pp_print_string)) *)
+    (*              (m_c.mname.node_id, [ mem_in; mem_out ]))) *)
+    (*   | _ -> *)
+    (*     pp_print_nothing *)
+    (* in *)
     pp_print_option (pp_proof_annotation m m_c) fmt c;
-    pp_spec_vars fmt ();
+    (* pp_spec_vars fmt (); *)
     pp_acsl_cut
       (fun fmt () ->
         if stateless then
