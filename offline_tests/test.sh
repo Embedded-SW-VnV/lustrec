@@ -11,7 +11,7 @@ LUS_FILES=$2
 PROVERS=alt-ergo,z3,cvc4
 TIMEOUT="${TIMEOUT:-60}"
 JOBS="${JOBS:-16}"
-FRAMA_C_ARGS="-wp -wp-model ref,real -wp-prover $PROVERS -wp-run-all-provers\
+FRAMA_C_ARGS="-wp -wp-model ref,real -wp-prover $PROVERS\
     -wp-timeout $TIMEOUT -wp-par $JOBS"
 FRAMA_C=frama-c
 
