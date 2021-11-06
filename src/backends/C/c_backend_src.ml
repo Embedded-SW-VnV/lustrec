@@ -388,7 +388,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
       | MSpec s ->
         fprintf fmt "@[/*@@ %s */@]@ " s
       | MComment s ->
-        fprintf fmt "/*%s*/@ " s
+        fprintf fmt "/* %s */" s
     in
     fprintf fmt "%a%a" pp_instr instr (Mod.pp_step_instr_spec m self mem) instr
 

@@ -207,7 +207,7 @@ let rec pp_instr m fmt i =
       (pp_print_list ~pp_open_box:pp_open_vbox0 pp_branch)
       hl
   | MComment s ->
-    pp_print_string fmt s
+    pp_print_string fmt ("(*" ^ s ^ "*)")
   | MSpec s ->
     pp_print_string fmt ("@" ^ s));
   (* Annotation *)

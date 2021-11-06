@@ -142,15 +142,15 @@ let rec eliminate_formula m elim =
     Value (eliminate_val m elim v)
   | f ->
     f
+let eliminate_spec m elim =
+  List.map (fun (f, asrt) -> eliminate_formula m elim f, asrt)
+
+let eliminate_spec_instr m elim instr =
+  { instr with instr_spec = eliminate_spec m elim instr.instr_spec }
 
 let rec eliminate m elim instr =
   let e_val = eliminate_val m elim in
-  let instr =
-    {
-      instr with
-      instr_spec = List.map (fun (f, asrt) -> eliminate_formula m elim f, asrt) instr.instr_spec;
-    }
-  in
+  let instr = eliminate_spec_instr m elim instr in
   match get_instr_desc instr with
   | MLocalAssign (i, v) ->
     update_instr_desc instr (MLocalAssign (i, e_val v))
@@ -448,24 +448,29 @@ let instrs_unfold m fanin elim instrs =
       if not (is_clock_dec_type v.var_dec_type.ty_dec_desc)
       && unfoldable_assign fanin v e && k then Some x else None) elim
   in
+  let elim_exprs = get_exprs elim in
   let rec filter instrs =
-    List.filter_map
+    List.map
       (fun instr ->
         match get_instr_desc instr with
-        | MLocalAssign (v, _)
+        | MLocalAssign (v, e)
           when (* not (is_clock_dec_type v.var_dec_type.ty_dec_desc) *)
                (* && unfoldable_assign fanin v expr *)
                (* && *) IMap.mem v.var_id elim ->
-          None
+          Format.(fprintf str_formatter "%s := %a" v.var_id (pp_val m) e);
+          let instr = eliminate_spec_instr m elim_exprs instr in
+          update_instr_desc
+            instr
+            (MComment (Format.flush_str_formatter ()))
         | MBranch (g, hl) ->
           let instr =
             update_instr_desc
               instr
               (MBranch (g, List.map (fun (h, l) -> h, filter l) hl))
           in
-          Some (eliminate m (get_exprs elim) instr)
+          eliminate m elim_exprs instr
         | _ ->
-          Some (eliminate m (get_exprs elim) instr))
+          eliminate m elim_exprs instr)
       instrs
   in
   elim, List.rev (filter instrs)
