@@ -139,6 +139,7 @@ let compute_node_reuse_table report =
      for node %s: %a" n'.node_id Disjunction.pp_disjoint_map disjoint );
      Log.report ~level:0 (fun fmt -> Format.fprintf fmt "OPT:reuse policy for
      node %s: %a" n'.node_id Liveness.pp_reuse_policy reuse ); end; *)
+  Hashtbl.filter_map_inplace (fun x v -> if x = v.var_id then None else Some v) reuse;
   reuse
 
 let schedule_prog prog =
@@ -154,7 +155,8 @@ let schedule_prog prog =
     prog
     ([], IMap.empty)
 
-let compute_prog_reuse_table report = IMap.map compute_node_reuse_table report
+let compute_prog_reuse_table report =
+  IMap.map compute_node_reuse_table report
 
 (* removes inlined local variables from schedule report, which are now
    useless *)

@@ -18,6 +18,8 @@ open Causality
 open Machine_code_common
 module Mpfr = Lustrec_mpfr
 
+let pp_no_effect fmt = Format.fprintf fmt ".. no effect.@ "
+
 let pp_elim m fmt elim =
   IMap.pp ~comment:"/* elim table: */" (pp_val m) fmt elim
 
@@ -964,6 +966,11 @@ let step_replace_var m fvar step =
 let machine_replace_variables fvar m =
   { m with mstep = step_replace_var m fvar m.mstep }
 
+let pp_reuse fmt reuse =
+  Format.fprintf fmt "{ @[<hv>";
+  Hashtbl.iter (fun v1 v2 -> Format.fprintf fmt "%s --> %s@ " v1 v2.var_id) reuse;
+  Format.fprintf fmt "@]@;}"
+
 let machine_reuse_variables reuse m =
   (* Some outputs may have been replaced by locals. We reverse such bindings. *)
   List.iter (fun out ->
@@ -973,12 +980,43 @@ let machine_reuse_variables reuse m =
         Hashtbl.remove reuse x;
         Hashtbl.add reuse v.var_id out
     with Not_found -> ()) m.mstep.step_outputs;
+  Log.report ~level:1 (fun fmt ->
+      Format.fprintf
+        fmt
+        "@[<v 2>.. machine %s reuse table:@,%a@]@,"
+        m.mname.node_id
+        pp_reuse reuse);
   let fvar v = try Hashtbl.find reuse v.var_id with Not_found -> v in
+  let fvar v =
+    let f v =
+      let v' = fvar v in
+      let v'' = fvar v' in
+      v', v'.var_id <> v''.var_id
+    in
+    fixpoint f v
+  in
   machine_replace_variables fvar m
 
-let machines_reuse_variables reuse_tables =
-  List.map (fun m ->
-      machine_reuse_variables (Utils.IMap.find m.mname.node_id reuse_tables) m)
+let machines_reuse_variables reuse_tables prog =
+  Log.report ~level:1 (fun fmt ->
+      Format.fprintf
+        fmt
+        "@,@[<v 2>.. machines optimization: minimize stack usage by reusing \
+         variables@,");
+  let prog = List.map (fun m ->
+      machine_reuse_variables (IMap.find m.mname.node_id reuse_tables) m)
+      prog
+  in
+  Log.report ~level:3 (fun fmt ->
+      if IMap.exists (fun _ reuse -> Hashtbl.length reuse <> 0) reuse_tables then
+        Format.fprintf
+          fmt
+          "@[<v 2>.. generated machines (variable reuse):@ %a@]@ "
+          pp_machines
+          prog
+    else pp_no_effect fmt);
+  Log.report ~level:1 (fun fmt -> Format.fprintf fmt "@]@,");
+  prog
 
 let rec instr_assign res instr =
   match get_instr_desc instr with
@@ -1039,24 +1077,52 @@ and instrs_reduce branches instrs cont =
 let rec instrs_fusion instrs =
   match instrs with
   | [] | [ _ ] ->
-    instrs
-  | i1 :: i2 :: q -> (
-    match i2.instr_desc with
-    | MBranch ({ value_desc = Var v; _ }, hl) when instr_constant_assign v i1 ->
-      instr_reduce
-        (List.map (fun (h, b) -> h, instrs_fusion b) hl)
-        { i1 with instr_spec = i1.instr_spec @ i2.instr_spec }
-        (instrs_fusion q)
-    | _ ->
-      i1 :: instrs_fusion (i2 :: q))
+    false, instrs
+  | i1 :: i2 :: q ->
+    begin match i2.instr_desc with
+      | MBranch ({ value_desc = Var v; _ }, hl) when instr_constant_assign v i1 ->
+        true, instr_reduce
+          (List.map (fun (h, b) -> h, snd (instrs_fusion b)) hl)
+          { i1 with instr_spec = i1.instr_spec @ i2.instr_spec }
+          (snd (instrs_fusion q))
+      | _ ->
+        let b, instrs = instrs_fusion (i2 :: q) in
+        b, i1 :: instrs
+    end
 
 let step_fusion step =
-  { step with step_instrs = instrs_fusion step.step_instrs }
+  let b, step_instrs = instrs_fusion step.step_instrs in
+  b, { step with step_instrs }
 
 let machine_fusion m =
-  let m = { m with mstep = step_fusion m.mstep } in
+  let b, mstep = step_fusion m.mstep in
+  b, { m with mstep }
+
+let machines_fusion prog =
+  Log.report ~level:1 (fun fmt ->
+      Format.fprintf
+        fmt
+        "@[<v 2>.. machines optimization: enumerated constructors elimination@,");
+  let bs, prog = List.(split (map machine_fusion prog)) in
+  Log.report ~level:3 (fun fmt ->
+      if List.exists (fun b -> b) bs then
+        Format.fprintf
+          fmt
+          "@[<v 2>.. generated machines (enum elim):@ %a@]@ "
+          pp_machines
+          prog
+      else pp_no_effect fmt);
+  Log.report ~level:1 (fun fmt -> Format.fprintf fmt "@]@,");
+  prog
+
+let machine_clean m =
   let unused = Machine_code_dep.compute_unused_variables m in
-  (* Format.printf "unused vars : %a@." ISet.pp unused; *)
+  Log.report ~level:1 (fun fmt ->
+      Format.fprintf
+        fmt
+        "@[<v 2>.. machine %s unused variables:@,%a@]@,"
+        m.mname.node_id
+        ISet.pp unused);
   let is_unused v = ISet.mem v.var_id unused in
   let is_used v = not (ISet.mem v.var_id unused) in
   let step_locals = List.filter is_used m.mstep.step_locals in
@@ -1076,11 +1142,24 @@ let machine_fusion m =
         | _ -> Some instr) instrs
   in
   let step_instrs = filter_instrs m.mstep.step_instrs in
-  { m with mstep = { m.mstep with step_locals; step_instrs }}
+  not (ISet.is_empty unused), { m with mstep = { m.mstep with step_locals; step_instrs }}
 
-  (* List.iter (fun (g, u) -> Format.printf "%a@;%a@." pp_dep_graph g ISet.pp u) gs; *)
-
-let machines_fusion prog = List.map machine_fusion prog
+let machines_clean prog =
+  Log.report ~level:1 (fun fmt ->
+      Format.fprintf
+        fmt
+        "@[<v 2>.. machines optimization: cleaning unused variables@,");
+  let bs, prog = List.(split (map machine_clean prog)) in
+  Log.report ~level:3 (fun fmt ->
+      if List.exists (fun b -> b) bs then
+        Format.fprintf
+          fmt
+          "@[<v 2>.. generated machines (cleaning):@ %a@]@ "
+          pp_machines
+          prog
+      else pp_no_effect fmt);
+  Log.report ~level:1 (fun fmt -> Format.fprintf fmt "@]@,");
+  prog
 
 (* Additional function to modify the prog according to removed variables map *)
 
@@ -1230,17 +1309,15 @@ let optimize params prog node_schs machine_code =
   in
   (* Optimize machine code *)
   let machine_code =
-    if !Options.optimization >= 3 && not (Backends.is_functional ()) then (
-      Log.report ~level:1 (fun fmt ->
-          Format.fprintf
-            fmt
-            ".. machines optimization: minimize stack usage by reusing \
-             variables@,");
+    if !Options.optimization >= 3 && not (Backends.is_functional ()) then
       let node_schs =
         Scheduling.remove_prog_inlined_locals removed_table node_schs
       in
       let reuse_tables = Scheduling.compute_prog_reuse_table node_schs in
-      machines_fusion (machines_reuse_variables reuse_tables machine_code))
+      machine_code
+      |> machines_reuse_variables reuse_tables
+      |> machines_fusion
+      |> machines_clean
     else machine_code
   in
 

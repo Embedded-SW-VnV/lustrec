@@ -69,4 +69,4 @@ let compute_unused_variables m =
        (* Format.printf "unused: %a@;coi of %s: %a@." ISet.pp unused x.var_id ISet.pp coi; *)
        ISet.diff unused coi)
     (List.fold_left (fun s v -> ISet.add v.var_id s) ISet.empty m.mstep.step_locals)
-    m.mstep.step_outputs
+    (m.mstep.step_outputs @ m.mmemory)
