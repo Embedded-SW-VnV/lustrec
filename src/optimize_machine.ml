@@ -457,6 +457,7 @@ let instrs_unfold m fanin elim instrs =
           when (* not (is_clock_dec_type v.var_dec_type.ty_dec_desc) *)
                (* && unfoldable_assign fanin v expr *)
                (* && *) IMap.mem v.var_id elim ->
+          (* we transform the assignment into a comment in order to keep its spec *)
           Format.(fprintf str_formatter "%s := %a" v.var_id (pp_val m) e);
           let instr = eliminate_spec_instr m elim_exprs instr in
           update_instr_desc
