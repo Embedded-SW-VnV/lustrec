@@ -1,8 +1,16 @@
-(rule
- (alias runtest)
+; (rule
+;  (alias runtest)
+;  (deps
+;   (:scr test.sh)
+;   (:lus
+;    (glob_files *.lus)))
+;  (action
+;   (run %{scr} %{bin:lustrec} "%{lus}")))
+
+(test
+ (name test)
+ (libraries re unix)
  (deps
-  (:scr test.sh)
-  (:lus
-   (glob_files *.lus)))
- (action
-  (run %{scr} %{bin:lustrec} "%{lus}")))
+  (:lus (glob_files *.lus))
+  (:ign ignored))
+ (action (run %{test} %{bin:lustrec} "%{lus}" %{ign})))
