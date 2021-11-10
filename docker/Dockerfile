@@ -5,9 +5,12 @@ RUN sudo apt-get update &&\
 
 RUN opam update &&\
     opam depext -i\
-    dune.2.9.1 dune-site menhir zarith ppx_deriving_yojson ocamlgraph alt-ergo frama-c
-
+    dune.2.9.1 dune-site menhir zarith ppx_deriving_yojson ocamlgraph alt-ergo frama-c re
 ENV PATH=$PATH:/home/opam/.opam/4.11/bin
+
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+ENV PATH=$PATH:/home/opam/.cargo/bin
+RUN cargo install tokei
 
 RUN why3 config detect
 
