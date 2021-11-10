@@ -2,15 +2,24 @@ open Format
 open Unix
 
 module S = struct
-  include  Set.Make(String)
+  include Set.Make(String)
   let pp fmt = iter (fprintf fmt "%s@;")
+end
+
+module ST = struct
+  include Set.Make(
+    struct
+      type t = string * int * int * float
+      let compare (x1, _, _, _) (x2, _, _, _) = compare x1 x2
+    end)
+  let pp fmt = iter (fun (x, loc, n, t) -> fprintf fmt "%s %d %d %f@;" x loc n t)
 end
 
 module M = Map.Make(Int)
 
 type report = {
   compiled: S.t;
-  verified: S.t M.t;
+  verified: ST.t M.t;
   failed: S.t
 }
 let empty_report = {
@@ -31,11 +40,19 @@ let end_section = "##"
 
 let compiled_section = section "COMPILED"
 
+let initial_timeout = 30
+
+let next_timeout r =
+  M.fold (fun i _ n -> max i n) r.verified initial_timeout
+
 let timeout_section i = section (sprintf "TIMEOUT %d" i)
 
-let timeout_of_section h = match Re.Str.(split (regexp_string " ")) h with
+let timeout_of_section h =
+  match Re.Str.(split (regexp_string " ")) h with
   | ["#"; "TIMEOUT"; i] -> Some (int_of_string i)
   | _ -> None
+
+let failed_section = section "FAILED"
 
 let is_compiled report f =
   S.mem f report.compiled
@@ -44,12 +61,12 @@ let add_compiled report f =
   { report with compiled = S.add f report.compiled }
 
 let is_verified report f =
-  M.exists (fun _ -> S.mem f) report.verified
+  M.exists (fun _ -> ST.exists (fun (x, _, _, _) -> x = f)) report.verified
 
-let add_verified report i f =
+let add_verified report i f loc n t =
   { report with verified = M.update i (fun s ->
-        let s = match s with None -> S.empty | Some s -> s in
-        Some (S.add f s)) report.verified }
+        let s = match s with None -> ST.empty | Some s -> s in
+        Some (ST.add (f, loc, n, t) s)) report.verified }
 
 let add_failed report f =
   { report with failed = S.add f report.failed }
@@ -66,7 +83,14 @@ let parse_report () =
     let rec read_verified i r =
       try match input_line ic with
         | "" -> read_verified i r
-        | f -> if f = end_section then r else read_verified i (add_verified r i f)
+        | f ->
+          if f = end_section then r
+          else match String.split_on_char ' ' f with
+            | [f; loc; n; t] ->
+              read_verified i
+                (add_verified r i f
+                   (int_of_string loc) (int_of_string n) (float_of_string t))
+            | _ -> assert false
       with End_of_file -> r
     in
     let rec read r =
@@ -76,10 +100,11 @@ let parse_report () =
         | f when f = compiled_section ->
           read (read_compiled r)
         | f ->
-          begin match timeout_of_section f with
-            | Some i -> read (read_verified i r)
+          let r = match timeout_of_section f with
+            | Some i -> read_verified i r
             | None -> r
-          end
+          in
+          read r
       with End_of_file -> r
     in
     let r = read empty_report in
@@ -87,23 +112,35 @@ let parse_report () =
     r
   with _ -> printf "exn@;"; empty_report
 
-let pp_compiled fmt report = S.pp fmt report.compiled
+let pp_compiled fmt report =
+  fprintf fmt "%s@;%a%s@;"
+    compiled_section
+    S.pp report.compiled
+    end_section
+
+let pp_failed fmt report =
+  fprintf fmt "%s@;%a%s@;"
+    failed_section
+    S.pp report.failed
+    end_section
 
 let pp_verified fmt report =
   pp_print_list
     ~pp_sep:(fun fmt () -> fprintf fmt "%s@;" end_section)
-    (fun fmt (i, s) -> fprintf fmt "%s@;%a" (timeout_section i) S.pp s)
+    (fun fmt (i, s) -> fprintf fmt "%s@;%a" (timeout_section i) ST.pp s)
     fmt
     (List.sort (fun (i, _) (j, _) -> compare i j) (M.bindings report.verified))
+
+let pp_report fmt report =
+  fprintf fmt "@[<v>%a@;%a@;%a@]@."
+    pp_compiled report
+    pp_failed report
+    pp_verified report
 
 let write_report report =
   let oc = open_out report_f in
   let fmt = formatter_of_out_channel oc in
-  fprintf fmt "@[<v>%s@;%a%s@;%a@]@."
-    compiled_section
-    pp_compiled report
-    end_section
-    pp_verified report;
+  pp_report fmt report;
   close_out oc
 
 let config_format_tags =
@@ -135,11 +172,10 @@ let print_result p f fmt_str check =
   printf "%3.0f%% %-*s %(%s%)@." p !max_l f fmt_str check
 
 let print_results ok ko n =
-  printf "@]OK: @{<green>%d@} (@{<red>%d@}) / %d@;" ok ko n
+  printf "OK: @{<green>%d@} (@{<red>%d@}) / %d@." ok ko n
 
 let compile report lustrec fs =
-  printf "@;@[<v>%a@;"
-    pp_header "Compilation tests";
+  printf "@.%a@." pp_header "Compilation tests";
   max_l := List.fold_left (fun m f -> let n = String.length f in max n m) 0 fs;
   let n = List.length fs in
   let n_f = float_of_int n in
@@ -202,12 +238,26 @@ let goals log =
   let reg = "\\([0-9]+\\) / \\([0-9]+\\)" in
   try
     search_forward (regexp reg) log 0 |> ignore;
-    Some (matched_group 1 log, matched_group 2 log)
+    Some (matched_group 1 log |> int_of_string,
+          matched_group 2 log |> int_of_string)
   with Not_found -> None
 
+let get_loc f =
+  let open Yojson.Safe in
+  let open Util in
+  let cmd = Filename.quote_command ~stdout:err_f "tokei" ["-o"; "json"; f] in
+  let ic = open_process_in cmd in
+  match close_process_in ic with
+  | WEXITED 0 ->
+    begin try
+        from_file err_f |> member "C" |> member "code" |> to_int
+      with _ -> -1
+    end
+  | _ -> -1
+
 let rec verify report timeout fs =
-  if fs = [] then report else begin
-    printf "@;@[<v>@;%a@."
+  if fs <> [] then begin
+    printf "@.%a@."
       pp_header (sprintf "Verification tests - %is timeout" timeout);
     let n = List.length fs in
     let n_f = float_of_int n in
@@ -220,28 +270,33 @@ let rec verify report timeout fs =
           let success r : _ * _ * _ * _ format * _ * _ =
             r, ok + 1, ko, "@{<green>%s@}", "OK", fs
           in
-          let fail r msg fs: _ * _ * _ * _ format * _ * _ =
-            r, ok, ko + 1, "@{<red>%s@}", ("KO\n" ^ msg), fs
+          let fail r : _ * _ * _ * _ format * _ * _ =
+            r, ok, ko + 1, "@{<red>%s@}", ("KO\n" ^ read_whole_file err_f), fs
+          in
+          let tm r f : _ * _ * _ * _ format * _ * _ =
+            r, ok, ko + 1, "@{<red>%s@}", "TO", f :: fs
           in
           let report, ok, ko, fmt_str, check, fs =
-            if is_verified report f then success report
+            if is_verified report f' then success report
             else
               let cmd = Filename.quote_command ~stdout:err_f "timeout"
                   (string_of_int timeout :: frama_c_cmd f'')
               in
+              let t = Unix.gettimeofday () in
               let ic = open_process_in cmd in
               match close_process_in ic with
               | WEXITED 0 ->
+                let t = Unix.gettimeofday () -. t in
                 let log = read_whole_file err_f in
                 begin match goals log with
                   | Some (n, m) when n = m ->
-                    success (add_verified report timeout f')
-                  | _ -> fail (add_failed report f') log fs
+                    success (add_verified report timeout f' (get_loc f'') n t)
+                  | _ -> fail (add_failed report f')
                 end
               | WEXITED 124 ->
-                fail report "TIMEOUT!" (f :: fs)
+                tm report f
               | _ ->
-                fail (add_failed report f') (read_whole_file err_f) fs
+                fail (add_failed report f')
           in
           print_result p f' fmt_str check;
           write_report report;
@@ -253,7 +308,7 @@ let rec verify report timeout fs =
   end
 
 let print_ignored fs =
-  printf "@[<v>@;@[<v 2>%a@;%a@]@;@;"
+  printf "@.@[<v 2>%a@;%a@]@."
     pp_header "Ignored tests"
     (pp_print_list pp_print_string) fs
 
@@ -272,11 +327,10 @@ let () =
     close_in ic;
     fs
   in
-  print_ignored ignored_fs;
-  let _lus_fs =
-    List.(sort_uniq compare (filter (fun f -> not (mem f ignored_fs)) lus_fs))
-  in
   let report = parse_report () in
   let report = compile report lustrec lus_fs in
-  verify report 30 lus_fs |> ignore;
-  printf "@]"
+  print_ignored (List.map (fun f -> Filename.remove_extension f ^ ".c") ignored_fs);
+  let lus_fs =
+    List.(sort_uniq compare (filter (fun f -> not (mem f ignored_fs)) lus_fs))
+  in
+  verify report (next_timeout report) lus_fs

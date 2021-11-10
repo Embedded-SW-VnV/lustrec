@@ -1,15 +1,6 @@
-; (rule
-;  (alias runtest)
-;  (deps
-;   (:scr test.sh)
-;   (:lus
-;    (glob_files *.lus)))
-;  (action
-;   (run %{scr} %{bin:lustrec} "%{lus}")))
-
 (test
  (name test)
- (libraries re unix)
+ (libraries re unix yojson)
  (deps
   (:lus (glob_files *.lus))
   (:ign ignored))
