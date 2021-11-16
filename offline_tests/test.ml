@@ -40,10 +40,10 @@ let end_section = "##"
 
 let compiled_section = section "COMPILED"
 
-let initial_timeout = 30
+let initial_timeout = 15
 
 let next_timeout r =
-  M.fold (fun i _ n -> max i n) r.verified initial_timeout
+  2 * M.fold (fun i _ n -> max i n) r.verified initial_timeout
 
 let timeout_section i = section (sprintf "TIMEOUT %d" i)
 
@@ -93,12 +93,20 @@ let parse_report () =
             | _ -> assert false
       with End_of_file -> r
     in
+    let rec read_failed r =
+      try match input_line ic with
+        | "" -> read_failed r
+        | f -> if f = end_section then r else read_failed (add_failed r f)
+      with End_of_file -> r
+    in
     let rec read r =
       try match input_line ic with
         | "" ->
           read r
         | f when f = compiled_section ->
           read (read_compiled r)
+        | f when f = failed_section ->
+          read (read_failed r)
         | f ->
           let r = match timeout_of_section f with
             | Some i -> read_verified i r
