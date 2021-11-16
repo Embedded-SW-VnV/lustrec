@@ -275,8 +275,8 @@ let rec verify report timeout fs =
           let f'' = Filename.concat dir f' in
           let i' = i + 1 in
           let p = float_of_int i' *. 100. /. n_f in
-          let success r : _ * _ * _ * _ format * _ * _ =
-            r, ok + 1, ko, "@{<green>%s@}", "OK", fs
+          let success ?(already=false) r : _ * _ * _ * _ format * _ * _ =
+            r, ok + 1, ko, "@{<green>%s@}", ("OK" ^ if already then " (A)" else ""), fs
           in
           let fail r : _ * _ * _ * _ format * _ * _ =
             r, ok, ko + 1, "@{<red>%s@}", ("KO\n" ^ read_whole_file err_f), fs
@@ -285,7 +285,7 @@ let rec verify report timeout fs =
             r, ok, ko + 1, "@{<red>%s@}", "TO", f :: fs
           in
           let report, ok, ko, fmt_str, check, fs =
-            if is_verified report f' then success report
+            if is_verified report f' then success ~already:true report
             else
               let cmd = Filename.quote_command ~stdout:err_f "timeout"
                   (string_of_int timeout :: frama_c_cmd f'')
