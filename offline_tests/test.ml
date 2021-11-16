@@ -68,6 +68,9 @@ let add_verified report i f loc n t =
         let s = match s with None -> ST.empty | Some s -> s in
         Some (ST.add (f, loc, n, t) s)) report.verified }
 
+let is_failed report f =
+  S.mem f report.failed
+
 let add_failed report f =
   { report with failed = S.add f report.failed }
 
@@ -276,16 +279,19 @@ let rec verify report timeout fs =
           let i' = i + 1 in
           let p = float_of_int i' *. 100. /. n_f in
           let success ?(already=false) r : _ * _ * _ * _ format * _ * _ =
-            r, ok + 1, ko, "@{<green>%s@}", ("OK" ^ if already then " (A)" else ""), fs
+            r, ok + 1, ko, "@{<green>%s@}",
+            ("OK" ^ if already then " (A)" else ""), fs
           in
-          let fail r : _ * _ * _ * _ format * _ * _ =
-            r, ok, ko + 1, "@{<red>%s@}", ("KO\n" ^ read_whole_file err_f), fs
+          let fail ?(already=false) r : _ * _ * _ * _ format * _ * _ =
+            r, ok, ko + 1, "@{<red>%s@}",
+            ("KO" ^ if already then " (A)" else "\n" ^ read_whole_file err_f), fs
           in
           let tm r f : _ * _ * _ * _ format * _ * _ =
             r, ok, ko + 1, "@{<red>%s@}", "TO", f :: fs
           in
           let report, ok, ko, fmt_str, check, fs =
             if is_verified report f' then success ~already:true report
+            else if is_failed report f' then fail ~already:true report
             else
               let cmd = Filename.quote_command ~stdout:err_f "timeout"
                   (string_of_int timeout :: frama_c_cmd f'')
