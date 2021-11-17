@@ -960,14 +960,7 @@ module SrcMod = struct
            %a@,\
            %a@,\
            %a@,\
-           @[<v 2>behavior reset:@;\
-           %a@,\
-           %a@]@,\
-           @[<v 2>behavior no_reset:@;\
-           %a@,\
-           %a@]@,\
-           complete behaviors;@,\
-           disjoint behaviors;"
+           %a"
           (pp_requires pp_mem_valid')
           (name, self)
           (pp_requires (pp_separated' self mem))
@@ -980,6 +973,9 @@ module SrcMod = struct
                 pp_ptr
                 pp_print_string))
           (name, mem, self)
+          (pp_ensures
+             (pp_reset_cleared (pp_old pp_ptr) pp_ptr))
+          (name, mem, mem)
           (pp_assigns pp_reset_flag')
           [ self ]
           (pp_assigns (pp_register_chain self))
@@ -991,15 +987,7 @@ module SrcMod = struct
           (pp_assigns (pp_register_chain ~indirect:false mem))
           (mk_insts arws)
           (pp_assigns (pp_reset_flag_chain ~indirect:false mem))
-          (mk_insts narws)
-          (pp_assumes (pp_equal pp_reset_flag' pp_print_int))
-          (mem, 1)
-          (pp_ensures (pp_initialization pp_ptr))
-          (name, mem)
-          (pp_assumes (pp_equal pp_reset_flag' pp_print_int))
-          (mem, 0)
-          (pp_ensures (pp_equal pp_ptr (pp_old pp_ptr)))
-          (mem, mem))
+          (mk_insts narws))
       fmt
       ()
 
