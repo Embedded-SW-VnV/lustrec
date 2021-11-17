@@ -52,8 +52,6 @@ let pp_requires pp fmt = fprintf fmt "requires %a;" pp
 
 let pp_ensures pp fmt = fprintf fmt "ensures %a;" pp
 
-let pp_assumes pp fmt = fprintf fmt "assumes %a;" pp
-
 let pp_terminates pp fmt = fprintf fmt "terminates %a;" pp
 
 let pp_assigns pp =
