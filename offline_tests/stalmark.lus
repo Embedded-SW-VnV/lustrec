@@ -1,5 +1,5 @@
 node top (x:bool) returns (OK:bool);
---@ contract guarantee OK;
+--@ contract guarantee OK by 2-induction;
 var a,b,c:bool;
 let
   a = true -> pre(c);

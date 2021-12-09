@@ -74,7 +74,7 @@ tel
 
 node top(e1, e2, e3, e4, e5, e6, e7, e8 : bool; i_invalid : int) 
 	returns( OK : bool );
---@ contract guarantee OK;
+--@ contract guarantee OK by 2-induction;
     var invalid, dirty, exclusive, shared : int;
         env : bool;
 let

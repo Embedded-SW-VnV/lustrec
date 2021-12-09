@@ -39,7 +39,7 @@ let
 tel
 
 node top(etat1, etat2, etat3 : bool; a_init : int) returns ( OK : bool );
---@ contract guarantee OK;
+--@ contract guarantee OK by 2-induction;
     var i, b, a, o1, o2 : int;
         env : bool;
 let

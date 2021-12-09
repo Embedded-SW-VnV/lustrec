@@ -43,7 +43,7 @@ let
 tel
 node top(on_A, on_B, on_C, ack_AB, ack_BC: bool)
 returns(OK: bool);
---@ contract guarantee OK;
+--@ contract guarantee OK by 4-induction;
 var
    grant_access, grant_exit: bool;
    do_AB, do_BC: bool;

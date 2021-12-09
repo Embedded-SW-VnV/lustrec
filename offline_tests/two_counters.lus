@@ -18,7 +18,7 @@ tel
 
 
 node top (x:bool) returns (OK:bool);
---@ contract guarantee OK;
+--@ contract guarantee OK by 5-induction;
 var b,d:bool;
 let
   b = greycounter(x);

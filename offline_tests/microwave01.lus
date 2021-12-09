@@ -14,7 +14,7 @@ node top(KP_START: bool;
 ) returns (OK:bool);
 
    
---@ contract guarantee OK;
+--@ contract guarantee OK by 2-induction;
 var
    LEFT_DIGIT: int; 
       SETUP: bool; 

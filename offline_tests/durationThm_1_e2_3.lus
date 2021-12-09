@@ -8,7 +8,7 @@ let
  age_of_p = 0 -> if pre(p) then pre(age_of_p) -1+ 1 else 0;
 tel
 node top (ik, im: int; p, q, r : bool) returns (OK: bool);
---@ contract guarantee OK;
+--@ contract guarantee OK by 3-induction;
 var k,m : int;
     env : bool;
 let

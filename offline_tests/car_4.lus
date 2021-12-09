@@ -35,7 +35,7 @@ let
 tel
 
 node top(m, s : bool) returns (OK : bool);
---@ contract guarantee OK;
+--@ contract guarantee OK by 2-induction;
 var toofast, stop, bump: bool;
     dist, speed, time: int;
     move: bool; second, meter: bool;

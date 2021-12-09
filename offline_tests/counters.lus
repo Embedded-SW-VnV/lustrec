@@ -45,7 +45,7 @@ tel
 
 
 node top (x:bool) returns (OK:bool);
---@ contract guarantee OK;
+--@ contract guarantee OK by 5-induction;
 var a,b,d:bool;
     s:int;
     OK1,OK2,OK3: bool;

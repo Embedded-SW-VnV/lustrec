@@ -10,7 +10,7 @@ node top(onOff: bool;
       validInputs: bool)
    returns (OK:bool);
 
---@ contract guarantee OK;
+--@ contract guarantee OK by 1-induction;
 var
 mode_: int; 
       cruiseThrottle: real; 

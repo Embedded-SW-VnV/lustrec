@@ -40,7 +40,7 @@ let
 tel
 node top(B0, B1 : bool; S : bool) 
 returns (OK:bool);
---@ contract guarantee OK;
+--@ contract guarantee OK by 3-induction;
 var nB0, nB1 : int;
     nS : int;
     diff0, diff1 :int;

@@ -629,7 +629,7 @@ node top(
   q:int; 
   pump_state_0,pump_state_1,pump_state_2,pump_state_3:int) 
   returns(OK:bool); 
---@ contract guarantee OK;
+--@ contract guarantee OK by 2-induction;
 var 
   op_mode_ :int; 
   mode__normal_then_water_level_ok, 

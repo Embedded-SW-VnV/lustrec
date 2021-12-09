@@ -500,7 +500,7 @@ module PrintSpec = struct
     | _ ->
       false
 
-  let has_memory m = function Val v -> has_memory_val m v | _ -> false
+  let has_memory_expr m = function Val v -> has_memory_val m v | _ -> false
 
   let pp_spec mode m fmt f =
     let rec pp_spec mode fmt f =
@@ -512,7 +512,7 @@ module PrintSpec = struct
         let mem_reset = mk_mem_reset m in
         match mode with
         | MemoryPackMode ->
-          self, self, true, mem, mem, false
+          self, mem, true, mem, mem, false
         | TransitionMode ->
           mem_in, mem_in, false, mem_out, mem_out, false
         | TransitionFootprintMode ->
@@ -525,7 +525,7 @@ module PrintSpec = struct
           let mem = "(*" ^ mem ^ ")" in
           self, mem_reset, false, mem, mem, false
       in
-      let pp_expr fmt e = pp_expr m mem_out fmt e in
+      let pp_expr fmt e = pp_expr m mem_in' fmt e in
       let pp_spec' = pp_spec mode in
       match f with
       | True ->
@@ -545,7 +545,7 @@ module PrintSpec = struct
             fmt
             (Spec_common.type_of_value a, val_of_expr a, val_of_expr b)
         in
-        if has_memory m b then
+        if has_memory_expr m b then
           let inst = find_arrow Location.dummy m in
           pp_print_option
             ~none:pp_eq
@@ -582,7 +582,19 @@ module PrintSpec = struct
       | Forall (xs, a) ->
         pp_forall (pp_locals m) pp_spec' fmt (xs, a)
       | Ternary (e, a, b) ->
-        pp_ite pp_expr pp_spec' pp_spec' fmt (e, a, b)
+        let pp_ite fmt () = pp_ite pp_expr pp_spec' pp_spec' fmt (e, a, b) in
+        if has_memory_expr m e then
+          let inst = find_arrow Location.dummy m in
+          pp_print_option
+            ~none:pp_ite
+            (fun fmt inst ->
+              pp_paren
+                (pp_implies (pp_not (pp_initialization pp_access')) pp_ite)
+                fmt
+                ((Arrow.arrow_id, (mem_in, inst)), ()))
+            fmt
+            inst
+        else pp_ite fmt ()
       | Predicate p ->
         pp_predicate mode m mem_in mem_in' mem_out mem_out' fmt p
       | StateVarPack ResetFlag ->

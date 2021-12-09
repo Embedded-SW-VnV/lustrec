@@ -127,7 +127,7 @@ tel
 node top (igsw, ccd, cconoff, bpa, cccanc, battok, gearok,
          qfok, sdok, accok, ccseti, ccsetd, ccr: bool; vs: int)
          returns (OK : bool);
---@ contract guarantee OK;
+--@ contract guarantee OK by 2-induction;
 var
    ccont, cca: bool;
    env : bool;

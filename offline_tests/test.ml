@@ -159,6 +159,7 @@ let config_format_tags =
   let mark_open_stag = function
     | String_tag "bold" -> "\x1b[1m"
     | String_tag "red" -> "\x1b[31m"
+    | String_tag "magenta" -> "\x1b[35m"
     | String_tag "green" -> "\x1b[32m"
     | _ -> ""
   in
@@ -287,7 +288,7 @@ let rec verify report timeout fs =
             ("KO" ^ if already then " (A)" else "\n" ^ read_whole_file err_f), fs
           in
           let tm r f : _ * _ * _ * _ format * _ * _ =
-            r, ok, ko + 1, "@{<red>%s@}", "TO", f :: fs
+            r, ok, ko + 1, "@{<magenta>%s@}", "TO", f :: fs
           in
           let report, ok, ko, fmt_str, check, fs =
             if is_verified report f' then success ~already:true report
@@ -343,8 +344,10 @@ let () =
   in
   let report = parse_report () in
   let report = compile report lustrec lus_fs in
-  print_ignored (List.map (fun f -> Filename.remove_extension f ^ ".c") ignored_fs);
+  print_ignored (List.map (fun f -> f ^ ".c") ignored_fs);
   let lus_fs =
-    List.(sort_uniq compare (filter (fun f -> not (mem f ignored_fs)) lus_fs))
+    List.(sort_uniq compare
+            (filter (fun f ->
+                 not (mem (Filename.chop_extension f) ignored_fs)) lus_fs))
   in
   verify report (next_timeout report) lus_fs

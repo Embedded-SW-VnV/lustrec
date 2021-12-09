@@ -49,7 +49,7 @@ tel
 
 node top(e_s1, e_s2, e_s3 : bool; init_invalid_s : int)
 returns( OK : bool );
---@ contract guarantee OK;
+--@ contract guarantee OK by 2-induction;
     var invalid_s, valid_s, dirty_s : int; mem_init_s : int;
         R1, R2, R3 : bool;
         env : bool;

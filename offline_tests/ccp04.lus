@@ -8,7 +8,7 @@ node top(onOff: bool;
       carSpeed: real; 
       validInputs: bool) returns (OK: bool);
 
---@ contract guarantee OK;
+--@ contract guarantee OK by 2-induction;
 var
    mode_: int ; 
       cruiseThrottle: real; 

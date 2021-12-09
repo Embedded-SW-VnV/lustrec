@@ -21,7 +21,7 @@ let
 tel
 
 node top( Delta : int ) returns ( OK : bool );
---@ contract guarantee OK;
+--@ contract guarantee OK by 2-induction;
 var Total : int;
 let
   Total = Store( Delta );

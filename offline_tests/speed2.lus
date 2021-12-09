@@ -23,7 +23,7 @@ let
 tel
 --subrange [0, 2] of int
 node top(beacon,second:bool) returns (OK:bool);
---@ contract guarantee OK;
+--@ contract guarantee OK by 2-induction;
 var late,early: bool;
 let
   (late,early) = speed(beacon,second);

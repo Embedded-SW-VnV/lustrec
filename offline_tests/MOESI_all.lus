@@ -62,7 +62,7 @@ tel
 node top( init_invalid_mo : int;
            etat_mo1, etat_mo2, etat_mo3, etat_mo4 : bool )
 returns ( OK : bool );
---@ contract guarantee OK;
+--@ contract guarantee OK by 2-induction;
     var modified_mo, exclusive_mo, shared_mo, invalid_mo, owned_mo: int;
         erreur_mo : bool;
         env : bool;

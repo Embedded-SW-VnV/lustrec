@@ -1,5 +1,5 @@
 node top(millisecond : bool) returns (open_light : bool)
-(*@ contract guarantee open_light; *)
+(*@ contract guarantee open_light by 2-induction; *)
 let
   automaton command_control
     state Open :
@@ -11,5 +11,5 @@ let
           let
             open_light = false;
           tel
-          
+  --%PROPERTY open_light;
 tel

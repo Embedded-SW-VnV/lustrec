@@ -17,7 +17,7 @@ let
 tel
 
 node top (x:bool) returns (OK:bool);
---@ contract guarantee OK;
+--@ contract guarantee OK by 1-induction;
 var a,b:bool;
 let
   OK = a=b;

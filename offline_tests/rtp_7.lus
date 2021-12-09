@@ -97,7 +97,7 @@ tel
 
 node top( e01, e02, e03, e04, e05, e06, e07, e08, e09, e10, e11, e12 : bool )
 returns ( OK : bool );
---@ contract guarantee OK;
+--@ contract guarantee OK by 2-induction;
     var X1, X2, X3, X4, X5, X6, X7, X8, X9 : int;
         erreur : bool;
         env : bool;

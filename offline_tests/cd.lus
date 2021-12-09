@@ -31,7 +31,7 @@ let
 tel
 
 node top(diff:int) returns (OK: bool);
---@ contract guarantee OK;
+--@ contract guarantee OK by 10-induction;
 var speed: int; 
     plus,minus,realistic: bool;
 let

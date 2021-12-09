@@ -142,7 +142,7 @@ tel
   -- [explain]                      +------------+
 node top(request_door, warning_start, in_station, door_is_open: bool)
 returns (OK: bool);
---@ contract guarantee OK;
+--@ contract guarantee OK by 7-induction;
 var
   env_always_ok, prop_ok: bool;
   open_door, close_door, door_ok: bool;
