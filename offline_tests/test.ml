@@ -236,7 +236,7 @@ let wp_models =
   ] |> String.concat ","
 let wp_timeout = 60 |> string_of_int
 let wp_par = 48 |> string_of_int
-let wp_cache_dir = Filename.concat dir "cache"
+(* let wp_cache_dir = Filename.concat dir "cache" *)
 let frama_c_args =
   [
     "-wp";
@@ -244,7 +244,8 @@ let frama_c_args =
     "-wp-prover";    wp_provers;
     "-wp-timeout";   wp_timeout;
     "-wp-par";       wp_par;
-    "-wp-cache-dir"; wp_cache_dir
+    (* "-wp-cache-dir"; wp_cache_dir *)
+    "-wp-cache";     "none"
   ]
 let frama_c_cmd f = frama_c :: frama_c_args @ [f]
 
