@@ -186,6 +186,9 @@ let print_result p f fmt_str check =
 let print_results ok ko n =
   printf "OK: @{<green>%d@} (@{<red>%d@}) / %d@." ok ko n
 
+let print_results' ok ko tos n =
+  printf "OK: @{<green>%d@} (@{<red>%d@} + @{<magenta>%d@}) / %d@." ok ko tos n
+
 let compile report lustrec fs =
   printf "@.%a@." pp_header "Compilation tests";
   max_l := List.fold_left (fun m f -> let n = String.length f in max n m) 0 fs;
@@ -273,24 +276,24 @@ let rec verify report timeout fs =
       pp_header (sprintf "Verification tests - %is timeout" timeout);
     let n = List.length fs in
     let n_f = float_of_int n in
-    let report, ok, ko, _, fs =
-      List.fold_left (fun (report, ok, ko, i, fs) f ->
+    let report, ok, ko, tm, _, fs =
+      List.fold_left (fun (report, ok, ko, tm, i, fs) f ->
           let f' = Filename.remove_extension f ^ ".c" in
           let f'' = Filename.concat dir f' in
           let i' = i + 1 in
           let p = float_of_int i' *. 100. /. n_f in
-          let success ?(already=false) r : _ * _ * _ * _ format * _ * _ =
-            r, ok + 1, ko, "@{<green>%s@}",
+          let success ?(already=false) r : _ * _ * _ * _ * _ format * _ * _ =
+            r, ok + 1, ko, tm, "@{<green>%s@}",
             ("OK" ^ if already then " (A)" else ""), fs
           in
-          let fail ?(already=false) r : _ * _ * _ * _ format * _ * _ =
-            r, ok, ko + 1, "@{<red>%s@}",
+          let fail ?(already=false) r : _ * _ * _ * _ * _ format * _ * _ =
+            r, ok, ko + 1, tm, "@{<red>%s@}",
             ("KO" ^ if already then " (A)" else "\n" ^ read_whole_file err_f), fs
           in
-          let tm r f : _ * _ * _ * _ format * _ * _ =
-            r, ok, ko + 1, "@{<magenta>%s@}", "TO", f :: fs
+          let tm r f : _ * _ * _ * _ * _ format * _ * _ =
+            r, ok, ko, tm + 1, "@{<magenta>%s@}", "TO", f :: fs
           in
-          let report, ok, ko, fmt_str, check, fs =
+          let report, ok, ko, tm, fmt_str, check, fs =
             if is_verified report f' then success ~already:true report
             else if is_failed report f' then fail ~already:true report
             else
@@ -315,10 +318,10 @@ let rec verify report timeout fs =
           in
           print_result p f' fmt_str check;
           write_report report;
-          report, ok, ko, i', fs)
-        (report, 0, 0, 0, []) fs
+          report, ok, ko, tm, i', fs)
+        (report, 0, 0, 0, 0, []) fs
     in
-    print_results ok ko n;
+    print_results' ok ko tm n;
     verify report (timeout * 2) fs
   end
 
