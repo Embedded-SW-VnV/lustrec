@@ -384,15 +384,18 @@ module PrintSpec = struct
       fprintf fmt "%s.%a" mem pp_var_decl x
 
   let not_var v = match v.value_desc with Var _ -> false | _ -> true
+  let is_const v = match v.value_desc with Cst _ -> true | _ -> false
 
   let pp_expr ?(test_output = false) m mem fmt = function
     | Val v ->
       let pp = pp_c_val ~indirect:false m mem (pp_c_var_read ~test_output m) in
       (if not_var v then
-       if Types.is_bool_type v.value_type then pp_bool_cast pp
-       else if Types.is_real_type v.value_type then pp_double_cast pp
-       else if Types.is_int_type v.value_type then pp_int_cast pp
-       else pp
+         if Types.is_bool_type v.value_type then pp_bool_cast pp
+         else if is_const v then
+           if Types.is_real_type v.value_type then pp_double_cast pp
+           else if Types.is_int_type v.value_type then pp_int_cast pp
+           else pp
+         else pp
       else pp)
         fmt
         v
