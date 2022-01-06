@@ -20,12 +20,14 @@ module M = Map.Make(Int)
 type report = {
   compiled: S.t;
   verified: ST.t M.t;
-  failed: S.t
+  failed: S.t;
+  ninits: S.t
 }
 let empty_report = {
   compiled = S.empty;
   verified = M.empty;
-  failed = S.empty
+  failed = S.empty;
+  ninits = S.empty
 }
 
 let dir = "../../../offline_tests_build"
@@ -39,6 +41,8 @@ let section h = "# " ^ h
 let end_section = "##"
 
 let compiled_section = section "COMPILED"
+
+let ninit_section = section "BAD_INIT"
 
 let initial_timeout = 15
 
@@ -59,6 +63,12 @@ let is_compiled report f =
 
 let add_compiled report f =
   { report with compiled = S.add f report.compiled }
+
+let is_ninit report f =
+  S.mem f report.ninits
+
+let add_ninit report f =
+  { report with ninits = S.add f report.ninits }
 
 let is_verified report f =
   M.exists (fun _ -> ST.exists (fun (x, _, _, _) -> x = f)) report.verified
@@ -96,6 +106,12 @@ let parse_report () =
             | _ -> assert false
       with End_of_file -> r
     in
+    let rec read_ninits r =
+      try match input_line ic with
+        | "" -> read_ninits r
+        | f -> if f = end_section then r else read_ninits (add_ninit r f)
+      with End_of_file -> r
+    in
     let rec read_failed r =
       try match input_line ic with
         | "" -> read_failed r
@@ -110,6 +126,8 @@ let parse_report () =
           read (read_compiled r)
         | f when f = failed_section ->
           read (read_failed r)
+        | f when f = ninit_section ->
+          read (read_ninits r)
         | f ->
           let r = match timeout_of_section f with
             | Some i -> read_verified i r
@@ -121,7 +139,7 @@ let parse_report () =
     let r = read empty_report in
     close_in ic;
     r
-  with _ -> printf "exn@;"; empty_report
+  with _ -> empty_report
 
 let pp_compiled fmt report =
   fprintf fmt "%s@;%a%s@;"
@@ -135,6 +153,12 @@ let pp_failed fmt report =
     S.pp report.failed
     end_section
 
+let pp_ninits fmt report =
+  fprintf fmt "%s@;%a%s@;"
+    ninit_section
+    S.pp report.ninits
+    end_section
+
 let pp_verified fmt report =
   pp_print_list
     ~pp_sep:(fun fmt () -> fprintf fmt "%s@;" end_section)
@@ -143,8 +167,9 @@ let pp_verified fmt report =
     (List.sort (fun (i, _) (j, _) -> compare i j) (M.bindings report.verified))
 
 let pp_report fmt report =
-  fprintf fmt "@[<v>%a@;%a@;%a@]@."
+  fprintf fmt "@[<v>%a@;%a@;%a@;%a@]@."
     pp_compiled report
+    pp_ninits report
     pp_failed report
     pp_verified report
 
@@ -180,29 +205,41 @@ let read_whole_file f =
   close_in ch;
   s
 
+let has_warning log =
+  let open Re.Str in
+  let reg = "Warning: Generating stateful spec for uninitialized state variables." in
+  try
+    search_forward (regexp reg) log 0 |> ignore;
+    true
+  with Not_found -> false
+
 let print_result p f fmt_str check =
   printf "%3.0f%% %-*s %(%s%)@." p !max_l f fmt_str check
 
-let print_results ok ko n =
-  printf "OK: @{<green>%d@} (@{<red>%d@}) / %d@." ok ko n
-
-let print_results' ok ko tos n =
-  printf "OK: @{<green>%d@} (@{<red>%d@} + @{<magenta>%d@}) / %d@." ok ko tos n
+let print_results ok ko w n =
+  printf "OK: @{<green>%d@} (@{<red>%d@} + @{<magenta>%d@}) / %d@." ok ko w n
 
 let compile report lustrec fs =
   printf "@.%a@." pp_header "Compilation tests";
   max_l := List.fold_left (fun m f -> let n = String.length f in max n m) 0 fs;
   let n = List.length fs in
   let n_f = float_of_int n in
-  let report, ok, ko, _ =
-    List.fold_left (fun (report, ok, ko, i) f ->
+  let report, ok, ko, ninits, _ =
+    List.fold_left (fun (report, ok, ko, ninits, i) f ->
         let i' = i + 1 in
         let p = float_of_int i' *. 100. /. n_f in
-        let success r : _ * _ * _ * _ format * _ =
-          r, ok + 1, ko, "@{<green>%s@}", "OK"
+        let success r : _ * _ * _ * _ * _ format * _ =
+          r, ok + 1, ko, ninits, "@{<green>%s@}", "OK"
         in
-        let report, ok, ko, fmt_str, check =
+        let ninit r : _ * _ * _ * _ * _ format * _ =
+          r, ok, ko, ninits + 1, "@{<magenta>%s@}", "NI"
+        in
+        let fail r log : _ * _ * _ * _ * _ format * _ =
+          r, ok, ko + 1, ninits, "@{<red>%s@}", "KO\n" ^ log
+        in
+        let report, ok, ko, ninits, fmt_str, check =
           if is_compiled report f then success report
+          else if is_ninit report f then ninit report
           else
             let cmd = Filename.quote_command ~stderr:err_f lustrec
                 ["-acsl-spec"; "-d"; dir; f]
@@ -212,14 +249,19 @@ let compile report lustrec fs =
               | WEXITED r -> r = 0
               | _ -> false
             in
-            if b then success (add_compiled report f) else
-              report, ok, ko + 1, "@{<red>%s@}", "KO\n" ^ read_whole_file err_f
+            let log = read_whole_file err_f in
+            if b then
+              if has_warning log
+              then ninit (add_ninit report f)
+              else success (add_compiled report f)
+            else
+              fail report log
         in
         print_result p f fmt_str check;
-        report, ok, ko, i')
-      (report, 0, 0, 0) fs
+        report, ok, ko, ninits, i')
+      (report, 0, 0, 0, 0) fs
   in
-  print_results ok ko n;
+  print_results ok ko ninits n;
   report
 
 let frama_c = "frama-c"
@@ -322,7 +364,7 @@ let rec verify report timeout fs =
           report, ok, ko, tm, i', fs)
         (report, 0, 0, 0, 0, []) fs
     in
-    print_results' ok ko tm n;
+    print_results ok ko tm n;
     verify report (timeout * 2) fs
   end
 
@@ -348,6 +390,7 @@ let () =
   in
   let report = parse_report () in
   let report = compile report lustrec lus_fs in
+  let ignored_fs = ignored_fs @ S.elements report.ninits in
   print_ignored (List.map (fun f -> f ^ ".c") ignored_fs);
   let lus_fs =
     List.(sort_uniq compare
