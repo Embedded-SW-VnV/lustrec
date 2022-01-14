@@ -15,18 +15,28 @@ module ST = struct
   let pp fmt = iter (fun (x, loc, n, t) -> fprintf fmt "%s %d %d %f@;" x loc n t)
 end
 
+module STF = struct
+  include Set.Make(
+    struct
+      type t = string * (int * int) option
+      let compare (x1, _) (x2, _) = compare x1 x2
+    end)
+  let pp fmt = iter (fun (x, o) -> fprintf fmt "%s %a@;" x
+                        (pp_print_option (fun fmt (r, g) -> fprintf fmt "%d %d" r g)) o)
+end
+
 module M = Map.Make(Int)
 
 type report = {
   compiled: S.t;
   verified: ST.t M.t;
-  failed: S.t;
+  failed: STF.t;
   ninits: S.t
 }
 let empty_report = {
   compiled = S.empty;
   verified = M.empty;
-  failed = S.empty;
+  failed = STF.empty;
   ninits = S.empty
 }
 
@@ -79,10 +89,10 @@ let add_verified report i f loc n t =
         Some (ST.add (f, loc, n, t) s)) report.verified }
 
 let is_failed report f =
-  S.mem f report.failed
+  STF.exists (fun (x, _) -> x = f) report.failed
 
-let add_failed report f =
-  { report with failed = S.add f report.failed }
+let add_failed report ?goals f =
+  { report with failed = STF.add (f, goals) report.failed }
 
 let parse_report () =
   try
@@ -115,7 +125,13 @@ let parse_report () =
     let rec read_failed r =
       try match input_line ic with
         | "" -> read_failed r
-        | f -> if f = end_section then r else read_failed (add_failed r f)
+        | f -> if f = end_section then r
+          else match String.split_on_char ' ' f with
+            | [f; res; goa] ->
+              read_failed (add_failed r ~goals:(int_of_string res, int_of_string goa) f)
+            | f :: _ ->
+              read_failed (add_failed r f)
+            | _ -> assert false
       with End_of_file -> r
     in
     let rec read r =
@@ -150,7 +166,7 @@ let pp_compiled fmt report =
 let pp_failed fmt report =
   fprintf fmt "%s@;%a%s@;"
     failed_section
-    S.pp report.failed
+    STF.pp report.failed
     end_section
 
 let pp_ninits fmt report =
@@ -278,31 +294,52 @@ let wp_models =
   ] |> String.concat ","
 let wp_timeout = 60 |> string_of_int
 let wp_par = 48 |> string_of_int
+let wp_cache = "none"
 (* let wp_cache_dir = Filename.concat dir "cache" *)
-let wp_module = "strategy.ml"
-let wp_strategy = "LustreC"
-let frama_c_args =
+let wp_args =
   [
     "-wp";
-    "-wp-model";     wp_models;
     "-wp-prover";    wp_provers;
+    "-wp-model";     wp_models;
+    "-wp-no-warn-memory-model";
     "-wp-timeout";   wp_timeout;
     "-wp-par";       wp_par;
     (* "-wp-cache-dir"; wp_cache_dir *)
-    "-wp-cache";     "none";
+    "-wp-cache";     wp_cache;
+  ]
+let wp_module = "strategy.ml"
+let wp_strategy = "LustreC"
+let wp_strategy_args =
+  [
+    "-wp";
+    "-wp-prover";    wp_provers;
     "-load-module";  wp_module;
     "-wp-auto";      wp_strategy;
   ]
-let frama_c_cmd f = frama_c :: frama_c_args @ [f]
+let frama_c_args f =
+  wp_args
+  @ f
+    :: "-then"
+    :: wp_strategy_args
+let frama_c_cmd f = frama_c :: frama_c_args f
 
 let goals log =
   let open Re.Str in
   let reg = "\\([0-9]+\\) / \\([0-9]+\\)" in
-  try
-    search_forward (regexp reg) log 0 |> ignore;
-    Some (matched_group 1 log |> int_of_string,
-          matched_group 2 log |> int_of_string)
-  with Not_found -> None
+  let rec aux acc i =
+    try
+      let j = search_forward (regexp reg) log i in
+      let i = j + String.length (matched_string log) in
+      let resolved = matched_group 1 log |> int_of_string in
+      let goals = matched_group 2 log |> int_of_string in
+      let acc = match acc with
+        | Some (r, g) -> Some (r + resolved, g + goals)
+        | None -> Some (resolved, goals)
+      in
+      aux acc i
+    with Not_found -> acc
+  in
+  aux None 0
 
 let get_loc f =
   let open Yojson.Safe in
@@ -354,9 +391,12 @@ let rec verify report timeout fs =
                 let t = Unix.gettimeofday () -. t in
                 let log = read_whole_file err_f in
                 begin match goals log with
-                  | Some (n, m) when n = m ->
-                    success (add_verified report timeout f' (get_loc f'') n t)
-                  | _ -> fail (add_failed report f')
+                  | Some (n, m) ->
+                    if n = m then
+                      success (add_verified report timeout f' (get_loc f'') n t)
+                    else
+                      fail (add_failed report ~goals:(n, m) f')
+                  | None -> fail (add_failed report f')
                 end
               | WEXITED 124 ->
                 tm report f
