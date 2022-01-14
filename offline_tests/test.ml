@@ -279,6 +279,8 @@ let wp_models =
 let wp_timeout = 60 |> string_of_int
 let wp_par = 48 |> string_of_int
 (* let wp_cache_dir = Filename.concat dir "cache" *)
+let wp_module = "strategy.ml"
+let wp_strategy = "LustreC"
 let frama_c_args =
   [
     "-wp";
@@ -287,7 +289,9 @@ let frama_c_args =
     "-wp-timeout";   wp_timeout;
     "-wp-par";       wp_par;
     (* "-wp-cache-dir"; wp_cache_dir *)
-    "-wp-cache";     "none"
+    "-wp-cache";     "none";
+    "-load-module";  wp_module;
+    "-wp-auto";      wp_strategy;
   ]
 let frama_c_cmd f = frama_c :: frama_c_args @ [f]
 
