@@ -333,7 +333,7 @@ let goals log =
       let resolved = matched_group 1 log |> int_of_string in
       let goals = matched_group 2 log |> int_of_string in
       let acc = match acc with
-        | Some (r, g) -> Some (r + resolved, g + goals)
+        | Some (r, _) -> Some (r + resolved, r + goals)
         | None -> Some (resolved, goals)
       in
       aux acc i
