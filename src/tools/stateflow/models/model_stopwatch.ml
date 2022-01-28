@@ -249,17 +249,21 @@ let model =
   let globals =
     let int_typ = Corelang.mktyp Location.dummy_loc Lustre_types.Tydec_int in
     List.map (fun k ->
-      Corelang.mkvar_decl
-	Location.dummy_loc
-	(k, (* name *)
-	 int_typ, (* type *)
-	 Corelang.dummy_clock_dec, (* clock *)
-	 false, (* not a constant *)
-	 None, (* no default value *)
-	 None (* no parent known *)
-	),
-      (* Default value is zero *)
-      Corelang.mkexpr Location.dummy_loc (Lustre_types.Expr_const (Lustre_types.Const_int 0))
+        let vdecl =
+          Corelang.mkvar_decl
+	    Location.dummy_loc
+	    (k, (* name *)
+	     int_typ, (* type *)
+	     Corelang.dummy_clock_dec, (* clock *)
+	     false, (* not a constant *)
+	     None, (* no default value *)
+	     None (* no parent known *)
+	    ) in
+        let init_val =  
+          (* Default value is zero *)
+          Corelang.mkexpr Location.dummy_loc (Lustre_types.Expr_const (Lustre_types.Const_int 0))
+        in
+        {GlobalVarDef.variable = vdecl; init_val = init_val; }
       
     )
       ["cent";
