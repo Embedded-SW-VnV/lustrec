@@ -10,12 +10,23 @@ let lloc_to_tloc loc = Tiny.Location.location_of_positions loc.Location.loc_star
 let tloc_to_lloc loc = assert false (*Location.dummy_loc (*TODO*) *)
 
                      
-let ltyp_to_ttyp t =
+let rec ltyp_to_ttyp t =
+  if Types.is_tuple_type t then
+    match Types.type_list_of_type t with
+    | [t] -> ltyp_to_ttyp t
+    | _ -> (
+      Format.eprintf "Issues converting type %a to a Tiny datatype@.@?" Types.print_ty t;
+    assert false (* not covered yet *)
+    ) 
+    else
   if Types.is_real_type t then Tiny.Ast.RealT
   else if Types.is_int_type t then Tiny.Ast.IntT
   else if Types.is_bool_type t then Tiny.Ast.BoolT
-  else assert false (* not covered yet *)
-
+  else (
+    Format.eprintf "Issues converting type %a to a Tiny datatype@.@?" Types.print_ty t;
+    assert false (* not covered yet *)
+  )
+  
 let cst_bool loc b =
   { Ast.expr_desc =
       if b then
@@ -50,7 +61,7 @@ let instr_loc i =
   | Some eq -> lloc_to_tloc eq.eq_loc
 
 
-let build_instr d v =
+let build_expr d v =
   Ast.{ expr_desc = d;
         expr_loc = gen_loc ();
         expr_type = v }
@@ -60,7 +71,9 @@ let cst_true =  Ast.Cst (Q.one, "true")
 
   
 let rec lval_to_texpr m loc _val =
-  let build = build_instr in
+  Format.eprintf "lval_to_texpr %a (type %a)@." (Machine_code_common.pp_val m) _val Types.print_ty  _val.value_type;
+  let res = 
+  let build = build_expr in
   let new_desc =
     match _val.Machine_code_types.value_desc with
     | Machine_code_types.Cst cst -> (
@@ -113,7 +126,9 @@ let rec lval_to_texpr m loc _val =
     | _ -> assert false (* no array. access or power *)
   in
   build new_desc (ltyp_to_ttyp _val.value_type)
-
+  in
+  Format.eprintf "DONE lval_to_texpr %a = %a@." (Machine_code_common.pp_val m) _val Ast.fprint_expr res;
+  res
 
                        (*
 let machine_init_to_ast m =
@@ -205,7 +220,7 @@ let machine_body_to_ast init m =
          match Corelang.node_name fun_name, ol with
          | "_arrow", [o] -> (
            (* init_var := Some o.var_id; *)
-           Ast.Asn (loc, o.var_id, build_instr (if init then cst_true else cst_false) Ast.BoolT);
+           Ast.Asn (loc, o.var_id, build_expr (if init then cst_true else cst_false) Ast.BoolT);
          (* We set the arrow to
             false: we are not anymore  
             in init state *)
@@ -223,8 +238,13 @@ let machine_body_to_ast init m =
               assert false
             )
        else (
-         Format.eprintf "No tiny translation for function call  %s@.@?" id;
-         assert false
+         (* Converting basic library functions *)
+         match id, List.map (lval_to_texpr m loc) args, ol with
+         | ("sin"| "cos" | "sqrt" | "exp" | "ln" | "atan" | "tan" | "tanh"), [x], [o] ->
+            Ast.Asn (loc, o.var_id, build_expr (Ast.Call (id, [x])) Ast.RealT)
+         | _ ->         
+            Format.eprintf "No tiny translation for function call %s@.@?" id;
+            assert false
        )
     | MReset id
       | MNoReset id -> assert false (* no more calls or functions, ie. no reset *)
