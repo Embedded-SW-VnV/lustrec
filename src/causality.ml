@@ -151,13 +151,13 @@ module ExprDep = struct
 
   let node_local_variables nd =
     List.fold_left
-      (fun locals v -> ISet.add v.var_id locals)
+      (fun locals (v, _) -> ISet.add v.var_id locals)
       ISet.empty
       nd.node_locals
 
   let node_constant_variables nd =
     List.fold_left
-      (fun locals v ->
+      (fun locals (v, _) ->
         if v.var_dec_const then ISet.add v.var_id locals else locals)
       ISet.empty
       nd.node_locals
@@ -175,7 +175,7 @@ module ExprDep = struct
         nd.node_outputs
     in
     List.fold_left
-      (fun vars v -> ISet.add v.var_id vars)
+      (fun vars (v, _) -> ISet.add v.var_id vars)
       inoutputs
       nd.node_locals
 
@@ -522,7 +522,7 @@ module CycleDetection = struct
 
   let mk_copy_var n id =
     let used name =
-      List.exists (fun v -> v.var_id = name) n.node_locals
+      List.exists (fun (v, _) -> v.var_id = name) n.node_locals
       || List.exists (fun v -> v.var_id = name) n.node_inputs
       || List.exists (fun v -> v.var_id = name) n.node_outputs
     in
@@ -784,7 +784,7 @@ let global_dependency node =
     ( {
         node with
         node_stmts = List.map (fun eq -> Eq eq) eqs';
-        node_locals = vdecls' @ node.node_locals;
+        node_locals = List.map (fun v -> v, None) vdecls' @ node.node_locals;
       },
       g_non_mems )
   with Error (DataCycle _ as exc) -> raise (Error exc)
@@ -805,7 +805,7 @@ module VarClockDep = struct
     let g = new_graph () in
     let g =
       List.fold_left
-        (fun g var_decl ->
+        (fun g (var_decl, _) ->
           let deps = get_clock_dep var_decl.var_clock in
           add_edges [ var_decl.var_id ] deps g)
         g
@@ -814,7 +814,7 @@ module VarClockDep = struct
     let sorted, no_deps =
       TopologicalDepGraph.fold
         (fun vid (accu, remaining) ->
-          let select v = v.var_id = vid in
+          let select (v, _) = v.var_id = vid in
           let selected, not_selected = List.partition select remaining in
           selected @ accu, not_selected)
         g

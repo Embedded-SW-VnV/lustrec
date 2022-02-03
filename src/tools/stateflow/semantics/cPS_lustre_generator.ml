@@ -397,7 +397,7 @@ end) : TransformerType = struct
              node_clock = Clocks.new_var true;
              node_inputs = inputs;
              node_outputs = outputs;
-             node_locals = mk_locals vars';
+             node_locals = List.map (fun v -> v, None) (mk_locals vars');
              (* TODO: add global vars *)
              node_gencalls = [];
              node_checks = [];

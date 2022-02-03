@@ -172,8 +172,7 @@ let pp_step_definition env typed_submachines fmt (m, m_spec_opt, guarantees) =
     @param typed_submachines list of all typed machine instances of this machine
     @param fmt the formater to print on @param machine the machine **)
 let pp_reset_definition env typed_submachines fmt (m, m_spec_opt) =
-  let build_assign = function
-    | var ->
+  let build_assign (var, _) =
       mkinstr (MStateAssign (var, mk_default_value var.var_type))
   in
   let env, memory =
@@ -198,7 +197,7 @@ let pp_reset_definition env typed_submachines fmt (m, m_spec_opt) =
     on @param typed_submachines list of all typed machine instances of this
     machine @param m the machine **)
 let pp_file fmt (typed_submachines, ((opt_spec_machine, guarantees), machine)) =
-  let env = List.map (fun x -> x.var_id, pp_state_name) machine.mmemory in
+  let env = List.map (fun (x, _) -> x.var_id, pp_state_name) machine.mmemory in
   let pp_reset fmt =
     if is_machine_statefull machine then
       fprintf

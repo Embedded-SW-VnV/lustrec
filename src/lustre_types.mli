@@ -162,7 +162,7 @@ type node_desc = {
   mutable node_clock : Clocks.t;
   node_inputs : var_decl list;
   node_outputs : var_decl list;
-  node_locals : var_decl list;
+  node_locals : (var_decl * ident option) list;
   mutable node_gencalls : expr list;
   mutable node_checks : Dimension.t list;
   node_asserts : assert_t list;

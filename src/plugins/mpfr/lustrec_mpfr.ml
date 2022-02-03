@@ -333,7 +333,7 @@ let inject_node node =
   let inputs_outputs = node.node_inputs @ node.node_outputs in
   let norm_ctx = node.node_id, get_node_vars node in
   let is_local v = List.for_all (( != ) v) inputs_outputs in
-  let orig_vars = inputs_outputs @ node.node_locals in
+  let orig_vars = inputs_outputs @ List.map fst node.node_locals in
   let defs, vars =
     let eqs, auts = get_node_eqs node in
     if auts != [] then assert false;
@@ -359,7 +359,7 @@ let inject_node node =
       (vars, [], [])
       node.node_asserts
   in
-  let new_locals = List.filter is_local vars in
+  let new_locals = List.filter_map (fun v -> if is_local v then Some (v, None) else None) vars in
   (* Compute traceability info: - gather newly bound variables - compute the
      associated expression without aliases *)
   (* let diff_vars = List.filter (fun v -> not (List.mem v node.node_locals))

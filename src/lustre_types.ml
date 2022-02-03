@@ -173,7 +173,7 @@ type node_desc = {
   mutable node_clock : Clocks.t;
   node_inputs : var_decl list;
   node_outputs : var_decl list;
-  node_locals : var_decl list;
+  node_locals : (var_decl * ident option) list;
   mutable node_gencalls : expr list;
   mutable node_checks : Dimension.t list;
   node_asserts : assert_t list;
@@ -257,7 +257,7 @@ let node_as_contract nd =
        unprocessed one could. So we conservatively merge elements, to enable
        printing unprocessed contracts *)
     let consts, locals =
-      List.partition (fun v -> v.var_dec_const) nd.node_locals
+      List.partition (fun v -> v.var_dec_const) (List.map fst nd.node_locals)
     in
     {
       c with

@@ -612,7 +612,7 @@ let pp_node fmt nd =
         fprintf
           fmt
           "@[<v 4>var %a@]@ "
-          (pp_print_list (fun fmt v -> fprintf fmt "%a;" pp_node_var v))
+          (pp_print_list (fun fmt (v, _) -> fprintf fmt "%a;" pp_node_var v))
           locals)
     nd.node_locals;
   (* Checks *)

@@ -147,17 +147,15 @@ let rec translate_act env (y, expr) =
     let c = translate_guard c in
     let t, spec_t = translate_act (y, t) in
     let e, spec_e = translate_act (y, e) in
-    mk_conditional ~lustre_eq c [ t ] [ e ], mk_conditional_tr c spec_t spec_e
+    mk_conditional ~lustre_eq c [ t ] [ e ],
+    mk_conditional_tr c spec_t spec_e
   | Expr_merge (x, hl) ->
     let var_x = env.get_var x in
     let hl, spec_hl =
-      List.(
-        split
-          (map
-             (fun (t, h) ->
-               let h, spec_h = translate_act (y, h) in
-               (t, [ h ]), (t, spec_h))
-             hl))
+      List.fold_right (fun (t, h) (hl, spec_hl) ->
+          let h, spec_h = translate_act (y, h) in
+          (t, [ h ]) :: hl, (t, spec_h) :: spec_hl)
+        hl ([], [])
     in
     mk_branch' ~lustre_eq var_x hl, mk_branch_tr var_x spec_hl
   | _ ->
@@ -178,6 +176,8 @@ let get_memories env = List.fold_left (get_memory env) VSet.empty
 type machine_ctx = {
   (* memories *)
   m : ISet.t;
+  (* arrows *)
+  a: ident IMap.t;
   (* Reset instructions *)
   si : instr_t list;
   (* Instances *)
@@ -199,7 +199,7 @@ type machine_ctx = {
 }
 
 let ctx_init =
-  { m = ISet.empty; si = []; j = IMap.empty; s = []; mp = []; t = [] }
+  { m = ISet.empty; a = IMap.empty; si = []; j = IMap.empty; s = []; mp = []; t = [] }
 
 (****************************************************************)
 (* Main function to translate equations into this machine context we are
@@ -320,7 +320,10 @@ let translate_eq env ctx nd inputs locals outputs i eq =
         (mk_transition ~inst false (node_name td) [ vdecl_to_val var_x ])
         { ctx with j = IMap.add inst (td, []) ctx.j }
     in
-    { ctx with si = mkinstr (MSetReset inst) :: ctx.si }
+    { ctx with
+      si = mkinstr (MSetReset inst) :: ctx.si;
+      a = IMap.add x inst ctx.a
+    }
   | [ x ], Expr_pre e when env.is_local x ->
     let var_x = env.get_var x in
     let e = translate_expr e in
@@ -576,7 +579,7 @@ let translate_decl nd sch =
   let new_locals, assert_instrs, nd_node_asserts = process_asserts nd in
 
   (* Build the env: variables visible in the current scope *)
-  let locals = nd.node_locals @ new_locals in
+  let locals = List.map fst nd.node_locals @ new_locals in
   (* let locals = VSet.of_list locals_list in *)
   (* let inout_vars = nd.node_inputs @ nd.node_outputs in *)
   let env = build_env nd.node_inputs locals nd.node_outputs in
@@ -655,10 +658,15 @@ let translate_decl nd sch =
           ])
       MClearReset
   in
+  let find_arrow v =
+    match List.assoc_opt v nd.node_locals with
+    | Some (Some x) -> IMap.find_opt x ctx.a
+    | _ -> None
+  in
   let mnode_spec = Utils.option_map (translate_spec env) nd.node_spec in
   {
     mname = nd;
-    mmemory = VSet.elements mems;
+    mmemory = VSet.fold (fun x xs -> (x, find_arrow x) :: xs) mems [];
     mcalls = mmap;
     minstances =
       List.filter (fun (_, (n, _)) -> not (Stateless.check_node n)) mmap;

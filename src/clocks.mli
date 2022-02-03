@@ -46,6 +46,8 @@ type error =
    complexity. *)
 val pp : Format.formatter -> t -> unit
 
+val print_ck_long : Format.formatter -> t -> unit
+
 val pp_suffix : Format.formatter -> t -> unit
 
 val new_var : bool -> t

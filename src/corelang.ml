@@ -56,6 +56,34 @@ let dummy_clock_dec = { ck_dec_desc = Ckdec_any; ck_dec_loc = Location.dummy }
 (************************************************************)
 (* *)
 
+let fv_expr e =
+  let open ISet in
+  let rec fv s e = match e.expr_desc with
+    | Expr_ident x ->
+      add x s
+    | Expr_tuple es
+    | Expr_array es ->
+      List.fold_left fv s es
+    | Expr_ite (e1, e2, e3) ->
+      fv (fv (fv s e1) e2) e3
+    | Expr_arrow (e1, e2)
+    | Expr_fby (e1, e2) ->
+      fv (fv s e1) e2
+    | Expr_access (e1, d)
+    | Expr_power (e1, d) ->
+      union (fv s e1) (Dimension.fv d)
+    | Expr_pre e ->
+      fv s e
+    | Expr_when (e, x, _) ->
+      fv (add x s) e
+    | Expr_merge (x, br) ->
+      List.fold_left (fun s (_, e) -> fv s e) (add x s) br
+    | Expr_appl (x, e, r) ->
+      fv (add x (Option.fold ~none:s ~some:(fv s) r)) e
+    | Expr_const _ -> s
+  in
+  fv ISet.empty e
+
 let mktyp loc d = { ty_dec_desc = d; ty_dec_loc = loc }
 
 let mkclock loc d = { ck_dec_desc = d; ck_dec_loc = loc }
@@ -754,7 +782,7 @@ let rec is_eq_expr e1 e2 =
   | _ ->
     false
 
-let get_node_vars nd = nd.node_inputs @ nd.node_locals @ nd.node_outputs
+let get_node_vars nd = nd.node_inputs @ List.map fst nd.node_locals @ nd.node_outputs
 
 let mk_new_node_name nd id =
   let used_vars = get_node_vars nd in
@@ -894,7 +922,7 @@ let copy_node nd =
     node_clock = Clocks.new_var true;
     node_inputs = List.map copy_var_decl nd.node_inputs;
     node_outputs = List.map copy_var_decl nd.node_outputs;
-    node_locals = List.map copy_var_decl nd.node_locals;
+    node_locals = List.map (fun (v, i) -> copy_var_decl v, i) nd.node_locals;
     node_gencalls = [];
     node_checks = [];
     node_stateless = None;
@@ -1105,7 +1133,7 @@ let rename_node f_node f_var nd =
   let rename_stmts = rename_stmts f_node f_var in
   let inputs = rename_vars nd.node_inputs in
   let outputs = rename_vars nd.node_outputs in
-  let locals = rename_vars nd.node_locals in
+  let locals = List.map (fun (v, i) -> rename_var v, Option.map f_var i) nd.node_locals in
   let gen_calls = List.map rename_expr nd.node_gencalls in
   let node_checks = List.map (Dimension.rename f_node f_var) nd.node_checks in
   let node_asserts =

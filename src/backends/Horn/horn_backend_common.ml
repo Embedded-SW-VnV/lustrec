@@ -98,12 +98,12 @@ let rename_next = rename (fun n -> n ^ "_x")
 let rename_next_list = List.map rename_next
 
 let local_memory_vars machine =
-  rename_machine_list machine.mname.node_id machine.mmemory
+  rename_machine_list machine.mname.node_id (List.map fst machine.mmemory)
 
 let instances_memory_vars ?(without_arrow = false) machines machine =
-  let rec aux fst prefix m =
-    (if not fst then
-     rename_machine_list (concat prefix m.mname.node_id) m.mmemory
+  let rec aux first prefix m =
+    (if not first then
+     rename_machine_list (concat prefix m.mname.node_id) (List.map fst m.mmemory)
     else [])
     @ List.fold_left
         (fun accu (id, (n, _)) ->
@@ -113,7 +113,7 @@ let instances_memory_vars ?(without_arrow = false) machines machine =
             let machine_n = get_machine machines name in
             aux
               false
-              (concat prefix (if fst then id else concat m.mname.node_id id))
+              (concat prefix (if first then id else concat m.mname.node_id id))
               machine_n
             @ accu)
         []
@@ -123,7 +123,7 @@ let instances_memory_vars ?(without_arrow = false) machines machine =
 
 (* Extract the arrows of a given node/machine *)
 let arrow_vars machines machine : Lustre_types.var_decl list =
-  let rec aux fst prefix m =
+  let rec aux first prefix m =
     List.fold_left
       (fun accu (id, (n, _)) ->
         let name = node_name n in
@@ -132,14 +132,14 @@ let arrow_vars machines machine : Lustre_types.var_decl list =
           rename_machine_list
             (concat
                prefix
-               (concat (if fst then id else concat m.mname.node_id id) "_arrow"))
-            arrow_machine.mmemory
+               (concat (if first then id else concat m.mname.node_id id) "_arrow"))
+            (List.map fst arrow_machine.mmemory)
           @ accu
         else
           let machine_n = get_machine machines name in
           aux
             false
-            (concat prefix (if fst then id else concat m.mname.node_id id))
+            (concat prefix (if first then id else concat m.mname.node_id id))
             machine_n
           @ accu)
       []

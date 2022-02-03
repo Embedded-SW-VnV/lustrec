@@ -39,6 +39,8 @@ module VSet : sig
 end
 with type elt = var_decl
 
+val fv_expr : expr -> ISet.t
+
 val dummy_type_dec : type_dec
 
 val dummy_clock_dec : clock_dec

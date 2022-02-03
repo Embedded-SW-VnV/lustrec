@@ -29,7 +29,7 @@ open Horn_backend_printers
 (* Compute memories associated to each machine *)
 let compute_mems machines m =
   let rec aux prefix m =
-    List.map (fun mem -> prefix, mem) m.mmemory
+    List.map (fun (mem, _) -> prefix, mem) m.mmemory
     @ List.fold_left
         (fun accu (id, (n, _)) ->
           let name = node_name n in

@@ -223,7 +223,7 @@ let read_whole_file f =
 
 let has_warning log =
   let open Re.Str in
-  let reg = "Warning: Generating stateful spec for uninitialized state variables." in
+  let reg = "Warning: Generating stateful spec for uninitialized state variable" in
   try
     search_forward (regexp reg) log 0 |> ignore;
     true
@@ -274,6 +274,7 @@ let compile report lustrec fs =
               fail report log
         in
         print_result p f fmt_str check;
+        write_report report;
         report, ok, ko, ninits, i')
       (report, 0, 0, 0, 0) fs
   in

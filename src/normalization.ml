@@ -732,7 +732,7 @@ let normalize_spec parentid (in_vars, out_vars, l_vars) s =
 *)
 let normalize_node ?(first=true) node =
   reset_cpt_fresh ();
-  let orig_vars = node.node_inputs @ node.node_outputs @ node.node_locals in
+  let orig_vars = node.node_inputs @ node.node_outputs @ List.map fst node.node_locals in
   let not_is_orig_var v = List.for_all (( != ) v) orig_vars in
   let norm_ctx =
     {
@@ -758,7 +758,7 @@ let normalize_node ?(first=true) node =
     | Some (Contract s) ->
       let new_locals, new_outs, new_stmts, s' =
         normalize_spec node.node_id
-          (node.node_inputs, node.node_outputs, node.node_locals)
+          (node.node_inputs, node.node_outputs, List.map fst node.node_locals)
           s
       in
       (* Format.eprintf "Normalization bounded new locals: %a@." Printers.pp_vars new_locals;
@@ -792,7 +792,7 @@ let normalize_node ?(first=true) node =
 
   (* we filter out inout
      vars and initial locals ones *)
-  let node_locals = node.node_locals @ new_locals in
+  let node_locals = node.node_locals @ List.map (fun v -> v, None) new_locals in
 
   (* we add again, at the
      beginning of the list the
@@ -808,7 +808,9 @@ let normalize_node ?(first=true) node =
   let new_annots =
     if !Options.traces then
       let diff_vars =
-        List.filter (fun v -> not (List.mem v node.node_locals)) node_locals
+        let node_locals' = List.map fst node_locals in
+        let node_node_locals' = List.map fst node.node_locals in
+        List.filter (fun v -> not (List.mem v node_node_locals')) node_locals'
       in
       let norm_traceability =
         {

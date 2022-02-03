@@ -459,7 +459,7 @@ let load prog =
         match top.top_decl_desc with
         | Node nd ->
           (* Format.eprintf "Registeing node %s@." nd.node_id; *)
-          let vars = nd.node_inputs @ nd.node_outputs @ nd.node_locals in
+          let vars = nd.node_inputs @ nd.node_outputs @ List.map fst nd.node_locals in
           let constrained_vars = register_node vars nd.node_annot in
           check_node nd constrained_vars;
 

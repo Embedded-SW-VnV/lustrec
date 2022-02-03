@@ -370,7 +370,7 @@ let mcdc_top_decl td =
         Node
           {
             nd with
-            node_locals = nd.node_locals @ fresh_vars;
+            node_locals = nd.node_locals @ List.map (fun v -> v, None) fresh_vars;
             node_stmts = nd.node_stmts @ fresh_eqs;
             node_annot = nd.node_annot @ fresh_annots;
           };

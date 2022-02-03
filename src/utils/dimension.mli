@@ -16,6 +16,8 @@ exception Unify of t * t
 
 exception InvalidDimension
 
+val fv : t -> ISet.t
+
 val mkdim : Location.t -> dim_desc -> t
 
 val mkdim_ident : Location.t -> ident -> t

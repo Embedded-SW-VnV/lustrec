@@ -480,7 +480,7 @@ let pp_machine fmt m =
   fprintf fmt "\"inputs\": [%a],@ " pp_emf_vars_decl m.mstep.step_inputs;
   fprintf fmt "\"outputs\": [%a],@ " pp_emf_vars_decl m.mstep.step_outputs;
   fprintf fmt "\"locals\": [%a],@ " pp_emf_vars_decl m.mstep.step_locals;
-  fprintf fmt "\"mems\": [%a],@ " pp_emf_vars_decl m.mmemory;
+  fprintf fmt "\"mems\": [%a],@ " pp_emf_vars_decl (List.map fst m.mmemory);
   fprintf fmt "\"original_name\": \"%s\",@ " m.mname.node_id;
   fprintf fmt "\"instrs\": {@[<v 0> %a@]@ },@ " (pp_emf_instrs m) instrs;
   (match m.mspec.mnode_spec with

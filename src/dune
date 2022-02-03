@@ -46,6 +46,7 @@
   backends
   lustrec_mpfr
   normalization
+  arrow_taint
   machine_types
   splitting
   compiler_common

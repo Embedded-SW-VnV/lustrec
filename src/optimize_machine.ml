@@ -738,7 +738,7 @@ let machine_cse subst machine =
   let assigned = assigns_instrs instrs VSet.empty in
   {
     machine with
-    mmemory = List.filter (fun vdecl -> VSet.mem vdecl assigned) machine.mmemory;
+    mmemory = List.filter (fun (v, _) -> VSet.mem v assigned) machine.mmemory;
     mstep =
       {
         machine.mstep with
@@ -1185,7 +1185,7 @@ let elim_prog_variables prog removed_table =
               (fun v (_, eq) (accu_locals, accu_defs) ->
                 let locals =
                   try
-                    List.find (fun v' -> v'.var_id = v) nd.node_locals
+                    List.find (fun v' -> v'.var_id = v) (List.map fst nd.node_locals)
                     :: accu_locals
                   with Not_found -> accu_locals
                   (* Variable v shall be a global constant, we do no need to
@@ -1212,7 +1212,7 @@ let elim_prog_variables prog removed_table =
                     when List.exists (fun v -> v.var_id = lhs) vars_to_replace
                     ->
                     (* We remove the def *)
-                    List.filter (fun v -> v.var_id <> lhs) locals, res_stmts
+                    List.filter (fun (v, _) -> v.var_id <> lhs) locals, res_stmts
                   | _ ->
                     (* When more than one lhs we just keep the equation and do
                        not delete it *)

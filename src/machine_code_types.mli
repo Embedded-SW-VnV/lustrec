@@ -71,7 +71,7 @@ type machine_spec = {
 
 type machine_t = {
   mname : node_desc;
-  mmemory : var_decl list;
+  mmemory : (var_decl * ident option) list;
   mcalls : (ident * static_call) list;
   (* map from stateful/stateless instance to node, no internals *)
   minstances : (ident * static_call) list;

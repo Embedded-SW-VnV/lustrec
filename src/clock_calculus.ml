@@ -684,7 +684,7 @@ let clock_node env loc nd =
   (* let is_main = nd.node_id = !Options.main_node in *)
   let new_env = clock_var_decl_list env false nd.node_inputs in
   let new_env = clock_var_decl_list new_env true nd.node_outputs in
-  let new_env = clock_var_decl_list new_env true nd.node_locals in
+  let new_env = clock_var_decl_list new_env true (List.map fst nd.node_locals) in
   let eqs, _ = get_node_eqs nd in
   (* TODO XXX: perform the clocking on auts. For the moment, it is ignored *)
   List.iter (clock_eq new_env) eqs;
@@ -803,7 +803,7 @@ let uneval_top_generics decl =
   | Node nd ->
     (* A node could contain first-order carrier variable in local vars. This is
        not the case for types. *)
-    uneval_node_generics (nd.node_inputs @ nd.node_locals @ nd.node_outputs)
+    uneval_node_generics (nd.node_inputs @ List.map fst nd.node_locals @ nd.node_outputs)
   | ImportedNode nd ->
     uneval_node_generics (nd.nodei_inputs @ nd.nodei_outputs)
   | Const _ | Include _ | Open _ | TypeDef _ ->

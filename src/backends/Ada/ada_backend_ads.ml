@@ -119,7 +119,7 @@ let pp_file fmt (typed_submachines, ((m_spec_opt, guarantees), m)) =
       []
     | Some m ->
       List.map
-        (fun x ->
+        (fun (x, _) ->
           pp_var_decl
             (build_pp_var_decl AdaNoMode (Some (true, false, [], [])) x))
         m.mmemory
@@ -129,7 +129,7 @@ let pp_file fmt (typed_submachines, ((m_spec_opt, guarantees), m)) =
      match m_spec_opt with | None -> [] | Some m_spec -> List.map
      (build_pp_var_decl AdaNoMode (Some (true, false, [], []))) (m_spec.mmemory)
      in *)
-  let vars = List.map (build_pp_var_decl AdaNoMode None) m.mmemory in
+  let vars = List.map (fun (x, _) -> build_pp_var_decl AdaNoMode None x) m.mmemory in
   let states =
     List.map
       (build_pp_state_decl_from_subinstance AdaNoMode None)

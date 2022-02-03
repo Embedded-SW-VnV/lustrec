@@ -180,7 +180,7 @@ let inline_call node loc uid args reset locals caller =
         let vdecl' = rename_var vdecl in
         { vdecl' with var_dec_value = Some (Corelang.expr_of_dimension arg) })
       static_inputs
-    @ List.map rename_var node.node_locals
+    @ List.map ( fun (v, _) -> rename_var v) node.node_locals
   in
   (* checking we are at the appropriate (early) step: node_checks and
      node_gencalls should be empty (not yet assigned) *)
@@ -359,13 +359,13 @@ and inline_node ?(selection_on_annotation = false) node nodes =
             (Eq { eq with eq_rhs = eq_rhs' } :: new_stmts') @ stmts,
             asserts' @ asserts,
             annots' @ annots ))
-        (node.node_locals, [], node.node_asserts, node.node_annot)
+        (List.map fst node.node_locals, [], node.node_asserts, node.node_annot)
         eqs
     in
     let inlined =
       {
         node with
-        node_locals = new_locals;
+        node_locals = List.map (fun v -> v, None) new_locals;
         node_stmts = stmts;
         node_asserts = asserts;
         node_annot = annots;

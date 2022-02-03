@@ -378,7 +378,7 @@ let node_of_assign_until nused used node aut_id aut_state handler =
         List.map
           copy_var_decl
           (aut_state.incoming_r :: aut_state.incoming_s :: new_var_outputs);
-      node_locals = List.map copy_var_decl (new_var_locals @ handler.hand_locals);
+      node_locals = List.map (fun v -> copy_var_decl v, None) (new_var_locals @ handler.hand_locals);
       node_gencalls = [];
       node_checks = [];
       node_asserts = handler.hand_asserts;
@@ -520,7 +520,7 @@ let expand_node_stmts nused used loc owner node =
       node.node_stmts
   in
   let node' =
-    { node with node_locals = locals' @ node.node_locals; node_stmts = eqs' }
+    { node with node_locals = List.map (fun v -> v, None) locals' @ node.node_locals; node_stmts = eqs' }
   in
   let top_node = mktop_decl loc owner false (Node node') in
   top_types', top_node, top_nodes'
@@ -535,7 +535,7 @@ let rec expand_decls_rec nused top_decls =
       let used name =
         List.exists (fun v -> v.var_id = name) nd.node_inputs
         || List.exists (fun v -> v.var_id = name) nd.node_outputs
-        || List.exists (fun v -> v.var_id = name) nd.node_locals
+        || List.exists (fun (v, _) -> v.var_id = name) nd.node_locals
       in
       let top_types', top_decl', top_nodes' =
         expand_node_stmts

@@ -28,13 +28,18 @@ let mkdim_appl_u loc f x = mkdim_appl loc f [x]
 
 let mkarraytype = List.fold_left (fun t d -> Tydec_array (d, t))
 
+let mkvdecl const typ clock expr (id, loc) =
+  mkvar_decl loc
+    (id,
+     mktyp loc (match typ with Some t -> t | None -> Tydec_any),
+     (match clock with Some ck -> ck | None -> mkclock loc Ckdec_any),
+     const, expr, None)
+
 let mkvdecls const typ clock expr =
-  List.map (fun (id, loc) ->
-      mkvar_decl loc
-        (id,
-         mktyp loc (match typ with Some t -> t | None -> Tydec_any),
-         (match clock with Some ck -> ck | None -> mkclock loc Ckdec_any),
-         const, expr, None))
+  List.map (mkvdecl const typ clock expr)
+
+let mkvdecls_locals const typ clock expr =
+  List.map (fun id_loc -> mkvdecl const typ clock expr id_loc, None)
 
 (* let mkannots annots = { annots = annots; annot_loc = get_loc () } *)
 
@@ -318,7 +323,7 @@ automaton:
 
 handler:
 | STATE x=UIDENT COL ul=unless* l=locals LET ss=stmt_list TEL ut=until*
-  { Automata.mkhandler $sloc x ul ut l ss }
+  { Automata.mkhandler $sloc x ul ut (List.map fst l) ss }
 
 unless:
 | UNLESS e=expr RESTART s=UIDENT { $sloc, e, true, s  }
@@ -577,12 +582,12 @@ vdecl:
 
 local_vdecl:
 | xs=ident_list /* Useless no ?*/
-  { mkvdecls false None None None xs }
+  { mkvdecls_locals false None None None xs }
 | xs=ident_list COL t=typeconst c=clock?
-  { mkvdecls false (Some t) c None xs }
+  { mkvdecls_locals false (Some t) c None xs }
 | CONST x=vdecl_ident t=preceded(COL, typeconst)? EQ e=expr
   /* static parameters don't have clocks */
-  { mkvdecls true t None (Some e) [x] }
+  { mkvdecls_locals true t None (Some e) [x] }
 
 cdecl:
 | x=const_ident EQ c=signed_const

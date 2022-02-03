@@ -291,13 +291,34 @@ let constrained_vars_of_clock ck =
   aux [] ck
 
 let eq_carrier cr1 cr2 =
-  match (carrier_repr cr1).carrier_desc, (carrier_repr cr2).carrier_desc with
-  | Carry_const id1, Carry_const id2 ->
-    id1 = id2
-  | _ ->
-    cr1.carrier_id = cr2.carrier_id
+  let cr1' = carrier_repr cr1 in
+  let cr2' = carrier_repr cr2 in
+  cr1.carrier_id = cr2.carrier_id
+  || cr1'.carrier_id = cr2'.carrier_id
+  || cr1'.carrier_desc = cr2'.carrier_desc
 
-let equal ck1 ck2 = (repr ck1).cid = (repr ck2).cid
+let rec eq_clock ck1 ck2 =
+  let ck1' = repr ck1 in
+  let ck2' = repr ck2 in
+  ck1.cid = ck2.cid
+  || ck1'.cid = ck2'.cid
+  || match ck1'.cdesc, ck2'.cdesc with
+  | Carrow (ck11, ck12), Carrow (ck21, ck22) ->
+    eq_clock ck11 ck21 && eq_clock ck12 ck22
+  | Ctuple cks1, Ctuple cks2 ->
+    begin try List.for_all2 eq_clock cks1 cks2 with Invalid_argument _ -> false end
+  | Con (ck1, cr1, x1), Con (ck2, cr2, x2) ->
+    eq_clock ck1 ck2 && eq_carrier cr1 cr2 && x1 = x2
+  | Ccarrying (cr1, ck1), Ccarrying (cr2, ck2) ->
+    eq_carrier cr1 cr2 && eq_clock ck1 ck2
+  | Cunivar, _ | _, Cunivar -> true
+  | _ -> false
+
+let equal ck1 ck2 =
+  (* let ck1 = repr ck1 in *)
+  (* let ck2 = repr ck2 in *)
+  (* ck1.cid = ck2.cid  *)
+  eq_clock ck1 ck2
 
 (* Returns the clock root of a clock *)
 let rec root ck =

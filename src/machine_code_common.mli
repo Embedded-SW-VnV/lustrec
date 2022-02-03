@@ -4,6 +4,8 @@ open Machine_code_types
 
 val pp_val : machine_t -> Format.formatter -> value_t -> unit
 
+val find_tainter_arrow : machine_t -> var_decl -> ident option option
+
 val is_memory : machine_t -> var_decl -> bool
 
 val is_reset_flag : var_decl -> bool

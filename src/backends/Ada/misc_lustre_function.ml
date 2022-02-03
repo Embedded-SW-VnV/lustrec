@@ -25,7 +25,7 @@ let get_machine machines instance =
 (** Extract all the inputs and outputs. @param machine the machine @return a
     list of all the var_decl of a macine **)
 let get_all_vars_machine m =
-  m.mmemory @ m.mstep.step_inputs @ m.mstep.step_outputs @ m.mstatic
+  List.map fst m.mmemory @ m.mstep.step_inputs @ m.mstep.step_outputs @ m.mstatic
 
 (** Check if a type is polymorphic. @param typ the type @return true if its
     polymorphic **)

@@ -32,7 +32,7 @@ end
 (* A module to sort dependencies among local variables when relying on clocked
    declarations *)
 module VarClockDep : sig
-  val sort : var_decl list -> var_decl list
+  val sort : (var_decl * 'a) list -> (var_decl * 'a) list
 end
 
 module ExprDep : sig

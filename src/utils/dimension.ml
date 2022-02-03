@@ -10,6 +10,7 @@
 (********************************************************************)
 
 open Format
+open Utils
 
 type t = { mutable dim_desc : dim_desc; dim_loc : Location.t; dim_id : int }
 
@@ -26,6 +27,17 @@ and dim_desc =
 exception Unify of t * t
 
 exception InvalidDimension
+
+let fv d =
+  let open ISet in
+  let rec fv s d = match d.dim_desc with
+    | Dident x -> add x s
+    | Dappl (_, ds) -> List.fold_left fv s ds
+    | Dite (d1, d2, d3) -> fv (fv (fv s d1) d2) d3
+    | Dlink d -> fv s d
+    | _ -> s
+  in
+  fv ISet.empty d
 
 let new_id = ref (-1)
 

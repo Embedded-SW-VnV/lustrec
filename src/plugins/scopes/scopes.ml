@@ -19,9 +19,10 @@ let rec compute_scopes ?(first = true) prog root_node : scope_t list =
   (* Format.eprintf "Compute scope of %s@." main_node; *)
   try
     let node = get_node root_node prog in
-    let all_vars = node.node_inputs @ node.node_locals @ node.node_outputs in
+    let locals = List.map fst node.node_locals in
+    let all_vars = node.node_inputs @ locals @ node.node_outputs in
     let local_vars =
-      if first then node.node_locals else node.node_inputs @ node.node_locals
+      if first then locals else node.node_inputs @ locals
     in
     let local_scopes = List.map (fun x -> [], x) local_vars in
     let sub_scopes =
@@ -84,7 +85,7 @@ let get_node_vdecl_of_name name node =
   try
     List.find
       (fun v -> v.var_id = name)
-      (node.node_inputs @ node.node_outputs @ node.node_locals)
+      (node.node_inputs @ node.node_outputs @ List.map fst node.node_locals)
   with Not_found ->
     Format.eprintf "Cannot find variable %s in node %s@." name node.node_id;
     assert false
@@ -239,7 +240,7 @@ let update_machine main_node machine scopes =
     (if machine.mname.node_id = main_node then []
     else machine.mstep.step_inputs)
     (* @ machine.mstep.step_outputs *)
-    @ machine.mmemory
+    @ List.map fst machine.mmemory
     @ machine.mstep.step_locals
   in
   let selection =
@@ -258,7 +259,7 @@ let update_machine main_node machine scopes =
   in
   {
     machine with
-    mmemory = machine.mmemory @ List.map fst new_mems;
+    mmemory = machine.mmemory @ List.map (fun (v, _) -> v, None) new_mems;
     mstep =
       {
         machine.mstep with
@@ -279,7 +280,7 @@ let rec is_valid_path path nodename prog machines =
     let res =
       List.exists
         (fun v -> v.var_id = vid)
-        (m.mmemory @ m.mstep.step_inputs @ m.mstep.step_locals)
+        (List.map fst m.mmemory @ m.mstep.step_inputs @ m.mstep.step_locals)
     in
     (* if not res then *)
     (* Format.eprintf "Variable %s cannot be found in machine %s@.Local vars are

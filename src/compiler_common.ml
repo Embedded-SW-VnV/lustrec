@@ -241,7 +241,7 @@ let resolve_contracts prog =
             let imp_in = imp_nd.node_inputs in
             let imp_out = imp_nd.node_outputs in
             let imp_locals = imp_nd.node_locals in
-            let locals = imp_in @ imp_out @ imp_locals @ locals in
+            let locals = imp_in @ imp_out @ List.map fst imp_locals @ locals in
             let imp_c = get_node_contract imp_nd in
             (* Assigning in and out *)
             let mk_def vars_l e =
@@ -310,6 +310,7 @@ let resolve_contracts prog =
             false)
         (accu_contracts @ prog)
     in
+    let node_locals = List.map (fun v -> v, None) node_locals in
     let nd =
       {
         node_id = mk_new_name used (id ^ "_contract");
@@ -356,7 +357,7 @@ let resolve_contracts prog =
             let nd =
               {
                 nd with
-                node_locals = nd.node_locals @ locals;
+                node_locals = nd.node_locals @ List.map (fun v -> v, None) locals;
                 node_stmts = nd.node_stmts @ stmts;
                 node_spec = Some (Contract c);
               }
@@ -418,7 +419,7 @@ let update_vdecl_parents_prog prog =
       | Node nd ->
         List.iter
           (update_vdecl_parents nd.node_id)
-          (nd.node_inputs @ nd.node_outputs @ nd.node_locals)
+          (nd.node_inputs @ nd.node_outputs @ List.map fst nd.node_locals)
       | ImportedNode ind ->
         List.iter
           (update_vdecl_parents ind.nodei_id)

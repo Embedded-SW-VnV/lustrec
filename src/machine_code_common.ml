@@ -7,7 +7,12 @@ open Format
 
 let print_statelocaltag = true
 
-let is_memory m id = List.exists (fun o -> o.var_id = id.var_id) m.mmemory
+let find_tainter_arrow m id =
+  List.find_opt (fun (x, _) -> x.var_id = id.var_id) m.mmemory
+  |> Option.map snd
+
+let is_memory m id =
+  Option.is_some (find_tainter_arrow m id)
 
 let is_reset_flag id = id.var_id = "_reset"
 
@@ -248,7 +253,7 @@ let get_node_def id m =
 
 (* merge log: machine_vars was in 44686 *)
 let machine_vars m =
-  m.mstep.step_inputs @ m.mstep.step_locals @ m.mstep.step_outputs @ m.mmemory
+  m.mstep.step_inputs @ m.mstep.step_locals @ m.mstep.step_outputs @ List.map fst m.mmemory
 
 let pp_step m fmt s =
   fprintf
@@ -327,7 +332,7 @@ let pp_machine fmt m =
      : %a@ step     :@   @[<v 2>%a@]@ spec     : @[<v>%t@ %a@ @ %a@]@ annot    \
      : @[%a@]@]@ "
     m.mname.node_id
-    (pp_comma_list Printers.pp_var)
+    (pp_comma_list (fun fmt (x, _) -> Printers.pp_var fmt x))
     m.mmemory
     (pp_comma_list pp_instance)
     m.minstances
@@ -423,7 +428,7 @@ let arrow_machine =
      reprendre le type des variables non ? *)
   {
     mname = Arrow.arrow_desc;
-    mmemory = [ var_state ];
+    mmemory = [ var_state, None ];
     mcalls = [];
     minstances = [];
     minit = [ mkinstr (MStateAssign (var_state, cst true)) ];
@@ -565,7 +570,7 @@ let get_const_assign m id =
 let value_of_ident loc m id =
   (* is is a state var *)
   try
-    let v = List.find (fun v -> v.var_id = id) m.mmemory in
+    let v, _ = List.find (fun (v, _) -> v.var_id = id) m.mmemory in
     mk_val (Var v) v.var_type
   with Not_found -> (
     try

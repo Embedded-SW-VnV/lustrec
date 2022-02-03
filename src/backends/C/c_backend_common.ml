@@ -48,7 +48,7 @@ let mk_local n m =
     exists (var_is name) m.mstep.step_inputs
     || exists (var_is name) m.mstep.step_outputs
     || exists (var_is name) m.mstep.step_locals
-    || exists (var_is name) m.mmemory
+    || exists (fun (x, _) -> var_is name x) m.mmemory
   in
   mk_new_name used n
 
@@ -75,7 +75,7 @@ let mk_mem_reset = mk_local "mem_reset"
 let mk_instance m =
   let used name =
     let open List in
-    exists (var_is name) m.mstep.step_inputs || exists (var_is name) m.mmemory
+    exists (var_is name) m.mstep.step_inputs || exists (fun (x, _) -> var_is name x) m.mmemory
   in
   mk_new_name used "inst"
 
@@ -84,7 +84,7 @@ let mk_instance m =
 let mk_attribute m =
   let used name =
     let open List in
-    exists (var_is name) m.mstep.step_inputs || exists (var_is name) m.mmemory
+    exists (var_is name) m.mstep.step_inputs || exists (fun (x, _) -> var_is name x) m.mmemory
   in
   mk_new_name used "attr"
 
@@ -110,7 +110,7 @@ let reset_loop_counter () = loop_cpt := -1
 
 let mk_loop_var m () =
   let vars =
-    m.mstep.step_inputs @ m.mstep.step_outputs @ m.mstep.step_locals @ m.mmemory
+    m.mstep.step_inputs @ m.mstep.step_outputs @ m.mstep.step_locals @ List.map fst m.mmemory
   in
   let rec aux () =
     incr loop_cpt;
@@ -800,7 +800,7 @@ let pp_machine_struct ?(ghost = false) fmt m =
           ~pp_sep:pp_print_semicolon
           ~pp_eol:pp_print_semicolon'
           ~pp_epilogue:(fun fmt () -> fprintf fmt "}@] _reg;")
-          pp_c_decl_struct_var)
+          (fun fmt (x, _) -> pp_c_decl_struct_var fmt x))
       m.mmemory
       (pp_print_list
          ~pp_open_box:pp_open_vbox0
@@ -1255,7 +1255,8 @@ let pp_static_declare_macro ?(ghost = false) fmt ((m, attr, inst) as macro) =
     List.filter (fun vdecl -> vdecl.var_dec_const) m.mstep.step_locals
   in
   let array_mem =
-    List.filter (fun v -> Types.is_array_type v.var_type) m.mmemory
+    List.filter_map (fun (v, _) -> if Types.is_array_type v.var_type then Some v else None)
+      m.mmemory
   in
   fprintf
     fmt
@@ -1298,7 +1299,8 @@ let pp_static_link_instance ?(ghost = false) fmt (i, (m, _)) =
    it to a pointer (see pp_registers_struct) *)
 let pp_static_link_macro ?(ghost = false) fmt (m, _, inst) =
   let array_mem =
-    List.filter (fun v -> Types.is_array_type v.var_type) m.mmemory
+    List.filter_map (fun (v, _) -> if Types.is_array_type v.var_type then Some v else None)
+      m.mmemory
   in
   fprintf
     fmt

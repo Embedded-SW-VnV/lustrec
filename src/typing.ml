@@ -916,16 +916,17 @@ struct
     (* Format.eprintf "Typing node %s@." nd.node_id; *)
     let is_main = nd.node_id = !Options.main_node in
     (* In contracts, outputs are considered as input values *)
+    let locals_vars = List.map fst nd.node_locals in
     let vd_env_ol =
-      if nd.node_iscontract then nd.node_locals
-      else nd.node_outputs @ nd.node_locals
+      if nd.node_iscontract then locals_vars
+      else nd.node_outputs @ locals_vars
     in
-    let vd_env = nd.node_inputs @ nd.node_outputs @ nd.node_locals in
+    let vd_env = nd.node_inputs @ nd.node_outputs @ locals_vars in
     check_vd_env vd_env;
     let init_env = env in
     let delta_env = type_var_decl_list vd_env init_env nd.node_inputs in
     let delta_env = type_var_decl_list vd_env delta_env nd.node_outputs in
-    let delta_env = type_var_decl_list vd_env delta_env nd.node_locals in
+    let delta_env = type_var_decl_list vd_env delta_env locals_vars in
     let new_env = Env.overwrite env delta_env in
     let undefined_vars_init =
       List.fold_left (fun uvs v -> ISet.add v.var_id uvs) ISet.empty vd_env_ol
@@ -964,7 +965,7 @@ struct
     (* check that table is empty *)
     let local_consts =
       List.fold_left
-        (fun res vdecl ->
+        (fun res (vdecl, _) ->
           if vdecl.var_dec_const then ISet.add vdecl.var_id res else res)
         ISet.empty
         nd.node_locals

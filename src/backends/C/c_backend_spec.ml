@@ -476,32 +476,41 @@ module PrintSpec = struct
     | Memory ResetFlag ->
       vdecl_to_val reset_flag
 
-  let find_arrow loc m =
-    match
-      List.find_opt (fun (_, (td, _)) -> Arrow.td_is_arrow td) m.minstances
-    with
-    | Some (f, _) ->
-      Some f
-    | None ->
-      Error.pp_warning loc (fun fmt ->
-          pp_print_string
-            fmt
-            "Generating stateful spec for uninitialized state variables.");
-      None
+  let find_arrow_val =
+    let bad_inits = Hashtbl.create 32 in
+    let rec find_arrow_val loc m v =
+      let find = find_arrow_val loc m in
+      match v.value_desc with
+      | Var v ->
+        begin match find_tainter_arrow m v with
+          | Some (Some a) ->
+            Some a
+          | Some None ->
+            if not (Hashtbl.mem bad_inits v) then begin
+              Hashtbl.add bad_inits v ();
+              Error.pp_warning loc (fun fmt ->
+                  fprintf fmt
+                    "Generating stateful spec for uninitialized state variable %s."
+                    v.var_id);
+            end;
+            None
+          | None -> None
+        end
+      | Array vl | Fun (_, vl) ->
+        List.find_map find vl
+      | Access (t, i) | Power (t, i) ->
+        begin match find t with
+          | None -> find i
+          | a -> a
+        end
+      | _ ->
+        None
+    in
+    find_arrow_val
 
-  let rec has_memory_val m v =
-    let has_mem = has_memory_val m in
-    match v.value_desc with
-    | Var v ->
-      is_memory m v
-    | Array vl | Fun (_, vl) ->
-      List.exists has_mem vl
-    | Access (t, i) | Power (t, i) ->
-      has_mem t || has_mem i
-    | _ ->
-      false
-
-  let has_memory_expr m = function Val v -> has_memory_val m v | _ -> false
+  let find_arrow loc m = function
+    | Val v -> find_arrow_val loc m v
+    | _ -> None
 
   let pp_spec mode m fmt f =
     let rec pp_spec mode fmt f =
@@ -546,18 +555,16 @@ module PrintSpec = struct
             fmt
             (Spec_common.type_of_value a, val_of_expr a, val_of_expr b)
         in
-        if has_memory_expr m b then
-          let inst = find_arrow Location.dummy m in
-          pp_print_option
-            ~none:pp_eq
-            (fun fmt inst ->
-              pp_paren
-                (pp_implies (pp_not (pp_initialization pp_access')) pp_eq)
-                fmt
-                ((Arrow.arrow_id, (mem_in, inst)), ()))
-            fmt
-            inst
-        else pp_eq fmt ()
+        let inst = find_arrow Location.dummy m b in
+        pp_print_option
+          ~none:pp_eq
+          (fun fmt inst ->
+             pp_paren
+               (pp_implies (pp_not (pp_initialization pp_access')) pp_eq)
+               fmt
+               ((Arrow.arrow_id, (mem_in, inst)), ()))
+          fmt
+          inst
       | GEqual (a, b) ->
         pp_assign_spec
           ~pp_op:pp_gequal
@@ -584,18 +591,16 @@ module PrintSpec = struct
         pp_forall (pp_locals m) pp_spec' fmt (xs, a)
       | Ternary (e, a, b) ->
         let pp_ite fmt () = pp_ite pp_expr pp_spec' pp_spec' fmt (e, a, b) in
-        if has_memory_expr m e then
-          let inst = find_arrow Location.dummy m in
-          pp_print_option
-            ~none:pp_ite
-            (fun fmt inst ->
-              pp_paren
-                (pp_implies (pp_not (pp_initialization pp_access')) pp_ite)
-                fmt
-                ((Arrow.arrow_id, (mem_in, inst)), ()))
-            fmt
-            inst
-        else pp_ite fmt ()
+        let inst = find_arrow Location.dummy m e in
+        pp_print_option
+          ~none:pp_ite
+          (fun fmt inst ->
+             pp_paren
+               (pp_implies (pp_not (pp_initialization pp_access')) pp_ite)
+               fmt
+               ((Arrow.arrow_id, (mem_in, inst)), ()))
+          fmt
+          inst
       | Predicate p ->
         pp_predicate mode m mem_in mem_in' mem_out mem_out' fmt p
       | StateVarPack ResetFlag ->
@@ -624,7 +629,7 @@ module PrintSpec = struct
             fmt
             (v.var_type, v', v')
         in
-        let inst = find_arrow Location.dummy m in
+        let inst = find_arrow Location.dummy m (Val v') in
         pp_print_option
           ~none:pp_eq
           (fun fmt inst ->
@@ -745,7 +750,7 @@ let pp_transition_footprint_lemma m fmt t =
   let stateless = fst (get_stateless_status m) in
   let mems =
     ISet.(
-      diff (of_list (List.map (fun v -> v.var_id) m.mmemory)) t.tmem_footprint)
+      diff (of_list (List.map (fun (v, _) -> v.var_id) m.mmemory)) t.tmem_footprint)
   in
   let insts =
     IMap.(
@@ -756,7 +761,8 @@ let pp_transition_footprint_lemma m fmt t =
   let memories =
     List.map
       (fun v -> { v with var_type = { v.var_type with tid = -1 } })
-      (List.filter (fun v -> ISet.mem v.var_id mems) m.mmemory)
+      (List.filter_map (fun (v, _) -> if ISet.mem v.var_id mems then Some v else None)
+         m.mmemory)
   in
   let mems_empty = ISet.is_empty mems in
   let insts_empty = IMap.is_empty insts in

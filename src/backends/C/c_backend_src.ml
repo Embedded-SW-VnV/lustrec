@@ -489,7 +489,8 @@ module Main (Mod : MODIFIERS_SRC) = struct
     fprintf fmt "free (_alloc->_reg.%s);" vdecl.var_id
 
   let array_mems m =
-    List.filter (fun v -> Types.is_array_type v.var_type) m.mmemory
+    List.filter_map (fun (v, _) -> if Types.is_array_type v.var_type then Some v else None)
+      m.mmemory
 
   let pp_alloc_code fmt m =
     fprintf
@@ -722,7 +723,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
       ~pp_array_mem:(pp_c_decl_array_mem self)
       ~array_mems:(array_mems m)
       ~pp_init_mpfr_local:(pp_initialize m self (pp_c_var_read m))
-      ~mpfr_locals:m.mmemory
+      ~mpfr_locals:(List.map fst m.mmemory)
       ~pp_extra:(fun fmt () ->
         pp_print_list
           ~pp_open_box:pp_open_vbox0
@@ -745,7 +746,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
       ~pp_array_mem:(pp_c_decl_array_mem self)
       ~array_mems:(array_mems m)
       ~pp_clear_mpfr_local:(pp_clear m self (pp_c_var_read m))
-      ~mpfr_locals:m.mmemory
+      ~mpfr_locals:(List.map fst m.mmemory)
       ~pp_extra:(fun fmt () ->
         pp_print_list
           ~pp_open_box:pp_open_vbox0
