@@ -26,6 +26,7 @@ type 'a predicate_t =
       -> 'a predicate_t
   | Reset of ident * ident * 'a
   | MemoryPack of ident * ident option * int option
+  | MemoryPackBase of ident
   | Initialization
   | ResetCleared of ident
   | GhostAssign of var_decl * var_decl
@@ -42,7 +43,7 @@ type 'a formula_t =
   | Forall of var_decl list * 'a formula_t
   | Ternary of 'a expression_t * 'a formula_t * 'a formula_t
   | Predicate : 'a predicate_t -> 'a formula_t
-  | StateVarPack of register_t
+  | StateVarPack of register_t * bool (* tainted or not *)
   | ExistsMem of ident * 'a formula_t * 'a formula_t
   | Value of 'a
 

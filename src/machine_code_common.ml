@@ -84,6 +84,12 @@ module PrintSpec = struct
         inst
         (pp_val m)
         r
+    | MemoryPackBase f ->
+      fprintf
+        fmt
+        "MemoryPackBase_%a"
+        pp_print_string
+        f
     | MemoryPack (f, inst, i) ->
       fprintf
         fmt
@@ -157,8 +163,10 @@ module PrintSpec = struct
           b
       | Predicate p ->
         pp_predicate m fmt p
-      | StateVarPack r ->
-        fprintf fmt "StateVarPack<%a>" pp_reg r
+      | StateVarPack (r, tainted) ->
+        fprintf fmt "StateVarPack%a<%a>"
+          (if tainted then pp_print_string else pp_print_nothing) "_tainted"
+          pp_reg r
       | ExistsMem (_f, a, b) ->
         fprintf fmt "@[<hv 2>∃ MEM,@ %a@]" pp_spec (And [ a; b ])
       | Value v ->
@@ -278,6 +286,15 @@ let pp_static_call fmt (node, args) =
 
 let pp_instance fmt (o1, o2) = fprintf fmt "(%s, %a)" o1 pp_static_call o2
 
+let pp_memory_pack_base fmt m =
+  fprintf
+    fmt
+    "@[<v 2>MemoryPackBase_%a<SELF> =@ %a@]"
+    pp_print_string
+    m.mname.node_id
+    (PrintSpec.pp_spec m)
+    m.mspec.mmemory_pack_base
+
 let pp_memory_pack m fmt mp =
   fprintf
     fmt
@@ -294,7 +311,9 @@ let pp_memory_packs m fmt =
   | Options.SpecNo ->
     pp_print_nothing fmt
   | _ ->
-    fprintf fmt "@[<v 2>memory_packs:@ %a@]" (pp_print_list (pp_memory_pack m))
+    fprintf fmt "@[<v 2>memory_packs:@ %a@ %a@]"
+      pp_memory_pack_base m
+      (pp_print_list (pp_memory_pack m))
 
 let pp_transition m fmt t =
   fprintf
@@ -456,7 +475,7 @@ let arrow_machine =
           ];
         step_asserts = [];
       };
-    mspec = { mnode_spec = None; mtransitions = []; mmemory_packs = -1, [] };
+    mspec = { mnode_spec = None; mtransitions = []; mmemory_packs = -1, []; mmemory_pack_base = True };
     mannot = [];
     msch = None;
     mis_contract = false;
@@ -499,7 +518,7 @@ let empty_machine =
         step_instrs = [];
         step_asserts = [];
       };
-    mspec = { mnode_spec = None; mtransitions = []; mmemory_packs = -1, [] };
+    mspec = { mnode_spec = None; mtransitions = []; mmemory_packs = -1, []; mmemory_pack_base = True };
     mannot = [];
     msch = None;
     mis_contract = false;

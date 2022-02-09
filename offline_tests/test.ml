@@ -310,12 +310,14 @@ let wp_args =
   ]
 let wp_module = "strategy.ml"
 let wp_strategy = "LustreC"
+let wp_auto_depth = 100 |> string_of_int
 let wp_strategy_args =
   [
     "-wp";
-    "-wp-prover";    wp_provers;
-    "-load-module";  wp_module;
-    "-wp-auto";      wp_strategy;
+    "-wp-prover";     wp_provers;
+    "-load-module";   wp_module;
+    "-wp-auto";       wp_strategy;
+    "-wp-auto-depth"; wp_auto_depth;
   ]
 let frama_c_args f =
   wp_args
@@ -435,7 +437,9 @@ let () =
   in
   let report = parse_report () in
   let report = compile report lustrec lus_fs in
-  let ignored_fs = ignored_fs @ S.elements report.ninits in
+  let ignored_fs = ignored_fs
+                   @ List.map Filename.chop_extension (S.elements report.ninits)
+  in
   print_ignored (List.map (fun f -> f ^ ".c") ignored_fs);
   let lus_fs =
     List.(sort_uniq compare

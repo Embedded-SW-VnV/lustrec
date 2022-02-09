@@ -18,17 +18,17 @@ module VDeclModule : sig
 end
 with type t = var_decl
 
-(* module VMap : sig *)
-(*   include Map.S with type key = var_decl *)
+module VMap : sig
+  include Map.S with type key = var_decl
 
-(*   val pp : *)
-(*     ?comment:string -> *)
-(*     (Format.formatter -> 'a -> unit) -> *)
-(*     Format.formatter -> *)
-(*     'a t -> *)
-(*     unit *)
-(* end *)
-(* with type key = var_decl *)
+  val pp :
+    ?comment:string ->
+    (Format.formatter -> 'a -> unit) ->
+    Format.formatter ->
+    'a t ->
+    unit
+end
+with type key = var_decl
 
 module VSet : sig
   include Set.S

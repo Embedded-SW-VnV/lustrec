@@ -286,21 +286,51 @@ let pp_assign_spec ?pp_op m self_l pp_var_l indirect_l self_r pp_var_r
   reset_loop_counter ();
   aux var_type fmt reordered_loop_vars
 
-let pp_memory_pack_aux ?i pp_mem pp_self fmt (name, mem, self) =
+let pp_memory_pack_base_aux pp_mem pp_self fmt (name, mem, self) =
   fprintf
     fmt
-    "%s_pack%a(@[<hov>%a,@ %a@])"
+    "%s_pack_base(@[<hov>%a,@ %a@])"
     name
-    (pp_print_option pp_print_int)
-    i
     pp_mem
     mem
     pp_self
     self
 
+let pp_memory_pack_aux_taint ?i pp_mem_reset pp_mem pp_self fmt (name, mem_reset, mem, self) =
+  fprintf
+    fmt
+    "%s_pack%a(@[<hov>%a,@ %a,@ %a@])"
+    name
+    (pp_print_option pp_print_int)
+    i
+    pp_mem_reset
+    mem_reset
+    pp_mem
+    mem
+    pp_self
+    self
+
+let pp_memory_pack_aux pp_mem pp_self fmt (name, mem, self) =
+  fprintf
+    fmt
+    "%s_pack(@[<hov>%a,@ %a@])"
+    name
+    pp_mem
+    mem
+    pp_self
+    self
+
+let pp_memory_pack_taint pp_mem_reset pp_mem pp_self fmt (mp, mem_reset, mem, self) =
+  pp_memory_pack_aux_taint
+    ?i:mp.mpindex
+    pp_mem_reset
+    pp_mem
+    pp_self
+    fmt
+    (mp.mpname.node_id, mem_reset, mem, self)
+
 let pp_memory_pack pp_mem pp_self fmt (mp, mem, self) =
   pp_memory_pack_aux
-    ?i:mp.mpindex
     pp_mem
     pp_self
     fmt
@@ -444,16 +474,20 @@ module PrintSpec = struct
         (pp_equal pp_print_string pp_access')
         fmt
         (r, (mem_out, 1), (mem_out, (mem_in, inst)))
+    | MemoryPackBase f ->
+      pp_memory_pack_base_aux pp_print_string pp_print_string fmt (f, mem_out, mem_in)
     | MemoryPack (f, inst, i) ->
-      let pp_mem, pp_self =
-        match inst with
-        | None ->
-          pp_print_string, pp_print_string
+      begin match inst with
         | Some inst ->
-          ( (fun fmt mem -> pp_access' fmt (mem, inst)),
-            fun fmt self -> pp_indirect' fmt (self, inst) )
-      in
-      pp_memory_pack_aux ?i pp_mem pp_self fmt (f, mem_out, mem_in)
+          let pp_mem, pp_self =
+            ( (fun fmt mem -> pp_access' fmt (mem, inst)),
+              fun fmt self -> pp_indirect' fmt (self, inst) )
+          in
+          pp_memory_pack_aux pp_mem pp_self fmt (f, mem_out, mem_in)
+        | None ->
+          pp_memory_pack_aux_taint ?i pp_print_string pp_print_string pp_print_string
+            fmt (f, mem_in', mem_out, mem_in)
+      end
     | ResetCleared f ->
       pp_reset_cleared' fmt (f, mem_in, mem_out)
     (* fprintf fmt "ResetCleared_%a" pp_print_string f *)
@@ -603,7 +637,7 @@ module PrintSpec = struct
           inst
       | Predicate p ->
         pp_predicate mode m mem_in mem_in' mem_out mem_out' fmt p
-      | StateVarPack ResetFlag ->
+      | StateVarPack (ResetFlag, _) ->
         let r = vdecl_to_val reset_flag in
         pp_assign_spec
           m
@@ -615,7 +649,7 @@ module PrintSpec = struct
           indirect_r
           fmt
           (Type_predef.type_bool, r, r)
-      | StateVarPack (StateVar v) ->
+      | StateVarPack (StateVar v, tainted) ->
         let v' = vdecl_to_val v in
         let pp_eq fmt () =
           pp_assign_spec
@@ -630,13 +664,14 @@ module PrintSpec = struct
             (v.var_type, v', v')
         in
         let inst = find_arrow Location.dummy m (Val v') in
+        let mem_reset = mk_mem_reset m in
         pp_print_option
           ~none:pp_eq
           (fun fmt inst ->
             pp_paren
               (pp_implies (pp_not (pp_initialization pp_access')) pp_eq)
               fmt
-              ((Arrow.arrow_id, (mem_out, inst)), ()))
+              ((Arrow.arrow_id, ((if tainted then mem_reset else mem_out), inst)), ()))
           fmt
           inst
       | ExistsMem (f, rc, tr) ->
@@ -680,19 +715,45 @@ let pp_mem_valid_def fmt m =
       fmt
       ((name, (name, self)), (m.minstances, [ self ]))
 
+let pp_memory_pack_base_def m fmt f =
+  if not (fst (get_stateless_status m) || m.mis_contract) then
+    let name = m.mname.node_id in
+    let self = mk_self m in
+    let mem = mk_mem m in
+    pp_acsl_cut
+      (pp_predicate
+         (pp_memory_pack_base_aux
+            (pp_machine_decl' ~ghost:true)
+            (pp_machine_decl pp_ptr))
+         (PrintSpec.pp_spec MemoryPackMode m))
+      fmt
+      ((name, (name, mem), (name, self)), f)
+
 let pp_memory_pack_def m fmt mp =
   if not (fst (get_stateless_status m) || m.mis_contract) then
     let name = mp.mpname.node_id in
     let self = mk_self m in
     let mem = mk_mem m in
-    pp_acsl_cut
-      (pp_predicate
-         (pp_memory_pack
-            (pp_machine_decl' ~ghost:true)
-            (pp_machine_decl pp_ptr))
-         (PrintSpec.pp_spec MemoryPackMode m))
-      fmt
-      ((mp, (name, mem), (name, self)), mp.mpformula)
+    let mem_reset = mk_mem_reset m in
+    if mp.mpindex = None then
+      pp_acsl_cut
+        (pp_predicate
+           (pp_memory_pack
+              (pp_machine_decl' ~ghost:true)
+              (pp_machine_decl pp_ptr))
+           (PrintSpec.pp_spec MemoryPackMode m))
+        fmt
+        ((mp, (name, mem), (name, self)), mp.mpformula)
+    else
+      pp_acsl_cut
+        (pp_predicate
+           (pp_memory_pack_taint
+              (pp_machine_decl' ~ghost:true)
+              (pp_machine_decl' ~ghost:true)
+              (pp_machine_decl pp_ptr))
+           (PrintSpec.pp_spec MemoryPackMode m))
+        fmt
+        ((mp, (name, mem_reset), (name, mem), (name, self)), mp.mpformula)
 
 let pp_machine_ghost_struct fmt m =
   pp_acsl (pp_ghost (pp_machine_struct ~ghost:true)) fmt m
@@ -701,9 +762,11 @@ let pp_memory_pack_defs fmt m =
   if not (fst (get_stateless_status m)) then
     fprintf
       fmt
-      "%a@,%a"
+      "%a@,%a%a"
       pp_machine_ghost_struct
       m
+      (pp_memory_pack_base_def m)
+      m.mspec.mmemory_pack_base
       (pp_print_list
          ~pp_sep:pp_print_nothing
          ~pp_epilogue:pp_print_cut
@@ -985,11 +1048,12 @@ module SrcMod = struct
           (pp_requires (pp_memory_pack_aux pp_ptr pp_print_string))
           (name, mem, self)
           (pp_ensures
-             (pp_memory_pack_aux
+             (pp_memory_pack_aux_taint
                 ~i:(fst m.mspec.mmemory_packs)
                 pp_ptr
+                pp_ptr
                 pp_print_string))
-          (name, mem, self)
+          (name, mem, mem, self)
           (pp_ensures
              (pp_reset_cleared (pp_old pp_ptr) pp_ptr))
           (name, mem, mem)

@@ -12,6 +12,8 @@ val mk_assign_tr : var_decl -> 'a -> 'a formula_t
 
 val mk_memory_pack : ?i:int -> ?inst:ident -> ident -> 'a formula_t
 
+val mk_memory_pack_base : ident -> 'a formula_t
+
 val mk_transition :
   ?mems:ISet.t ->
   ?insts:ident IMap.t ->
@@ -23,7 +25,7 @@ val mk_transition :
   'a list ->
   'a formula_t
 
-val mk_state_variable_pack : var_decl -> 'a formula_t
+val mk_state_variable_pack : ?tainted:bool -> var_decl -> 'a formula_t
 
 val mk_state_assign_tr : var_decl -> 'a -> 'a formula_t
 

@@ -112,7 +112,9 @@ let mk_transition ?(mems = ISet.empty) ?(insts = IMap.empty) ?r ?i ?inst
 
 let mk_memory_pack ?i ?inst id = mk_pred_call (MemoryPack (id, inst, i))
 
-let mk_state_variable_pack x = StateVarPack (StateVar x)
+let mk_memory_pack_base id = mk_pred_call (MemoryPackBase id)
+
+let mk_state_variable_pack ?(tainted=false) x = StateVarPack (StateVar x, tainted)
 
 let mk_state_assign_tr x v = Equal (Memory (StateVar x), Val v)
 

@@ -191,7 +191,7 @@ let stage1 params prog dirname basename extension =
       fprintf fmt "@[<v 2>@ %a@]@ " Printers.pp_prog prog);
 
   (* Initialization check phase *)
-  Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. initialization check@ ");
+  Log.report ~level:1 (fun fmt -> fprintf fmt "@ .. arrow tainting@ ");
   let prog = Arrow_taint.arrow_taint_prog prog in
 
   (* Compatibility with Lusi *)

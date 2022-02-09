@@ -66,6 +66,7 @@ type mc_contract_t = {
 type machine_spec = {
   mnode_spec : mc_contract_t node_spec_t option;
   mtransitions : mc_transition_t list;
+  mmemory_pack_base : mc_formula_t;
   mmemory_packs : int * mc_memory_pack_t list;
 }
 

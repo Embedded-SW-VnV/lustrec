@@ -298,10 +298,11 @@ let eq_carrier cr1 cr2 =
   || cr1'.carrier_desc = cr2'.carrier_desc
 
 let rec eq_clock ck1 ck2 =
+  ck1.cid = ck2.cid
+  ||
   let ck1' = repr ck1 in
   let ck2' = repr ck2 in
-  ck1.cid = ck2.cid
-  || ck1'.cid = ck2'.cid
+  ck1'.cid = ck2'.cid
   || match ck1'.cdesc, ck2'.cdesc with
   | Carrow (ck11, ck12), Carrow (ck21, ck22) ->
     eq_clock ck11 ck21 && eq_clock ck12 ck22
