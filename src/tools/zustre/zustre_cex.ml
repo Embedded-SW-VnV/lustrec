@@ -158,7 +158,7 @@ let build_cex machine machines decl_err =
   (*   (Z3.Statistics.Entry.to_string e) *)
     
   (* ) stats_entries; *)
-  let json : Yojson.json =
+  let json : Yojson.t =
     `Assoc [
       "Results",
       `Assoc [
