@@ -395,7 +395,7 @@ module Main (Mod : MODIFIERS_SRC) = struct
   and pp_machine_branch dependencies m self mem n fmt i (t, h) =
     fprintf
       fmt
-      (if i = n - 1 then "@[<v 2>default: // %a@,%a@]"
+      (if n > 1 && i = n - 1 then "@[<v 2>default: // %a@,%a@]"
       else "@[<v 2>case %a:@,%a@,break;@]")
       pp_c_tag
       t

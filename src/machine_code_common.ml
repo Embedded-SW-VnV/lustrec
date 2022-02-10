@@ -428,7 +428,7 @@ let id_to_tag id =
 let mk_conditional ?lustre_eq c t e =
   mkinstr ?lustre_eq (MBranch (c, [ tag_true, t; tag_false, e ]))
 
-let mk_branch ?lustre_eq c br = mkinstr ?lustre_eq (MBranch (c, br))
+let mk_branch ?lustre_eq c br = mkinstr ?lustre_eq (MBranch (c, sort_handlers br))
 
 let mk_branch' ?lustre_eq v = mk_branch ?lustre_eq (vdecl_to_val v)
 

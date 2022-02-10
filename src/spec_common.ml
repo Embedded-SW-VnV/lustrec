@@ -136,6 +136,6 @@ let mk_branch_tr x =
            let x = Var x in
            let c = if k = n - 1 then GEqual (x, tag) else Equal (x, tag) in
            Imply (c, spec))
-         hl)
+         (Corelang.sort_handlers hl))
 
 let mk_assign_tr x v = Equal (Var x, Val v)

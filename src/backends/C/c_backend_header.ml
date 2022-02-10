@@ -202,7 +202,7 @@ functor
           (protect_filename filename)
           !cpt
           (pp_print_braced pp_print_string)
-          tl
+          (List.sort compare tl)
           var
       | Tydec_struct fl ->
         incr cpt;
