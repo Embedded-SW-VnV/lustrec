@@ -174,7 +174,7 @@ let rec factors_constant fs =
 let norm_factors fs =
   let k = factors_constant fs in
   let nk = List.filter (fun d -> not (is_dimension_const d)) fs in
-  (k, List.sort Pervasives.compare nk)
+  (k, List.sort compare nk)
 
 let rec terms dim =
  match dim.dim_desc with

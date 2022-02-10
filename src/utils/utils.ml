@@ -257,7 +257,7 @@ let pp_final_char_if_non_empty c l =
 let pp_newline_if_non_empty l =
   (fun fmt -> match l with [] -> () | _ -> Format.fprintf fmt "@,")
 
-let fprintf_list ?(eol:('a, formatter, unit) Pervasives.format = "") ~sep:sep f fmt l =
+let fprintf_list ?(eol:('a, formatter, unit) format = "") ~sep:sep f fmt l =
   let rec aux fmt = function
   | []   -> ()
   | [e]  -> f fmt e
