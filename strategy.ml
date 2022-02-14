@@ -26,6 +26,16 @@ let is_pack (f: Lang.lfun) : bool =
     true
   with Not_found -> false
 
+(* check that a given predicate name is a reset_cleared relation *)
+let is_reset_cleared (f: Lang.lfun) : bool =
+  let open Str in
+  let r = regexp "_reset_cleared$" in
+  let s = Repr.lfun f in
+  try
+    ignore (search_forward r s 0);
+    true
+  with Not_found -> false
+
 (* tactical selection of the goal *)
 let select_g (g: Lang.F.pred) : Tactical.selection =
   let open Tactical in
@@ -118,11 +128,15 @@ class lustrec : Strategy.heuristic =
     method title = "LustreC" (* visible in Strategy panel *)
     method descr = "Custom goal transformations" (* idem *)
 
-    method search (push: Strategy.strategy -> unit) (sequent: Conditions.sequent) : unit =
+    method search (push: Strategy.strategy -> unit) (sequent: Conditions.sequent)
+      : unit =
       let goal = snd sequent in
       match Repr.pred goal with
-      (* if the goal is only a transition or memory pack call, unfold it *)
-      | Call (p, _) when is_transition p <> None || is_pack p ->
+      (* if the goal is only a transition, memory pack call or reset_cleared
+         relation, unfold it *)
+      | Call (p, _) when is_transition p <> None
+                      || is_pack p
+                      || is_reset_cleared p ->
         push (Auto.definition (select_g goal))
 
       (* if the goal is existential *)
