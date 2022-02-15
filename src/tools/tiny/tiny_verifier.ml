@@ -50,7 +50,7 @@ let tiny_run ~basename prog machines =
   let m = Machine_code_common.get_machine machines node_name in
   let env = (* We add each variables of the node the Tiny env *)
     Tiny_utils.machine_to_env m in
-  let nd = m.mname in
+  (*let nd = m.mname in*)
   (* Building preamble with some bounds on inputs *)
   (* TODO: deal woth contracts, asserts, ... *)
   let bounds_inputs = [] in
