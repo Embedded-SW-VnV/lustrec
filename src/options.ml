@@ -118,6 +118,9 @@ let kind2_print = ref false
 (* C main options *)
 let c_main_options = ref false
 
+(* compile contracts into acsl *)
+let compile_contracts = ref false
+
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)

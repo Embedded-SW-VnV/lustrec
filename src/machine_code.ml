@@ -440,7 +440,7 @@ let translate_eq env ctx nd mems inputs locals outputs i eq =
       let instr, spec = translate_act (var_x, eq.eq_rhs) in
       control_on_clock eq.eq_rhs.expr_clock instr false None spec ctx
     with Not_found ->
-      Format.eprintf "ERROR: node %s, eq %a@." id Printers.pp_node_eq eq;
+      Format.eprintf "ERROR: node %s, eq %a : unknown variable %s@." id Printers.pp_node_eq eq x;
       raise Not_found)
   | _ ->
     Format.eprintf

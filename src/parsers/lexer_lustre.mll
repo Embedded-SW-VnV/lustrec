@@ -118,17 +118,21 @@ let newline token lexbuf =
   Lex.newline lexbuf;
   token lexbuf
 
-let make_annot orig_loc s =
-  let lexbuf = Lexing.from_string s in
-  let f = Location.filename_of orig_loc in
-  ANNOT (Parse.parse (module LexerLustreSpec) ~orig_loc f s lexbuf
-        Parser_lustre.lustre_annot Parse.Inc.lustre_annot)
+let make_annot token orig_lexbuf orig_loc s =
+  if !Options.compile_contracts then
+    let lexbuf = Lexing.from_string s in
+    let f = Location.filename_of orig_loc in
+    ANNOT (Parse.parse (module LexerLustreSpec) ~orig_loc f s lexbuf
+          Parser_lustre.lustre_annot Parse.Inc.lustre_annot)
+  else token orig_lexbuf
 
-let make_spec orig_loc s =
-  let lexbuf = Lexing.from_string s in
-  let f = Location.filename_of orig_loc in
-  NODESPEC (Parse.parse (module LexerLustreSpec) ~orig_loc f s lexbuf
-        Parser_lustre.lustre_spec Parse.Inc.lustre_spec)
+let make_spec token orig_lexbuf orig_loc s =
+  if !Options.compile_contracts then
+    let lexbuf = Lexing.from_string s in
+    let f = Location.filename_of orig_loc in
+    NODESPEC (Parse.parse (module LexerLustreSpec) ~orig_loc f s lexbuf
+          Parser_lustre.lustre_spec Parse.Inc.lustre_spec)
+  else token orig_lexbuf
 }
 
 let newline = ('\010' | '\013' | "\013\010")
@@ -138,16 +142,16 @@ let blank = [' ' '\009' '\012']
 rule token = parse
 | "--@" { Buffer.clear buf;
           let loc = Location.curr lexbuf in
-          extra_singleline (make_spec loc) lexbuf }
+          extra_singleline (make_spec token lexbuf loc) lexbuf }
 | "(*@" { Buffer.clear buf; 
           let loc = Location.curr lexbuf in
-          extra_multiline (make_spec loc) Unfinished_node_spec 0 lexbuf }
+          extra_multiline (make_spec token lexbuf loc) Unfinished_node_spec 0 lexbuf }
 | "--!" { Buffer.clear buf;
           let loc = Location.curr lexbuf in
-          extra_singleline (make_annot loc) lexbuf }
+          extra_singleline (make_annot token lexbuf loc) lexbuf }
 | "(*!" { Buffer.clear buf;
           let loc = Location.curr lexbuf in
-          extra_multiline (make_annot loc) Unfinished_annot 0 lexbuf }
+          extra_multiline (make_annot token lexbuf loc) Unfinished_annot 0 lexbuf }
 | "(*"  { comment 0 lexbuf }
 | "--" [^ '!' '@'] notnewline* (newline|eof)
     { newline token lexbuf }

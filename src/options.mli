@@ -86,3 +86,5 @@ val compile_header : bool ref
 val track_exceptions : bool ref
 
 val c_main_options : bool ref
+
+val compile_contracts : bool ref

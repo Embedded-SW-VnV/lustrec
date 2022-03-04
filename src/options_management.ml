@@ -222,9 +222,12 @@ let lustrec_options =
             cpp := true;
             static_mem := false),
         "generates the mauve code" );
-      ( "-c_main_options",
+      ( "-c-main-options",
         Arg.Set c_main_options,
         "instrument the main C code with command line options" );
+      ( "-compile-contracts",
+        Arg.Set compile_contracts,
+        "compile Lustre contracts" );
     ]
 
 let lustret_options =
