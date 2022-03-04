@@ -309,15 +309,22 @@ let wp_args =
     "-wp-cache";     wp_cache;
   ]
 let wp_module = "strategy.ml"
-let wp_strategy = "LustreC"
+let wp_strategy =
+  String.concat ","
+    [
+      "LustreC:Transitions";
+      "LustreC:ResetCleared";
+      "LustreC:MemoryPacks"
+    ]
 let wp_auto_depth = 100 |> string_of_int
+let wp_auto_width = 100 |> string_of_int
 let wp_strategy_args =
+  wp_args @
   [
-    "-wp";
-    "-wp-prover";     wp_provers;
     "-load-module";   wp_module;
     "-wp-auto";       wp_strategy;
     "-wp-auto-depth"; wp_auto_depth;
+    "-wp-auto-width"; wp_auto_width;
   ]
 let frama_c_args f =
   wp_args

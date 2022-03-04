@@ -19,7 +19,7 @@ let is_transition_n (n: int) (f: Lang.lfun) : bool =
 (* check that a given predicate name is a memory pack simulation *)
 let is_pack (f: Lang.lfun) : bool =
   let open Str in
-  let r = regexp "_pack\\([0-9]+\\)$" in
+  let r = regexp "_pack\\(\|[0-9]+\|_base\\)$" in
   let s = Repr.lfun f in
   try
     ignore (search_forward r s 0);
@@ -122,21 +122,19 @@ let rec unify
   | _ ->
     Lang.F.lc_iter (unify push sequent vars) term
 
-class lustrec : Strategy.heuristic =
+(* Transitions heuristic *)
+class lustrec_transitions : Strategy.heuristic =
   object
-    method id = "LustreC" (* required, must be unique *)
-    method title = "LustreC" (* visible in Strategy panel *)
-    method descr = "Custom goal transformations" (* idem *)
+    method id = "LustreC:Transitions" (* required, must be unique *)
+    method title = "LustreC Transitions"
+    method descr = "Custom goal transformations for transition relations"
 
     method search (push: Strategy.strategy -> unit) (sequent: Conditions.sequent)
       : unit =
       let goal = snd sequent in
       match Repr.pred goal with
-      (* if the goal is only a transition, memory pack call or reset_cleared
-         relation, unfold it *)
-      | Call (p, _) when is_transition p <> None
-                      || is_pack p
-                      || is_reset_cleared p ->
+      (* if the goal is only a transition relation, unfold it *)
+      | Call (p, _) when is_transition p <> None ->
         push (Auto.definition (select_g goal))
 
       (* if the goal is existential *)
@@ -154,5 +152,118 @@ class lustrec : Strategy.heuristic =
       | _ -> ()
   end
 
-(* Register the strategy *)
-let () = Strategy.register (new lustrec)
+(* Reset Cleared heuristic *)
+class lustrec_reset_cleared : Strategy.heuristic =
+  object
+    method id = "LustreC:ResetCleared" (* required, must be unique *)
+    method title = "LustreC ResetCleared"
+    method descr = "Custom goal transformations for reset_cleared relations"
+
+    method search (push: Strategy.strategy -> unit) (sequent: Conditions.sequent)
+      : unit =
+      let goal = snd sequent in
+      match Repr.pred goal with
+      (* if the goal is only a reset_cleared relation, unfold it *)
+      | Call (p, _) when is_reset_cleared p ->
+        push (Auto.definition (select_g goal))
+
+      | _ -> ()
+  end
+
+(* unfold f(es) in the given context (context is handled with side-effects) *)
+let definition
+    (context: WpContext.context) (f: Lang.lfun) (es: Lang.F.term list)
+  : Lang.F.term =
+  let d = WpContext.on_context context Definitions.find_symbol f in
+  match d.d_definition with
+  | Predicate (_, p) ->
+    let sigma = Lang.subst d.d_params es in
+    Lang.F.e_prop (Lang.F.p_subst sigma p)
+  | _ ->
+    assert false
+
+(* rewrite a sequent by unfolding a top-level memory pack relation *)
+let unfold_process
+    (context: WpContext.context) (t: Lang.F.term) (sequent: Conditions.sequent)
+  : Conditions.sequent option =
+  match Repr.term t with
+  | Call (p, es) when is_pack p ->
+    let v = definition context p es in
+    Some (Conditions.subst (fun t' -> if t == t' then v else t') sequent)
+  | _ -> None
+
+(* sequent equality *)
+let eq_sequent s1 s2 =
+  Lang.F.eqp (snd s1) (snd s2)
+
+(* rewrite a sequent by recursively unfolding memory pack relations, by *)
+(* iterating over sub-terms *)
+let rec rewrite_process
+    (context: WpContext.context) (sequent: Conditions.sequent)
+  : Conditions.sequent =
+  let goal = Lang.F.e_prop (snd sequent) in
+  (* first try to unfold the whole term *)
+  match unfold_process context goal sequent with
+  | Some sequent' ->
+    if eq_sequent sequent' sequent
+    then sequent
+    else rewrite_process context sequent'
+  | None ->
+    (* otherwise try to unfold the first matching sub-term *)
+    let exception Found of Conditions.sequent in
+    try
+      Lang.F.lc_iter (fun t ->
+          match unfold_process context t sequent with
+          | Some sequent' ->
+            if not (eq_sequent sequent' sequent) then raise (Found sequent')
+          | None ->
+            ())
+        goal;
+      sequent
+    with Found sequent' -> rewrite_process context sequent'
+
+(* Memory Packs tactical *)
+class unfold_rec =
+  object
+    inherit Tactical.make ~id:"LustreC.unfold"
+        ~title:"Unfold rec MemoryPacks"
+        ~descr:"Unfold recursively MemoryPacks relations"
+        ~params:[]
+
+    method select _feedback (_s: Tactical.selection) =
+      let context = WpContext.get_context () in
+      Tactical.Applicable (fun sequent -> [ "", rewrite_process context sequent ])
+
+  end
+
+(* Memory Packs strategy *)
+let unfold_rec_strategy = Strategy.make (new unfold_rec) ~arguments:[]
+
+(* Memory Packs heuristic *)
+class lustrec_memory_packs : Strategy.heuristic =
+  object
+    method id = "LustreC:MemoryPacks" (* required, must be unique *)
+    method title = "LustreC MemoryPacks"
+    method descr = "Custom goal transformations for memory_pack relations"
+
+    method search (push: Strategy.strategy -> unit) (sequent: Conditions.sequent)
+      : unit =
+      let goal = snd sequent in
+      match Repr.pred goal with
+      (* if the goal is only a memory_pack relation, unfold it recursively *)
+      | Call (p, _) when is_pack p ->
+        push (unfold_rec_strategy (select_g goal))
+
+      (* split conjunctions and conditionnals *)
+      | And _
+      | If _ ->
+        push (Auto.split (select_g goal))
+
+      | _ -> ()
+  end
+
+(* Register the strategies *)
+let () =
+  Strategy.register (new lustrec_transitions);
+  Strategy.register (new lustrec_reset_cleared);
+  Strategy.register (new lustrec_memory_packs)
