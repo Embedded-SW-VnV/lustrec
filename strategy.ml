@@ -19,7 +19,7 @@ let is_transition_n (n: int) (f: Lang.lfun) : bool =
 (* check that a given predicate name is a memory pack simulation *)
 let is_pack (f: Lang.lfun) : bool =
   let open Str in
-  let r = regexp "_pack\\(\|[0-9]+\|_base\\)$" in
+  let r = regexp "_pack\\(\\|[0-9]+\\|_base\\)$" in
   let s = Repr.lfun f in
   try
     ignore (search_forward r s 0);
@@ -49,7 +49,10 @@ let select_h (h: Conditions.step) : Tactical.selection =
 (* get variables and predicate under existential binder *)
 let existential_vars_g (g: Lang.F.pred) : Lang.F.var list * Lang.F.term =
   let open Lang.F in
-  let vars, g = e_open ~forall:false ~lambda:false ~pool:(pool ()) (e_prop g) in
+  let copy = pool () in
+  let pool = pool ~copy () in
+  List.iter (add_var pool) (p_vars g);
+  let vars, g = e_open ~forall:false ~lambda:false ~pool (e_prop g) in
   List.map snd vars, g
 
 (* find the index of the first element that verifies p in l *)
@@ -113,10 +116,11 @@ let rec unify
     end
 
   | HigherOrder ->
-    let pool = Lang.F.pool () in
+    let copy = Lang.F.pool () in
+    let pool = Lang.F.pool ~copy () in
     let fv = Lang.F.e_vars term in
     List.iter (Lang.F.add_var pool) fv;
-    let qvars, term = Lang.F.e_open ~forall:false ~lambda:false ~pool term in
+    let _, term = Lang.F.e_open ~forall:false ~lambda:false ~pool term in
     unify push sequent vars term
 
   | _ ->

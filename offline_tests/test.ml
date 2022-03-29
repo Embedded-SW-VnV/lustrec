@@ -364,6 +364,18 @@ let get_loc f =
     end
   | _ -> -1
 
+let frama_c_session = "./frama-c"
+
+let rec rmrf path =
+  try
+    if Sys.is_directory path then begin
+      Sys.readdir path |>
+      Array.iter (fun name -> rmrf (Filename.concat path name));
+      Unix.rmdir path
+    end else Sys.remove path
+  with _ -> ()
+
+
 let rec verify report timeout fs =
   if fs <> [] then begin
     printf "@.%a@."
@@ -390,7 +402,8 @@ let rec verify report timeout fs =
           let report, ok, ko, tm, fmt_str, check, fs =
             if is_verified report f' then success ~already:true report
             else if is_failed report f' then fail ~already:true report
-            else
+            else begin
+              rmrf frama_c_session;
               let cmd = Filename.quote_command ~stdout:err_f "timeout"
                   (string_of_int timeout :: frama_c_cmd f'')
               in
@@ -412,6 +425,7 @@ let rec verify report timeout fs =
                 tm report f
               | _ ->
                 fail (add_failed report f')
+            end
           in
           print_result p f' fmt_str check;
           write_report report;

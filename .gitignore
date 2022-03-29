@@ -11,3 +11,7 @@ Makefile
 /bin
 *cache/
 /config.status
+/*.h
+/*.c
+/*.lus
+/*.lusic
