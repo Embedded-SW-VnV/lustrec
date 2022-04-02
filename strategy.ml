@@ -178,11 +178,12 @@ class lustrec_reset_cleared : Strategy.heuristic =
 let definition
     (context: WpContext.context) (f: Lang.lfun) (es: Lang.F.term list)
   : Lang.F.term =
-  let d = WpContext.on_context context Definitions.find_symbol f in
+  let on_ctx f = WpContext.on_context context f in
+  let d = on_ctx Definitions.find_symbol f in
   match d.d_definition with
   | Predicate (_, p) ->
     let sigma = Lang.subst d.d_params es in
-    Lang.F.e_prop (Lang.F.p_subst sigma p)
+    Lang.F.e_prop (on_ctx (Lang.F.p_subst sigma) p)
   | _ ->
     assert false
 
@@ -215,7 +216,7 @@ let rec rewrite_process
   | None ->
     (* otherwise try to unfold the first matching sub-term *)
     let exception Found of Conditions.sequent in
-    try
+    (try
       Lang.F.lc_iter (fun t ->
           match unfold_process context t sequent with
           | Some sequent' ->
@@ -224,7 +225,7 @@ let rec rewrite_process
             ())
         goal;
       sequent
-    with Found sequent' -> rewrite_process context sequent'
+    with Found sequent' -> rewrite_process context sequent')
 
 (* Memory Packs tactical *)
 class unfold_rec =
