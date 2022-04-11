@@ -27,13 +27,13 @@ let pp_var fmt ((n,t),ctx) =
      Format.fprintf fmt "%s __ %s = %b" n bv b  
 
   
-let pp_bound fmt b = Tiny.Scalar.pp fmt b 
+(*let pp_bound fmt b = Tiny.Scalar.pp fmt b *)
 
 module type S =
   sig
     module Results: Tiny.Analyze.Results
     val list: (int * Results.Dom.t) list
-    val bounds:  ((Tiny.Ast.Var.t * (Tiny.Ast.Var.t * bool) option) * (Tiny.Scalar.t * Tiny.Scalar.t)) list
+    val bounds:  ((Tiny.Ast.Var.t * (Tiny.Ast.Var.t * bool) option) * (Tiny.Bounds.t)) list
   end
   
 let process env ast results =
@@ -78,13 +78,12 @@ let build f_header f_content env ast results =
   *)
 
 let pp_bounds fmt bounds =
-  List.iter (fun ((v,ctx) as x, (min, max)) ->
+  List.iter (fun ((v,ctx) as x, bounds) ->
       
       Format.fprintf fmt
-        "%a in %a,%a@."
+        "%a in %a@."
         pp_var x
-        pp_bound min
-        pp_bound max)
+        Tiny.Bounds.pp bounds)
     bounds
   
 let pp env ast results fmt =
@@ -98,12 +97,11 @@ let pp env ast results fmt =
 let export env ast results fmt =
   let m = process env ast results in
   let module M = (val m: S) in
-  List.iter (fun (x, (min, max)) ->
+  List.iter (fun (x, bounds) ->
       Format.fprintf fmt
-        "%a in %a,%a@."
+        "%a in %a@."
         pp_var x
-        pp_bound min
-        pp_bound max)
+        Tiny.Bounds.pp bounds)
     M.bounds;
   Format.fprintf fmt "Tube: %i@." (List.length M.list);
   List.iter (fun (idx, elem) ->
@@ -149,17 +147,21 @@ let export_to_wide_csv  env ast results fmt =
       Format.fprintf fmt "@[<h 0>%i, %a@]"
         idx
         (Utils.fprintf_list ~sep:", "
-           (fun fmt (min_, max_) ->
-             let pp_bound fmt b = match b with
-               | None -> Format.fprintf fmt ","
-               | Some b -> Tiny.Scalar.pp fmt b
-             in
-             Format.fprintf fmt "%a, %a" pp_bound min_ pp_bound max_))
+           (fun fmt bounds_ (* (min_, max_) *) ->
+             match bounds_ with
+               None -> Format.fprintf fmt ",,,"
+             | Some b -> Tiny.Bounds.pp fmt b
+             (* let pp_bound fmt b = match b with
+              *   | None -> Format.fprintf fmt ","
+              *   | Some b -> Tiny.Bounds.pp fmt b (\* Scalar.pp fmt b *\)
+              * in *)
+             (* Format.fprintf fmt "%a, %a" pp_bound min_ pp_bound max_ *)))
         (List.map (fun v -> if List.mem_assoc v bounds_idx then
-                              let min_, max_ = List.assoc v bounds_idx in
-                              Some min_, Some max_
+                              Some (List.assoc v bounds_idx)
+                              (* let min_, max_ = List.assoc v bounds_idx in
+                               * Some min_, Some max_ *)
                             else
-                              None, None
+                              None(* , None *)
            ) ordered_list)
     ))
     bounds;
@@ -181,14 +183,11 @@ let export_to_csv  env ast results fmt =
     | Some ((bname,_ (* type should be bool *) ), bval) ->
         Format.fprintf fmt "%s,%a,%s,%b" n (Tiny.Ast.pp_base_type) t bname bval
   in
-  let pp_bound fmt (min_, max_) =
-    Format.fprintf fmt "%a,%a" Tiny.Scalar.pp min_ Tiny.Scalar.pp max_
-  in
   Format.fprintf fmt "timestep,varid,type,boolpart,boolval,min,max@.";
   Utils.fprintf_list ~sep:"@." (
       fun fmt (idx, idx_bounds) ->
       Utils.fprintf_list ~sep:"@." (fun fmt (vctx, vctx_bound) ->
-          Format.fprintf fmt "%i,%a,%a" idx pp_vctx vctx pp_bound vctx_bound
+          Format.fprintf fmt "%i,%a,%a" idx pp_vctx vctx Tiny.Bounds.pp vctx_bound
         ) fmt idx_bounds
     ) fmt bounds
 
