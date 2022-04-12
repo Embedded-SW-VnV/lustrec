@@ -1,0 +1,12 @@
+(include_subdirs no)
+
+(library
+ (name scopes)
+ (public_name lustrec.scopes)
+ (libraries lustrec_interface plugin_register))
+
+(plugin
+ (name scopes_plugin)
+ (libraries lustrec.scopes)
+ (site
+  (lustrec plugins)))

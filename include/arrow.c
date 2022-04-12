@@ -12,3 +12,11 @@ struct _arrow_mem * _arrow_alloc () {
 void _arrow_dealloc (struct _arrow_mem * _alloc) {
   free (_alloc);
 }
+
+_Bool _arrow_step(struct _arrow_mem *self) {
+  if (self->_reg._first) {
+    self->_reg._first = 0;
+    return 1;
+  }
+  return 0;
+}

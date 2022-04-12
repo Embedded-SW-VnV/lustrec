@@ -129,7 +129,7 @@ let export_to_wide_csv  env ast results fmt =
   in
   let ordered_list = VarIdSet.elements var_ids in
   Format.fprintf fmt "timestep,%a@."
-    (Utils.fprintf_list ~sep:","
+    (Utils.Format.pp_print_list ~pp_sep:Utils.Format.pp_print_comma
        (fun fmt ((n,_),ctx) ->
          let pp fmt =
            match ctx with
@@ -142,11 +142,11 @@ let export_to_wide_csv  env ast results fmt =
     ))
     ordered_list;
   Format.fprintf fmt "%a@."
-    (Utils.fprintf_list ~sep:"@."
+    (Utils.Format.pp_print_list ~pp_sep:(fun fmt()  -> Format.fprintf fmt "@.")
     (fun fmt (idx, bounds_idx) ->
       Format.fprintf fmt "@[<h 0>%i, %a@]"
         idx
-        (Utils.fprintf_list ~sep:", "
+        (Utils.Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ")
            (fun fmt bounds_ (* (min_, max_) *) ->
              match bounds_ with
                None -> Format.fprintf fmt ",,,"
@@ -184,9 +184,9 @@ let export_to_csv  env ast results fmt =
         Format.fprintf fmt "%s,%a,%s,%b" n (Tiny.Ast.pp_base_type) t bname bval
   in
   Format.fprintf fmt "timestep,varid,type,boolpart,boolval,min,max@.";
-  Utils.fprintf_list ~sep:"@." (
+  Utils.Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt "@.") (
       fun fmt (idx, idx_bounds) ->
-      Utils.fprintf_list ~sep:"@." (fun fmt (vctx, vctx_bound) ->
+      Utils.Format.pp_print_list  ~pp_sep:(fun fmt () -> Format.fprintf fmt "@.") (fun fmt (vctx, vctx_bound) ->
           Format.fprintf fmt "%i,%a,%a" idx pp_vctx vctx Tiny.Bounds.pp vctx_bound
         ) fmt idx_bounds
     ) fmt bounds

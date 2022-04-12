@@ -1,3 +1,31 @@
+* Tests
+** minimal unit tests
+*** TODO write (really) minimal unit tests for compilation
+*** TODO write (really) minimal unit tests for ACSL generation
+** more evolved tests
+*** TODO find interesting tests for verification (cf. Ploc)
+    - PID
+    - alarm, triplex voter
+** TODO classify existing tests
+** TODO verify if there are Lustre V4/V6 regression tests
+* ACSL backend for C generation
+** tests metrics
+*** TODO find interesting metrics for tests
+
+    - # C LoC
+    - # goals
+    - # nodes in file
+    - # memories
+    - tree depth
+* Language
+** arrays
+   Add arrays
+** external C functions
+   Add external C functions
+* Zustre
+** TODO restart Zustre development
+** TODO compare Zustre with Kind2 on benchmarks
+
 * Cocospec integration
 ** Objective
 Enable the parsing of cocospec in comments. The syntax is the one of Kind2 but
@@ -7,7 +35,7 @@ In terms of integration within LustreC, it has to be done at all stages
 - parsing/lexing
 - typing
 - clocking
-- normalization: the cocospec lustre equations have to be normalized 
+- normalization: the cocospec lustre equations have to be normalized
 - printing
 - machine code
 - various backends
@@ -29,14 +57,14 @@ But also some not-so-nice features (ploc's remarks):
   don't want pure specification artifact as top level definition in the lustre
   file (no contract def outside comments)
   - Frama-C inspiration
-    I would prefer like in framac:  
-    //@ensures prop; 
+    I would prefer like in framac:
+    //@ensures prop;
     node foo (...) returns (...);
 
     Rather than
     node foo (...) returns (...);
-    //@ensures prop; 
-  
+    //@ensures prop;
+
     While it make sense when you provide specification within the lustre file, it
     is less appropriate when specifying outside the lustre model. Eg in a lusi, #open
     spec.lusi
@@ -45,14 +73,14 @@ But also some not-so-nice features (ploc's remarks):
     In Kind2 they have a notion of interfaces, but they need an explicit local
     annotation linking the node to the contract
 
-    In foo.lus we would have 
+    In foo.lus we would have
     #include foo_spec.lus
 
     node bar (...) returns (...);
     (*@ contract import bar_spec (in) returns (out); *)
-    let  ... tel 
-  
-    In foo_spec.lus 
+    let  ... tel
+
+    In foo_spec.lus
     contract bar_spec (..) returns (..)
 
   - Remote specification (in lusi)
@@ -66,47 +94,47 @@ But also some not-so-nice features (ploc's remarks):
 
     Or, more generally, support contracts definition only in lusi and assigning
     contracts to nodes in the lusi or in the lus
- 
+
     For example in the lusi
 
     contract bar_spec1 () returns ();
-    let 
+    let
      ... contract 1
     tel
 
     contract bar_spec2 () returns ();
-    let 
+    let
      ... contract 2
     tel
 
     node bar (...) returns (...);
-    (*@ contract 
+    (*@ contract
           import bar_spec1 (in) returns (out);
           import bar_spec2 (in) returns (out);
     *)
-  
+
     node bar2 (...) returns (...);
     (*@ contract guarantee expr; *)
-  
+
     Or with annotations before the headers
-    (*@ contract 
+    (*@ contract
           import bar_spec1 (in) returns (out);
           import bar_spec2 (in) returns (out);
     *)
     node bar (...) returns (...);
-  
+
     (*@ contract guarantee expr; *)
     node bar2 (...) returns (...);
 
     In the associated lustre file
-    
+
     #open my_spec.lusi
-    
+
     node bar (...) returns (...)
     let
       full definition
     tel
-   
+
     node bar3 (...) returns (...)
     (*@ contract my_remote contract *)
     let
@@ -149,7 +177,7 @@ But also some not-so-nice features (ploc's remarks):
   - lexeur/parseur lustreSpec + document latex de grammaire
 - repartir la branche acsl2018 qui contient la normalisation des eexpr
   - le refaire compiler
-  - merger avec unstable 
+  - merger avec unstable
 - transformer cette normalisation pour partager les definitions locales de
   variables dans le noeud de spec, aka contract
 
@@ -240,10 +268,10 @@ x = if c then expr else x
 
 The Seal library should be available from LustreV
 
-lustrev -seal -node foo bar.lus 
+lustrev -seal -node foo bar.lus
 
 shall inline completely the node foo in bar.lus and compile it as a
-piecewise system: 
+piecewise system:
 - Memories have to be identified and one needs to separate the update
   of the memories and the production of the output.
 - The update block should be normalized so that any ite occuring in
@@ -273,7 +301,7 @@ API.
 - one can then iterate through eqs from the bottom to the top
   if the eq looks like x = if g then e1 else e2
   then tag x as ite(g,e1,e2)
-  if the parent expr y = if g2 then x else ... make 
+  if the parent expr y = if g2 then x else ... make
 ** More general use
 Some ideas
 - One could request multiple nodes: how to deal with these? Acting as
@@ -283,26 +311,26 @@ Some ideas
 - The analysis will depend on bounds on input flows. Can we specialize
   the update blocks based on input values, ie. disabling some branches
   of the ite-tree?
-- 
+-
 
 ** TODO list
 
 * Salsa
-* Lusic 
+* Lusic
   Lusic can be generated either from lusi files or from lus files
   They shall contain at least
   - the complete definitions of types
   - the complete definition of constants
   - the list of nodes and their types/clocks
   - the complete definition of specification components:
-    - either defined in lusi as 
+    - either defined in lusi as
       - node spec: attached to a node
       - contract: expressed as an imported node with a spec
     - or defined in the lus
       - node spec
       - contract defined in a comment
   - some compilation related information if compiled from a lusi
-    
+
 
   What happen when we compile first a lusi and then the lus file?
   - types of the lus node are checked wrt the ones available in the
@@ -338,4 +366,3 @@ Some ideas
   to the backend implemented.  Let say that this lusi file can be used
   for the C backend then a C file should be provided. Do we want to
   mention it in the lusi file?
-

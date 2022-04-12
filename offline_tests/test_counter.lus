@@ -1,0 +1,13 @@
+node test_counter (x:bool) returns (_state: int);
+var ok: bool;
+let
+  automaton mini_states
+  state One : 
+  let 
+    _state, ok = (1, false);
+  tel until true restart One
+  -- state Two : 
+  -- let 
+  --   _state, ok = (2, false);
+  -- tel until true restart One
+tel

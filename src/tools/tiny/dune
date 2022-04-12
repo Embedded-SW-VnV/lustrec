@@ -1,0 +1,14 @@
+(include_subdirs no)
+
+(library
+ (name tiny_verifier)
+ (public_name lustrec.tiny_verifier)
+ (libraries verifier_register tiny)
+ (optional))
+
+(plugin
+ (name tiny_verifier)
+ (libraries lustrec.tiny_verifier)
+ (site
+  (lustrec verifiers))
+ (optional))

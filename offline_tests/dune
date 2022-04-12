@@ -1,0 +1,11 @@
+(test
+ (name test)
+ (libraries re unix yojson)
+ (deps
+  (:strategy %{project_root}/strategy.ml)
+  (:lus (glob_files *.lus))
+  (:ign ignored))
+ (action
+  (progn
+   (system "cp %{strategy} strategy.ml")
+   (run %{test} %{bin:lustrec} "%{lus}" %{ign}))))

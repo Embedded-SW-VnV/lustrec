@@ -13,11 +13,11 @@ sig
   val parse_event     : Y.t -> Basetypes.event_t
 end
 
-module Parser (Ext : ParseExt) =
-struct
+module Parser (Ext : ParseExt) = struct
   exception JSON_parse_error of string
 
   let path_split = String.split_on_char '/'
+
   let path_concat = String.concat (String.make 1 '/')
 
   module YU = Y.Util
@@ -107,12 +107,19 @@ struct
       )
   and scope_of_string s =
     match s with
-    | "Constant"  -> Constant
-    | "Input"     -> Input
-    | "Local"     -> Local
-    | "Output"    -> Output
-    | "Parameter" -> Parameter
-    | _           -> raise (JSON_parse_error ("Invalid scope for variable: " ^ s))
+    | "Constant" ->
+      Constant
+    | "Input" ->
+      Input
+    | "Local" ->
+      Local
+    | "Output" ->
+      Output
+    | "Parameter" ->
+      Parameter
+    | _ ->
+      raise (JSON_parse_error ("Invalid scope for variable: " ^ s))
+
   and parse_real_value s =
     Logs.debug (fun m -> m "parse_real_value %s" s);
       let real_regexp_simp = regexp "\\(-?[0-9][0-9]*\\)\\.\\([0-9]*\\)" in
@@ -170,4 +177,3 @@ and lustre_datatype_of_json json location =
     { variable = vdecl; init_val = initial_value }
     
 end
-

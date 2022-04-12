@@ -9,427 +9,401 @@
 (*                                                                  *)
 (********************************************************************)
 
-open Format 
+open Utils.Format
 open Lustre_types
 open Corelang
 open Machine_code_types
 open Machine_code_common
 open C_backend_common
+module Mpfr = Lustrec_mpfr
 
 (********************************************************************************************)
-(*                         Header Printing functions                                        *)
+(* Header Printing functions *)
 (********************************************************************************************)
 
+module type MODIFIERS_HDR = sig
+  module GhostProto : MODIFIERS_GHOST_PROTO
 
-module type MODIFIERS_HDR =
-sig
-  val print_machine_decl_prefix: Format.formatter -> machine_t -> unit
+  val pp_machine_decl_prefix : formatter -> machine_t -> unit
+
+  val pp_predicates : formatter -> machine_t list -> unit
+
+  val pp_import_arrow : formatter -> unit -> unit
+
+  val pp_machine_alloc_decl : formatter -> machine_t -> unit
 end
 
-module EmptyMod =
-struct
-  let print_machine_decl_prefix = fun fmt x -> ()
+module EmptyMod = struct
+  module GhostProto = EmptyGhostProto
+
+  let pp_machine_decl_prefix _ _ = ()
+
+  let pp_predicates _ _ = ()
+
+  let pp_import_arrow fmt () =
+    fprintf
+      fmt
+      "#include \"%s/arrow.h%s\""
+      (Arrow.arrow_top_decl ()).top_decl_owner
+      (if !Options.cpp then "pp" else "")
+
+  let pp_machine_alloc_decl _ _ = ()
 end
 
-module Main = functor (Mod: MODIFIERS_HDR) -> 
-struct
+module Main =
+functor
+  (Mod : MODIFIERS_HDR)
+  ->
+  struct
+    module Protos = Protos (Mod.GhostProto)
 
-let print_import_standard fmt =
-  begin
-    (* if Machine_types.has_machine_type () then *)
-    (*   begin *)
-	fprintf fmt "#include <stdint.h>@.";
-      (* end; *)
-    if !Options.mpfr then
-      begin
-	fprintf fmt "#include <mpfr.h>@."
-      end;
-    if !Options.cpp then
-      fprintf fmt "#include \"%s/arrow.hpp\"@.@." Arrow.arrow_top_decl.top_decl_owner 
-    else
-      fprintf fmt "#include \"%s/arrow.h\"@.@." Arrow.arrow_top_decl.top_decl_owner 
-	
-  end
+    let pp_import_standard fmt () =
+      (* if Machine_types.has_machine_type () then *)
+      fprintf
+        fmt
+        "#include <stdint.h>@,%a%a"
+        (if !Options.mpfr then pp_print_endcut "#include <mpfr.h>"
+        else pp_print_nothing)
+        ()
+        Mod.pp_import_arrow
+        ()
 
-let rec print_static_val pp_var fmt v =
-  match v.value_desc with
-  | Cst c         -> pp_c_const fmt c
-  | Var v         -> pp_var fmt v
-  | Fun (n, vl)   -> pp_basic_lib_fun (Types.is_int_type v.value_type) n (print_static_val pp_var) fmt vl
-  | _             -> (Format.eprintf "Internal error: C_backend_header.print_static_val"; assert false)
-
-let print_constant_decl (m, attr, inst) pp_var fmt v =
-  Format.fprintf fmt "%s %a = %a"
-    attr
-    (pp_c_type (Format.sprintf "%s ## %s" inst v.var_id)) v.var_type
-    (print_static_val pp_var) (get_const_assign m v)
-
-let print_static_constant_decl (m, attr, inst) fmt const_locals =
-  let pp_var fmt v =
-    if List.mem v const_locals
-    then
-      Format.fprintf fmt "%s ## %s" inst v.var_id
-    else 
-      Format.fprintf fmt "%s" v.var_id in
-  Format.fprintf fmt "%a%t"
-    (Utils.fprintf_list ~sep:";\\@," (print_constant_decl (m, attr, inst) pp_var)) const_locals
-    (Utils.pp_final_char_if_non_empty ";\\@," const_locals)
-
-let print_static_declare_instance (m, attr, inst) const_locals fmt (i, (n, static)) =
-  let pp_var fmt v =
-    if List.mem v const_locals
-    then
-      Format.fprintf fmt "%s ## %s" inst v.var_id
-    else 
-      Format.fprintf fmt "%s" v.var_id in
-  let values = List.map (value_of_dimension m) static in
-  fprintf fmt "%a(%s, %a%t%s)"
-    pp_machine_static_declare_name (node_name n)
-    attr
-    (Utils.fprintf_list ~sep:", " (print_static_val pp_var)) values
-    (Utils.pp_final_char_if_non_empty ", " static)
-    i
-
-let print_static_declare_macro fmt (m, attr, inst) =
-  let const_locals = List.filter (fun vdecl -> vdecl.var_dec_const) m.mstep.step_locals in
-  let array_mem = List.filter (fun v -> Types.is_array_type v.var_type) m.mmemory in
-  fprintf fmt "@[<v 2>#define %a(%s, %a%t%s)\\@,%a%s %a %s;\\@,%a%t%a;@,@]"
-    pp_machine_static_declare_name m.mname.node_id
-    attr
-    (Utils.fprintf_list ~sep:", " (pp_c_var_read m)) m.mstatic
-    (Utils.pp_final_char_if_non_empty ", " m.mstatic)
-    inst
-    (* constants *)
-    (print_static_constant_decl (m, attr, inst)) const_locals
-    attr
-    pp_machine_memtype_name m.mname.node_id
-    inst
-    (Utils.fprintf_list ~sep:";\\@," (pp_c_decl_local_var m)) array_mem
-    (Utils.pp_final_char_if_non_empty ";\\@," array_mem)
-    (Utils.fprintf_list ~sep:";\\@,"
-       (fun fmt (i',m') ->
-	 let path = sprintf "%s ## _%s" inst i' in
-	 fprintf fmt "%a"
-	   (print_static_declare_instance (m, attr, inst) const_locals) (path, m')
-       )) m.minstances
-
-      
-let print_static_link_instance fmt (i, (m, _)) =
- fprintf fmt "%a(%s)" pp_machine_static_link_name (node_name m) i
-
-(* Allocation of a node struct:
-   - if node memory is an array/matrix/etc, we cast it to a pointer (see pp_registers_struct)
-*)
-let print_static_link_macro fmt (m, attr, inst) =
-  let array_mem = List.filter (fun v -> Types.is_array_type v.var_type) m.mmemory in
-  fprintf fmt "@[<v>@[<v 2>#define %a(%s) do {\\@,%a%t%a;\\@]@,} while (0)@.@]"
-    pp_machine_static_link_name m.mname.node_id
-    inst
-    (Utils.fprintf_list ~sep:";\\@,"
-       (fun fmt v ->
-	 fprintf fmt "%s._reg.%s = (%a*) &%s"
-	   inst
-	   v.var_id
-           (fun fmt v -> pp_c_type "" fmt (Types.array_base_type v.var_type)) v
-	   v.var_id
-       )) array_mem
-    (Utils.pp_final_char_if_non_empty ";\\@," array_mem)
-    (Utils.fprintf_list ~sep:";\\@,"
-       (fun fmt (i',m') ->
-	 let path = sprintf "%s ## _%s" inst i' in
-	 fprintf fmt "%a;\\@,%s.%s = &%s"
-	   print_static_link_instance (path,m')
-	   inst
-	   i'
-	   path
-       )) m.minstances
-
-let print_static_alloc_macro fmt (m, attr, inst) =
-  fprintf fmt "@[<v>@[<v 2>#define %a(%s, %a%t%s)\\@,%a(%s, %a%t%s);\\@,%a(%s);@]@,@]@."
-    pp_machine_static_alloc_name m.mname.node_id
-    attr
-    (Utils.fprintf_list ~sep:", " (pp_c_var_read m)) m.mstatic
-    (Utils.pp_final_char_if_non_empty ", " m.mstatic)
-    inst
-    pp_machine_static_declare_name m.mname.node_id
-    attr
-    (Utils.fprintf_list ~sep:", " (pp_c_var_read m)) m.mstatic
-    (Utils.pp_final_char_if_non_empty ", " m.mstatic)
-    inst
-    pp_machine_static_link_name m.mname.node_id
-    inst
-
-(* TODO: ACSL
-we do multiple things:
-- provide the semantics of the node as a predicate: function step and reset are associated to ACSL predicate
-- the node is associated to a refinement contract, wrt its ACSL sem
-- if the node is a regular node associated to a contract, print the contract as function contract.
-- do not print anything if this is a contract node
-*)
-let print_machine_alloc_decl machines fmt m =
-  Mod.print_machine_decl_prefix fmt m;
-  if fst (get_stateless_status m) then
-    begin
-    end
-  else
-    begin
-      if !Options.static_mem
-      then
-	begin
-	  (* Static allocation *)
-	  let inst = mk_instance m in
-	  let attr = mk_attribute m in
-	  fprintf fmt "%a@.%a@.%a@."
-		  print_static_declare_macro (m, attr, inst)
-		  print_static_link_macro (m, attr, inst)
-		  print_static_alloc_macro (m, attr, inst)
-	end
-      else
-	begin 
+    (* TODO: ACSL we do multiple things: - provide the semantics of the node as
+       a predicate: function step and reset are associated to ACSL predicate -
+       the node is associated to a refinement contract, wrt its ACSL sem - if
+       the node is a regular node associated to a contract, print the contract
+       as function contract. - do not print anything if this is a contract
+       node *)
+    let pp_machine_alloc_decl fmt m =
+      Mod.pp_machine_decl_prefix fmt m;
+      if not (fst (get_stateless_status m)) then
+        if !Options.static_mem then
+          (* Static allocation *)
+          let macro = m, mk_attribute m, mk_instance m in
+          fprintf
+            fmt
+            "%a@,%a@,%a"
+            (fun x -> pp_static_declare_macro x)
+            macro
+            (fun x -> pp_static_link_macro x)
+            macro
+            (fun x -> pp_static_alloc_macro x)
+            macro
+        else
           (* Dynamic allocation *)
-	  fprintf fmt "extern %a;@.@."
-	    print_alloc_prototype (m.mname.node_id, m.mstatic);
+          fprintf
+            fmt
+            "extern %a;@,extern %a"
+            pp_alloc_prototype
+            (m.mname.node_id, m.mstatic)
+            pp_dealloc_prototype
+            m.mname.node_id
 
-	  fprintf fmt "extern %a;@.@."
-	    print_dealloc_prototype m.mname.node_id
-	end
-    end
+    let pp_machine_struct_top_decl_from_header fmt tdecl =
+      let inode = imported_node_of_top tdecl in
+      if not (inode.nodei_stateless || inode.nodei_iscontract) then
+        (* Declare struct *)
+        fprintf fmt "%a;" (pp_machine_memtype_name ~ghost:false) inode.nodei_id
 
-let print_machine_decl_from_header fmt inode =
-  (*Mod.print_machine_decl_prefix fmt m;*)
-  if inode.nodei_prototype = Some "C" then
-    if inode.nodei_stateless then
-      begin
-	fprintf fmt "extern %a;@.@."
-	  print_stateless_C_prototype
-	  (inode.nodei_id, inode.nodei_inputs, inode.nodei_outputs)
-      end
-    else (Format.eprintf "internal error: print_machine_decl_from_header"; assert false)
-  else
-    if inode.nodei_stateless then
-    begin
-      fprintf fmt "extern %a;@.@."
-	print_stateless_prototype 
-	(inode.nodei_id, inode.nodei_inputs, inode.nodei_outputs)
-    end
-    else 
-      begin
-	let static_inputs = List.filter (fun v -> v.var_dec_const) inode.nodei_inputs in
-	let used name =
-	  (List.exists (fun v -> v.var_id = name) inode.nodei_inputs)
-	  || (List.exists (fun v -> v.var_id = name) inode.nodei_outputs) in
-	let self = mk_new_name used "self" in
-	fprintf fmt "extern %a;@.@."
-	  (print_reset_prototype self) (inode.nodei_id, static_inputs);
+    let pp_stateless_C_prototype fmt (name, inputs, outputs) =
+      let output = match outputs with [ hd ] -> hd | _ -> assert false in
+      fprintf
+        fmt
+        "%a %s %a"
+        (fun x -> pp_basic_c_type ~pp_c_basic_type_desc x)
+        output.var_type
+        name
+        (pp_print_parenthesized pp_c_decl_input_var)
+        inputs
 
-	fprintf fmt "extern %a;@.@."
-	  (print_init_prototype self) (inode.nodei_id, static_inputs);
+    let pp_machine_decl_top_decl_from_header fmt tdecl =
+      let inode = imported_node_of_top tdecl in
+      (*Mod.print_machine_decl_prefix fmt m;*)
+      let prototype = inode.nodei_id, inode.nodei_inputs, inode.nodei_outputs in
+      if not inode.nodei_iscontract then
+        if inode.nodei_prototype = Some "C" then
+          if inode.nodei_stateless then
+            fprintf fmt "extern %a;" pp_stateless_C_prototype prototype
+          else (
+            (* TODO: raise proper error *)
+            Format.eprintf
+              "internal error: pp_machine_decl_top_decl_from_header";
+            assert false)
+        else if inode.nodei_stateless then
+          fprintf fmt "extern %a;" Protos.pp_stateless_prototype prototype
+        else
+          let static_inputs =
+            List.filter (fun v -> v.var_dec_const) inode.nodei_inputs
+          in
+          let used name =
+            List.exists
+              (fun v -> v.var_id = name)
+              (inode.nodei_inputs @ inode.nodei_outputs)
+          in
+          let self = mk_new_name used "self" in
+          let mem = mk_new_name used "mem" in
+          let static_prototype = inode.nodei_id, static_inputs in
+          fprintf
+            fmt
+            "extern %a;@,extern %a;@,extern %a;@,extern %a;@,extern %a;"
+            (Protos.pp_set_reset_prototype self mem)
+            static_prototype
+            (Protos.pp_clear_reset_prototype self mem)
+            static_prototype
+            (Protos.pp_init_prototype self)
+            static_prototype
+            (Protos.pp_clear_prototype self)
+            static_prototype
+            (Protos.pp_step_prototype self mem)
+            prototype
 
-	fprintf fmt "extern %a;@.@."
-	  (print_clear_prototype self) (inode.nodei_id, static_inputs);
+    let pp_const_top_decl fmt tdecl =
+      let cdecl = const_of_top tdecl in
+      fprintf
+        fmt
+        "extern %a;"
+        (pp_c_type cdecl.const_id)
+        (if
+         !Options.mpfr
+         && Types.(is_real_type (array_base_type cdecl.const_type))
+        then Types.dynamic_type cdecl.const_type
+        else cdecl.const_type)
 
-	fprintf fmt "extern %a;@.@."
-	  (print_step_prototype self)
-	  (inode.nodei_id, inode.nodei_inputs, inode.nodei_outputs)
-      end
+    let rec pp_c_type_decl filename cpt var fmt tdecl =
+      match tdecl with
+      | Tydec_any ->
+        assert false
+      | Tydec_int ->
+        fprintf fmt "int %s" var
+      | Tydec_real when !Options.mpfr ->
+        fprintf fmt "%s %s" Mpfr.mpfr_t var
+      | Tydec_real ->
+        fprintf fmt "double %s" var
+      (* | Tydec_float -> fprintf fmt "float %s" var *)
+      | Tydec_bool ->
+        fprintf fmt "_Bool %s" var
+      | Tydec_clock ty ->
+        pp_c_type_decl filename cpt var fmt ty
+      | Tydec_const c ->
+        fprintf fmt "%s %s" c var
+      | Tydec_array (d, ty) ->
+        fprintf
+          fmt
+          "%a[%a]"
+          (pp_c_type_decl filename cpt var)
+          ty
+          pp_c_dimension
+          d
+      | Tydec_enum tl ->
+        incr cpt;
+        fprintf
+          fmt
+          "enum _enum_%s_%d %a %s"
+          (protect_filename filename)
+          !cpt
+          (pp_print_braced pp_print_string)
+          (List.sort compare tl)
+          var
+      | Tydec_struct fl ->
+        incr cpt;
+        fprintf
+          fmt
+          "struct _struct_%s_%d %a %s"
+          (protect_filename filename)
+          !cpt
+          (pp_print_braced ~pp_sep:pp_print_semicolon (fun fmt (label, tdesc) ->
+               pp_c_type_decl filename cpt label fmt tdesc))
+          fl
+          var
 
-let print_const_decl fmt cdecl =
-  if !Options.mpfr &&  Types.is_real_type (Types.array_base_type cdecl.const_type)
-  then
-    fprintf fmt "extern %a;@." 
-      (pp_c_type cdecl.const_id) (Types.dynamic_type cdecl.const_type) 
-  else
-    fprintf fmt "extern %a;@." 
-      (pp_c_type cdecl.const_id) cdecl.const_type
+    (* let print_type_definitions fmt filename =
+     *   let cpt_type = ref 0 in
+     *   Hashtbl.iter (fun typ decl ->
+     *       match typ with
+     *       | Tydec_const var ->
+     *         begin match decl.top_decl_desc with
+     *           | TypeDef tdef ->
+     *             fprintf fmt "typedef %a;@.@."
+     *               (pp_c_type_decl filename cpt_type var) tdef.tydef_desc
+     *           | _ -> assert false
+     *         end
+     *       | _ -> ()) type_table *)
 
-let rec pp_c_struct_type_field filename cpt fmt (label, tdesc) =
-   fprintf fmt "%a;" (pp_c_type_decl filename cpt label) tdesc
-and pp_c_type_decl filename cpt var fmt tdecl =
-  match tdecl with
-  | Tydec_any           -> assert false
-  | Tydec_int           -> fprintf fmt "int %s" var
-  | Tydec_real when !Options.mpfr
-                        -> fprintf fmt "%s %s" Mpfr.mpfr_t var
-  | Tydec_real          -> fprintf fmt "double %s" var
-  (* | Tydec_float         -> fprintf fmt "float %s" var *)
-  | Tydec_bool          -> fprintf fmt "_Bool %s" var
-  | Tydec_clock ty      -> pp_c_type_decl filename cpt var fmt ty
-  | Tydec_const c       -> fprintf fmt "%s %s" c var
-  | Tydec_array (d, ty) -> fprintf fmt "%a[%a]" (pp_c_type_decl filename cpt var) ty pp_c_dimension d
-  | Tydec_enum tl ->
-    begin
-      incr cpt;
-      fprintf fmt "enum _enum_%s_%d { %a } %s" (protect_filename filename) !cpt (Utils.fprintf_list ~sep:", " pp_print_string) tl var
-    end
-  | Tydec_struct fl ->
-    begin
-      incr cpt;
-      fprintf fmt "struct _struct_%s_%d { %a } %s" (protect_filename filename) !cpt (Utils.fprintf_list ~sep:" " (pp_c_struct_type_field filename cpt)) fl var
-    end
+    let reset_type_definitions, pp_type_definition_top_decl_from_header =
+      let cpt_type = ref 0 in
+      ( (fun () -> cpt_type := 0),
+        fun filename fmt tdecl ->
+          let typ = typedef_of_top tdecl in
+          fprintf
+            fmt
+            "typedef %a;"
+            (pp_c_type_decl filename cpt_type typ.tydef_id)
+            typ.tydef_desc )
 
-let print_type_definitions fmt filename =
-  let cpt_type = ref 0 in
-  Hashtbl.iter (fun typ decl ->
-		match typ with
-		| Tydec_const var ->
-		   (match decl.top_decl_desc with
-		    | TypeDef tdef ->
-		       fprintf fmt "typedef %a;@.@."
-			       (pp_c_type_decl filename cpt_type var) tdef.tydef_desc
-		    | _ -> assert false)
-		| _        -> ()) type_table
+    (********************************************************************************************)
+    (* MAIN Header Printing functions *)
+    (********************************************************************************************)
 
-let reset_type_definitions, print_type_definition_from_header =
-  let cpt_type =ref 0 in
-  ((fun () -> cpt_type := 0),
-   (fun fmt typ filename ->
-    fprintf fmt "typedef %a;@.@."
-	(pp_c_type_decl filename cpt_type typ.tydef_id) typ.tydef_desc))
-
-(********************************************************************************************)
-(*                         MAIN Header Printing functions                                   *)
-(********************************************************************************************)
-(* Seems not used
-
-let print_header header_fmt basename prog machines dependencies =
-  (* Include once: start *)
-  let baseNAME = file_to_module_name basename in
-  begin
-    (* Print the version number and the supported C standard (C90 or C99) *)
-    print_version header_fmt;
-    fprintf header_fmt "#ifndef _%s@.#define _%s@." baseNAME baseNAME;
-    pp_print_newline header_fmt ();
-    fprintf header_fmt "/* Imports standard library */@.";
-    (* imports standard library definitions (arrow) *)
-    print_import_standard header_fmt;
-    pp_print_newline header_fmt ();
-    (* imports dependencies *)
-    fprintf header_fmt "/* Import dependencies */@.";
-    fprintf header_fmt "@[<v>";
-    List.iter (print_import_prototype header_fmt) dependencies;
-    fprintf header_fmt "@]@.";
-    fprintf header_fmt "/* Types definitions */@.";
-    (* Print the type definitions from the type table *)
-    print_type_definitions header_fmt basename;
-    pp_print_newline header_fmt ();
-    (* Print the global constant declarations. *)
-    fprintf header_fmt "/* Global constant (declarations, definitions are in C file) */@.";
-    List.iter (fun c -> print_const_decl header_fmt (const_of_top c)) (get_consts prog);
-    pp_print_newline header_fmt ();
-    if !Options.mpfr then
-      begin
-	fprintf header_fmt "/* Global initialization declaration */@.";
-	fprintf header_fmt "extern %a;@.@."
-	  print_global_init_prototype baseNAME;
-	
-	fprintf header_fmt "/* Global clear declaration */@.";
-	fprintf header_fmt "extern %a;@.@."
-	  print_global_clear_prototype baseNAME;
-      end;
-    (* Print the struct declarations of all machines. *)
-    fprintf header_fmt "/* Structs declarations */@.";
-    List.iter (print_machine_struct machines header_fmt) machines;
-    pp_print_newline header_fmt ();
-    (* Print the prototypes of all machines *)
-    fprintf header_fmt "/* Nodes declarations */@.";
-    List.iter (print_machine_decl header_fmt) machines;
-    pp_print_newline header_fmt ();
+    let pp_alloc_header header_fmt basename machines dependencies =
+      (* Include once: start *)
+      let machines' = List.filter (fun m -> not m.mis_contract) machines in
+      let baseNAME = file_to_module_name basename in
+      fprintf
+        header_fmt
+        "@[<v>%a@,\
+         #ifndef _%s_alloc@,\
+         #define _%s_alloc@,\
+         @,\
+         /* Import header from %s */@,\
+         %a@,\
+         @,\
+         %a%a%a%a%a#endif@]@."
+        (* Print the svn version number and the supported C standard (C90 or
+           C99) *)
+        pp_print_version
+        ()
+        baseNAME
+        baseNAME
+        (* Import the header *) basename
+        pp_import_prototype
+        {
+          local = true;
+          name = basename;
+          content = [];
+          is_stateful = true (* assuming it is staful *);
+        }
+        (* Print dependencies *)
+        (pp_print_list
+           ~pp_open_box:pp_open_vbox0
+           ~pp_prologue:(pp_print_endcut "/* Import dependencies */")
+           pp_import_alloc_prototype
+           ~pp_epilogue:pp_print_cutcut)
+        dependencies
+        (* Print the struct definitions of all machines. *)
+        (pp_print_list
+           ~pp_open_box:pp_open_vbox0
+           ~pp_prologue:(pp_print_endcut "/* Struct definitions */")
+           ~pp_sep:pp_print_cutcut
+           pp_machine_struct
+           ~pp_epilogue:pp_print_cutcut)
+        machines'
+        (* Copy the spec (valid and memory packs predicates). *)
+        Mod.pp_predicates
+        machines
+        (* Print the prototypes of all machines *)
+        (pp_print_list
+           ~pp_open_box:pp_open_vbox0
+           ~pp_prologue:
+             (pp_print_endcut "/* Node allocation function/macro prototypes */")
+           ~pp_sep:pp_print_cutcut
+           pp_machine_alloc_decl
+           ~pp_epilogue:pp_print_cutcut)
+        machines'
+        (* Print the spec prototypes of all machines *)
+        (pp_print_list
+           ~pp_open_box:pp_open_vbox0
+           ~pp_prologue:
+             (pp_print_endcut
+                "/* Node allocation function/macro ghost prototypes */")
+           ~pp_sep:pp_print_cutcut
+           Mod.pp_machine_alloc_decl
+           ~pp_epilogue:pp_print_cutcut)
+        machines'
     (* Include once: end *)
-    fprintf header_fmt "#endif@.";
-    pp_print_newline header_fmt ()
-  end
-  *)
-let print_alloc_header header_fmt basename prog machines dependencies spec =
-  (* Include once: start *)
-  let baseNAME = file_to_module_name basename in
-  begin
-    (* Print the svn version number and the supported C standard (C90 or C99) *)
-    print_version header_fmt;
-    fprintf header_fmt "#ifndef _%s_alloc@.#define _%s_alloc@." baseNAME baseNAME;
-    pp_print_newline header_fmt ();
-    (* Import the header *)
-    fprintf header_fmt "/* Import header from %s */@." basename;
-    fprintf header_fmt "@[<v>";
-    print_import_prototype header_fmt {local=true; name=basename; content=[]; is_stateful=true} (* assuming it is staful *);
-    fprintf header_fmt "@]@.";
-    fprintf header_fmt "/* Import dependencies */@.";
-    fprintf header_fmt "@[<v>";
-    List.iter (print_import_alloc_prototype header_fmt) dependencies;
-    fprintf header_fmt "@]@.";
-    (* Print the struct definitions of all machines. *)
-    fprintf header_fmt "/* Struct definitions */@.";
-    List.iter (print_machine_struct machines header_fmt) machines;
-    pp_print_newline header_fmt ();
-    fprintf header_fmt "/* Specification */@.%a@." C_backend_spec.pp_acsl_preamble spec;
-    (* Print the prototypes of all machines *)
-    fprintf header_fmt "/* Node allocation function/macro prototypes */@.";
-    List.iter (print_machine_alloc_decl machines header_fmt) machines;
-    pp_print_newline header_fmt ();
-    (* Include once: end *)
-    fprintf header_fmt "#endif@.";
-    pp_print_newline header_fmt ()
-  end
 
-(* Function called when compiling a lusi file and generating the associated C
-   header. *)
-let print_header_from_header header_fmt basename header =
-  (* Include once: start *)
-  let baseNAME = file_to_module_name basename in
-  let types = get_typedefs header in
-  let consts = get_consts header in
-  let nodes = get_imported_nodes header in
-  let dependencies = get_dependencies header in
-  begin
-    (* Print the version number and the supported C standard (C90 or C99) *)
-    print_version header_fmt;
-    fprintf header_fmt "#ifndef _%s@.#define _%s@." baseNAME baseNAME;
-    pp_print_newline header_fmt ();
-    fprintf header_fmt "/* Imports standard library */@.";
-    (* imports standard library definitions (arrow) *)
-    print_import_standard header_fmt;
-    pp_print_newline header_fmt ();
-    (* imports dependencies *)
-    fprintf header_fmt "/* Import dependencies */@.";
-    fprintf header_fmt "@[<v>";
-    List.iter
-      (fun dep -> 
-	let (local, s) = dependency_of_top dep in 
-	print_import_prototype header_fmt {local=local; name=s; content=[]; is_stateful=true} (* assuming it is stateful *))
-      dependencies;
-    fprintf header_fmt "@]@.";
-    fprintf header_fmt "/* Types definitions */@.";
-    (* Print the type definitions from the type table *)
-    reset_type_definitions ();
-    List.iter (fun typ -> print_type_definition_from_header header_fmt (typedef_of_top typ) basename) types;
-    pp_print_newline header_fmt ();
-    (* Print the global constant declarations. *)
-    fprintf header_fmt "/* Global constant (declarations, definitions are in C file) */@.";
-    List.iter (fun c -> print_const_decl header_fmt (const_of_top c)) consts;
-    pp_print_newline header_fmt ();
-    if !Options.mpfr then
-      begin
-	fprintf header_fmt "/* Global initialization declaration */@.";
-	fprintf header_fmt "extern %a;@.@."
-	  print_global_init_prototype baseNAME;
-	
-	fprintf header_fmt "/* Global clear declaration */@.";
-	fprintf header_fmt "extern %a;@.@."
-	  print_global_clear_prototype baseNAME;
-      end;
-    (* Print the struct declarations of all machines. *)
-    fprintf header_fmt "/* Structs declarations */@.";
-    List.iter (fun node -> print_machine_struct_from_header header_fmt (imported_node_of_top node)) nodes;
-    pp_print_newline header_fmt ();
-    (* Print the prototypes of all machines *)
-    fprintf header_fmt "/* Nodes declarations */@.";
-    List.iter (fun node -> print_machine_decl_from_header header_fmt (imported_node_of_top node)) nodes;
-    pp_print_newline header_fmt ();
-    (* Include once: end *)
-    fprintf header_fmt "#endif@.";
-    pp_print_newline header_fmt ()
+    (* Function called when compiling a lusi file and generating the associated
+       C header. *)
+    let pp_header_from_header header_fmt basename header =
+      (* Include once: start *)
+      let baseNAME = file_to_module_name basename in
+      let types = get_typedefs header in
+      let consts = get_consts header in
+      let nodes = get_imported_nodes header in
+      let dependencies = get_dependencies header in
+      reset_type_definitions ();
+      fprintf
+        header_fmt
+        "@[<v>%a@,\
+         #ifndef _%s@,\
+         #define _%s@,\
+         @,\
+         /* Import standard library */@,\
+         %a@,\
+         @,\
+         %a%a%a%a%a%a#endif@]@."
+        (* Print the version number and the supported C standard (C90 or C99) *)
+        pp_print_version
+        ()
+        baseNAME
+        baseNAME
+        (* imports standard library definitions (arrow) *)
+        pp_import_standard
+        ()
+        (* imports dependencies *)
+        (pp_print_list
+           ~pp_open_box:pp_open_vbox0
+           ~pp_prologue:(pp_print_endcut "/* Import dependencies */")
+           (fun fmt dep ->
+             let local, name = dependency_of_top dep in
+             pp_import_prototype
+               fmt
+               {
+                 local;
+                 name;
+                 content = [];
+                 is_stateful = true (* assuming it is stateful *);
+               })
+           ~pp_epilogue:pp_print_cutcut)
+        dependencies
+        (* Print the type definitions from the type table *)
+        (pp_print_list
+           ~pp_open_box:pp_open_vbox0
+           ~pp_prologue:(pp_print_endcut "/* Types definitions */")
+           (pp_type_definition_top_decl_from_header basename)
+           ~pp_epilogue:pp_print_cutcut)
+        types
+        (* Print the global constant declarations. *)
+        (pp_print_list
+           ~pp_open_box:pp_open_vbox0
+           ~pp_prologue:
+             (pp_print_endcut
+                "/* Global constants (declarations, definitions are in C file) \
+                 */")
+           pp_const_top_decl
+           ~pp_epilogue:pp_print_cutcut)
+        consts
+        (* MPFR *)
+        (if !Options.mpfr then fun fmt () ->
+         fprintf
+           fmt
+           "/* Global initialization declaration */@,\
+            extern %a;@,\
+            @,\
+            /* Global clear declaration */@,\
+            extern %a;@,\
+            @,"
+           pp_global_init_prototype
+           baseNAME
+           pp_global_clear_prototype
+           baseNAME
+        else pp_print_nothing)
+        ()
+        (* Print the struct declarations of all machines. *)
+        (pp_print_list
+           ~pp_open_box:pp_open_vbox0
+           ~pp_prologue:(pp_print_endcut "/* Struct declarations */")
+           pp_machine_struct_top_decl_from_header
+           ~pp_epilogue:pp_print_cutcut)
+        nodes
+        (* Print the prototypes of all machines *)
+        (pp_print_list
+           ~pp_open_box:pp_open_vbox0
+           ~pp_prologue:(pp_print_endcut "/* Nodes declarations */")
+           ~pp_sep:pp_print_cutcut
+           pp_machine_decl_top_decl_from_header
+           ~pp_epilogue:pp_print_cutcut)
+        nodes
   end
-
-end
 (* Local Variables: *)
 (* compile-command:"make -C ../../.." *)
 (* End: *)

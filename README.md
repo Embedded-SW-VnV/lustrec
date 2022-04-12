@@ -4,20 +4,35 @@ Current Status:    [![Build Status](https://travis-ci.org/coco-team/lustrec.svg?
 [![Stories in Ready](https://badge.waffle.io/coco-team/lustrec.png?label=ready&title=Ready)](https://waffle.io/coco-team/lustrec)
 [![Throughput Graph](https://graphs.waffle.io/coco-team/lustrec/throughput.svg)](https://waffle.io/coco-team/lustrec/metrics/throughput)
 
+# USAGE 
+
+ ```
+ dune exec src/main_lustre_compiler.exe -- [OPTIONS] -acsl-spec <FILE.lus> 
+ frama-c[-gui] -wp -wp-model ref,real -wp-prover alt-ergo,z3,cvc4 -wp-timeout <TIMEOUT> -wp-par <JOBS> -wp-no-warn-memory-model -load-module strategy.ml -wp-auto LustreC -wp-auto-depth 100 <FILE.c>
+ ```
+
 # LustreC
 
 LustreC is a modular compiler of Lustre code into C and Horn Clauses.
 
 # Dependencies
 On a fresh ubuntu/debian-like install
-> apt-get install opam libmpfr-dev
+ ```
+ apt-get install opam libmpfr-dev
+ ```
 Get a fresh version of ocaml
-> opam switch 4.06.1
+ ```
+opam switch create 4.06.1
+ ```
 Install some dependencies
-> opam install depext ocamlgraph mlmpfr num cmdliner fmt logs yojson menhir
+ ```
+opam install depext ocamlgraph mlmpfr num cmdliner fmt logs yojson menhir
+ ```
 In OSX, some issues with Z3, please pin the following version:
-> opam pin add z3 4.8.1
-> opam install z3
+ ```
+opam pin add z3 4.8.1
+opam install z3
+ ```
 # Build
 ```
 > autoconf

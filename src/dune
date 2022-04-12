@@ -1,0 +1,198 @@
+(env
+ (dev
+  (flags
+   (:standard -warn-error -A))))
+
+(include_subdirs unqualified)
+
+(library
+ (name lustrec_interface)
+ (package lustrec)
+ (modules_without_implementation scheduling_type machine_code_types)
+ (modules
+  lustre_types
+  lustre_utils
+  utils
+  location
+  dimension
+  env
+  real
+  types
+  options
+  version
+  clocks
+  delay
+  scheduling_type
+  machine_code_types
+  spec_types
+  spec_common
+  lustre_live
+  log
+  printers
+  corelang
+  basic_library
+  type_predef
+  clock_predef
+  delay_predef
+  error
+  global
+  annotations
+  machine_code_common
+  arrow
+  options_management
+  stateless
+  c_backend_common
+  typing
+  ocaml_utils
+  backends
+  lustrec_mpfr
+  normalization
+  arrow_taint
+  machine_types
+  splitting
+  compiler_common
+  parse
+  parser_lustre
+  parser_lustre_table
+  parser_lustre_messages
+  lexer_lustre
+  lexerLustreSpec
+  automata
+  clock_calculus)
+ (wrapped false)
+ (libraries sites ocamlgraph zarith unix str menhirLib))
+
+(library
+ (name plugin_register)
+ (package lustrec)
+ (wrapped false)
+ (modules pluginList pluginType)
+ (libraries lustrec_interface))
+
+(generate_sites_module
+ (module sites)
+ ; (sites lustrec)
+ (plugins
+  (lustrec plugins)
+  (lustrec verifiers)))
+
+(library
+ (name sites)
+ (package lustrec)
+ (modules sites)
+ (libraries dune-site dune-site.plugins))
+
+(library
+ (name lustrec_lib)
+ (package lustrec)
+ (modules
+  lusic
+  c_backend_header
+  c_backend_spec
+  c_backend_makefile
+  c_backend_mauve
+  c_backend_src
+  ada_backend
+  ada_printer
+  ada_backend_common
+  ada_backend_ads
+  ada_backend_adb
+  ada_backend_wrapper
+  horn_backend
+  horn_backend_common
+  horn_backend_printers
+  Horn_backend_collecting_sem
+  horn_backend_traces
+  EMF_backend
+  EMF_common
+  EMF_library_calls
+  misc_lustre_function
+  misc_printer
+  machine_code
+  machine_code_dep
+  causality
+  scheduling
+  liveness
+  compiler_stages
+  modules
+  sortProg
+  inliner
+  access
+  algebraicLoop
+  optimize_prog
+  optimize_machine
+  spec
+  c_backend
+  c_backend_main
+  plugins)
+ (wrapped false)
+ (libraries sites lustrec_interface plugin_register))
+
+(executable
+ (name main_lustre_compiler)
+ (public_name lustrec)
+ (modules main_lustre_compiler)
+ (package lustrec)
+ (libraries lustrec_lib lustrec.scopes))
+
+(executable
+ (name main_lustre_testgen)
+ (public_name lustret)
+ (modules main_lustre_testgen mutation pathConditions)
+ (libraries lustrec_lib))
+
+(library
+ (name verifier_register)
+ (package lustrec)
+ (wrapped false)
+ ; (modules_without_implementation verifierType)
+ (modules verifierList verifierType)
+ (libraries lustrec_interface))
+
+(executable
+ (name main_lustre_verifier)
+ (public_name lustrev)
+ (modules main_lustre_verifier verifiers)
+ (libraries lustrec_lib verifier_register lustrec.scopes))
+
+(executable
+ (name main_lustre_importer)
+ (public_name lustrei)
+ (modules main_lustre_importer vhdl_deriving_yojson vhdl_json_lib)
+ (libraries yojson ppx_deriving_yojson.runtime)
+ (preprocess
+  (pps ppx_deriving_yojson)))
+
+(library
+ (name tools_lib)
+ (package lustrec)
+ (wrapped false)
+ (modules basetypes datatype activeStates)
+ (libraries lustrec_lib))
+
+(executable
+ (name sf_sem)
+ (public_name lustresf)
+ (modules
+  sf_sem
+  model_simple
+  model_stopwatch
+  CPS_ccode_generator
+  CPS_transformer
+  CPS_interpreter
+  CPS_lustre_generator
+  CPS
+  theta
+  memo)
+ (libraries tools_lib))
+
+; (executable
+;  (name main_parse_json_file)
+;  (public_name json-parser)
+;  (modules main_parse_json_file json_parser)
+;  (libraries tools_lib cmdliner))
+
+; (executable
+;  (name test_json_parser_variables)
+;  (modules test_json_parser_variables json_parser)
+;  (libraries tools_lib))

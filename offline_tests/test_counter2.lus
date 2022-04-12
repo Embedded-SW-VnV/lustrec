@@ -1,0 +1,18 @@
+node top (x:bool) returns (ok: bool);
+var bit: bool;
+    coin: bool;
+let
+  automaton mini_states
+  state Even : 
+  let 
+    bit = true;
+  tel until true restart Odd
+  state Odd : 
+  let 
+    bit = false;
+  tel until true restart Even
+
+  coin = true -> not pre coin;
+  ok = bit = coin;
+tel
+

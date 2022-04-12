@@ -1,0 +1,16 @@
+(include_subdirs no)
+
+(library
+ (name zustre_verifier)
+ (public_name lustrec.zustre_verifier)
+ (wrapped false)
+ (modules :standard \ zustre_test)
+ (libraries verifier_register lustrec_lib z3 yojson)
+ (optional))
+
+(plugin
+ (name zustre_verifier)
+ (libraries lustrec.zustre_verifier)
+ (site
+  (lustrec verifiers))
+ (optional))

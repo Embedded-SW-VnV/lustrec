@@ -4,10 +4,14 @@ let report = Log.report ~plugin:"tiny"
 module Ast = Tiny.Ast
 
 let gen_loc () = Tiny.Location.dummy ()
-               
-let lloc_to_tloc loc = Tiny.Location.location_of_positions loc.Location.loc_start loc.Location.loc_end
-                     
-let tloc_to_lloc loc = assert false (*Location.dummy_loc (*TODO*) *)
+
+let lloc_to_tloc loc =
+  Tiny.Location.location_of_positions
+    (Location.start_ loc)
+    (Location.end_ loc)
+
+let tloc_to_lloc loc = assert false
+(*Location.dummy_loc (*TODO*) *)
 
                      
 let rec ltyp_to_ttyp t =
@@ -15,7 +19,7 @@ let rec ltyp_to_ttyp t =
     match Types.type_list_of_type t with
     | [t] -> ltyp_to_ttyp t
     | _ -> (
-      Format.eprintf "Issues converting type %a to a Tiny datatype@.@?" Types.print_ty t;
+      Format.eprintf "Issues converting type %a to a Tiny datatype@.@?" Types.pp t;
     assert false (* not covered yet *)
     ) 
     else
@@ -23,18 +27,18 @@ let rec ltyp_to_ttyp t =
   else if Types.is_int_type t then Tiny.Ast.IntT
   else if Types.is_bool_type t then Tiny.Ast.BoolT
   else (
-    Format.eprintf "Issues converting type %a to a Tiny datatype@.@?" Types.print_ty t;
+    Format.eprintf "Issues converting type %a to a Tiny datatype@.@?" Types.pp t;
     assert false (* not covered yet *)
   )
   
 let cst_bool loc b =
-  { Ast.expr_desc =
-      if b then
-        Ast.Cst(Q.of_int 1, "true")
-      else
-        Ast.Cst(Q.of_int 0, "false");
+  {
+    Ast.expr_desc =
+      (if b then Ast.Cst (Q.of_int 1, "true")
+      else Ast.Cst (Q.of_int 0, "false"));
     expr_loc = loc;
-    expr_type = Ast.BoolT }
+    expr_type = Ast.BoolT;
+  }
 
 let cst_num loc t q =
   let s = Q.to_string q in
@@ -46,14 +50,10 @@ let cst_num loc t q =
   expr_type = t }
   
 let rec real_to_q man exp =
-  if exp = 0 then
-        Q.of_string (Num.string_of_num man)
-  else
-    if exp > 0 then Q.div (real_to_q man (exp-1)) (Q.of_int 10)
-    else (* if exp<0 then *)
-      Q.mul
-        (real_to_q man (exp+1))
-        (Q.of_int 10)
+  if exp = 0 then Q.of_string (Num.string_of_num man)
+  else if exp > 0 then Q.div (real_to_q man (exp - 1)) (Q.of_int 10)
+  else (* if exp<0 then *)
+    Q.mul (real_to_q man (exp + 1)) (Q.of_int 10)
 
 let instr_loc i =
   match i.Machine_code_types.lustre_eq with
@@ -71,7 +71,7 @@ let cst_true =  Ast.Cst (Q.one, "true")
 
   
 let rec lval_to_texpr m loc _val =
-  Format.eprintf "lval_to_texpr %a (type %a)@." (Machine_code_common.pp_val m) _val Types.print_ty  _val.value_type;
+  Format.eprintf "lval_to_texpr %a (type %a)@." (Machine_code_common.pp_val m) _val Types.pp  _val.value_type;
   let res = 
   let build = build_expr in
   let new_desc =
@@ -147,7 +147,7 @@ let rec find_init m il =
       | Some _ -> res
       | _ -> (
         match i.Machine_code_types.instr_desc with
-        | MLocalAssign _ | MStateAssign _ | MReset _| MNoReset _| MComment _|MSpec _
+        | MLocalAssign _ | MStateAssign _ | MClearReset | MSetReset _| MResetAssign _ | MNoReset _| MComment _|MSpec _
           -> None
         | MStep (ol, id, args) ->
            if List.mem_assoc id m.Machine_code_types.minstances then
@@ -220,6 +220,7 @@ let machine_body_to_ast init m =
          match Corelang.node_name fun_name, ol with
          | "_arrow", [o] -> (
            (* init_var := Some o.var_id; *)
+           (* In Lelio's code: Just produce a Ast.Nop loc. XXX TODO check which version is appropriate *)
            Ast.Asn (loc, o.var_id, build_expr (if init then cst_true else cst_false) Ast.BoolT);
          (* We set the arrow to
             false: we are not anymore  
@@ -246,12 +247,13 @@ let machine_body_to_ast init m =
             Format.eprintf "No tiny translation for function call %s@.@?" id;
             assert false
        )
-    | MReset id
-      | MNoReset id -> assert false (* no more calls or functions, ie. no reset *)
-    | MComment s 
-      | MSpec s -> assert false
-  in
-  instrl_to_stm m.Machine_code_types.mstep.step_instrs 
+
+    | MResetAssign _ | MClearReset | MSetReset _ | MNoReset _ ->
+      assert false (* no more calls or functions, ie. no reset *)
+    | MComment s | MSpec s ->
+       assert false
+                   in
+  instrl_to_stm m.Machine_code_types.mstep.step_instrs
 
 let read_var bounds_opt v =
   let min, max =
@@ -266,36 +268,38 @@ let read_var bounds_opt v =
        in
        (Q.of_int (-1), minus_one), (Q.of_int 1, one)
   in
-  let range = {
-      Ast.expr_desc = Ast.Rand (min,max);
+  let range =
+    {
+      Ast.expr_desc = Ast.Rand (min, max);
       expr_loc = gen_loc ();
-      expr_type = ltyp_to_ttyp (v.Lustre_types.var_type)
+      expr_type = ltyp_to_ttyp v.Lustre_types.var_type;
     }
   in
   Ast.Asn (gen_loc (), v.var_id, range)
-  
+
 let rec read_vars bounds_inputs vl =
   match vl with
-    [] -> Ast.Nop (gen_loc ())
-  | [v] -> read_var
-             (if List.mem_assoc v.Lustre_types.var_id bounds_inputs then
-                Some (List.assoc v.Lustre_types.var_id bounds_inputs)
-              else
-                None)
-             v
-  | v::tl ->
-     Ast.Seq (gen_loc (),
-              read_var
-                (if List.mem_assoc v.Lustre_types.var_id bounds_inputs then
-                   Some (List.assoc v.Lustre_types.var_id bounds_inputs)
-                 else
-                   None)
-                v,
-              read_vars bounds_inputs tl
-       )
-  
+  | [] ->
+    Ast.Nop (gen_loc ())
+  | [ v ] ->
+    read_var
+      (if List.mem_assoc v.Lustre_types.var_id bounds_inputs then
+       Some (List.assoc v.Lustre_types.var_id bounds_inputs)
+      else None)
+      v
+  | v :: tl ->
+    Ast.Seq
+      ( gen_loc (),
+        read_var
+          (if List.mem_assoc v.Lustre_types.var_id bounds_inputs then
+           Some (List.assoc v.Lustre_types.var_id bounds_inputs)
+          else None)
+          v,
+        read_vars bounds_inputs tl )
+
 let machine_to_ast bounds_input m =
-  let read_vars = read_vars bounds_input m.Machine_code_types.mstep.step_inputs in
+  let read_vars =
+    read_vars bounds_input m.Machine_code_types.mstep.step_inputs in
   (* let ast_init = machine_init_to_ast m in *)
   let ast_loop_first = machine_body_to_ast true m in
   let ast_loop_run = machine_body_to_ast false m in
@@ -318,4 +322,3 @@ let machine_to_env m =
       Ast.Var.Set.add (v.var_id, typ) accu)
     Ast.Var.Set.empty
     (Machine_code_common.machine_vars m)
-

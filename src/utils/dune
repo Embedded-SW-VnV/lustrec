@@ -1,0 +1,23 @@
+; (include_subdirs no)
+
+(rule
+ (target ocaml_utils.ml)
+ (deps ocaml_utils.ml.lt403)
+ (action
+  (copy %{deps} %{target}))
+ (enabled_if
+  (< %{ocaml_version} 4.0.3)))
+
+(rule
+ (target ocaml_utils.ml)
+ (deps ocaml_utils.ml.ge403)
+ (action
+  (copy %{deps} %{target}))
+ (enabled_if
+  (>= %{ocaml_version} 4.0.3)))
+
+; (library
+;  (name utils)
+;  (package lustrec)
+;  (wrapped false)
+;  (libraries ocamlgraph unix))

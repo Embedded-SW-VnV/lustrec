@@ -1,0 +1,14 @@
+(include_subdirs no)
+
+(library
+ (name seal_verifier)
+ (public_name lustrec.seal_verifier)
+ (libraries verifier_register lustrec_lib zustre_verifier)
+ (optional))
+
+(plugin
+ (name seal_verifier)
+ (libraries lustrec.seal_verifier)
+ (site
+  (lustrec verifiers))
+ (optional))

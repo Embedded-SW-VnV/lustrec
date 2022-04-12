@@ -1,7 +1,9 @@
-
 let active = ref false
+
 let tiny_debug = ref false
+
 let tiny_help = ref false
+
 let descending = ref 1
 let unrolling = ref 0
 let output = ref false
@@ -12,40 +14,39 @@ let report = Tiny_utils.report
                
 let print_tiny_help () =
   let open Format in
-  Format.eprintf "@[Tiny verifier plugin produces a simple imperative code \
-          output for the provided main node, inlining all calls. This \
-          code can then be analyzed using tiny analyzer options.@]";
+  Format.eprintf
+    "@[Tiny verifier plugin produces a simple imperative code output for the \
+     provided main node, inlining all calls. This code can then be analyzed \
+     using tiny analyzer options.@]";
   Format.eprintf "@.@?";
   flush stdout
 
-  
 let tiny_run ~basename prog machines =
-  if !tiny_help then (
-    let _ = print_tiny_help () in
-    exit 0
-  );
+  (if !tiny_help then
+   let _ = print_tiny_help () in
+   exit 0);
   let node_name =
     match !Options.main_node with
-    | "" -> (
+    | "" ->
       Format.eprintf "Tiny verifier requires a main node.@.";
-      Format.eprintf "@[<v 2>Available ones are:@ %a@]@.@?"
-        (Utils.fprintf_list ~sep:"@ "
-           (fun fmt m ->
-             Format.fprintf fmt "%s" m.Machine_code_types.mname.node_id
-           )
-        )
-        machines; 
+      Format.eprintf
+        "@[<v 2>Available ones are:@ %a@]@.@?"
+        (Utils.Format.pp_print_list (fun fmt m ->
+             Format.fprintf fmt "%s" m.Machine_code_types.mname.node_id))
+        machines;
       exit 1
-    )
-    | s -> ( (* should have been addessed before *)
+    | s -> (
+      (* should have been addessed before *)
       match Machine_code_common.get_machine_opt machines s with
-      | None -> begin
-          Global.main_node := s;
-          Format.eprintf "Code generation error: %a@." Error.pp_error_msg Error.Main_not_found;
-          raise (Error.Error (Location.dummy_loc, Error.Main_not_found))
-        end
-      | Some _ -> s
-    )
+      | None ->
+        Global.main_node := s;
+        Format.eprintf
+          "Code generation error: %a@."
+          Error.pp
+          Error.Main_not_found;
+        raise (Error.Error (Location.dummy, Error.Main_not_found))
+      | Some _ ->
+        s)
   in
   let m = Machine_code_common.get_machine machines node_name in
   let env = (* We add each variables of the node the Tiny env *)
@@ -161,21 +162,22 @@ module Verifier =
        "<n>  Export resulting tiny file as <name>_<mainnode>.tiny");
       (* (\* ("-u", Arg.Set_int unrolling,
        *  *  "<n>  Unroll loops <n> times before computing fixpoint (default is 0)"); *\) *)
-       "-help", Arg.Set tiny_help, "tiny help and usage";
-        
-      
-      ]
-      
-    let activate () =
-      active := true;
-      (* Options.global_inline := true;
-       * Options.optimization := 0;
-       * Options.const_unfold := true; *)
-      ()
-      
-    let is_active () = !active
-    let run = tiny_run
-            
-            
-  end: VerifierType.S)
-    
+      "-help", Arg.Set tiny_help, "tiny help and usage";
+    ]
+
+  let activate () =
+    active := true;
+    (* Options.global_inline := true;
+     * Options.optimization := 0;
+     * Options.const_unfold := true; *)
+    ()
+
+  let is_active () = !active
+
+  let run = tiny_run
+  end
+  )
+  
+let () =
+  VerifierList.registered :=
+    (module Verifier : VerifierType.S) :: !VerifierList.registered

@@ -1,0 +1,21 @@
+node restart_example(c:bool) returns (o:int)
+let
+	automaton a
+	state S1:
+	var cpt_S1:int;
+	let
+		cpt_S1 = 0-> pre(cpt_S1)+1;
+		o = cpt_S1;
+	tel
+	until c resume S2
+	
+	state S2:
+	var cpt_S2;
+	let
+		cpt_S2 = 5 -> pre(cpt_S2)+1;
+		o = cpt_S2;
+	tel
+	until c  restart S1
+	
+tel
+	

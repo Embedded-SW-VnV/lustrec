@@ -4,36 +4,36 @@ open Datatype
 open Json_parser
 open Sys
 
-module ParseExt =
-struct
+module ParseExt = struct
   open Yojson.Basic
-    
-      
+
   let remove_quotes s =
     let len = String.length s in
-    if String.get s 0 = '"' && String.get s (len-1) = '"' then
-      String.sub s 1 (len-2)
+    if String.get s 0 = '"' && String.get s (len - 1) = '"' then
+      String.sub s 1 (len - 2)
     else (
       Format.eprintf "No quotes in string %s@.@?" s;
-      assert false
-    )
+      assert false)
 
   let get_vars json =
-      let get_vdecls key json =
-	let s = json |> Util.member key |> to_string in
-	try
-	  let s'= remove_quotes s in
-	  if s' = "" then [] else  
-	    let lexbuf = Lexing.from_string s' in
-	    Parser_lustre.vdecl_list Lexer_lustre.token lexbuf
-	with _ -> (Format.eprintf "Issues parsing decls for %s: %s@.@?" key s; assert false)
-	  
-      in
-      let inputs = get_vdecls "inputs" json in
-      let outputs = get_vdecls "outputs" json in
-      let variables = get_vdecls "variables" json in
-      inputs, outputs, variables
-      
+    let get_vdecls key json =
+      let s = json |> Util.member key |> to_string in
+      try
+        let s' = remove_quotes s in
+        if s' = "" then []
+        else
+          let lexbuf = Lexing.from_string s' in
+          Parser_lustre.vdecl_list Lexer_lustre.token lexbuf
+      with _ ->
+        Format.eprintf "Issues parsing decls for %s: %s@.@?" key s;
+        assert false
+    in
+
+    let inputs = get_vdecls "inputs" json in
+    let outputs = get_vdecls "outputs" json in
+    let variables = get_vdecls "variables" json in
+    inputs, outputs, variables
+
   (* Protecting the generation of condition/action in case of an empty string
      instead of a subtree *)
   let protect funname default parse_fun embed_fun json =
@@ -59,8 +59,7 @@ struct
       Format.eprintf
 	"Unable to explore json subtree in %s: empty string %s@." funname (Yojson.Basic.to_string json);
       default
-    )
-      
+
   let parse_condition =
     protect "condition"
       Condition.tru
@@ -78,19 +77,19 @@ struct
   let parse_action =
     protect "action" Action.nil Parser_lustre.stmt_list
       (fun (stmts, asserts, annots) (in_, out_, locals_) ->
-	if asserts != [] || annots != [] then
-	  assert false (* Stateflow equations should not use asserts nor define
-			  annotations *)
-	else
-	  Action.aquote ({
-	    defs = stmts;
-	    ainputs = in_;
-	    aoutputs = out_;
-	    avariables = locals_;
-	  })
-      )
-      
-  let parse_event json  = Some Yojson.Basic.(json |> to_string)
+        if asserts != [] || annots != [] then assert false
+          (* Stateflow equations should not use asserts nor define
+             annotations *)
+        else
+          Action.aquote
+            {
+              defs = stmts;
+              ainputs = in_;
+              aoutputs = out_;
+              avariables = locals_;
+            })
+
+  let parse_event json = Some Yojson.Basic.(json |> to_string)
 end
 
 module JParse = Parser (ParseExt)
@@ -108,43 +107,51 @@ let modular = ref 0
 let json_parse _ file pp =
   try
     let prog = JParse.parse_prog (Yojson.Basic.from_file file) in
-    if pp then (
-      SF.pp_prog Format.std_formatter prog;
-      exit 0
-    );    
-    let module Model =
-	struct
-	  let model = prog
-	  let name = "toto" (* TODO find a meaningful name *)
-	  let traces = [] (* TODO: shall we remove the traces field? *)
-	end
-    in
+    if pp then SF.pp_prog Format.std_formatter prog;
+
+    let module Model = struct
+      let model = prog
+
+      let name = "toto"
+      (* TODO find a meaningful name *)
+
+      let traces = []
+      (* TODO: shall we remove the traces field? *)
+    end in
     let modularmode =
       match !modular with
-      | 2 -> true, true, true
-      | 1 -> false, true, false
-      | _ (* 0 *) -> false, false ,false
+      | 2 ->
+        true, true, true
+      | 1 ->
+        false, true, false
+      | _ (* 0 *) ->
+        false, false, false
     in
     let state_vars = Datatype.SF.states Model.model in
     let global_vars = Datatype.SF.global_vars Model.model in
-    
+
     let module T = CPS_lustre_generator.LustrePrinter (struct
       let state_vars = state_vars
-      let global_vars = global_vars 
+
+      let global_vars = global_vars
     end) in
     let module Sem = CPS.Semantics (T) (Model) in
     let prog = Sem.code_gen modularmode in
-    let header = List.map Corelang.mktop [
-      (Lustre_types.Open (false,"lustrec_math"));
-      (Lustre_types.Open (false,"conv"));
-      (Lustre_types.Open (true,"locallib"));
-    ]
+    let header =
+      List.map
+        Corelang.mktop
+        [
+          LustreSpec.Open (false, "lustrec_math");
+          LustreSpec.Open (false, "conv");
+          LustreSpec.Open (true, "locallib");
+        ]
     in
-    let prog =header@prog in
+    let prog = header @ prog in
     Options.print_dec_types := true;
-    (* Format.printf "%a@." Printers.pp_prog prog; *)
 
-    let auto_file = "sf_gen_test_auto.lus" in (* Could be changed *)
+    (* Format.printf "%a@." Printers.pp_prog prog; *)
+    let auto_file = "sf_gen_test_auto.lus" in
+    (* Could be changed *)
     let auto_out = open_out auto_file in
     let auto_fmt = Format.formatter_of_out_channel auto_out in
     Format.fprintf auto_fmt "%a@." Printers.pp_prog prog;
@@ -154,14 +161,20 @@ let json_parse _ file pp =
     let prog, deps = Compiler_stages.stage1 params prog "" "" "lus" in
 
     (* Format.printf "%a@." Printers.pp_prog prog; *)
-    let noauto_file = "sf_gen_test_noauto.lus" in (* Could be changed *)
+    let noauto_file = "sf_gen_test_noauto.lus" in
+    (* Could be changed *)
     let noauto_out = open_out noauto_file in
     let noauto_fmt = Format.formatter_of_out_channel noauto_out in
     Format.fprintf noauto_fmt "%a@." Printers.pp_prog prog;
     Format.eprintf "Print expanded lustre model in sf_gen_test_noauto.lus@.";
     ()
-
-  with Parse.Error (l, err) -> Format.eprintf "Parse error at loc %a : %a@.@?" Location.pp_loc l Parse.pp_error err
+  with Parse.Error (l, err) ->
+    Format.eprintf
+      "Parse error at loc %a : %a@.@?"
+      Location.pp_loc
+      l
+      Parse.pp_error
+      err
 
 (* term representing argument for file *)
 let file =
@@ -173,7 +186,7 @@ let file =
 (* term representing argument for flag for pretty printing the program *)
 let pp =
   let doc = "Pretty print the resulting program" in
-  Arg.(value & flag & info ["pp"; "pretty-print"] ~docv:"PP" ~doc)
+  Arg.(value & flag & info [ "pp"; "pretty-print" ] ~docv:"PP" ~doc)
 
 (* term for argument for logging *)
 let setup_log_arg =
@@ -186,12 +199,8 @@ let json_parse_t = Term.(const json_parse $ setup_log_arg $ file $ pp)
 (* term info for manpages etc. *)
 let info =
   let doc = "parse a JSON file representing a Stateflow model" in
-  let man = [
-    `S Manpage.s_bugs;
-    `P "Report bug to Github issues tracking." ]
-  in
+  let man = [ `S Manpage.s_bugs; `P "Report bug to Github issues tracking." ] in
   Term.info "parse_json_file" ~doc ~exits:Term.default_exits ~man
 
 (* program *)
-let _ =
-  Term.exit @@ Term.eval (json_parse_t, info)
+let _ = Term.exit @@ Term.eval (json_parse_t, info)
