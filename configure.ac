@@ -1,8 +1,8 @@
 define([gitversion], esyscmd([sh -c "git log --oneline | wc -l | tr -d ' \n'"]))
 
-AC_INIT([lustrec], 1.7-gitversion, [ploc@garoche.net])
+AC_INIT([lustrec], 1.7, [ploc@garoche.net])
 AC_SUBST(VERSION_NUMBER, 1.7)
-AC_SUBST(VERSION_CODENAME, "Xia/Huai-dev")
+AC_SUBST(VERSION_CODENAME, "Xia/Huai")
 
 gitbranch=`git branch | grep \* | sed "s/\*[ ]*//"`
 AC_SUBST(GITBRANCH, "$gitbranch")
