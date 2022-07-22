@@ -1,0 +1,224 @@
+(********************************************************************)
+(*                                                                  *)
+(*  The LustreC compiler toolset   /  The LustreC Development Team  *)
+(*  Copyright 2012 -    --   ONERA - CNRS - INPT                    *)
+(*                                                                  *)
+(*  LustreC is free software, distributed WITHOUT ANY WARRANTY      *)
+(*  under the terms of the GNU Lesser General Public License        *)
+(*  version 2.1.                                                    *)
+(*                                                                  *)
+(********************************************************************)
+
+{
+open Parser_lustre
+open Utils
+
+(* As advised by Caml documentation. This way a single lexer rule is
+   used to handle all the possible keywords. *)
+let keyword_table =
+  create_hashtable 20 [
+  "function", FUNCTION;
+  "struct", STRUCT;
+  "enum", ENUM;
+  "automaton", AUTOMATON;
+  "state", STATE;
+  "until", UNTIL;
+  "unless", UNLESS;
+  "resume", RESUME;
+  "restart", RESTART;
+  "if", IF;
+  "then", THEN;
+  "else", ELSE;
+  "merge", MERGE;
+  "arrow", ARROW;
+  "fby", FBY;
+  "when", WHEN;
+  "whenot", WHENNOT;
+  "every", EVERY;
+  "node", NODE;
+  "let", LET;
+  "tel", TEL;
+  "returns", RETURNS;
+  "var", VAR;
+  "imported", IMPORTED;
+  "import", IMPORT;
+  "type", TYPE;
+  "int", TINT;
+  "bool", TBOOL;
+  (* "float", TFLOAT; *)
+  "real", TREAL;
+  "clock", TCLOCK;
+  "not", NOT;
+  "true", TRUE;
+  "false", FALSE;
+  "and", AND;
+  "or", OR;
+  "xor", XOR;
+  "mod", MOD;
+  "pre", PRE;
+  "div", DIV;
+  "const", CONST;
+  "assert", ASSERT;
+  "contract", CONTRACT;
+  "lib", LIB;
+  "prototype", PROTOTYPE;
+  "ensure", ENSURE;
+  "require", REQUIRE;
+  (* "observer", OBSERVER; *)
+  "invariant", INVARIANT;
+  "mode", MODE;
+  "assume", ASSUME;
+  "contract", CONTRACT;
+  "guarantee", GUARANTEES;
+  "exists", EXISTS;
+  "forall", FORALL;
+ 
+  "c_code", CCODE; (* not sure how it is used *)
+  "matlab", MATLAB; (* same as above *)
+]
+
+
+(* Buffer for parsing specification/annotation *)
+let buf = Buffer.create 1024
+
+let make_annot lexbuf s =
+  let orig_loc = Location.curr lexbuf in
+  try
+    Location.push_loc orig_loc;	
+    let ann = LexerLustreSpec.annot s in
+    Location.pop_loc ();
+    ANNOT ann
+  with LexerLustreSpec.Error loc -> raise (Parse.Error (Location.shift orig_loc loc, Parse.Annot_error s))
+
+let make_spec orig_loc lexbuf s = 
+  try
+    Location.push_loc orig_loc;	
+    let ns = LexerLustreSpec.spec s in
+    Location.pop_loc ();
+    NODESPEC ns
+  with LexerLustreSpec.Error loc -> raise (Parse.Error (Location.shift orig_loc loc, Parse.Node_spec_error s))
+
+}
+
+let newline = ('\010' | '\013' | "\013\010")
+let notnewline = [^ '\010' '\013']
+let blank = [' ' '\009' '\012']
+
+rule token = parse
+| "--@" { Buffer.clear buf;
+          let loc = Location.curr lexbuf in
+	  spec_singleline loc lexbuf }
+| "(*@" { Buffer.clear buf; 
+	  let loc = Location.curr lexbuf in
+	  spec_multiline loc 0 lexbuf }
+| "--!" { Buffer.clear buf; 
+	  annot_singleline lexbuf }
+| "(*!" { Buffer.clear buf; 
+	  annot_multiline 0 lexbuf }
+| "(*"
+    { comment 0 lexbuf }
+| "--" [^ '!' '@'] notnewline* (newline|eof)
+    { incr_line lexbuf;
+      token lexbuf }
+| newline
+    { incr_line lexbuf;
+      token lexbuf }
+| blank +
+    {token lexbuf}
+| ((['0'-'9']+ as l)  '.' (['0'-'9']* as r) ('E'|'e') (('+'|'-')? ['0'-'9']+ as exp)) as s
+    {REAL (Real.create (l^r) (String.length r + -1 * int_of_string exp) s)}
+| ((['0'-'9']+ as l) '.' (['0'-'9']* as r)) as s
+    {REAL (Real.create (l^r) (String.length r) s)}
+| ['0'-'9']+ 
+    {INT (int_of_string (Lexing.lexeme lexbuf)) }
+| "tel." {TEL}
+| "tel;" {TEL}
+| "#open" { OPEN }
+| "include" { INCLUDE }
+| ['_' 'a'-'z'] [ '_' 'a'-'z' 'A'-'Z' '0'-'9']*
+    {let s = Lexing.lexeme lexbuf in
+    try
+      Hashtbl.find keyword_table s
+    with Not_found ->
+      IDENT s}
+| ['A'-'Z'] [ '_' 'a'-'z' 'A'-'Z' '0'-'9']*
+    {let s = Lexing.lexeme lexbuf in
+    try
+      Hashtbl.find keyword_table s
+    with Not_found ->
+      UIDENT s}     
+| "->" {ARROW}
+| "=>" {IMPL}
+| "<=" {LTE}
+| ">=" {GTE}
+| "<>" {NEQ}
+| '<' {LT}
+| '>' {GT}
+| "!=" {NEQ}
+| '-' {MINUS}
+| '+' {PLUS}
+| '/' {DIV}
+| '*' {MULT}
+| '=' {EQ}
+| '(' {LPAR}
+| ')' {RPAR}
+| '[' {LBRACKET}
+| ']' {RBRACKET}
+| '{' {LCUR}
+| '}' {RCUR}
+| ';' {SCOL}
+| ':' {COL}
+| ',' {COMMA}
+| '=' {EQ}
+| "&&" {AMPERAMPER}
+| "||" {BARBAR}
+| "::" {COLCOL}
+| "^" {POWER}
+| '"' {QUOTE}
+| '.' {POINT}
+| eof { EOF }
+| _ { raise (Parse.Error (Location.curr lexbuf, Parse.Undefined_token (Lexing.lexeme lexbuf))) }
+
+and comment n = parse
+| eof
+    { raise (Parse.Error (Location.curr lexbuf, Parse.Unfinished_comment)) }
+| "(*"
+    { comment (n+1) lexbuf }
+| "*)"
+    { if n > 0 then comment (n-1) lexbuf else token lexbuf }
+| newline
+    { incr_line lexbuf;
+      comment n lexbuf }
+| _ { comment n lexbuf }
+
+and annot_singleline = parse
+  | eof { make_annot lexbuf (Buffer.contents buf) }
+  | newline { incr_line lexbuf; make_annot lexbuf (Buffer.contents buf) }
+  | _ as c { Buffer.add_char buf c; annot_singleline lexbuf }
+
+and annot_multiline n = parse
+  | eof { raise (Parse.Error (Location.curr lexbuf, Parse.Unfinished_annot)) }
+  | "*)" as s { 
+    if n > 0 then 
+      (Buffer.add_string buf s; annot_multiline (n-1) lexbuf) 
+    else 
+      make_annot lexbuf (Buffer.contents buf) }
+  | "(*" as s { Buffer.add_string buf s; annot_multiline (n+1) lexbuf }
+  | newline as s { incr_line lexbuf; Buffer.add_string buf s; annot_multiline n lexbuf }
+  | _ as c { Buffer.add_char buf c; annot_multiline n lexbuf }
+
+and spec_singleline loc = parse
+  | eof { make_spec loc lexbuf (Buffer.contents buf) }
+  | newline { incr_line lexbuf; make_spec loc lexbuf (Buffer.contents buf) }
+  | _ as c { Buffer.add_char buf c; spec_singleline loc lexbuf }
+
+and spec_multiline loc n = parse
+  | eof { raise (Parse.Error (Location.curr lexbuf, Parse.Unfinished_node_spec)) }
+  | "*)" as s { if n > 0 then 
+      (Buffer.add_string buf s; spec_multiline loc (n-1) lexbuf) 
+    else 
+      make_spec loc lexbuf (Buffer.contents buf) }
+  | "(*" as s { Buffer.add_string buf s; spec_multiline loc (n+1) lexbuf }
+  | newline as s { incr_line lexbuf; Buffer.add_string buf s; spec_multiline loc n lexbuf }
+  | _ as c { Buffer.add_char buf c; spec_multiline loc n lexbuf }
+

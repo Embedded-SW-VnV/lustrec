@@ -1,0 +1,73 @@
+# general config
+true: bin_annot, color(always)
+# true: use_menhir
+
+# paths to sources
+"utils": include
+"checks": include
+"parsers": include
+"backends": include
+"backends/Ada": include
+"backends/C": include
+"backends/Horn": include
+"backends/EMF": include
+"backends/VHDL": include
+"plugins/salsa": include
+"plugins/scopes": include
+"plugins/mpfr": include
+"features/machine_types": include
+"tools": include
+"tools/zustre": include
+"tools/stateflow": include
+"tools/stateflow/common": include
+"tools/stateflow/semantics": include
+"tools/stateflow/models": include
+"tools/stateflow/json-parser": include
+"tools/importer": include
+"tools/seal": include
+"tools/tiny": include
+
+# svn
+<**/.svn>: -traverse
+<**/.svn>: not_hygienic
+
+# packages
+<**/*.native> or <**/*.ml{,i}>         : package(num)
+<**/*.native> or <**/*.ml{,i}>         : package(ocamlgraph)
+<**/*verifier.native> or <**/*.ml{,i}> : package(yojson)
+<**/*verifier.native>: thread
+
+# <**/*.native>                   : use_str
+<**/main_lustre_compiler.native>: package(unix,str)
+<**/main_lustre_testgen.native> : package(unix,str)
+<**/main_lustre_verifier.native> : package(unix,str)
+<**/sf_sem.native>              : package(unix,str)
+<**/*>                          : package(num)
+<**/*>                          : package(zarith)
+<**/*.ml>                       : package(logs)
+<**/*.native>                   : package(logs)
+<**/json_parser.ml>             : package(yojson)
+<**/main_parse_json_file.*>     : package(cmdliner)
+<**/main_parse_json_file.*>     : package(fmt.tty)
+<**/main_parse_json_file.*>     : package(fmt.cli)
+<**/main_parse_json_file.*>     : package(logs.fmt)
+<**/main_parse_json_file.*>     : package(logs.cli)
+<**/main_parse_json_file.*>     : package(yojson)
+<**/test_*.*>                   : package(oUnit)
+<**/test_json*.*>               : package(yojson)
+
+# Required for ocamldoc. Otherwise failed to build
+<**/*.ml{,i}>: package(ocamlgraph)
+<**/*.ml{,i}>: package(num)
+
+# Plugin dependencies
+@SALSA_TAG@
+
+# Available solvers
+@LUSTREV_SEAL_TAG@
+@LUSTREV_TINY_TAG@
+@LUSTREV_Z3_TAG@
+
+# Local Variables:
+# mode: conf
+# End:

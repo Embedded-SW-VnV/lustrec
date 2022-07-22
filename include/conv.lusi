@@ -1,0 +1,10 @@
+function real_to_int (in1: real) returns (out: int) prototype C;
+function int_to_real (in1: int) returns (out: real) prototype C;
+
+function _Floor (in1: real) returns (out: int) prototype C lib m;
+function _floor (in1: real) returns (out: real) prototype C lib m;
+function _Ceiling (in1: real) returns (out: int) prototype C lib m;
+function _ceil (in1: real) returns (out: real) prototype C lib m;
+function _Round (in1: real) returns (out: int) prototype C lib m;
+function _round (in1: real) returns (out: real) prototype C lib m;
+
