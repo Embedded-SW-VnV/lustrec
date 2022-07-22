@@ -88,11 +88,20 @@ AS_IF([test "x$seal" = "xyes"], [
 
 # Tiny
 AC_MSG_CHECKING(tiny library (optional))
+
+AC_ARG_ENABLE(tiny, [AS_HELP_STRING([--disable-tiny],
+              [disable Tiny dependencies. Enabled by default if available.])])
+
 AS_IF([ocamlfind query tiny >/dev/null 2>&1],
     [tiny=yes; AC_MSG_RESULT(yes)],[tiny=no; AC_MSG_RESULT(no)],
 )
-AS_IF([test "x$tiny" = "xyes"], [
- dnl   AC_SUBST(LUSTREV_TINY_TAG, "<**/*>: package(apron.boxMPQ), package(apron.octMPQ), package(apron.polkaMPQ), package(tiny)")
+
+AS_IF([test "x$enable_tiny" != "xno"], [
+  if (test "x$tiny" = xyes ); then
+   dnl   AC_SUBST(LUSTREV_TINY_TAG, "<**/*>: package(apron.boxMPQ), package(apron.octMPQ), package(apron.polkaMPQ), package(tiny)")
+   AC_SUBST(LUSTREV_TINY, "(module Tiny_verifier.Verifier : VerifierType.S);")
+   AC_SUBST(LUSTREV_TINY_TAG, ["<**/*>: package(apron.boxMPQ), package(apron.octMPQ), package(apron.polkaMPQ), package(tiny)"])
+  fi
 ])
 
 # z3 (optional)
@@ -134,15 +143,6 @@ AS_IF([test "x$enable_z3" != "xno"], [
 ])
 
 
-dnl # Tiny
-dnl AC_MSG_CHECKING(tiny library (optional))
-dnl AS_IF([ocamlfind query tiny >/dev/null 2>&1],
-dnl     [tiny=yes; AC_MSG_RESULT(yes)],[tiny=no; AC_MSG_RESULT(no)],
-dnl )
-AS_IF([test "x$tiny" = "xyes"], [
-   AC_SUBST(LUSTREV_TINY, "(module Tiny_verifier.Verifier : VerifierType.S);")
-   AC_SUBST(LUSTREV_TINY_TAG, ["<**/*>: package(apron.boxMPQ), package(apron.octMPQ), package(apron.polkaMPQ), package(tiny)"])
-])
 
 # Salsa
 AC_ARG_ENABLE(salsa, [AS_HELP_STRING([--disable-salsa],
@@ -300,10 +300,10 @@ if (test "x$seal" = "xyes" -a "x$z3" = xyes  -a "x$enable_z3" != xno); then
   fi
 
 
-  if (test "x$tiny" = xyes); then
+  if (test "x$tiny" = xyes  -a "x$enable_tiny" != xno); then
       AC_MSG_NOTICE([Tiny   enabled])
   else
-      AC_MSG_NOTICE([Tiny   disabled. Require Tiny library])
+      AC_MSG_NOTICE([Tiny   disabled.])
   fi
 
 AC_MSG_NOTICE(****** Regression Tests  ******)
