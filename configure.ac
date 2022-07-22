@@ -108,16 +108,6 @@ AS_IF([test "x$enable_tiny" != "xno"], [
 
 AC_ARG_ENABLE(z3, [AS_HELP_STRING([--disable-z3],
               [disable Z3 dependencies. Enabled by default if available.])])
-
-# option to rely on github version if installed
-AC_ARG_WITH(z3_github, [AS_HELP_STRING([--with-z3-github],
-              [Rely on Z3 as distributed by the official github
-	       repo rather then the opam distribution. Disabled by default.])])
-
-AS_IF([test "x$with_z3_github" != "xyes"],
-      [z3name=z3],
-      [z3name=Z3]
-      )
 	
 AC_MSG_CHECKING(z3 library)
 
@@ -125,21 +115,17 @@ AC_MSG_CHECKING(z3 library)
 #define([z3path], esyscmd([ocamlfind query z3 | tr -d '\n']))
 #define([z3path], esyscmd([opam config var Z3:lib | tr -d '\n']))
 
-AS_IF([ocamlfind query $z3name >/dev/null 2>&1],
+AS_IF([ocamlfind query z3 >/dev/null 2>&1],
     [z3=yes; AC_MSG_RESULT([yes])],[zustre=no; AC_MSG_RESULT(no)],
 )
 
 AS_IF([test "x$enable_z3" != "xno"], [
   if (test "x$z3" = xyes ); then
+   define([z3path], esyscmd([ocamlfind query z3 | tr -d '\n']))
    AC_SUBST(LUSTREV_ZUSTRE, "(module Zustre_verifier.Verifier : VerifierType.S);")
-   AC_SUBST(LUSTREV_Z3_TAG, "<**/*verifier.native> or <tools/zustre/*.ml> or <tools/zustre/*.mli> or <tools/seal/seal_extract.ml> or <tools/seal/seal_extract.mli>: package($z3name)")
-   AS_IF([test "x$z3name" = "xZ3"],
-   	       [define([Z3path], esyscmd([ocamlfind query Z3 | tr -d '\n']))
-	        AC_SUBST(Z3LIBPATH, "Z3path")],
- 	       [define([z3path], esyscmd([ocamlfind query z3 | tr -d '\n']))
-	        AC_SUBST(Z3LIBPATH, "z3path")]
-		)
-  fi	
+   AC_SUBST(LUSTREV_Z3_TAG, "<**/*verifier.native> or <tools/zustre/*.ml> or <tools/zustre/*.mli> or <tools/seal/seal_extract.ml> or <tools/seal/seal_extract.mli>: package(z3)")
+   AC_SUBST(Z3LIBPATH, "z3path")
+  fi
 ])
 
 
