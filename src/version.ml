@@ -1,6 +1,6 @@
-let number = "@PACKAGE_VERSION@-@GITBRANCH@"
+let number = "1.7-1309-lustrec-seal"
 
-let codename = "@VERSION_CODENAME@"
+let codename = "Xia/Huai-dev"
 
 let include_path = Sites.Sites.include_ |> List.hd
 

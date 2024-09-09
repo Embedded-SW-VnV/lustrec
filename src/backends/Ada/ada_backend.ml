@@ -71,7 +71,8 @@ let extract_contract machines m =
     | _ :: t ->
       find_submachine_from_ident ident t
   in
-  let extract_ident eexpr =
+  (* unused
+     let extract_ident eexpr =
     match eexpr.Lustre_types.eexpr_qfexpr.expr_desc with
     | Expr_ident ident ->
       ident
@@ -84,7 +85,8 @@ let extract_contract machines m =
        false | Expr_power (expr1, dim) -> assert false | Expr_pre expr -> assert
        false | Expr_when (expr,ident,label) -> assert false | Expr_merge (ident,
        l) -> assert false | Expr_appl call -> assert false *)
-  in
+     in
+  *)
   match m.mspec.mnode_spec with
   | Some (NodeSpec ident) ->
     let machine_spec = find_submachine_from_ident ident machines in

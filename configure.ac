@@ -233,6 +233,8 @@ dnl refers to ${prefix}.  Thus we have to use `eval' twice.
 AC_DEFINE_DIR([abs_datadir], [datadir])
 
 # Instanciation
+		 dnl src/ocaml_utils.ml
+		 dnl share/FindLustre.cmake
 AC_CONFIG_FILES([opam
 		 Makefile
 		 src/Makefile
@@ -240,9 +242,7 @@ AC_CONFIG_FILES([opam
 		 src/pluginList.ml
 		 src/verifierList.ml
 		 src/_tags
-		 src/ocaml_utils.ml
 		 include/z3librc
-		 share/FindLustre.cmake
 		 ])
 
 AC_OUTPUT
