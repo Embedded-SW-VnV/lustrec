@@ -311,7 +311,7 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
        /* Infinite loop */@,\
        %a@[<v 2>while(1){@,\
        fflush(stdout);@,\
-       %a%a%a%a@]@,\
+       %a%a%a%a%a@]@,\
        }"
       (Mod.pp_main_loop_invariants main_mem machines)
       m
@@ -342,6 +342,9 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
          ~pp_prologue:pp_print_cut
          pp_put_output)
       (m.mname.node_outputs, m.mstep.step_outputs)
+      Plugins.c_backend_main_loop_body_suffix
+      ()
+
 
   let pp_usage fmt () =
     fprintf
@@ -402,28 +405,37 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
 
     fprintf
       fmt
-      "@[<v>%a%t@[<v 2>int main (%a) {@,\
-       %a%a@,\
-       %a@,\
-       %a@,\
-       %a@,\
-       %a@,\
-       %a@,\
-       %areturn 1;@]@,\
+      "@[<v>%a%t@[<v 2>int main (%a) {@,\ 
+       %a%a@,\ 
+       %a@,\ 
+       %a@,\ 
+       %a@,\ 
+       %a@,\ 
+       %areturn 1;@]@,\ 
        }@]@."
+
+      (* line 1: %a%t int main (%a) { *)
       (if opt then pp_usage else pp_print_nothing)
       ()
       Mod.pp_main_spec
       (if opt then pp_print_string else pp_print_nothing)
       "int argc, char *argv[]"
+
+      (* line 2 %a%a *)
       (if opt then pp_options else pp_print_nothing)
       (basename ^ "_" ^ mname)
       pp_main_inout_declaration
       m
+
+      (*line 3 *)
       (Plugins.c_backend_main_loop_body_prefix basename mname)
       ()
+      
+      (*line 4 *)
       (pp_main_memory_allocation mname main_mem)
       m
+      
+      (*line 5 *)
       (fun fmt () ->
         if !Options.mpfr then
           fprintf
@@ -434,10 +446,11 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
             (pp_main_initialize mname main_mem)
             m)
       ()
+
+      (* line 6: while loop *)
       (pp_main_loop mname main_mem machines)
       m
-      Plugins.c_backend_main_loop_body_suffix
-      ()
+
       (fun fmt () ->
         if !Options.mpfr then
           fprintf

@@ -369,8 +369,9 @@ let process_scopes main_node prog machines =
 
 let activate () =
   option_scopes := true;
-  Options.optimization := 0;
-  (* no optimization *)
+  Options.optimization := 0; (* no optimization *)
+  Options.c_main_options := true;
+  
   ()
 
 let register_scopes s =

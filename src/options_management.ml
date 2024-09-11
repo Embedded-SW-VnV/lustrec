@@ -224,7 +224,7 @@ let lustrec_options =
         "generates the mauve code" );
       ( "-c-main-options",
         Arg.Set c_main_options,
-        "instrument the main C code with command line options" );
+        "instrument the main C code with command line options (trace files)" );
       ( "-compile-contracts",
         Arg.Set compile_contracts,
         "compile Lustre contracts" );
