@@ -53,6 +53,13 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
     let suff = string_of_int (id + 1) in
     pp_put_var fmt suff o'.var_id o.var_type o.var_id
 
+  let pp_mkdir_log_folder fmt =
+    fprintf fmt
+      "char* mkdir_instr = malloc((strlen(dir)+10) * sizeof(char));@,\
+       strcpy (mkdir_instr, \"mkdir -p \");@,\
+       strcat(mkdir_instr, dir);@,\
+       system(mkdir_instr);"
+    
   let pp_main_inout_declaration fmt m =
     let opt = !Options.c_main_options in
     fprintf
@@ -84,11 +91,13 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
       (if opt then fun fmt () ->
        fprintf
          fmt
-         "@,@[<v 2>if (traces) {@,%a%a@]@,}"
-         (pp_print_list_i ~pp_epilogue:pp_print_cut (fun fmt idx _ ->
+         "@,@[<v 2>if (traces) {@,%t@,%a%a@]@,}"
+         pp_mkdir_log_folder
+         (pp_print_list_i (fun fmt idx _ ->
               ignore (pp_file_open fmt "in" idx)))
          m.mstep.step_inputs
-         (pp_print_list_i (fun fmt idx _ -> ignore (pp_file_open fmt "out" idx)))
+         (pp_print_list_i ~pp_epilogue:pp_print_cut (fun fmt idx _ ->
+              ignore (pp_file_open fmt "out" idx)))
          m.mstep.step_outputs
       else pp_print_nothing)
       ()
@@ -362,29 +371,29 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
   let pp_options fmt name =
     fprintf
       fmt
-      "@[<v>int traces = 0;@,\
+      "@[<v>int c;@,
+       int traces = 0;@,\
        char* prefix = \"%s\";@,\
-       char* dir = \".\";@,\
-       @[<v 2>while ((argc > 1) && (argv[1][0] == '-')) {@,\
-       @[<v 2>switch (argv[1][1]) {@,\
+       char* dir = \"_traces\";@,\
+       @[<v 2>while ((c = getopt(argc, argv, \"td:p:\")) != -1) {@,\
+       @[<v 2>switch (c) {@,\
        @[<v 2>case 't':@,\
        traces = 1;@,\
        break;@,\
        @]@,\
        @[<v 2>case 'd':@,\
-       dir = &argv[1][2];@,\
+       dir = optarg;@,\
        break;@,\
        @]@,\
        @[<v 2>case 'p':@,\
-       prefix = &argv[1][2];@,\
+       prefix = optarg;@,\
        break;@,\
        @]@,\
        @[<v 2>default:@,\
-       printf(\"Wrong Argument: %%s\\n\", argv[1]);@,\
+       printf(\"Wrong Argument: %%o\\n\", c);@,\
        usage(argv);@]@]@,\
        }@,\
-       ++argv;@,\
-       --argc;@]@,\
+       @]@,\
        }@]@,\
        @,"
       name

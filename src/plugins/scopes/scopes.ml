@@ -205,7 +205,7 @@ let pp_scopes_files _basename _mname fmt scopes =
   List.iteri
     (fun idx (id, (_, var)) ->
       let file = C_backend_common.pp_file_open fmt "out_scopes" idx in
-      Format.fprintf fmt "fprintf(%s, \"# scope: %s\\n\");@ " file id;
+      Format.fprintf fmt "@,fprintf(%s, \"# scope: %s\\n\");@ " file id;
       Format.fprintf
         fmt
         "fprintf(%s, \"# node: %s\\n\");@ "
