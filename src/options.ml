@@ -31,7 +31,7 @@ type option_spec = SpecNo | SpecACSL | SpecC
 
 let spec = ref SpecNo
 
-type option_output = OutC | OutAda | OutJava | OutEMF | OutHorn | OutLustre
+type option_output = OutC | OutAda | OutJava | OutEMF | OutHorn | OutLustre | OutReticle
 
 let output = ref OutC
 
@@ -47,6 +47,8 @@ let pp_output fmt =
       "Java"
     | OutEMF ->
       "EMF"
+    | OutReticle ->
+      "Reticle"
     | OutHorn ->
       "Horn"
     | OutLustre ->

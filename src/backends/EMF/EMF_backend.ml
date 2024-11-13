@@ -289,118 +289,125 @@ let rec pp_emf_instr m fmt i =
             (*
            Thanks to normalization, vl shall only contain constant or
            local/state vars but not calls to other functions *)
-            fprintf fmt "\"kind\": \"operator\",@ ";
-            fprintf fmt "\"lhs\": \"%a\",@ " pp_var_name lhs;
-            fprintf fmt "\"name\": \"%s\",@ \"args\": [@[%a@]]" fun_id
-              (pp_emf_cst_or_var_list m) vl
+          fprintf fmt "\"kind\": \"operator\",@ ";
+          fprintf fmt "\"lhs\": \"%a\",@ " pp_var_name lhs;
+          fprintf fmt "\"name\": \"%s\",@ \"args\": [@[%a@]]" fun_id
+            (pp_emf_cst_or_var_list m) vl
         | Array _ | Access _ | Power _ | Cst _ | Var _ ->
-            fprintf fmt
-              "\"kind\": \"local_assign\",@ \"lhs\": \"%a\",@ \"rhs\": %a"
-              pp_var_name lhs (pp_emf_cst_or_var m) expr
+          fprintf fmt
+            "\"kind\": \"local_assign\",@ \"lhs\": \"%a\",@ \"rhs\": %a"
+            pp_var_name lhs (pp_emf_cst_or_var m) expr
         | ResetFlag ->
-            (* TODO: handle reset flag *)
-            assert false)
+          (* TODO: handle reset flag *)
+          assert false)
     | MStateAssign (lhs, expr)
-    (* a Pre construct Shall only be defined by a
-       variable or a constant, no function anymore! *) ->
-        fprintf fmt "\"kind\": \"pre\",@ \"lhs\": \"%a\",@ \"rhs\": %a"
-          pp_var_name lhs (pp_emf_cst_or_var m) expr
+      (* a Pre construct Shall only be defined by a
+         variable or a constant, no function anymore! *) ->
+      fprintf fmt "\"kind\": \"pre\",@ \"lhs\": \"%a\",@ \"rhs\": %a"
+        pp_var_name lhs (pp_emf_cst_or_var m) expr
     | MSetReset id ->
-        fprintf fmt "\"kind\": \"reset\",@ \"lhs\": \"%s\",@ \"rhs\": \"true\""
-          (reset_name id)
+      fprintf fmt "\"kind\": \"reset\",@ \"lhs\": \"%s\",@ \"rhs\": \"true\""
+        (reset_name id)
     | MNoReset id ->
-        fprintf fmt "\"kind\": \"reset\",@ \"lhs\": \"%s\",@ \"rhs\": \"false\""
-          (reset_name id)
+      fprintf fmt "\"kind\": \"reset\",@ \"lhs\": \"%s\",@ \"rhs\": \"false\""
+        (reset_name id)
     (* TODO: handle clear_reset and reset flag *)
     | MClearReset | MResetAssign _ -> ()
     | MBranch (g, hl) ->
-        let all_outputs, outputs, inputs = branch_instr_vars m i in
+      let all_outputs, outputs, inputs = branch_instr_vars m i in
 
-        (* Format.eprintf "Mbranch %a@.vars: all_out: %a, out:%a, in:%a@.@." *)
-        (* 	Machine_code.pp_instr i *)
-        (* 	(fprintf_list ~sep:", " pp_var_string) (ISet.elements all_outputs) *)
-        (* 	(fprintf_list ~sep:", " pp_var_string) (ISet.elements outputs) *)
-        (* 	pp_emf_vars_decl *)
-        (* 	(VSet.elements inputs) *)
+      (* Format.eprintf "Mbranch %a@.vars: all_out: %a, out:%a, in:%a@.@." *)
+      (* 	Machine_code.pp_instr i *)
+      (* 	(fprintf_list ~sep:", " pp_var_string) (ISet.elements all_outputs) *)
+      (* 	(fprintf_list ~sep:", " pp_var_string) (ISet.elements outputs) *)
+      (* 	pp_emf_vars_decl *)
+      (* 	(VSet.elements inputs) *)
 
-        (* ; *)
-        let inputs =
-          VSet.filter (fun v -> not (ISet.mem v.var_id all_outputs)) inputs
-        in
+      (* ; *)
+      let inputs =
+        VSet.filter (fun v -> not (ISet.mem v.var_id all_outputs)) inputs
+      in
 
-        (* Format.eprintf "Filtering in: %a@.@." *)
-        (* 	pp_emf_vars_decl *)
-        (* 	(VSet.elements inputs) *)
+      (* Format.eprintf "Filtering in: %a@.@." *)
+      (* 	pp_emf_vars_decl *)
+      (* 	(VSet.elements inputs) *)
 
-        (* ; *)
-        fprintf fmt "\"kind\": \"branch\",@ ";
-        fprintf fmt "\"guard\": %a,@ " (pp_emf_cst_or_var m) g;
-        (* it has to be a variable or a constant *)
-        fprintf fmt "\"outputs\": [%a],@ "
-          (pp_comma_list pp_var_string)
-          (ISet.elements outputs);
-        fprintf fmt "\"inputs\": [%a],@ " pp_emf_vars_decl
+      (* ; *)
+      fprintf fmt "\"kind\": \"branch\",@ ";
+      fprintf fmt "\"guard\": %a,@ " (pp_emf_cst_or_var m) g;
+      (* it has to be a variable or a constant *)
+      fprintf fmt "\"outputs\": [%a],@ "
+        (pp_comma_list pp_var_string)
+        (ISet.elements outputs);
+      fprintf fmt "\"inputs\": [%a],@ " pp_emf_vars_decl
           (*
            (let guard_inputs = get_expr_vars g in
            VSet.elements (VSet.diff inputs guard_inputs)) -- previous version to
            remove guard's variable from inputs *)
-          (VSet.elements inputs);
-        fprintf fmt "@[<v 2>\"branches\": {@ @[<v 0>%a@]@]@ }"
-          (pp_comma_list (fun fmt (tag, instrs_tag) ->
-               let branch_all_lhs, _, branch_inputs =
-                 branch_block_vars m instrs_tag
-               in
-               let branch_inputs =
-                 VSet.filter
-                   (fun v -> not (ISet.mem v.var_id branch_all_lhs))
-                   branch_inputs
-               in
-               fprintf fmt "@[<v 2>\"%a\": {@ " pp_protect (fun fmt ->
-                   Format.pp_print_string fmt tag);
-               fprintf fmt "\"guard_value\": \"%a\",@ " pp_tag_id tag;
-               fprintf fmt "\"inputs\": [%a],@ " pp_emf_vars_decl
-                 (VSet.elements branch_inputs);
-               fprintf fmt "@[<v 2>\"instrs\": {@ ";
-               (pp_emf_instrs m) fmt instrs_tag;
-               fprintf fmt "@]@ }";
-               fprintf fmt "@]@ }"))
-          hl
+        (VSet.elements inputs);
+      fprintf fmt "@[<v 2>\"branches\": {@ @[<v 0>%a@]@]@ }"
+        (pp_comma_list (fun fmt (tag, instrs_tag) ->
+             let branch_all_lhs, _, branch_inputs =
+               branch_block_vars m instrs_tag
+             in
+             let branch_inputs =
+               VSet.filter
+                 (fun v -> not (ISet.mem v.var_id branch_all_lhs))
+                 branch_inputs
+             in
+             fprintf fmt "@[<v 2>\"%a\": {@ " pp_protect (fun fmt ->
+                 Format.pp_print_string fmt tag);
+             fprintf fmt "\"guard_value\": \"%a\",@ " pp_tag_id tag;
+             fprintf fmt "\"inputs\": [%a],@ " pp_emf_vars_decl
+               (VSet.elements branch_inputs);
+             fprintf fmt "@[<v 2>\"instrs\": {@ ";
+             (pp_emf_instrs m) fmt instrs_tag;
+             fprintf fmt "@]@ }";
+             fprintf fmt "@]@ }"))
+        hl
     | MStep ([ var ], f, _) when is_arrow_fun m i ->
-        (* Arrow case *)
-        fprintf fmt
-          "\"kind\": \"arrow\",@ \"name\": \"%s\",@ \"lhs\": \"%a\",@ \"rhs\": \
-           \"%s\""
-          f pp_var_name var (reset_name f)
+      (* Arrow case *)
+      fprintf fmt
+        "\"kind\": \"arrow\",@ \"name\": \"%s\",@ \"lhs\": \"%a\",@ \"rhs\": \
+         \"%s\""
+        f pp_var_name var (reset_name f)
     | MStep (outputs, f, inputs) when not (is_imported_node f m) ->
-        let node_f = get_node_def f m in
-        let is_stateful = List.mem_assoc f m.minstances in
-        fprintf fmt "\"kind\": \"%s\",@ \"name\": \"%a\",@ \"id\": \"%s\",@ "
-          (if is_stateful then "statefulcall" else "statelesscall")
-          pp_protect
-          (fun fmt -> pp_print_string fmt node_f.node_id)
-          f;
-        fprintf fmt "\"lhs\": [@[%a@]],@ \"args\": [@[%a@]]"
-          (pp_comma_list (fun fmt v ->
-               fprintf fmt "\"%a\"" pp_var_name v))
-          outputs (pp_emf_cst_or_var_list m) inputs;
-        if is_stateful then
-          fprintf fmt ",@ \"reset\": { \"name\": \"%s\", \"resetable\": \"%b\"}"
-            (reset_name f)
-            (is_resetable_fun i.lustre_eq)
-        else fprintf fmt "@ "
+      let node_f = get_node_def f m in
+      let is_stateful = List.mem_assoc f m.minstances in
+      fprintf fmt "\"kind\": \"%s\",@ \"name\": \"%a\",@ \"id\": \"%s\",@ "
+        (if is_stateful then "statefulcall" else "statelesscall")
+        pp_protect
+        (fun fmt -> pp_print_string fmt node_f.node_id)
+        f;
+      fprintf fmt "\"lhs\": [@[%a@]],@ \"args\": [@[%a@]]"
+        (pp_comma_list (fun fmt v ->
+             fprintf fmt "\"%a\"" pp_var_name v))
+        outputs (pp_emf_cst_or_var_list m) inputs;
+      if is_stateful then
+        fprintf fmt ",@ \"reset\": { \"name\": \"%s\", \"resetable\": \"%b\"}"
+          (reset_name f)
+          (is_resetable_fun i.lustre_eq)
+      else fprintf fmt "@ "
     | MStep (outputs, f, inputs) ->
-        (* This is an imported node *)
-        EMF_library_calls.pp_call fmt m f outputs inputs
+      (* This is an imported node *)
+      EMF_library_calls.pp_call fmt m f outputs inputs
     | MSpec _ | MComment _ ->
-        Format.eprintf "unhandled comment in EMF@.@?";
-        assert false
-    (* not  available for EMF output *)
+      Format.eprintf "unhandled comment in EMF@.@?";
+      assert false
+      (* not  available for EMF output *)
   in
   fprintf fmt "@[ @[<v 2>\"%a\": {@ " get_instr_id i;
   fprintf fmt "%a" pp_content i;
   fprintf fmt "@]@]@ }"
 
 and pp_emf_instrs m fmt instrs =
+  let instrs = List.filter (fun i -> not(Corelang.get_instr_desc i =  MClearReset)) instrs in (* TODO: we remove these
+                                           instruction to avoid
+                                           dumping empty content in
+                                           EMF. TODO clarify the
+                                           behavior of these
+                                           instructions in EMF
+                                           backend *)
   pp_comma_list (pp_emf_instr m) fmt instrs
 
 let pp_emf_annot cpt fmt (key, ee) =

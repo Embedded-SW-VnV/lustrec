@@ -35,7 +35,9 @@ let debug = ref false
 type param_t = {
   unfold_arrow_active : bool;
   force_alias_ite : bool;
+  force_alias_nested_ite: bool;
   force_alias_internal_fun : bool;
+  force_alias_cst : bool;
 }
 
 let params =
@@ -43,7 +45,9 @@ let params =
     {
       unfold_arrow_active = false;
       force_alias_ite = false;
+      force_alias_nested_ite = false;
       force_alias_internal_fun = false;
+      force_alias_cst = false;
     }
 
 type norm_ctx_t = {
@@ -257,7 +261,11 @@ let rec normalize_expr ?(alias = true) ?(alias_basic = false) norm_ctx offsets
     defvars expr =
   (* Format.eprintf "normalize %B %a:%a [%a]@." alias Printers.pp_expr expr Types.pp expr.expr_type (Utils.fprintf_list ~sep:"," Dimension.pp_dimension) offsets; *)
   match expr.expr_desc with
-  | Expr_const _ | Expr_ident _ -> unfold_offsets norm_ctx defvars expr offsets
+  (* | Expr_const _ when !params.force_alias_cst -> *)
+  (*   let nexpr = xxx in *)
+  (*   TODO: voir comment declarer x = cst et l'ajouter via mk_alias *)
+  | Expr_const _
+  | Expr_ident _ -> unfold_offsets norm_ctx defvars expr offsets
   | Expr_array elist ->
       let defvars, norm_elist =
         normalize_list alias norm_ctx offsets
@@ -345,7 +353,7 @@ let rec normalize_expr ?(alias = true) ?(alias_basic = false) norm_ctx offsets
   | Expr_ite (c, t, e) ->
       let defvars, norm_c = normalize_guard norm_ctx defvars c in
       let defvars, norm_t = normalize_cond_expr norm_ctx offsets defvars t in
-      let defvars, norm_e = normalize_cond_expr norm_ctx offsets defvars e in
+      let defvars, norm_e = normalize_cond_expr norm_ctx offsets defvars e in 
       let norm_expr =
         mk_norm_expr offsets expr (Expr_ite (norm_c, norm_t, norm_e))
       in
@@ -407,7 +415,11 @@ and normalize_cond_expr ?(alias = true) norm_ctx offsets defvars expr =
       let defvars, norm_c = normalize_guard norm_ctx defvars c in
       let defvars, norm_t = normalize_cond_expr norm_ctx offsets defvars t in
       let defvars, norm_e = normalize_cond_expr norm_ctx offsets defvars e in
-      defvars, mk_norm_expr offsets expr (Expr_ite (norm_c, norm_t, norm_e))
+      let norm_expr = mk_norm_expr offsets expr (Expr_ite (norm_c, norm_t, norm_e)) in
+      if !params.force_alias_nested_ite then
+        mk_expr_alias_opt true norm_ctx defvars norm_expr
+      else
+        defvars, norm_expr
   | Expr_merge (c, hl) ->
       let defvars, norm_hl = normalize_branches norm_ctx offsets defvars hl in
       defvars, mk_norm_expr offsets expr (Expr_merge (c, norm_hl))

@@ -344,3 +344,11 @@ let stage3 prog machine_code dependencies basename extension =
     let fmt = formatter_of_out_channel source_out in
     EMF_backend.translate fmt basename prog machine_code;
     ()
+  | OutReticle, _ ->
+    let destname = !Options.dest_dir ^ "/" ^ basename in
+    let source_file = destname ^ ".reticle.json" in
+    (* Could be changed *)
+    let source_out = open_out source_file in
+    let fmt = formatter_of_out_channel source_out in
+    Reticle_backend.translate fmt basename prog machine_code;
+    ()

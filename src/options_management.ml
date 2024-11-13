@@ -184,6 +184,9 @@ let lustrec_options =
       ( "-emf",
         Arg.Unit (fun () -> set_backend OutEMF),
         "generates EMF output, to be used by CocoSim" );
+      ( "-reticle",
+        Arg.Unit (fun () -> set_backend OutReticle),
+        "generates Reticle output, to be used by lus2IR" );
       ( "-inline",
         Arg.Unit
           (fun () ->

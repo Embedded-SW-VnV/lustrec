@@ -8,7 +8,7 @@
 
 (plugin
  (name tiny_verifier)
- (libraries lustrec.tiny_verifier)
+ (libraries lustrec.tiny_verifier tiny)
  (site
   (lustrec verifiers))
  (optional))

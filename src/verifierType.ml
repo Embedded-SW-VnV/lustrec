@@ -14,7 +14,9 @@ module Default =
     let get_normalization_params () = {
     Normalization.unfold_arrow_active = true;
     force_alias_ite = false;
+    force_alias_nested_ite = false;
     force_alias_internal_fun = false;
+    force_alias_cst = false;
   }
 
   end

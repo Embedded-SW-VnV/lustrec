@@ -56,7 +56,10 @@ let rec fby loc expr n init =
         mkexpr loc (Expr_pre
                       (if n <= 1 then expr else fby loc expr (n - 1) init))))
 
- 
+(* %nonassoc p_vdecl *)
+(* %left SCOL *)
+
+
 %}
 
 %token <int> INT
@@ -91,8 +94,6 @@ let rec fby loc expr n init =
 %token EOF
 
 %nonassoc p_string
-(* %nonassoc p_vdecl *)
-(* %left SCOL *)
 %nonassoc EVERY
 %nonassoc ELSE
 %right ARROW FBY

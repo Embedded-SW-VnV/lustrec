@@ -4,7 +4,9 @@ open Lustre_types
 type param_t = {
   unfold_arrow_active : bool;
   force_alias_ite : bool;
+  force_alias_nested_ite: bool;
   force_alias_internal_fun : bool;
+  force_alias_cst: bool;
 }
 
 val mk_expr_alias_opt :

@@ -106,6 +106,7 @@
   EMF_backend
   EMF_common
   EMF_library_calls
+  reticle_backend
   misc_lustre_function
   misc_printer
   machine_code

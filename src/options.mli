@@ -16,7 +16,7 @@ type option_spec = SpecNo | SpecACSL | SpecC
 
 val spec : option_spec ref
 
-type option_output = OutC | OutAda | OutJava | OutEMF | OutHorn | OutLustre
+type option_output = OutC | OutAda | OutJava | OutEMF | OutHorn | OutLustre | OutReticle
 (* | OutACSL *)
 
 val output : option_output ref
