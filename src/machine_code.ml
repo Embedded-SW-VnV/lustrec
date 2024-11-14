@@ -336,8 +336,9 @@ let translate_eq env ctx nd mems inputs locals outputs i eq =
     let inst = new_instance td eq.eq_rhs.expr_tag in
     let c1 = translate_expr e1 in
     let c2 = translate_expr e2 in
-    assert (c1.value_desc = Cst (Const_tag "true"));
-    assert (c2.value_desc = Cst (Const_tag "false"));
+    (* Not true anymore if one normalize constants: 0 -> 1 will be come x -> y with x = 0 and y = 1 *)
+    (*assert (c1.value_desc = Cst (Const_tag "true"));
+      assert (c2.value_desc = Cst (Const_tag "false"));*)
     let ctx =
       ctl
         (MStep ([ var_x ], inst, [ c1; c2 ]))

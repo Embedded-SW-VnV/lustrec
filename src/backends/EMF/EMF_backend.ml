@@ -115,24 +115,14 @@ module ISet = Utils.ISet
 (*   Utility functions: arrow and lustre expr *)
 (**********************************************)
 
-(* detect whether the instruction i represents an ARROW, ie an arrow with true
-   -> false *)
+(* detect whether the instruction i represents an ARROW, it should have been normalized *)
 let is_arrow_fun m i =
   match Corelang.get_instr_desc i with
   | MStep ([ _ ], i, vl) -> (
       try
         let name = (get_node_def i m).node_id in
         match name, vl with
-        | "_arrow", [ v1; v2 ] -> (
-            match v1.value_desc, v2.value_desc with
-            | Cst c1, Cst c2 ->
-                if
-                  c1 = Corelang.const_of_bool true
-                  && c2 = Corelang.const_of_bool false
-                then true
-                else assert false
-            (* only handle true -> false *)
-            | _ -> assert false)
+        | "_arrow", [ v1; v2 ] -> true
         | _ -> false
       with Not_found ->
         false

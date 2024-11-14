@@ -261,9 +261,8 @@ let rec normalize_expr ?(alias = true) ?(alias_basic = false) norm_ctx offsets
     defvars expr =
   (* Format.eprintf "normalize %B %a:%a [%a]@." alias Printers.pp_expr expr Types.pp expr.expr_type (Utils.fprintf_list ~sep:"," Dimension.pp_dimension) offsets; *)
   match expr.expr_desc with
-  (* | Expr_const _ when !params.force_alias_cst -> *)
-  (*   let nexpr = xxx in *)
-  (*   TODO: voir comment declarer x = cst et l'ajouter via mk_alias *)
+  | Expr_const _ when !params.force_alias_cst ->
+    mk_expr_alias_opt alias norm_ctx defvars expr
   | Expr_const _
   | Expr_ident _ -> unfold_offsets norm_ctx defvars expr offsets
   | Expr_array elist ->
