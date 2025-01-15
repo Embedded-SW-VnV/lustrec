@@ -3,7 +3,7 @@
 (library
  (name seal_verifier)
  (public_name lustrec.seal_verifier)
- (libraries verifier_register lustrec_lib zustre_verifier)
+ (libraries verifier_register lustrec_lib zustre_verifier seal)
  (optional))
 
 (plugin
