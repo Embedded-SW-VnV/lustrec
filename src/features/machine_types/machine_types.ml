@@ -32,7 +32,7 @@
    creees par la normalisation *)
 open Lustre_types
 
-let is_active = false
+let is_active = true
 
 let keywords = [ "machine_types" ]
 
