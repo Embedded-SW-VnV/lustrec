@@ -119,20 +119,16 @@ let newline token lexbuf =
   token lexbuf
 
 let make_annot token orig_lexbuf orig_loc s =
-  if !Options.compile_contracts then
     let lexbuf = Lexing.from_string s in
     let f = Location.filename_of orig_loc in
     ANNOT (Parse.parse (module LexerLustreSpec) ~orig_loc f s lexbuf
           Parser_lustre.lustre_annot Parse.Inc.lustre_annot)
-  else token orig_lexbuf
-
+  
 let make_spec token orig_lexbuf orig_loc s =
-  if !Options.compile_contracts then
     let lexbuf = Lexing.from_string s in
     let f = Location.filename_of orig_loc in
     NODESPEC (Parse.parse (module LexerLustreSpec) ~orig_loc f s lexbuf
           Parser_lustre.lustre_spec Parse.Inc.lustre_spec)
-  else token orig_lexbuf
 }
 
 let newline = ('\010' | '\013' | "\013\010")
