@@ -136,6 +136,15 @@ let stage1 params prog dirname basename extension =
        exported as a lusi *)
     raise (StopPhase1 prog);
 
+  (* Subtitute uminus for some backends *)
+  let prog =
+    if !Options.no_uminus then (
+      Log.report ~level:1 (fun fmt ->
+          fprintf fmt ".. replacing uminus by 0 - x@,");
+      Optimize_prog.prog_remove_uminus prog)
+    else prog
+  in
+  
   (* Optimization of prog: - Unfold consts - eliminate trivial expressions *)
   let prog =
     if !Options.const_unfold || !Options.optimization >= 5 then (
