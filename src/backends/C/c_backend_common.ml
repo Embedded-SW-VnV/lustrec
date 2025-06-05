@@ -1047,8 +1047,12 @@ let pp_put_var fmt file_suffix name var_type var_id =
     fmt
     "@[<v>%a@]"
     (fun fmt () ->
-      if Types.is_int_type unclocked_t then
-        fprintf fmt "_put_int(\"%s\", %s);%a" name var_id pp_file ("d", var_id)
+       if Types.is_int_type unclocked_t then
+         (* if xxxx is fixed_type then *)
+         (*   let prec = xxx in *)
+         (*   fprintf fmt "_put_bool(\"%s\", ((double)%s) / (1<<%i));%a" name var_id prec pp_file ("i", var_id) *)
+         (* else *) (* regular int *)
+           fprintf fmt "_put_int(\"%s\", %s);%a" name var_id pp_file ("d", var_id)
       else if Types.is_bool_type unclocked_t then
         fprintf fmt "_put_bool(\"%s\", %s);%a" name var_id pp_file ("i", var_id)
       else if Types.is_real_type unclocked_t then
