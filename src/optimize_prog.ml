@@ -79,6 +79,75 @@ let prog_unfold_consts prog =
         decl)
     prog
 
+
+let rec expr_remove_uminus e =
+  { e with expr_desc = expr_desc_remove_uminus e.expr_desc e.expr_type }
+and expr_desc_remove_uminus  e e_type =
+  let aux = expr_remove_uminus in
+  match e with
+  | Expr_const _ -> e
+  | Expr_ident _ -> e 
+  | Expr_array el ->
+    Expr_array (List.map aux el)
+  | Expr_access (e1, d) ->
+    Expr_access (aux e1, d)
+  | Expr_power (e1, d) ->
+    Expr_power (aux e1, d)
+  | Expr_tuple el ->
+    Expr_tuple (List.map aux el)
+  | Expr_ite (c, t, e) ->
+    Expr_ite (aux c, aux t, aux e)
+  | Expr_arrow (e1, e2) ->
+    Expr_arrow (aux e1, aux e2)
+  | Expr_fby (e1, e2) ->
+    Expr_fby (aux e1, aux e2)
+  | Expr_pre e' ->
+    Expr_pre (aux e')
+  | Expr_when (e', i, l) ->
+    Expr_when (aux e', i, l)
+  | Expr_merge (i, hl) ->
+    Expr_merge (i, List.map (fun (t, h) -> t, aux h) hl)
+  | Expr_appl (i, e', i') ->
+    let e' = aux e' in
+    match i, e'.expr_desc with
+    | "uminus", Expr_tuple args ->
+      let cst0 = mkexpr
+          e'.expr_loc
+          (Expr_const
+             (if Types.is_int_type e_type then
+                Const_int 0
+              else if Types.is_real_type e_type then
+                Const_real Real.zero
+              else assert false
+             ))
+      in
+      let e' = { e' with expr_desc = Expr_tuple (cst0::args) } in
+      Expr_appl ("-", e', i')
+    |  _ -> Expr_appl (i, aux e', i')
+
+let eq_remove_uminus eq =
+  { eq with eq_rhs = expr_remove_uminus eq.eq_rhs }
+
+let node_remove_uminus consts node =
+  let eqs, automata = get_node_eqs node in
+  assert (automata = []);
+  {
+    node with
+    node_stmts = List.map (fun eq -> Eq (eq_remove_uminus eq)) eqs;
+  }
+
+
+let prog_remove_uminus prog =
+  List.map
+    (fun decl ->
+      match decl.top_decl_desc with
+      | Node nd ->
+        { decl with top_decl_desc = Node (node_remove_uminus nd) }
+      | _ ->
+        decl)
+    prog
+
+
 (* XXX: UNUSED *)
 (* Distribution of when inside sub-expressions, i.e. (a+b) when c --> a when c +
    b when c May increase clock disjointness of variables, which is useful for

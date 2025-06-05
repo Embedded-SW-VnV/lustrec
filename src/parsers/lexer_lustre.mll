@@ -153,11 +153,11 @@ rule token = parse
     { newline token lexbuf }
 | newline { newline token lexbuf }
 | blank + { token lexbuf }
-| ((['0'-'9']+ as l)  '.' (['0'-'9']* as r) ('E'|'e') (('+'|'-')? ['0'-'9']+ as exp)) as s
-    {REAL (Real.create (l^r) (String.length r + -1 * int_of_string exp) s)}
-| ((['0'-'9']+ as l) '.' (['0'-'9']* as r)) as s
-    {REAL (Real.create (l^r) (String.length r) s)}
-| ['0'-'9']+ 
+| ((('-')? as neg) (['0'-'9']+ as l)  '.' (['0'-'9']* as r) ('E'|'e') (('+'|'-')? ['0'-'9']+ as exp)) as s
+    {REAL (Real.create (neg^l^r) (String.length r + -1 * int_of_string exp) s)}
+| ((('-')? as neg) (['0'-'9']+ as l) '.' (['0'-'9']* as r)) as s
+    {REAL (Real.create (neg^l^r) (String.length r) s)}
+| ('-')? ['0'-'9']+ 
     {INT (int_of_string (Lexing.lexeme lexbuf)) }
 | "tel." {TEL}
 | "tel;" {TEL}

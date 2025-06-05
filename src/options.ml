@@ -123,6 +123,8 @@ let c_main_options = ref false
 (* compile contracts into acsl *)
 let compile_contracts = ref false
 
+(* option to replace expressions in -x by 0 - x. Used by Reticle. *)
+let no_uminus = ref false
 (* Local Variables: *)
 (* compile-command:"make -C .." *)
 (* End: *)
