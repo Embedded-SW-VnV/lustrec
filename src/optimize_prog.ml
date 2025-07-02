@@ -128,7 +128,7 @@ and expr_desc_remove_uminus  e e_type =
 let eq_remove_uminus eq =
   { eq with eq_rhs = expr_remove_uminus eq.eq_rhs }
 
-let node_remove_uminus consts node =
+let node_remove_uminus node =
   let eqs, automata = get_node_eqs node in
   assert (automata = []);
   {
