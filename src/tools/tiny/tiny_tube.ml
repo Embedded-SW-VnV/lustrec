@@ -32,14 +32,14 @@ let pp_var fmt ((n,t),ctx) =
 module type S =
   sig
     module Results: Tiny.Analyze.Results
-    val list: (int * Results.Dom.t) list
+    val list: (int * Results.Res.Dom.t) list
     val bounds:  ((Tiny.Ast.Var.t * (Tiny.Ast.Var.t * bool) option) * (Tiny.Bounds.t)) list
   end
   
 let process env ast results =
   let module Results = (val results: Tiny.Analyze.Results) in
-  let module Dom = Results.Dom in
-  let module PrintResults = Tiny.PrintResults.Make (Dom) in
+  let module Dom  = Results.Res.Dom in
+  let module PrintResults = Tiny.PrintResults.Make (Results.Res) in
   let m = Results.results in
   
   let while_loc = Tiny.Ast.get_main_while_loc ast in
@@ -88,7 +88,7 @@ let pp_bounds fmt bounds =
   
 let pp env ast results fmt =
   let m = process env ast results in
-  let module M = (val m: S) in
+  let module M : S = (val m: S) in
   pp_bounds fmt  M.bounds;
   Format.fprintf fmt "Tube: %i@." (List.length M.list);
   List.iter (fun (idx, elem) ->

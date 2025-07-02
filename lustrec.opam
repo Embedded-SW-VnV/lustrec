@@ -20,6 +20,8 @@ depends: [
   "zarith"
   "yojson"
   "ppx_deriving_yojson"
+  "seal"
+  "tiny"
   "dune-site"
   "odoc" {with-doc}
 ]

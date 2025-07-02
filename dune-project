@@ -38,6 +38,8 @@
     zarith
     yojson
     ppx_deriving_yojson
+    seal
+    tiny
     ; cmdliner
     dune-site)
  (depopts z3))
