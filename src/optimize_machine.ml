@@ -1267,7 +1267,8 @@ let optimize params prog node_schs machine_code =
     if
       !Options.optimization >= 2 &&
       !Options.output <> Options.OutEMF &&
-      !Options.output <> Options.OutReticle      
+      !Options.output <> Options.OutReticle &&
+      (!Options.output = Options.OutC && not !Options.ap_fixed)
       (*&& !Options.output <> "horn"*)
     then (
       Log.report ~level:1 (fun fmt ->

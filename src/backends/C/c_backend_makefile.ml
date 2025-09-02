@@ -21,6 +21,9 @@ open Lustre_types
  * let pp_deps fmt deps =
  *   fprintf fmt "@[<v 0>%a@ @]" (pp_comma_list pp_dep) deps *)
 
+let pp_cpp_ext fmt =
+  if !Options.cpp then fprintf fmt "pp"
+      
 let header_has_code header =
   List.exists
     (fun top ->
@@ -60,8 +63,8 @@ let fprintf_dependencies arrow_suffix fmt deps =
   (* eprintf "Compiled Deps: %a@." pp_deps compiled_dep; *)
   List.iter
     (fun s ->
-      Log.report ~level:1 (fun fmt -> fprintf fmt "Adding dependency: %s@." s);
-      fprintf fmt "\t${GCC} -I${INC} -c %s@." s)
+      Log.report ~level:1 (fun fmt -> fprintf fmt "Adding dependency: %s%t@." s pp_cpp_ext);
+      fprintf fmt "\t${GCC} -I${INC} -c %s%t@." s pp_cpp_ext)
     ("${INC}/io_frontend.c"
     :: sprintf "${INC}/arrow%s.c" arrow_suffix
     :: (* IO functions when a main function is computed *)
@@ -72,6 +75,13 @@ let fprintf_dependencies arrow_suffix fmt deps =
            ^ ".c")
          compiled_deps)
 
+let fprintf_other_targets fmt _ (* basename *) _ (* nodename *) _ (* dependencies *) =
+  if !Options.ap_fixed then (
+    fprintf fmt "${INC_APFIXED}/ap_fixed.h:@.";
+    fprintf fmt "\tgit clone https://github.com/Xilinx/HLS_arbitrary_Precision_Types@."
+  )
+      
+                    
 module type MODIFIERS_MKF = sig
   (* dep was (bool * ident * top_decl list) *)
   val other_targets : formatter -> string -> string -> dep_t list -> unit
@@ -82,7 +92,7 @@ module type MODIFIERS_MKF = sig
 end
 
 module EmptyMod : MODIFIERS_MKF = struct
-  let other_targets _ _ _ _ = ()
+  let other_targets = fprintf_other_targets
 
   let pp_print_dependencies = fprintf_dependencies ""
 
@@ -116,7 +126,7 @@ functor
         else s
       in
       fprintf fmt "BINNAME?=%s@." binname;
-      fprintf fmt "GCC=gcc -O0@.";
+      fprintf fmt "GCC=%s -O0@." (if !Options.ap_fixed then "g++" else "gcc");
       fprintf fmt "LUSTREC=%s@." Sys.executable_name;
       fprintf
         fmt
@@ -124,18 +134,27 @@ functor
         (Filename.dirname (Filename.dirname Sys.executable_name));
       fprintf fmt "INC=%s@." Version.include_path
       (*"${LUSTREC_BASE}/include/lustrec"*);
+      if !Options.ap_fixed then
+        fprintf fmt "INC_APFIXED=HLS_arbitrary_Precision_Types/include@.";
       fprintf fmt "@.";
 
+      let incopt = "-I${INC} -I. " in
+      let incopt =
+        if !Options.ap_fixed then
+          incopt ^ "-I${INC_APFIXED} "
+        else
+          incopt
+      in
       (* Main binary *)
       fprintf
         fmt
-        "%s_%s: %s.c %s_main.c@."
+        "%s_%s: ${INC_APFIXED}/ap_fixed.h %s.c%t %s_main.c%t@."
         basename
         "run"
-        (*nodename*) basename
-        basename;
-      fprintf fmt "\t${GCC} -I${INC} -I. -c %s.c@." basename;
-      fprintf fmt "\t${GCC} -I${INC} -I. -c %s_main.c@." basename;
+        (*nodename*) basename pp_cpp_ext
+        basename pp_cpp_ext;
+      fprintf fmt "\t${GCC} %s -c %s.c%t@." incopt basename pp_cpp_ext;
+      fprintf fmt "\t${GCC} %s -c %s_main.c%t@." incopt basename pp_cpp_ext;
       Mod.pp_print_dependencies fmt dependencies;
       fprintf
         fmt

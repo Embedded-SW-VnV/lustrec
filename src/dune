@@ -46,6 +46,7 @@
   ocaml_utils
   backends
   lustrec_mpfr
+  fixed_math
   normalization
   arrow_taint
   machine_types

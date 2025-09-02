@@ -29,7 +29,8 @@ let pp_print_version fmt () =
     Version.number
     (if !Options.ansi then "ANSI C90" else "C99")
     (if !Options.mpfr then "MPFR multi-precision"
-    else "(double) floating-point")
+     else if !Options.ap_fixed then "AP_FIXED" else
+       "(" ^ !Options.real_type ^ ") floating-point")
 
 let protect_filename s = Str.global_replace (Str.regexp "\\.\\|\\ ") "_" s
 
@@ -260,7 +261,9 @@ let pp_c_basic_type_desc t_desc =
   if Types.is_bool_type t_desc then if !Options.cpp then "bool" else "_Bool"
   else if Types.is_int_type t_desc then !Options.int_type
   else if Types.is_real_type t_desc then
-    if !Options.mpfr then Mpfr.mpfr_t else !Options.real_type
+    if !Options.mpfr then Mpfr.mpfr_t else
+    if !Options.ap_fixed then Fixed_math.get_type () else
+      !Options.real_type
   else assert false
 (* Not a basic C type. Do not handle arrays or pointers *)
 
@@ -783,9 +786,10 @@ let pp_machine_struct ?(ghost = false) fmt m =
     (* Define struct *)
     fprintf
       fmt
-      "@[<v 2>%a {@,_Bool _reset;%a%a@]@,};"
+      "@[<v 2>%a {@,%s _reset;%a%a@]@,};"
       (pp_machine_memtype_name ~ghost)
       m.mname.node_id
+      (if !Options.cpp then "bool" else "_Bool")
       (if ghost && not m.mis_contract then
        fun fmt -> function
          | [] ->

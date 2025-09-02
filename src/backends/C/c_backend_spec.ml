@@ -91,7 +91,8 @@ let pp_true fmt () = pp_print_string fmt "\\true"
 
 let pp_cast pp_ty pp fmt (ty, x) = fprintf fmt "(%a) %a" pp_ty ty pp x
 
-let pp_bool_cast pp fmt x = pp_cast pp_print_string pp fmt ("_Bool", x)
+let pp_bool_cast pp fmt x = pp_cast pp_print_string pp fmt
+    ((if !Options.cpp then "bool" else "_Bool"), x)
 
 let pp_double_cast pp fmt x = pp_cast pp_print_string pp fmt ("double", x)
 

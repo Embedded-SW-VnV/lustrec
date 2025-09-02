@@ -52,6 +52,7 @@ let alias_internal_fun () =
   | Options.OutEMF
   | Options.OutReticle
     -> true
+  | _ when !Options.ap_fixed -> true 
   | _ -> false
 
 let get_normalization_params () =

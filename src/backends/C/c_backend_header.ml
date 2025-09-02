@@ -43,8 +43,8 @@ module EmptyMod = struct
   let pp_import_arrow fmt () =
     fprintf
       fmt
-      "#include \"%s/arrow.h%s\""
-      (Arrow.arrow_top_decl ()).top_decl_owner
+      "#include <arrow.h%s>"
+      (* (Arrow.arrow_top_decl ()).top_decl_owner *)
       (if !Options.cpp then "pp" else "")
 
   let pp_machine_alloc_decl _ _ = ()
@@ -61,8 +61,11 @@ functor
       (* if Machine_types.has_machine_type () then *)
       fprintf
         fmt
-        "#include <stdint.h>@,%a%a"
+        "#include <stdint.h>@,%a%a%a"
         (if !Options.mpfr then pp_print_endcut "#include <mpfr.h>"
+        else pp_print_nothing)
+        ()
+        (if !Options.ap_fixed then pp_print_endcut "#include <ap_fixed.h>"
         else pp_print_nothing)
         ()
         Mod.pp_import_arrow
@@ -181,7 +184,10 @@ functor
         fprintf fmt "double %s" var
       (* | Tydec_float -> fprintf fmt "float %s" var *)
       | Tydec_bool ->
-        fprintf fmt "_Bool %s" var
+        if !Options.cpp then
+          fprintf fmt "bool %s" var
+        else
+          fprintf fmt "_Bool %s" var
       | Tydec_clock ty ->
         pp_c_type_decl filename cpt var fmt ty
       | Tydec_const c ->

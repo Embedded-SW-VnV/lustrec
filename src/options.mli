@@ -2,6 +2,8 @@ val kind2_print : bool ref
 
 val mpfr : bool ref
 
+val ap_fixed : bool ref
+                                     
 val print_dec_types : bool ref
 
 val verbose_level : int ref
@@ -11,6 +13,8 @@ val main_node : string ref
 val global_inline : bool ref
 
 val mpfr_prec : int ref
+
+val ap_fixed_format : (int * int) ref
 
 type option_spec = SpecNo | SpecACSL | SpecC
 

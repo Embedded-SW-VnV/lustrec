@@ -478,9 +478,10 @@ module Main (Mod : MODIFIERS_MAINSRC) = struct
       (fun fmt () ->
         fprintf
           fmt
-          (if !Options.cpp then "#include \"%s/io_frontend.hpp\""
-          else "#include <string.h>@,#include \"%s/io_frontend.h\"")
-          (Options_management.core_dependency "io_frontend"))
+          (if !Options.cpp then "#include <io_frontend.hpp>"
+          else "#include <string.h>@,#include <io_frontend.h>")
+          (* (Options_management.core_dependency "io_frontend")) *)
+      )
       ()
 
   let pp_main_c main_fmt main_machine basename _prog machines _dependencies =

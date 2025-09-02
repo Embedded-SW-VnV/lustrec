@@ -72,9 +72,14 @@ let print_reuse = ref false
 
 let const_unfold = ref false
 
+(* Machine Datatype options *)
 let mpfr = ref false
 
 let mpfr_prec = ref 100
+
+let ap_fixed = ref false
+    
+let ap_fixed_format = ref (32, 6)
 
 let print_dec_types = ref false
 

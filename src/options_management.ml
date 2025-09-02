@@ -73,17 +73,33 @@ let name_dependency (_, dep) ext =
 let set_mpfr prec =
   if prec > 0 then (
     mpfr := true;
-    mpfr_prec := prec;
-    real_type := "mpfr"
+    mpfr_prec := prec
     (* salsa_enabled := false; (* We deactivate salsa *) TODO *))
   else failwith "mpfr requires a positive integer"
 
+let set_apfixed format =
+  let reg = Str.regexp {|\([0-9]+\),\([0-9]+\)|} in
+  if Str.string_match reg format 0 then   
+    let int_,frac_ =
+      int_of_string (Str.matched_group 1 format),
+      int_of_string (Str.matched_group 2 format)
+    in
+    ap_fixed_format := int_, frac_
+  else
+    failwith "ap_fixed requires a proper format"
+
+    
+    
+  
 let set_real_type s =
   match s with
-  | "mpfr" ->
-    mpfr := true;
-    real_type := "mpfr"
-  | _ ->
+  | "mpfr" -> 
+    mpfr := true (* default precision, eg. 100 *)
+  | "ap_fixed" -> (
+      ap_fixed := true; (* default precision, eg. (32,6) *)
+    cpp := true (* needed for ap_fixed library *)
+  )
+  | _ -> (* for classical types such as double/float *)
     real_type := s
 
 let setup () = Backends.setup ()
@@ -132,6 +148,11 @@ let lustrec_options =
         "replaces FP numbers by the MPFR library multiple precision numbers \
          with a precision of \x1b[4mprec\x1b[0m bits <default: keep FP \
          numbers>" );
+      ( "-ap_fixed",
+        Arg.String set_apfixed,
+        "replaces real numbers by the ap_fixed library with the provided \
+         format of \x1b[4mint,frac\x1b[0m of int integer bits and frac \
+         fractional ones <default: keep FP numbers>" );
       ( "-lusi",
         Arg.Set lusi,
         "only generates a .lusi interface source file from a Lustre source \

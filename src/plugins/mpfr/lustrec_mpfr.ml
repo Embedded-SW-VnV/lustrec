@@ -395,6 +395,7 @@ let inject_decl decl =
   | Include _ | Open _ | ImportedNode _ | Const _ | TypeDef _ ->
     decl
 
+(* Every call to basic arith function is translate to MPFR libary functions *)
 let inject_prog decls = List.map inject_decl decls
 
 (* Local Variables: *)
