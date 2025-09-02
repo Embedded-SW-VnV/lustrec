@@ -28,7 +28,7 @@ extern struct _arrow_mem *_arrow_alloc ();
 
 #define _arrow_clear(self) {}
 
-#define _arrow_step(x,y,output,self) ((self)->_reg._first?((self)->_reg._first=0,(*output = x)):(*output = y))
+bool _arrow_step(struct _arrow_mem *self);
 
 #define _arrow_reset(self) {(self)->_reg._first = 1;}
 
