@@ -6,7 +6,7 @@
 int ISATTY;
 
 /* Standard Input procedures **************/
-_Bool _get_bool(char* n){
+_Bool _get_bool(const char* n){
    char b[512];
    int r = 0;
    int s = 1;
@@ -25,7 +25,7 @@ _Bool _get_bool(char* n){
    return (_Bool)r;
 }
 
-int _get_int(char* n){
+int _get_int(const char* n){
    char b[512];
    int r;
    int s = 1;
@@ -40,7 +40,7 @@ int _get_int(char* n){
    return r;
 }
 
-double _get_double(char* n){
+double _get_double(const char* n){
    char b[512];
    double r;
    int s = 1;
@@ -55,7 +55,7 @@ double _get_double(char* n){
    return r;
 }
 /* Standard Output procedures **************/
-void _put_bool(char* n, _Bool _V){
+void _put_bool(const char* n, _Bool _V){
   if(ISATTY) {
     printf("%s = ", n);
   } else {
@@ -64,7 +64,7 @@ void _put_bool(char* n, _Bool _V){
   printf("'%i' ", (_V)? 1 : 0);
   printf("\n");
 }
-void _put_int(char* n, int _V){
+void _put_int(const char* n, int _V){
   if(ISATTY) {
     printf("%s = ", n);
   } else {
@@ -74,7 +74,7 @@ void _put_int(char* n, int _V){
   printf("\n");
 }
 
-void _put_float(char* n, float _V, int PREC){
+void _put_float(const char* n, float _V, int PREC){
   if(ISATTY) {
     printf("%s = ", n);
   } else {
@@ -84,7 +84,7 @@ void _put_float(char* n, float _V, int PREC){
   printf("\n");
 }
 
-void _put_double(char* n, double _V, int PREC){
+void _put_double(const char* n, double _V, int PREC){
   if(ISATTY) {
     printf("%s = ", n);
   } else {
